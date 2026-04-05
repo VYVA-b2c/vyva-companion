@@ -152,6 +152,10 @@
   animation: mic-listen 1.5s ease-out infinite;
 }
 
+.hero-purple {
+  background: #6B21A8;
+}
+
 .font-display {
   font-family: 'Lora', serif;
 }
