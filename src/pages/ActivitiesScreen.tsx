@@ -32,6 +32,7 @@ const ActivitiesScreen = () => {
         sourceText="VYVA is your brain coach"
         headline={<>Ready for brain{"\n"}training?</>}
         subtitle={`${margaret.streak}-day streak — keep it going!`}
+        contextHint="brain training"
       >
         {/* Start session button */}
         <button className="w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-3 min-h-[56px] bg-white">

@@ -17,6 +17,7 @@ const ConciergeScreen = () => {
         sourceText="VYVA handles it for you"
         headline="How can I help?"
         subtitle="Taxis, orders, appointments & more"
+        contextHint="book a taxi"
       />
 
       {/* Task tiles */}
