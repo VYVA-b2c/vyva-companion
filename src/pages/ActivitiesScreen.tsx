@@ -1,4 +1,5 @@
-import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind, Mic } from "lucide-react";
 import { margaret } from "@/data/mockData";
 
 const activityIcons: Record<string, any> = {
@@ -22,25 +23,53 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string }> = {
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 const ActivitiesScreen = () => {
+  const navigate = useNavigate();
   const todayIndex = new Date().getDay();
   const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
 
   return (
     <div className="px-[22px]">
-      {/* Hero */}
-      <div className="mt-[14px] rounded-[22px] p-5 flex items-center gap-[18px] relative overflow-hidden" style={{ background: "#6B21A8" }}>
+      {/* Voice-First Hero */}
+      <div className="mt-[14px] rounded-[24px] p-[24px_22px] relative overflow-hidden hero-purple">
         <div className="absolute -right-[30px] -top-[30px] w-[130px] h-[130px] rounded-full pointer-events-none" style={{ background: "rgba(255,255,255,0.05)" }} />
-        <div className="w-[64px] h-[64px] rounded-[18px] flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.14)" }}>
-          <BrainCircuit size={32} className="text-white" />
+
+        {/* Source row */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.18)" }}>
+              <Mic size={16} className="text-white" />
+            </div>
+            <span className="font-body text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>VYVA is your brain coach</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-[10px] py-[3px] rounded-full" style={{ background: "rgba(52,211,153,0.18)", border: "1px solid rgba(52,211,153,0.28)" }}>
+            <div className="w-[6px] h-[6px] rounded-full live-dot" style={{ background: "#34D399" }} />
+            <span className="text-[11px] font-body" style={{ color: "#34D399" }}>Live</span>
+          </div>
         </div>
-        <div className="flex-1">
-          <h1 className="font-display text-[22px] font-normal text-white">Brain coach</h1>
-          <p className="font-body text-[14px] mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>Keep your mind sharp daily</p>
-          <button className="inline-flex items-center gap-[8px] bg-white rounded-full py-[11px] px-[24px] mt-3 min-h-[44px]">
-            <Play size={14} style={{ color: "#6B21A8" }} />
-            <span className="font-body text-[15px] font-medium" style={{ color: "#6B21A8" }}>Start a session</span>
-          </button>
-        </div>
+
+        {/* Headline */}
+        <h1 className="font-display italic font-normal text-[26px] text-white leading-[1.3]">
+          Ready for brain{"\n"}training?
+        </h1>
+        <p className="font-body text-[14px] mt-2" style={{ color: "rgba(255,255,255,0.7)" }}>
+          {margaret.streak}-day streak — keep it going!
+        </p>
+
+        {/* Talk button */}
+        <button
+          onClick={() => navigate("/chat")}
+          className="w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-4 min-h-[56px] mic-listening"
+          style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.18)" }}
+        >
+          <Mic size={18} style={{ color: "rgba(255,255,255,0.7)" }} />
+          <span className="font-body text-[16px] font-medium text-white">Talk to VYVA</span>
+        </button>
+
+        {/* Start session button */}
+        <button className="w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-3 min-h-[56px] bg-white">
+          <Play size={16} style={{ color: "#6B21A8" }} />
+          <span className="font-body text-[16px] font-medium" style={{ color: "#6B21A8" }}>Start a session</span>
+        </button>
       </div>
 
       {/* Section header */}
