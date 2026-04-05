@@ -82,10 +82,10 @@ const HomeScreen = () => {
       {/* 2×2 Action Grid */}
       <div className="mt-[14px] grid grid-cols-2 gap-3">
         {[
-          { icon: Pill, iconColor: "#C9890A", iconBg: "#FEF3C7", title: "Medications", sub: "Morning taken · Evening due at 19:00", badge: "2 of 3 taken", badgeColor: "bg-vyva-green-light text-vyva-green-dark" },
-          { icon: Brain, iconColor: "#6B21A8", iconBg: "#EDE9FE", title: "Brain Coach", sub: "Memory game ready · 7-day streak", badge: "New today", badgeColor: "bg-vyva-purple-light text-vyva-purple" },
-          { icon: HeartPulse, iconColor: "#0A7C4E", iconBg: "#ECFDF5", title: "How I feel", sub: "Tell VYVA about symptoms", badge: null, badgeColor: "" },
-          { icon: HelpCircle, iconColor: "#0F766E", iconBg: "#F0FDFA", title: "Help me with...", sub: "Orders, appointments, services", badge: null, badgeColor: "" },
+          { icon: Pill, iconColor: "#C9890A", iconBg: "#FEF3C7", title: "Medications", badge: "2 of 3 taken", badgeColor: "bg-vyva-green-light text-vyva-green-dark" },
+          { icon: Brain, iconColor: "#6B21A8", iconBg: "#EDE9FE", title: "Brain Coach", badge: "New today", badgeColor: "bg-vyva-purple-light text-vyva-purple" },
+          { icon: HeartPulse, iconColor: "#0A7C4E", iconBg: "#ECFDF5", title: "How I feel", badge: null, badgeColor: "" },
+          { icon: HelpCircle, iconColor: "#0F766E", iconBg: "#F0FDFA", title: "Help me with...", badge: null, badgeColor: "" },
         ].map((tile) => (
           <button
             key={tile.title}
