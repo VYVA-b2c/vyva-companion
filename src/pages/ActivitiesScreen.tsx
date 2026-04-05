@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
-import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind, Mic } from "lucide-react";
+import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind } from "lucide-react";
 import { margaret } from "@/data/mockData";
+import VoiceHero from "@/components/VoiceHero";
 
 const activityIcons: Record<string, any> = {
   "Trivia quiz": HelpCircle,
