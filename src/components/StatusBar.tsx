@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {
+  const navigate = useNavigate();
   const now = new Date();
   const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
