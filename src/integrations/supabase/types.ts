@@ -14,7 +14,312 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_difficulty: {
+        Row: {
+          agent_name: string
+          difficulty_level: number
+          id: string
+          last_score: number | null
+          sessions_at_level: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_name: string
+          difficulty_level?: number
+          id?: string
+          last_score?: number | null
+          sessions_at_level?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_name?: string
+          difficulty_level?: number
+          id?: string
+          last_score?: number | null
+          sessions_at_level?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_difficulty_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caregiver_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          sent_to: string[] | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sent_to?: string[] | null
+          severity: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sent_to?: string[] | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caregiver_alerts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medication_adherence: {
+        Row: {
+          confirmed_by: string
+          confirmed_taken_at: string | null
+          created_at: string
+          id: string
+          medication_name: string
+          scheduled_time: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_by?: string
+          confirmed_taken_at?: string | null
+          created_at?: string
+          id?: string
+          medication_name: string
+          scheduled_time: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          confirmed_by?: string
+          confirmed_taken_at?: string | null
+          created_at?: string
+          id?: string
+          medication_name?: string
+          scheduled_time?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_adherence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          deployment: string
+          full_name: string | null
+          id: string
+          language: string
+          mem0_user_id: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string
+          subscription_tier: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          deployment?: string
+          full_name?: string | null
+          id: string
+          language?: string
+          mem0_user_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          deployment?: string
+          full_name?: string | null
+          id?: string
+          language?: string
+          mem0_user_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      session_exchanges: {
+        Row: {
+          agent_used: string | null
+          created_at: string
+          id: string
+          intent_classified: string | null
+          intent_confidence: number | null
+          message: string
+          session_id: string
+          speaker: string
+          user_id: string
+        }
+        Insert: {
+          agent_used?: string | null
+          created_at?: string
+          id?: string
+          intent_classified?: string | null
+          intent_confidence?: number | null
+          message: string
+          session_id: string
+          speaker: string
+          user_id: string
+        }
+        Update: {
+          agent_used?: string | null
+          created_at?: string
+          id?: string
+          intent_classified?: string | null
+          intent_confidence?: number | null
+          message?: string
+          session_id?: string
+          speaker?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_exchanges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_state: {
+        Row: {
+          created_at: string
+          current_agent: string
+          id: string
+          last_activity_at: string | null
+          last_agent: string | null
+          last_intent: string | null
+          session_id: string
+          turn_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_agent?: string
+          id?: string
+          last_activity_at?: string | null
+          last_agent?: string | null
+          last_intent?: string | null
+          session_id: string
+          turn_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_agent?: string
+          id?: string
+          last_activity_at?: string | null
+          last_agent?: string | null
+          last_intent?: string | null
+          session_id?: string
+          turn_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_medications: {
+        Row: {
+          active: boolean
+          added_by: string
+          created_at: string
+          dosage: string | null
+          frequency: string | null
+          id: string
+          medication_name: string
+          scheduled_times: string[] | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          added_by?: string
+          created_at?: string
+          dosage?: string | null
+          frequency?: string | null
+          id?: string
+          medication_name: string
+          scheduled_times?: string[] | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          added_by?: string
+          created_at?: string
+          dosage?: string | null
+          frequency?: string | null
+          id?: string
+          medication_name?: string
+          scheduled_times?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_medications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
