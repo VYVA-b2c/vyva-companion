@@ -32,7 +32,10 @@ export function useVyvaVoice() {
         if (corrected) {
           setTranscript((prev) => {
             const updated = [...prev];
-            const lastVyva = updated.findLastIndex((e) => e.from === "vyva");
+            let lastVyva = -1;
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].from === "vyva") { lastVyva = i; break; }
+            }
             if (lastVyva >= 0) updated[lastVyva] = { ...updated[lastVyva], text: corrected };
             return updated;
           });
