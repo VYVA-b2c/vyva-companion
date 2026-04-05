@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
-import { Check, Clock, Pill, AlertCircle, Calendar, Link as LinkIcon, Mic } from "lucide-react";
+import { Check, Clock, Pill, AlertCircle, Calendar, Link as LinkIcon } from "lucide-react";
 import { margaret } from "@/data/mockData";
+import VoiceHero from "@/components/VoiceHero";
 
 const MedsScreen = () => {
   const navigate = useNavigate();
