@@ -38,11 +38,13 @@ const HomeScreen = () => {
         {/* CTA */}
         <button
           onClick={() => navigate("/chat")}
-          className="w-full flex items-center justify-center gap-2 rounded-[28px] py-[11px] px-[18px] min-h-[52px]"
-          style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}
+          className="w-full flex items-center justify-center gap-3 rounded-[28px] py-[13px] px-[18px] min-h-[56px]"
+          style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.22)" }}
         >
-          <Mic size={16} className="text-white" style={{ opacity: 0.7 }} />
-          <span className="font-body text-[14px] text-white">Tap to talk to VYVA</span>
+          <div className="animate-pulse-dot">
+            <Mic size={20} className="text-white" />
+          </div>
+          <span className="font-body text-[16px] font-medium text-white">Talk to VYVA</span>
         </button>
       </div>
 
