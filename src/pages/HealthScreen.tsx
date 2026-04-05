@@ -15,6 +15,7 @@ const HealthScreen = () => {
         sourceText="VYVA monitors your health"
         headline={<>How are you feeling,{"\n"}Margaret?</>}
         subtitle="Tell me about your symptoms"
+        contextHint="health symptoms"
       >
         {/* Stats row */}
         <div className="mt-[14px] pt-[14px] flex justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}>

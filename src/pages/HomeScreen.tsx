@@ -13,6 +13,7 @@ const HomeScreen = () => {
         sourceText="VYVA is here for you"
         headline={<>Good morning,{"\n"}Margaret!</>}
         subtitle="How are you feeling today?"
+        contextHint="companion"
       />
 
       {/* SOS Bar */}

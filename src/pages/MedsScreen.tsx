@@ -11,6 +11,7 @@ const MedsScreen = () => {
         sourceText="VYVA manages your meds"
         headline={<>Need help with{"\n"}medications?</>}
         subtitle={`${takenCount} of ${margaret.medications.length} taken today`}
+        contextHint="medication reminder"
       >
         {/* Progress bar */}
         <div className="w-full h-[6px] rounded-full mt-3" style={{ background: "rgba(255,255,255,0.15)" }}>
