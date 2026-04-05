@@ -23,7 +23,7 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string }> = {
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 const ActivitiesScreen = () => {
-  const navigate = useNavigate();
+  const todayIndex = new Date().getDay();
   const todayIndex = new Date().getDay();
   const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
 
