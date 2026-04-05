@@ -7,6 +7,7 @@ import AppShell from "./components/AppShell";
 import HomeScreen from "./pages/HomeScreen";
 import ChatScreen from "./pages/ChatScreen";
 import HealthScreen from "./pages/HealthScreen";
+import MedsScreen from "./pages/MedsScreen";
 import ActivitiesScreen from "./pages/ActivitiesScreen";
 import ConciergeScreen from "./pages/ConciergeScreen";
 import SettingsScreen from "./pages/SettingsScreen";
@@ -25,7 +26,8 @@ const App = () => (
             <Route path="/" element={<HomeScreen />} />
             <Route path="/chat" element={<ChatScreen />} />
             <Route path="/health" element={<HealthScreen />} />
-            <Route path="/activities" element={<ActivitiesScreen />} />
+            <Route path="/meds" element={<MedsScreen />} />
+            <Route path="/brain-coach" element={<ActivitiesScreen />} />
             <Route path="/concierge" element={<ConciergeScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<NotFound />} />

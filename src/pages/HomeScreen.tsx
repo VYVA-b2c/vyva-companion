@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, AlertCircle, Pill, BrainCircuit, HeartPulse, Bell, MessageCircle, Video, Users, Settings, Link as LinkIcon } from "lucide-react";
-import { margaret } from "@/data/mockData";
+import { Mic, AlertCircle, MessageCircle, BookOpen, Users, Heart, Clock } from "lucide-react";
+import { margaret, vyvaMessages } from "@/data/mockData";
 
 const HomeScreen = () => {
   const navigate = useNavigate();
@@ -11,7 +11,6 @@ const HomeScreen = () => {
     <div className="px-[22px]">
       {/* VYVA Greeting Hero */}
       <div className="mt-[14px] rounded-[24px] p-[24px_22px] relative overflow-hidden hero-purple">
-        {/* Decorative circle via inline style since ::before needs CSS */}
         <div className="absolute -right-[30px] -top-[30px] w-[130px] h-[130px] rounded-full pointer-events-none" style={{ background: "rgba(255,255,255,0.05)" }} />
 
         {/* Source row */}
@@ -20,10 +19,7 @@ const HomeScreen = () => {
             <div className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.18)" }}>
               <Mic size={16} className="text-white" />
             </div>
-            <div>
-              <span className="font-body text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>VYVA is thinking of you</span>
-              <span className="font-body text-[11px] ml-2" style={{ color: "rgba(255,255,255,0.5)" }}>2m ago</span>
-            </div>
+            <span className="font-body text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>VYVA is here for you</span>
           </div>
           <div className="flex items-center gap-1.5 px-[10px] py-[3px] rounded-full" style={{ background: "rgba(52,211,153,0.18)", border: "1px solid rgba(52,211,153,0.28)" }}>
             <div className="w-[6px] h-[6px] rounded-full live-dot" style={{ background: "#34D399" }} />
@@ -33,13 +29,14 @@ const HomeScreen = () => {
 
         {/* Headline */}
         <h1 className="font-display italic font-normal text-[26px] text-white leading-[1.3]">
-          Good morning, Margaret!{"\n"}How did you sleep?
+          Good morning,{"\n"}Margaret!
         </h1>
+        <p className="font-body text-[14px] mt-2" style={{ color: "rgba(255,255,255,0.7)" }}>How are you feeling today?</p>
 
         {/* Talk button */}
         <button
           onClick={() => navigate("/chat")}
-          className="w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-4 min-h-[56px]"
+          className="w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-4 min-h-[56px] mic-listening"
           style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.18)" }}
         >
           <Mic size={18} style={{ color: "rgba(255,255,255,0.7)" }} />
@@ -58,7 +55,7 @@ const HomeScreen = () => {
         </button>
         <div>
           <p className="font-body text-[15px] font-medium" style={{ color: "#B91C1C" }}>Emergency — need help?</p>
-          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert Sarah, James and emergency services</p>
+          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert Sarah & emergency services</p>
         </div>
       </div>
 
@@ -78,52 +75,46 @@ const HomeScreen = () => {
         </div>
       )}
 
-      {/* 2×2 Action Grid */}
-      <div className="mt-[14px] grid grid-cols-2 gap-3">
-        {[
-          { icon: Pill, iconColor: "#C9890A", iconBg: "#FEF3C7", title: "Medications", sub: "Morning taken · Evening due at 19:00", badge: "2 of 3 taken", badgeBg: "#ECFDF5", badgeColor: "#065F46", path: "/health" },
-          { icon: BrainCircuit, iconColor: "#6B21A8", iconBg: "#EDE9FE", title: "Brain Coach", sub: "Memory game ready · 7-day streak", badge: "New today", badgeBg: "#EDE9FE", badgeColor: "#6B21A8", path: "/activities" },
-          { icon: HeartPulse, iconColor: "#0A7C4E", iconBg: "#ECFDF5", title: "How I feel", sub: "Tell VYVA how you're feeling", badge: null, badgeBg: "", badgeColor: "", path: "/health" },
-          { icon: Bell, iconColor: "#0F766E", iconBg: "#F0FDFA", title: "Help me with...", sub: "Orders, appointments, services", badge: null, badgeBg: "", badgeColor: "", path: "/concierge" },
-        ].map((tile) => (
-          <button
-            key={tile.title}
-            onClick={() => navigate(tile.path)}
-            className="bg-white rounded-[20px] p-[20px_18px] text-left flex flex-col gap-[10px] border border-vyva-border"
-            style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)", minHeight: 130 }}
-          >
-            <div className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center" style={{ background: tile.iconBg }}>
-              <tile.icon size={24} style={{ color: tile.iconColor }} />
-            </div>
-            <h3 className="font-display text-[19px] font-medium text-vyva-text-1 leading-[1.2]">{tile.title}</h3>
-            <p className="font-body text-[13px] text-vyva-text-2 leading-[1.4]" style={{ marginTop: -3 }}>{tile.sub}</p>
-            {tile.badge && (
-              <span className="font-body text-[12px] font-medium px-[11px] py-[3px] rounded-full self-start" style={{ background: tile.badgeBg, color: tile.badgeColor }}>
-                {tile.badge}
-              </span>
-            )}
+      {/* Recent conversation preview */}
+      <div className="mt-[14px] bg-white rounded-[20px] border border-vyva-border overflow-hidden" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
+        <div className="flex items-center justify-between px-[18px] py-[13px] border-b border-vyva-border" style={{ background: "#F5EFE4" }}>
+          <span className="font-body text-[14px] font-medium text-vyva-text-1">Recent chat</span>
+          <div className="flex items-center gap-1 text-vyva-text-2">
+            <Clock size={12} />
+            <span className="font-body text-[12px]">2m ago</span>
+          </div>
+        </div>
+        <div className="px-[18px] py-[14px]">
+          <p className="font-body text-[14px] text-vyva-text-2 leading-[1.5] line-clamp-2">
+            {vyvaMessages[vyvaMessages.length - 1]?.text}
+          </p>
+          <button onClick={() => navigate("/chat")} className="mt-3 font-body text-[14px] font-medium" style={{ color: "#6B21A8" }}>
+            Continue conversation →
           </button>
-        ))}
+        </div>
       </div>
 
-      {/* Mini Action Row */}
-      <div className="mt-3 grid grid-cols-4 gap-[10px] mb-[18px]">
+      {/* Quick actions */}
+      <div className="mt-3 grid grid-cols-2 gap-3 mb-[18px]">
         {[
-          { icon: MessageCircle, iconBg: "#F5F3FF", iconColor: "#6B21A8", label: "Chat with VYVA", path: "/chat" },
-          { icon: Video, iconBg: "#F0FDFA", iconColor: "#0F766E", label: "Call Sarah", path: null },
-          { icon: Users, iconBg: "#F0FDFA", iconColor: "#0F766E", label: "Call family", path: null },
-          { icon: Settings, iconBg: "#EDE5D8", iconColor: "#7C6F68", label: "Settings", path: "/settings" },
-        ].map((btn) => (
+          { icon: MessageCircle, iconBg: "#F5F3FF", iconColor: "#6B21A8", label: "Chat", sub: "Talk with VYVA", path: "/chat" },
+          { icon: BookOpen, iconBg: "#FEF3C7", iconColor: "#C9890A", label: "Stories", sub: "Listen to a story", path: null },
+          { icon: Users, iconBg: "#F0FDFA", iconColor: "#0F766E", label: "Family", sub: "Call Sarah or James", path: null },
+          { icon: Heart, iconBg: "#FDF2F8", iconColor: "#B0355A", label: "Check-in", sub: "How are you today?", path: "/health" },
+        ].map((tile) => (
           <button
-            key={btn.label}
-            onClick={() => btn.path && navigate(btn.path)}
-            className="bg-white rounded-[16px] py-[14px] px-[10px] flex flex-col items-center gap-2 border border-vyva-border"
-            style={{ minHeight: 80 }}
+            key={tile.label}
+            onClick={() => tile.path && navigate(tile.path)}
+            className="bg-white rounded-[18px] p-[18px_16px] text-left flex items-center gap-[14px] border border-vyva-border"
+            style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)", minHeight: 72 }}
           >
-            <div className="w-[38px] h-[38px] rounded-[12px] flex items-center justify-center" style={{ background: btn.iconBg }}>
-              <btn.icon size={18} style={{ color: btn.iconColor }} />
+            <div className="w-[44px] h-[44px] rounded-[13px] flex items-center justify-center flex-shrink-0" style={{ background: tile.iconBg }}>
+              <tile.icon size={20} style={{ color: tile.iconColor }} />
             </div>
-            <span className="font-body text-[12px] font-medium text-vyva-text-1 text-center leading-tight">{btn.label}</span>
+            <div>
+              <p className="font-body text-[15px] font-medium text-vyva-text-1">{tile.label}</p>
+              <p className="font-body text-[12px] text-vyva-text-2">{tile.sub}</p>
+            </div>
           </button>
         ))}
       </div>
