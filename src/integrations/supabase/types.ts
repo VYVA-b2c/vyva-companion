@@ -237,6 +237,7 @@ export type Database = {
           last_activity_at: string | null
           last_agent: string | null
           last_intent: string | null
+          next_agent_override: string | null
           session_id: string
           turn_count: number
           updated_at: string
@@ -249,6 +250,7 @@ export type Database = {
           last_activity_at?: string | null
           last_agent?: string | null
           last_intent?: string | null
+          next_agent_override?: string | null
           session_id: string
           turn_count?: number
           updated_at?: string
@@ -261,6 +263,7 @@ export type Database = {
           last_activity_at?: string | null
           last_agent?: string | null
           last_intent?: string | null
+          next_agent_override?: string | null
           session_id?: string
           turn_count?: number
           updated_at?: string
