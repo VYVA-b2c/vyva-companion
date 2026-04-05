@@ -8,6 +8,7 @@ import HomeScreen from "./pages/HomeScreen";
 import ChatScreen from "./pages/ChatScreen";
 import HealthScreen from "./pages/HealthScreen";
 import ActivitiesScreen from "./pages/ActivitiesScreen";
+import ConciergeScreen from "./pages/ConciergeScreen";
 import SettingsScreen from "./pages/SettingsScreen";
 import NotFound from "./pages/NotFound";
 
