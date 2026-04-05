@@ -4,9 +4,7 @@ import { symptoms as initialSymptoms } from "@/data/mockData";
 import VoiceHero from "@/components/VoiceHero";
 
 const HealthScreen = () => {
-  const navigate = useNavigate();
   const [symptoms, setSymptoms] = useState(initialSymptoms);
-
   const toggleSymptom = (i: number) => {
     setSymptoms(s => s.map((sym, idx) => idx === i ? { ...sym, selected: !sym.selected } : sym));
   };
