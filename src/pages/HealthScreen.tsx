@@ -66,7 +66,7 @@ const HealthScreen = () => {
           <span className="font-body text-[14px] font-medium text-vyva-text-1">How are you feeling?</span>
         </div>
         <div className="p-4">
-          <p className="font-body text-[14px] text-vyva-text-2 mb-3">Tell me if anything is bothering you today</p>
+          
           <div className="flex flex-wrap gap-[7px] mb-3">
             {symptoms.map((sym, i) => (
               <button
