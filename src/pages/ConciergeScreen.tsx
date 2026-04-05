@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import { Mic, Car, ShoppingCart, Phone, Calendar, MapPin, Pill } from "lucide-react";
+import { Car, ShoppingCart, Phone, Calendar, MapPin, Pill } from "lucide-react";
+import VoiceHero from "@/components/VoiceHero";
 
 const tasks = [
   { icon: Car, label: "Book a taxi", color: "#6B21A8", bg: "#F5F3FF" },
