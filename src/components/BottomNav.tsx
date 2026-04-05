@@ -1,11 +1,11 @@
-import { Home, Mic, HeartPulse, BrainCircuit, ConciergeBell } from "lucide-react";
+import { MessageCircle, BrainCircuit, HeartPulse, Pill, ConciergeBell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
-  { path: "/", label: "Home", icon: Home },
-  { path: "/chat", label: "VYVA", icon: Mic },
-  { path: "/health", label: "My Health", icon: HeartPulse },
-  { path: "/activities", label: "Activities", icon: BrainCircuit },
+  { path: "/", label: "Companion", icon: MessageCircle },
+  { path: "/brain-coach", label: "Brain Coach", icon: BrainCircuit },
+  { path: "/health", label: "Health", icon: HeartPulse },
+  { path: "/meds", label: "Meds", icon: Pill },
   { path: "/concierge", label: "Concierge", icon: ConciergeBell },
 ];
 
