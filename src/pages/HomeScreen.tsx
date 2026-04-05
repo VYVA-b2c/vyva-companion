@@ -57,7 +57,7 @@ const HomeScreen = () => {
         </button>
         <div>
           <p className="font-body text-[15px] font-medium" style={{ color: "#B91C1C" }}>Emergency — need help?</p>
-          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert Sarah, James and emergency services.</p>
+          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert your family</p>
         </div>
       </div>
 
