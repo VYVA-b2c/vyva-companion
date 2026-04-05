@@ -1,4 +1,5 @@
-import { Battery, Cloud } from "lucide-react";
+import { Settings, Cloud } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {

@@ -1,4 +1,4 @@
-import { Home, Mic, HeartPulse, Brain, Settings } from "lucide-react";
+import { Home, Mic, HeartPulse, Brain, ConciergeBell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
