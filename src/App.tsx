@@ -26,6 +26,7 @@ const App = () => (
             <Route path="/chat" element={<ChatScreen />} />
             <Route path="/health" element={<HealthScreen />} />
             <Route path="/activities" element={<ActivitiesScreen />} />
+            <Route path="/concierge" element={<ConciergeScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
