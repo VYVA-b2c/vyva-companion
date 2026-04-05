@@ -15,9 +15,7 @@ const ChatScreen = () => {
         <button onClick={() => navigate("/")} className="w-10 h-10 rounded-full bg-vyva-warm border border-vyva-border flex items-center justify-center min-w-[40px]">
           <ChevronLeft size={20} className="text-vyva-text-1" />
         </button>
-        <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#6B21A8" }}>
-          <Mic size={20} className="text-white" />
-        </div>
+        <img src={vyvaLogo} alt="VYVA" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
         <div>
           <h2 className="font-display text-[20px] font-medium text-vyva-text-1">VYVA</h2>
           <div className="flex items-center gap-1.5">

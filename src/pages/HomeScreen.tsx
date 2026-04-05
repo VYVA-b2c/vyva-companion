@@ -99,8 +99,7 @@ const HomeScreen = () => {
             <div className="w-12 h-12 rounded-[15px] flex items-center justify-center" style={{ background: tile.iconBg }}>
               <tile.icon size={24} style={{ color: tile.iconColor }} />
             </div>
-            <h3 className="font-display text-[18px] font-medium text-vyva-text-1 leading-[1.2]">{tile.title}</h3>
-            <p className="font-body text-[13px] text-vyva-text-2 leading-[1.4]">{tile.sub}</p>
+             <h3 className="font-display text-[18px] font-medium text-vyva-text-1 leading-[1.2]">{tile.title}</h3>
             {tile.badge && (
               <span className={`font-body text-[12px] font-medium px-2.5 py-0.5 rounded-full self-start ${tile.badgeColor}`}>
                 {tile.badge}

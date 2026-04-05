@@ -86,7 +86,7 @@ const HealthScreen = () => {
           </div>
           <div className="flex items-center gap-2 p-3 rounded-[14px] bg-vyva-purple-pale border border-vyva-purple-light">
             <Mic size={16} className="text-vyva-purple flex-shrink-0" />
-            <span className="font-body text-[14px] font-medium text-vyva-purple">Tell VYVA how you're feeling in your own words</span>
+            <span className="font-body text-[14px] font-medium text-vyva-purple">Tell VYVA in your own words</span>
           </div>
         </div>
       </div>
