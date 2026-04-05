@@ -1,12 +1,12 @@
-import { Brain, Play, Trophy, Type, Puzzle, Flower2, Wind, Check } from "lucide-react";
+import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind } from "lucide-react";
 import { margaret } from "@/data/mockData";
 
 const activityIcons: Record<string, any> = {
-  "Trivia quiz": Trophy,
-  "Memory game": Brain,
+  "Trivia quiz": HelpCircle,
+  "Memory game": Layers,
   "Scrabble": Type,
   "Logic puzzle": Puzzle,
-  "Meditation": Flower2,
+  "Meditation": Headphones,
   "Breathing": Wind,
 };
 
@@ -22,19 +22,21 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string }> = {
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 const ActivitiesScreen = () => {
-  const todayIndex = new Date().getDay(); // 0=Sun
-  const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1; // 0=Mon
+  const todayIndex = new Date().getDay();
+  const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
 
   return (
     <div className="px-[22px]">
       {/* Hero */}
-      <div className="mt-[14px] rounded-[22px] p-5 flex items-center gap-4 relative overflow-hidden" style={{ background: "#6B21A8" }}>
-        <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
-          <Brain size={32} className="text-white" />
+      <div className="mt-[14px] rounded-[22px] p-5 flex items-center gap-[18px] relative overflow-hidden" style={{ background: "#6B21A8" }}>
+        <div className="absolute -right-[30px] -top-[30px] w-[130px] h-[130px] rounded-full pointer-events-none" style={{ background: "rgba(255,255,255,0.05)" }} />
+        <div className="w-[64px] h-[64px] rounded-[18px] flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.14)" }}>
+          <BrainCircuit size={32} className="text-white" />
         </div>
         <div className="flex-1">
           <h1 className="font-display text-[22px] font-normal text-white">Brain coach</h1>
-          <button className="inline-flex items-center gap-[7px] bg-white rounded-[26px] py-[10px] px-[22px] mt-3 min-h-[44px]">
+          <p className="font-body text-[14px] mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>Keep your mind sharp daily</p>
+          <button className="inline-flex items-center gap-[8px] bg-white rounded-full py-[11px] px-[24px] mt-3 min-h-[44px]">
             <Play size={14} style={{ color: "#6B21A8" }} />
             <span className="font-body text-[15px] font-medium" style={{ color: "#6B21A8" }}>Start a session</span>
           </button>
@@ -47,25 +49,23 @@ const ActivitiesScreen = () => {
       {/* Activity Grid */}
       <div className="grid grid-cols-3 gap-[10px]">
         {margaret.activities.map((act) => {
-          const Icon = activityIcons[act.name] || Brain;
+          const Icon = activityIcons[act.name] || BrainCircuit;
           const style = activityStyles[act.name] || { iconBg: "#EDE9FE", iconColor: "#6B21A8" };
           return (
             <button
               key={act.name}
-              className={`rounded-[16px] p-[14px] flex flex-col items-center gap-[7px] min-h-[52px] ${
-                act.done ? "bg-vyva-green-light border-2" : "bg-white border"
-              }`}
+              className="rounded-[16px] p-[16px_12px] flex flex-col items-center gap-[8px] bg-white border border-vyva-border"
               style={{
-                borderColor: act.done ? "#A7F3D0" : undefined,
-                boxShadow: act.done ? undefined : "0 2px 12px rgba(0,0,0,0.07)",
+                minHeight: 100,
+                ...(act.done ? { borderColor: "#A7F3D0", background: "#ECFDF5" } : { boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }),
               }}
             >
-              <div className="w-[42px] h-[42px] rounded-[13px] flex items-center justify-center" style={{ background: style.iconBg }}>
+              <div className="w-[44px] h-[44px] rounded-[14px] flex items-center justify-center" style={{ background: style.iconBg }}>
                 <Icon size={20} style={{ color: style.iconColor }} />
               </div>
               <span className="font-body text-[14px] font-medium text-vyva-text-1 text-center leading-tight">{act.name}</span>
               {act.done && (
-                <span className="font-body text-[11px] font-medium px-2 py-0.5 rounded-full bg-vyva-green-light text-vyva-green-dark">
+                <span className="font-body text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#065F46" }}>
                   Done today
                 </span>
               )}
@@ -75,24 +75,24 @@ const ActivitiesScreen = () => {
       </div>
 
       {/* Streak Tracker */}
-      <div className="mt-3 mb-4 bg-white rounded-[16px] border border-vyva-border p-4 flex items-center justify-between" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
+      <div className="mt-3 mb-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] flex items-center justify-between" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
         <div>
-          <p className="font-body text-[14px] font-medium text-vyva-text-1 mb-1.5">Your streak this week</p>
-          <div className="flex gap-[5px]">
+          <p className="font-body text-[14px] font-medium text-vyva-text-1 mb-2">Your streak this week</p>
+          <div className="flex gap-[6px]">
             {days.map((d, i) => {
               const completed = i < mappedToday;
               const isToday = i === mappedToday;
               return (
                 <div
                   key={i}
-                  className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center font-body text-[12px] font-medium ${
+                  className="w-[32px] h-[32px] rounded-[9px] flex items-center justify-center font-body text-[12px] font-medium"
+                  style={
                     completed
-                      ? "bg-vyva-purple text-white"
+                      ? { background: "#6B21A8", color: "#FFFFFF" }
                       : isToday
-                      ? "bg-vyva-purple-pale text-vyva-purple"
-                      : "bg-vyva-warm text-vyva-text-3"
-                  }`}
-                  style={isToday ? { border: "2px solid #6B21A8" } : {}}
+                      ? { background: "#F5F3FF", color: "#6B21A8", border: "2px solid #6B21A8" }
+                      : { background: "#F5EFE4", color: "#B5A89F" }
+                  }
                 >
                   {d}
                 </div>
@@ -101,7 +101,7 @@ const ActivitiesScreen = () => {
           </div>
         </div>
         <div className="text-right">
-          <p className="font-display text-[32px] font-semibold text-vyva-purple leading-none">{margaret.streak}</p>
+          <p className="font-display text-[34px] font-medium leading-none" style={{ color: "#6B21A8" }}>{margaret.streak}</p>
           <p className="font-body text-[12px] text-vyva-text-2">day streak</p>
         </div>
       </div>

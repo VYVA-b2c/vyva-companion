@@ -7,7 +7,7 @@ const AppShell = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-vyva-cream flex justify-center">
       <div className="w-full max-w-[480px] relative">
         <StatusBar />
-        <main className="pt-[68px] pb-[80px] overflow-y-auto">
+        <main className="pt-[68px] pb-[84px] overflow-y-auto">
           {children}
         </main>
         <BottomNav />
