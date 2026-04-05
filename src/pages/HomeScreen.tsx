@@ -38,7 +38,7 @@ const HomeScreen = () => {
         {/* CTA */}
         <button
           onClick={() => navigate("/chat")}
-          className="w-full flex items-center justify-center gap-3 rounded-[28px] py-[13px] px-[18px] min-h-[56px]"
+          className="w-full flex items-center justify-center gap-3 rounded-[28px] py-[13px] px-[18px] min-h-[56px] animate-mic-glow"
           style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.22)" }}
         >
           <div className="animate-pulse-dot">

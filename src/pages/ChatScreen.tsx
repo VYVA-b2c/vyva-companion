@@ -75,10 +75,10 @@ const ChatScreen = () => {
       <div className="px-[22px] py-[14px] bg-white border-t border-vyva-border flex items-center gap-[14px]">
         <button
           onClick={() => setListening(!listening)}
-          className={`w-[58px] h-[58px] rounded-full flex items-center justify-center flex-shrink-0 ${listening ? "animate-pulse-ring" : ""}`}
+          className={`w-[58px] h-[58px] rounded-full flex items-center justify-center flex-shrink-0 ${listening ? "animate-pulse-ring animate-mic-glow" : "animate-ripple-out"}`}
           style={{ background: "#6B21A8" }}
         >
-          <Mic size={22} className="text-white" />
+          <Mic size={22} className={`text-white ${listening ? "animate-pulse-dot" : ""}`} />
         </button>
         <div className="flex-1">
           <p className="font-body text-[16px] font-medium text-vyva-text-1">{listening ? "Listening..." : "Tap to speak"}</p>
