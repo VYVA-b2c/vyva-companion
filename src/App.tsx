@@ -8,6 +8,7 @@ import HomeScreen from "./pages/HomeScreen";
 import ChatScreen from "./pages/ChatScreen";
 import HealthScreen from "./pages/HealthScreen";
 import ActivitiesScreen from "./pages/ActivitiesScreen";
+import ConciergeScreen from "./pages/ConciergeScreen";
 import SettingsScreen from "./pages/SettingsScreen";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/chat" element={<ChatScreen />} />
             <Route path="/health" element={<HealthScreen />} />
             <Route path="/activities" element={<ActivitiesScreen />} />
+            <Route path="/concierge" element={<ConciergeScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

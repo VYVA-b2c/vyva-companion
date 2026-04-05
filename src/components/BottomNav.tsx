@@ -1,4 +1,4 @@
-import { Home, Mic, HeartPulse, Brain, Settings } from "lucide-react";
+import { Home, Mic, HeartPulse, Brain, ConciergeBell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
@@ -6,7 +6,7 @@ const tabs = [
   { path: "/chat", label: "VYVA", icon: Mic },
   { path: "/health", label: "My Health", icon: HeartPulse },
   { path: "/activities", label: "Activities", icon: Brain },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/concierge", label: "Concierge", icon: ConciergeBell },
 ];
 
 const BottomNav = () => {

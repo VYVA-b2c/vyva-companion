@@ -1,7 +1,9 @@
-import { Battery, Cloud } from "lucide-react";
+import { Settings, Cloud } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {
+  const navigate = useNavigate();
   const now = new Date();
   const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -21,10 +23,9 @@ const StatusBar = () => {
             <Cloud size={14} />
             <span className="font-body text-[13px]">14° Cloudy</span>
           </div>
-          <div className="flex items-center gap-1 text-vyva-text-2">
-            <Battery size={14} />
-            <span className="font-body text-[13px]">82%</span>
-          </div>
+          <button onClick={() => navigate("/settings")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-vyva-warm">
+            <Settings size={18} className="text-vyva-text-2" />
+          </button>
         </div>
       </div>
     </div>
