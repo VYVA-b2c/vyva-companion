@@ -1,66 +1,27 @@
 
 
-## Plan: Add Voice-First Hero with "Talk to VYVA" to Every Screen
+## Plan: Extract VoiceHero Shared Component
 
-### Concept
-Each screen gets a purple hero card (like Home) with a contextual message and a prominent "Talk to VYVA" mic button. The hero adapts its copy to the screen's purpose. Below the hero, existing content remains but users always have the voice option front and center.
+### New File: `src/components/VoiceHero.tsx`
+Reusable component with props:
+- `sourceText: string` — context label (e.g. "VYVA is here for you")
+- `headline: React.ReactNode` — Lora italic 26px title
+- `subtitle?: React.ReactNode` — DM Sans 14px subtitle
+- `children?: React.ReactNode` — slot for screen-specific content (progress bars, stats, extra buttons) rendered between subtitle and Talk button
 
-### Changes by Screen
+Renders: purple bg, decorative circle, source row with mic orb + Live pill, headline, subtitle, children, "Talk to VYVA" button with mic-listening animation. Uses `useNavigate` internally.
 
-**1. Meds Screen (`src/pages/MedsScreen.tsx`)**
-- Replace the current purple hero with the standard voice-first hero pattern
-- Headline: "Need help with medications?" (Lora italic 26px)
-- Subtitle: "2 of 3 taken today" with progress bar below
-- Source row: mic orb + "VYVA manages your meds" + Live pill
-- "Talk to VYVA" button at bottom of hero (navigates to `/chat`)
-- Keep all medication cards below unchanged
+### Screen Updates (5 files)
 
-**2. Health Screen (`src/pages/HealthScreen.tsx`)**
-- Replace the green hero with the purple voice-first hero
-- Headline: "How are you feeling, Margaret?" (Lora italic 26px)
-- Subtitle: "Tell me about your symptoms"
-- Source row: mic orb + "VYVA monitors your health" + Live pill
-- "Talk to VYVA" button
-- Keep stats row (Blood pressure, Mood, Sleep) inside the hero below the button
-- Keep symptom checker and doctor referral cards below
+**HomeScreen.tsx** — replace lines 13–45 with `<VoiceHero sourceText="VYVA is here for you" headline="Good morning, Margaret!" subtitle="How are you feeling today?" />`
 
-**3. Activities Screen (`src/pages/ActivitiesScreen.tsx`)**
-- Replace the current purple hero with the voice-first hero pattern
-- Headline: "Ready for brain training?" (Lora italic 26px)
-- Subtitle: "7-day streak — keep it going!"
-- Source row: mic orb + "VYVA is your brain coach" + Live pill
-- "Talk to VYVA" button + secondary "Start a session" white button below
-- Keep activity grid and streak card below
+**MedsScreen.tsx** — replace lines 12–51 with `<VoiceHero>` passing progress bar as children
 
-**4. Concierge Screen (`src/pages/ConciergeScreen.tsx`)**
-- Replace the cream hero with the purple voice-first hero
-- Headline: "How can I help?" (Lora italic 26px)
-- Subtitle: "Taxis, orders, appointments & more"
-- Source row: mic orb + "VYVA handles it for you" + Live pill
-- "Talk to VYVA" button (with mic-listening animation)
-- Keep service tile grid below
+**HealthScreen.tsx** — replace hero with `<VoiceHero>` passing stats row as children
 
-**5. Home Screen (`src/pages/HomeScreen.tsx`)**
-- Already has the voice-first hero — no changes needed
+**ActivitiesScreen.tsx** — replace hero with `<VoiceHero>` passing "Start a session" button as children
 
-### Shared Hero Structure (all screens)
-```text
-┌─────────────────────────────────┐
-│ [mic orb] Context text   ● Live│
-│                                 │
-│ Headline (Lora italic 26px)     │
-│ Subtitle (DM Sans 14px)        │
-│                                 │
-│ [  🎙  Talk to VYVA           ]│
-└─────────────────────────────────┘
-```
-- Purple bg `#6B21A8`, radius 24px, decorative circle
-- mic-listening animation on the Talk button
-- All navigate to `/chat` on tap
+**ConciergeScreen.tsx** — replace hero with `<VoiceHero>` with no children
 
-### Files Changed
-- `src/pages/MedsScreen.tsx` — new voice hero, keep meds content
-- `src/pages/HealthScreen.tsx` — new voice hero, keep health content
-- `src/pages/ActivitiesScreen.tsx` — new voice hero, keep activities content
-- `src/pages/ConciergeScreen.tsx` — new voice hero, keep concierge tiles
+### Files: 6 total (1 new + 5 edits)
 
