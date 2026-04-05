@@ -1,11 +1,11 @@
-import { Home, Mic, HeartPulse, Brain, ConciergeBell } from "lucide-react";
+import { Home, Mic, HeartPulse, BrainCircuit, ConciergeBell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { path: "/", label: "Home", icon: Home },
   { path: "/chat", label: "VYVA", icon: Mic },
   { path: "/health", label: "My Health", icon: HeartPulse },
-  { path: "/activities", label: "Activities", icon: Brain },
+  { path: "/activities", label: "Activities", icon: BrainCircuit },
   { path: "/concierge", label: "Concierge", icon: ConciergeBell },
 ];
 
@@ -24,12 +24,12 @@ const BottomNav = () => {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="flex flex-col items-center justify-center gap-1 min-w-[52px] min-h-[52px]"
+              className="flex flex-col items-center justify-center gap-1 flex-1 min-h-[56px]"
             >
               <div className={`flex items-center justify-center w-7 h-7 rounded-[10px] ${active ? "bg-vyva-purple-light" : ""}`}>
                 <Icon size={20} className={active ? "text-vyva-purple" : "text-vyva-text-3"} />
               </div>
-              <span className={`text-xs font-body font-medium ${active ? "text-vyva-purple" : "text-vyva-text-3"}`}>
+              <span className={`font-body text-[11px] font-medium ${active ? "text-vyva-purple" : "text-vyva-text-3"}`}>
                 {tab.label}
               </span>
             </button>
