@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Mic, Stethoscope, MapPin } from "lucide-react";
 import { symptoms as initialSymptoms } from "@/data/mockData";
+import VoiceHero from "@/components/VoiceHero";
 
 const HealthScreen = () => {
   const navigate = useNavigate();
