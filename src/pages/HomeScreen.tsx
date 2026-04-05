@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, AlertCircle, MessageCircle, BookOpen, Users, Heart, Clock } from "lucide-react";
+import { AlertCircle, MessageCircle, BookOpen, Users, Heart, Clock } from "lucide-react";
 import { margaret, vyvaMessages } from "@/data/mockData";
-
+import VoiceHero from "@/components/VoiceHero";
 const HomeScreen = () => {
   const navigate = useNavigate();
   const [showSOS, setShowSOS] = useState(false);
