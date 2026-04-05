@@ -1,4 +1,5 @@
 import { Battery, Cloud } from "lucide-react";
+import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {
   const now = new Date();
@@ -8,9 +9,12 @@ const StatusBar = () => {
   return (
     <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-b border-vyva-border z-50 px-[22px] py-2">
       <div className="flex items-center justify-between">
-        <div>
-          <div className="font-display text-[22px] leading-tight text-vyva-text-1">{time}</div>
-          <div className="font-body text-xs text-vyva-text-2">{date}</div>
+        <div className="flex items-center gap-3">
+          <img src={vyvaLogo} alt="VYVA" className="h-[28px] w-auto rounded-[6px]" />
+          <div>
+            <div className="font-display text-[22px] leading-tight text-vyva-text-1">{time}</div>
+            <div className="font-body text-xs text-vyva-text-2">{date}</div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-vyva-text-2">

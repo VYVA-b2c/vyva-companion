@@ -16,9 +16,6 @@ const HealthScreen = () => {
       <div className="mt-[14px] rounded-[22px] p-5 relative overflow-hidden" style={{ background: "#0A7C4E" }}>
         <p className="font-body text-[12px] font-medium uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.65)" }}>Your health today</p>
         <h1 className="font-display text-[22px] font-normal text-white mb-2">All looking good, Margaret</h1>
-        <p className="font-body text-[14px] leading-[1.5] mb-4" style={{ color: "rgba(255,255,255,0.75)" }}>
-          Your medications are mostly on track and your mood is great this week.
-        </p>
         <div className="border-t pt-[13px] flex justify-between" style={{ borderColor: "rgba(255,255,255,0.2)" }}>
           {[
             { val: `${takenCount}/3`, label: "Meds taken" },
@@ -69,7 +66,7 @@ const HealthScreen = () => {
           <span className="font-body text-[14px] font-medium text-vyva-text-1">How are you feeling?</span>
         </div>
         <div className="p-4">
-          <p className="font-body text-[14px] text-vyva-text-2 mb-3">Tell me if anything is bothering you today</p>
+          
           <div className="flex flex-wrap gap-[7px] mb-3">
             {symptoms.map((sym, i) => (
               <button
@@ -89,7 +86,7 @@ const HealthScreen = () => {
           </div>
           <div className="flex items-center gap-2 p-3 rounded-[14px] bg-vyva-purple-pale border border-vyva-purple-light">
             <Mic size={16} className="text-vyva-purple flex-shrink-0" />
-            <span className="font-body text-[14px] font-medium text-vyva-purple">Tell VYVA how you're feeling in your own words</span>
+            <span className="font-body text-[14px] font-medium text-vyva-purple">Tell VYVA in your own words</span>
           </div>
         </div>
       </div>

@@ -34,18 +34,17 @@ const HomeScreen = () => {
         <h1 className="font-display italic font-normal text-[24px] text-white leading-[1.3] mb-3">
           Good morning, Margaret!{"\n"}How did you sleep?
         </h1>
-        <p className="font-body text-[14px] leading-[1.6] mb-5" style={{ color: "rgba(255,255,255,0.8)" }}>
-          I noticed you had a lovely brain session yesterday. I've got a new memory game ready for today — I think you'll enjoy it.
-        </p>
 
         {/* CTA */}
         <button
           onClick={() => navigate("/chat")}
-          className="w-full flex items-center justify-center gap-2 rounded-[28px] py-[11px] px-[18px] min-h-[52px]"
-          style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}
+          className="w-full flex items-center justify-center gap-3 rounded-[28px] py-[13px] px-[18px] min-h-[56px]"
+          style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.22)" }}
         >
-          <Mic size={16} className="text-white" style={{ opacity: 0.7 }} />
-          <span className="font-body text-[14px] text-white">Tap to talk to VYVA</span>
+          <div className="animate-pulse-dot">
+            <Mic size={20} className="text-white" />
+          </div>
+          <span className="font-body text-[16px] font-medium text-white">Talk to VYVA</span>
         </button>
       </div>
 
@@ -60,7 +59,7 @@ const HomeScreen = () => {
         </button>
         <div>
           <p className="font-body text-[15px] font-medium" style={{ color: "#B91C1C" }}>Emergency — need help?</p>
-          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert Sarah, James and emergency services.</p>
+          <p className="font-body text-[13px] leading-[1.4]" style={{ color: "#9D174D" }}>Tap to alert your family</p>
         </div>
       </div>
 
@@ -83,10 +82,10 @@ const HomeScreen = () => {
       {/* 2×2 Action Grid */}
       <div className="mt-[14px] grid grid-cols-2 gap-3">
         {[
-          { icon: Pill, iconColor: "#C9890A", iconBg: "#FEF3C7", title: "Medications", sub: "Morning taken · Evening due at 19:00", badge: "2 of 3 taken", badgeColor: "bg-vyva-green-light text-vyva-green-dark" },
-          { icon: Brain, iconColor: "#6B21A8", iconBg: "#EDE9FE", title: "Brain Coach", sub: "Memory game ready · 7-day streak", badge: "New today", badgeColor: "bg-vyva-purple-light text-vyva-purple" },
-          { icon: HeartPulse, iconColor: "#0A7C4E", iconBg: "#ECFDF5", title: "How I feel", sub: "Tell VYVA about symptoms", badge: null, badgeColor: "" },
-          { icon: HelpCircle, iconColor: "#0F766E", iconBg: "#F0FDFA", title: "Help me with...", sub: "Orders, appointments, services", badge: null, badgeColor: "" },
+          { icon: Pill, iconColor: "#C9890A", iconBg: "#FEF3C7", title: "Medications", badge: "2 of 3 taken", badgeColor: "bg-vyva-green-light text-vyva-green-dark" },
+          { icon: Brain, iconColor: "#6B21A8", iconBg: "#EDE9FE", title: "Brain Coach", badge: "New today", badgeColor: "bg-vyva-purple-light text-vyva-purple" },
+          { icon: HeartPulse, iconColor: "#0A7C4E", iconBg: "#ECFDF5", title: "How I feel", badge: null, badgeColor: "" },
+          { icon: HelpCircle, iconColor: "#0F766E", iconBg: "#F0FDFA", title: "Help me with...", badge: null, badgeColor: "" },
         ].map((tile) => (
           <button
             key={tile.title}
@@ -100,8 +99,7 @@ const HomeScreen = () => {
             <div className="w-12 h-12 rounded-[15px] flex items-center justify-center" style={{ background: tile.iconBg }}>
               <tile.icon size={24} style={{ color: tile.iconColor }} />
             </div>
-            <h3 className="font-display text-[18px] font-medium text-vyva-text-1 leading-[1.2]">{tile.title}</h3>
-            <p className="font-body text-[13px] text-vyva-text-2 leading-[1.4]">{tile.sub}</p>
+             <h3 className="font-display text-[18px] font-medium text-vyva-text-1 leading-[1.2]">{tile.title}</h3>
             {tile.badge && (
               <span className={`font-body text-[12px] font-medium px-2.5 py-0.5 rounded-full self-start ${tile.badgeColor}`}>
                 {tile.badge}
