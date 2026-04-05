@@ -24,7 +24,6 @@ const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 const ActivitiesScreen = () => {
   const todayIndex = new Date().getDay();
-  const todayIndex = new Date().getDay();
   const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
 
   return (
