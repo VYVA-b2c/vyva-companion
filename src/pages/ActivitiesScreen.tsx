@@ -34,9 +34,6 @@ const ActivitiesScreen = () => {
         </div>
         <div className="flex-1">
           <h1 className="font-display text-[22px] font-normal text-white">Brain coach</h1>
-          <p className="font-body text-[14px] leading-[1.5] mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>
-            Keep your mind sharp · VYVA guides everything
-          </p>
           <button className="inline-flex items-center gap-[7px] bg-white rounded-[26px] py-[10px] px-[22px] mt-3 min-h-[44px]">
             <Play size={14} style={{ color: "#6B21A8" }} />
             <span className="font-body text-[15px] font-medium" style={{ color: "#6B21A8" }}>Start a session</span>

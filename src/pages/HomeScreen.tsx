@@ -34,9 +34,6 @@ const HomeScreen = () => {
         <h1 className="font-display italic font-normal text-[24px] text-white leading-[1.3] mb-3">
           Good morning, Margaret!{"\n"}How did you sleep?
         </h1>
-        <p className="font-body text-[14px] leading-[1.6] mb-5" style={{ color: "rgba(255,255,255,0.8)" }}>
-          I noticed you had a lovely brain session yesterday. I've got a new memory game ready for today — I think you'll enjoy it.
-        </p>
 
         {/* CTA */}
         <button

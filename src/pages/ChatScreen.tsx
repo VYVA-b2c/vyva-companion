@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Mic, Clock } from "lucide-react";
 import { margaret, vyvaMessages, quickReplies } from "@/data/mockData";
+import vyvaLogo from "@/assets/vyva-logo.png";
 
 const ChatScreen = () => {
   const navigate = useNavigate();
