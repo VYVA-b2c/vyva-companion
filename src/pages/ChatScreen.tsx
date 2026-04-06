@@ -123,7 +123,7 @@ const ChatScreen = () => {
         <button
           onClick={handleMicToggle}
           disabled={isConnecting}
-          className={`w-[62px] h-[62px] rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isActive ? "mic-listening" : "animate-ripple-out"}`}
+          className={`w-[62px] h-[62px] rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isActive ? (isSpeaking ? "mic-listening" : "mic-pulse-listening") : "animate-ripple-out"}`}
           style={{ background: isActive ? "#0A7C4E" : "#6B21A8" }}
         >
           {isActive ? (
