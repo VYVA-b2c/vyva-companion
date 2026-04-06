@@ -66,7 +66,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
       <button
         onClick={handleTalk}
         disabled={isConnecting}
-        className={`w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-4 min-h-[56px] transition-all ${isActive ? "mic-listening" : ""}`}
+        className={`w-full flex items-center justify-center gap-2 rounded-full py-[13px] px-[20px] mt-4 min-h-[56px] transition-all ${isActive ? (isSpeaking ? "mic-listening" : "mic-pulse-listening") : ""}`}
         style={{
           background: isActive ? "rgba(52,211,153,0.2)" : "rgba(255,255,255,0.13)",
           border: isActive ? "1px solid rgba(52,211,153,0.4)" : "1px solid rgba(255,255,255,0.18)",
