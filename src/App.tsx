@@ -18,24 +18,26 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppShell>
-          <Routes>
-            <Route path="/" element={<HomeScreen />} />
-            <Route path="/chat" element={<ChatScreen />} />
-            <Route path="/health" element={<HealthScreen />} />
-            <Route path="/meds" element={<MedsScreen />} />
-            <Route path="/brain-coach" element={<ActivitiesScreen />} />
-            <Route path="/concierge" element={<ConciergeScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppShell>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ConversationProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppShell>
+            <Routes>
+              <Route path="/" element={<HomeScreen />} />
+              <Route path="/chat" element={<ChatScreen />} />
+              <Route path="/health" element={<HealthScreen />} />
+              <Route path="/meds" element={<MedsScreen />} />
+              <Route path="/brain-coach" element={<ActivitiesScreen />} />
+              <Route path="/concierge" element={<ConciergeScreen />} />
+              <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppShell>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ConversationProvider>
   </QueryClientProvider>
 );
 
