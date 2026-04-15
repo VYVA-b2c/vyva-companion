@@ -66,7 +66,17 @@ The `router` API classifies each user utterance using keyword scoring across six
 
 ## Deployment
 Deployment is configured for Replit Autoscale:
-- Build: `npm run build` (Vite)
-- Run: `node ./dist/index.cjs`
+- **Build**: `npm run build && esbuild server/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.cjs --packages=external`
+  - Vite builds the React frontend into `dist/`
+  - esbuild compiles the Express server TypeScript into `dist/index.cjs`
+- **Run**: `NODE_ENV=production node ./dist/index.cjs`
 
-For production, the Express server will need to serve the Vite-built static files. This can be added to `server/index.ts` when ready to deploy.
+In production mode (`NODE_ENV=production`):
+- Express listens on port 5000
+- Serves static files from `dist/` (Vite build output)
+- Catch-all route returns `dist/index.html` for SPA client-side routing
+- `/api/*` routes continue to work normally
+
+In development mode:
+- Express listens on port 3001
+- Vite dev server runs on port 5000 and proxies `/api/*` to Express
