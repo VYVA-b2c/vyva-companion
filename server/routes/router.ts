@@ -1,5 +1,12 @@
 import type { Request, Response } from "express";
-import { createClient } from "@supabase/supabase-js";
+import { eq, and, desc } from "drizzle-orm";
+import { db } from "../db.js";
+import {
+  profiles,
+  sessionState,
+  sessionExchanges,
+  agentDifficulty,
+} from "../../shared/schema.js";
 
 type RoutingDomain =
   | "safety"
@@ -264,16 +271,89 @@ function buildMem0Messages(history: ConversationTurn[], utterance: string): Conv
   return [...history, { role: "user" as const, content: utterance }];
 }
 
-type SessionRow = {
-  id: string;
+async function getProfile(userId: string) {
+  const rows = await db
+    .select({ full_name: profiles.full_name, mem0_user_id: profiles.mem0_user_id })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getSessionState(sessionId: string) {
+  const rows = await db
+    .select()
+    .from(sessionState)
+    .where(eq(sessionState.session_id, sessionId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function upsertSessionState(data: {
   user_id: string;
   session_id: string;
   current_agent: string;
   last_agent: string | null;
-  last_intent: string | null;
+  last_intent: string;
+  last_activity_at: Date;
   turn_count: number;
   next_agent_override: string | null;
-};
+}) {
+  await db
+    .insert(sessionState)
+    .values({
+      ...data,
+      last_activity_at: data.last_activity_at,
+    })
+    .onConflictDoUpdate({
+      target: sessionState.session_id,
+      set: {
+        current_agent: data.current_agent,
+        last_agent: data.last_agent,
+        last_intent: data.last_intent,
+        last_activity_at: data.last_activity_at,
+        turn_count: data.turn_count,
+        next_agent_override: data.next_agent_override,
+        updated_at: new Date(),
+      },
+    });
+}
+
+async function insertExchange(data: {
+  session_id: string;
+  user_id: string;
+  speaker: string;
+  message: string;
+  agent_used: string;
+  intent_classified: string;
+  intent_confidence: number;
+}) {
+  await db.insert(sessionExchanges).values(data);
+}
+
+async function getAgentDifficulty(userId: string, agentName: string) {
+  const rows = await db
+    .select()
+    .from(agentDifficulty)
+    .where(and(eq(agentDifficulty.user_id, userId), eq(agentDifficulty.agent_name, agentName)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getBrainCoachStreak(sessionId: string, userId: string): Promise<number> {
+  const rows = await db
+    .select({ agent_used: sessionExchanges.agent_used })
+    .from(sessionExchanges)
+    .where(and(eq(sessionExchanges.session_id, sessionId), eq(sessionExchanges.user_id, userId)))
+    .orderBy(desc(sessionExchanges.created_at))
+    .limit(30);
+  let streak = 0;
+  for (const row of rows) {
+    if (row.agent_used === "brain_coach") streak++;
+    else break;
+  }
+  return streak;
+}
 
 export async function routerHandler(req: Request, res: Response) {
   const body = req.body as RouterRequestBody;
@@ -285,18 +365,6 @@ export async function routerHandler(req: Request, res: Response) {
 
   const history = Array.isArray(conversation_history) ? conversation_history : [];
 
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceKey) {
-    console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-    return res.status(500).json({ error: "Server misconfiguration" });
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
   let domain: RoutingDomain;
   let confidence: number;
 
@@ -307,29 +375,21 @@ export async function routerHandler(req: Request, res: Response) {
     confidence = 1;
 
     const mem0Key = process.env.MEM0_API_KEY ?? "";
-    const { data: profileSafe } = await supabase
-      .from("profiles")
-      .select("full_name, mem0_user_id")
-      .eq("id", user_id)
-      .maybeSingle();
+    const [profileSafe, prevSafe] = await Promise.all([
+      getProfile(user_id).catch(() => null),
+      getSessionState(session_id).catch(() => null),
+    ]);
 
-    const mem0UserIdSafe = (profileSafe as any)?.mem0_user_id?.trim() || user_id;
+    const mem0UserIdSafe = profileSafe?.mem0_user_id?.trim() || user_id;
     let memoriesSafe: Mem0Memory[] = [];
     if (mem0Key) {
       memoriesSafe = await searchMemories(utterance, mem0UserIdSafe, mem0Key).catch(() => []);
     }
 
-    const { data: prevSafe } = await supabase
-      .from("session_state")
-      .select("*")
-      .eq("session_id", session_id)
-      .maybeSingle();
-
-    const sessionRowSafe = prevSafe as SessionRow | null;
-    const firstSafe = firstName((profileSafe as any)?.full_name ?? null);
+    const firstSafe = firstName(profileSafe?.full_name ?? null);
     const nowSafe = new Date();
     const memoryBlockSafe = formatMemoryBlock(memoriesSafe);
-    const lastTopicSafe = sessionRowSafe?.last_intent ?? sessionRowSafe?.last_agent ?? "general chat";
+    const lastTopicSafe = prevSafe?.last_intent ?? prevSafe?.last_agent ?? "general chat";
 
     const system_prompt_override = [
       memoryBlockSafe ? `MEMORY BLOCK:\n${memoryBlockSafe}` : "MEMORY BLOCK:\n(no memory retrieved)",
@@ -338,23 +398,21 @@ export async function routerHandler(req: Request, res: Response) {
       "URGENT: Treat this as a potential safety or crisis situation. Prioritise calm, clear guidance and appropriate escalation.",
     ].join("\n");
 
-    const newTurnSafe = (sessionRowSafe?.turn_count ?? 0) + 1;
-    const lastAgentBeforeSafe = sessionRowSafe?.current_agent ?? null;
+    const newTurnSafe = (prevSafe?.turn_count ?? 0) + 1;
+    const lastAgentBeforeSafe = prevSafe?.current_agent ?? null;
     const persistNextSafe = resolveEscalationDomain(body.store_next_turn_override);
 
-    await supabase.from("session_state").upsert(
-      {
+    await Promise.all([
+      upsertSessionState({
         user_id, session_id, current_agent: "safety", last_agent: lastAgentBeforeSafe,
-        last_intent: "safety", last_activity_at: nowSafe.toISOString(),
+        last_intent: "safety", last_activity_at: nowSafe,
         turn_count: newTurnSafe, next_agent_override: persistNextSafe ?? null,
-      },
-      { onConflict: "session_id" }
-    );
-
-    await supabase.from("session_exchanges").insert({
-      session_id, user_id, speaker: "user", message: utterance,
-      agent_used: "safety", intent_classified: "safety", intent_confidence: confidence,
-    });
+      }),
+      insertExchange({
+        session_id, user_id, speaker: "user", message: utterance,
+        agent_used: "safety", intent_classified: "safety", intent_confidence: confidence,
+      }),
+    ]);
 
     if (mem0Key) scheduleMem0Add(mem0UserIdSafe, buildMem0Messages(history, utterance), mem0Key);
 
@@ -365,13 +423,10 @@ export async function routerHandler(req: Request, res: Response) {
     });
   }
 
-  const [profileRes, sessionRes] = await Promise.all([
-    supabase.from("profiles").select("full_name, mem0_user_id").eq("id", user_id).maybeSingle(),
-    supabase.from("session_state").select("*").eq("session_id", session_id).maybeSingle(),
+  const [profile, sessionRow] = await Promise.all([
+    getProfile(user_id).catch(() => null),
+    getSessionState(session_id).catch(() => null),
   ]);
-
-  const profile = profileRes.data as any;
-  const sessionRow = sessionRes.data as SessionRow | null;
 
   const fromBody = resolveEscalationDomain(body.last_assistant_metadata?.escalate_to);
   const fromDb = resolveEscalationDomain(sessionRow?.next_agent_override ?? undefined);
@@ -397,33 +452,14 @@ export async function routerHandler(req: Request, res: Response) {
     memories = await searchMemories(utterance, mem0UserId, mem0Key).catch(() => []);
   }
 
-  const { data: diffRow } = await supabase
-    .from("agent_difficulty")
-    .select("*")
-    .eq("user_id", user_id)
-    .eq("agent_name", domain)
-    .maybeSingle();
+  const [diffRow, streak] = await Promise.all([
+    getAgentDifficulty(user_id, domain).catch(() => null),
+    domain === "brain_coach" ? getBrainCoachStreak(session_id, user_id).catch(() => 0) : Promise.resolve(0),
+  ]);
 
   const first = firstName(profile?.full_name ?? null);
   const now = new Date();
   const memoryBlock = formatMemoryBlock(memories);
-
-  let streak = 0;
-  if (domain === "brain_coach") {
-    const { data: streakData } = await supabase
-      .from("session_exchanges")
-      .select("agent_used")
-      .eq("session_id", session_id)
-      .eq("user_id", user_id)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    if (streakData?.length) {
-      for (const row of streakData) {
-        if ((row as any).agent_used === "brain_coach") streak++;
-        else break;
-      }
-    }
-  }
 
   const lastTopic = sessionRow?.last_intent ?? sessionRow?.last_agent ?? "general chat";
   const sessionBlockLines = [
@@ -436,9 +472,8 @@ export async function routerHandler(req: Request, res: Response) {
     sessionBlockLines.push(`Brain Coach streak (recent turns): ${streak}.`);
   }
   if (diffRow) {
-    const d = diffRow as any;
     sessionBlockLines.push(
-      `Difficulty context: level ${d.difficulty_level}, sessions_at_level ${d.sessions_at_level}, last_score ${d.last_score ?? "n/a"}.`
+      `Difficulty context: level ${diffRow.difficulty_level}, sessions_at_level ${diffRow.sessions_at_level}, last_score ${diffRow.last_score ?? "n/a"}.`
     );
   }
 
@@ -454,19 +489,17 @@ export async function routerHandler(req: Request, res: Response) {
   const nextOverrideAfter =
     persistNext ?? ((fromBody || consumedDbOverride) ? null : (sessionRow?.next_agent_override ?? null));
 
-  await supabase.from("session_state").upsert(
-    {
+  await Promise.all([
+    upsertSessionState({
       user_id, session_id, current_agent: domain, last_agent: lastAgentBefore,
-      last_intent: domain, last_activity_at: now.toISOString(),
+      last_intent: domain, last_activity_at: now,
       turn_count: newTurn, next_agent_override: nextOverrideAfter,
-    },
-    { onConflict: "session_id" }
-  );
-
-  await supabase.from("session_exchanges").insert({
-    session_id, user_id, speaker: "user", message: utterance,
-    agent_used: domain, intent_classified: domain, intent_confidence: confidence,
-  });
+    }),
+    insertExchange({
+      session_id, user_id, speaker: "user", message: utterance,
+      agent_used: domain, intent_classified: domain, intent_confidence: confidence,
+    }),
+  ]);
 
   if (mem0Key) scheduleMem0Add(mem0UserId, buildMem0Messages(history, utterance), mem0Key);
 

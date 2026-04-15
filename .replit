@@ -54,6 +54,3 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-SUPABASE_URL = "https://zhderqerctxjijvaesfr.supabase.co"
-VITE_SUPABASE_URL = "https://zhderqerctxjijvaesfr.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZGVycWVyY3R4amlqdmFlc2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzODM0MTgsImV4cCI6MjA5MDk1OTQxOH0.M0iB5PeHO6GA1B-cAtz8OgPl1y5RpvmahrYgYipxuxw"

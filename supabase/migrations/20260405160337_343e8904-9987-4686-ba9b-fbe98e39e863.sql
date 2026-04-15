@@ -1,1 +1,0 @@
-ALTER TABLE public.session_state ADD COLUMN IF NOT EXISTS next_agent_override text DEFAULT NULL;

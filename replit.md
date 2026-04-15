@@ -1,7 +1,7 @@
 # VYVA — Replit Project
 
 ## Overview
-VYVA is a voice-first AI companion app for seniors, built with React + Vite (frontend) and an Express API server (backend). It uses ElevenLabs for conversational AI and Supabase for user data persistence.
+VYVA is a voice-first AI companion app for seniors, built with React + Vite (frontend) and an Express API server (backend). It uses ElevenLabs for conversational AI and Replit's built-in PostgreSQL (via Drizzle ORM) for data persistence.
 
 ## Architecture
 
@@ -14,8 +14,14 @@ VYVA is a voice-first AI companion app for seniors, built with React + Vite (fro
 ### Backend (Express, port 3001)
 - Located in `server/`
 - `server/index.ts` — Express app entry point
-- `server/routes/router.ts` — Intent classification and routing logic; selects the correct ElevenLabs agent based on what the user says; writes session state to Supabase
+- `server/db.ts` — Drizzle ORM client connected to Replit's PostgreSQL via `DATABASE_URL`
+- `server/routes/router.ts` — Intent classification and routing logic; selects the correct ElevenLabs agent based on what the user says; reads/writes session state using Drizzle
 - `server/routes/conversationToken.ts` — Fetches a short-lived conversation token from ElevenLabs for a given agent_id
+
+### Database (Replit PostgreSQL)
+- Schema defined in `shared/schema.ts` using Drizzle ORM
+- 7 tables: `profiles`, `session_state`, `session_exchanges`, `agent_difficulty`, `caregiver_alerts`, `medication_adherence`, `user_medications`
+- Push schema changes with `npm run db:push`
 
 ### Dev Setup
 Vite proxies all `/api/*` requests to the Express server (port 3001). Both start together with `npm run dev` via `concurrently`.
@@ -25,6 +31,11 @@ Vite proxies all `/api/*` requests to the Express server (port 3001). Both start
 npm run dev
 ```
 This starts both the Express server (port 3001) and the Vite dev server (port 5000) concurrently.
+
+## Database Schema
+```
+npm run db:push   # Push schema changes to Replit PostgreSQL
+```
 
 ## Environment Variables / Secrets
 All secrets are stored in Replit Secrets. Required secrets:
@@ -38,16 +49,8 @@ All secrets are stored in Replit Secrets. Required secrets:
 | `ELEVENLABS_HEALTH_AGENT_ID` | Agent for health/symptom queries |
 | `ELEVENLABS_CONCIERGE_AGENT_ID` | Agent for scheduling/tasks |
 | `ELEVENLABS_BRAIN_COACH_AGENT_ID` | Agent for cognitive exercises |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin access (server-side only) |
 | `MEM0_API_KEY` | Memory retrieval for personalised responses (optional) |
-
-Env vars (non-sensitive, set in Replit):
-
-| Var | Value |
-|---|---|
-| `SUPABASE_URL` | `https://zhderqerctxjijvaesfr.supabase.co` |
-| `VITE_SUPABASE_URL` | Same as above (for client-side Supabase auth if needed) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
+| `DATABASE_URL` | Replit PostgreSQL connection string (auto-provisioned) |
 
 ## Key Pages
 - `/` — Home screen with voice hero and quick-action tiles
@@ -59,7 +62,7 @@ Env vars (non-sensitive, set in Replit):
 - `/settings` — Settings
 
 ## Agent Routing Logic
-The `router` API classifies each user utterance using keyword scoring across six domains: `safety`, `meds`, `health`, `concierge`, `brain_coach`, and `companion` (default). Safety is always checked first. Session state is persisted in Supabase so agents have context across turns.
+The `router` API classifies each user utterance using keyword scoring across six domains: `safety`, `meds`, `health`, `concierge`, `brain_coach`, and `companion` (default). Safety is always checked first. Session state is persisted in Replit's PostgreSQL so agents have context across turns.
 
 ## Deployment
 Deployment is configured for Replit Autoscale:
