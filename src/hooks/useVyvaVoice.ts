@@ -1,6 +1,5 @@
 import { useConversation } from "@elevenlabs/react";
 import { useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface TranscriptEntry {
   from: "user" | "vyva";
@@ -52,30 +51,34 @@ export function useVyvaVoice() {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        // 1. Call router to get agent_id
-        const routerResp = await supabase.functions.invoke("router", {
-          body: {
+        const routerResp = await fetch("/api/router", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             utterance: contextHint || "hello",
             user_id: "demo-user",
             session_id: sessionIdRef.current,
-          },
+            conversation_history: [],
+          }),
         });
 
-        const agentId = routerResp.data?.agent_id;
+        if (!routerResp.ok) throw new Error("Router request failed");
+        const routerData = await routerResp.json();
+        const agentId = routerData?.agent_id;
         if (!agentId) throw new Error("No agent_id from router");
 
-        // 2. Get conversation token
-        const tokenResp = await supabase.functions.invoke("elevenlabs-conversation-token", {
-          body: { agent_id: agentId },
+        const tokenResp = await fetch("/api/elevenlabs-conversation-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agent_id: agentId }),
         });
 
-        const token = tokenResp.data?.token;
+        if (!tokenResp.ok) throw new Error("Token request failed");
+        const tokenData = await tokenResp.json();
+        const token = tokenData?.token;
         if (!token) throw new Error("No token received");
 
-        // 3. Start WebRTC session
-        await conversation.startSession({
-          conversationToken: token,
-        });
+        await conversation.startSession({ conversationToken: token });
       } catch (err) {
         console.error("[VYVA] Failed to start:", err);
       } finally {
