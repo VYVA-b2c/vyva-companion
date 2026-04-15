@@ -36,9 +36,24 @@ waitForPort = 5000
 outputType = "webview"
 
 [[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
 localPort = 5000
 externalPort = 5000
 
 [[ports]]
+localPort = 5001
+externalPort = 3002
+
+[[ports]]
 localPort = 8080
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_URL = "https://zhderqerctxjijvaesfr.supabase.co"
+VITE_SUPABASE_URL = "https://zhderqerctxjijvaesfr.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZGVycWVyY3R4amlqdmFlc2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzODM0MTgsImV4cCI6MjA5MDk1OTQxOH0.M0iB5PeHO6GA1B-cAtz8OgPl1y5RpvmahrYgYipxuxw"
