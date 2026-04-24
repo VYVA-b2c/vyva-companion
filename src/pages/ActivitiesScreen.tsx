@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind, Users } from "lucide-react";
 import { margaret } from "@/data/mockData";
 import VoiceHero from "@/components/VoiceHero";
@@ -24,7 +23,6 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string }> = {
 
 const ActivitiesScreen = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const todayIndex = new Date().getDay();
   const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
   const days: string[] = t("brain.dayAbbreviations", { returnObjects: true }) as string[];
@@ -78,9 +76,8 @@ const ActivitiesScreen = () => {
       </div>
 
       {/* Find a Companion tile */}
-      <button
+      <div
         data-testid="button-find-companion"
-        onClick={() => navigate("/companions")}
         className="w-full flex items-center gap-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] mt-3 text-left"
         style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
       >
@@ -94,9 +91,8 @@ const ActivitiesScreen = () => {
           <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("companions.activityTile")}</p>
           <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("companions.activityTileSubtitle")}</p>
         </div>
-        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>→</span>
-      </button>
-
+        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>{"\u2192"}</span>
+      </div>
 
 
 
@@ -136,3 +132,4 @@ const ActivitiesScreen = () => {
 };
 
 export default ActivitiesScreen;
+
