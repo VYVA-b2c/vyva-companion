@@ -60,7 +60,7 @@ export default function SettingsHome() {
         <Section title={t("settings.home.sections.account")}>
           <Row icon="👤" title={t("settings.home.rows.myAccount")}      sub={t("settings.home.rows.myAccountSub")}           onClick={() => navigate("/settings/account")} />
           <Row icon="🔔" title={t("settings.home.rows.notifications")}  sub={t("settings.home.rows.notificationsSub")}        onClick={() => navigate("/settings/notifications")} />
-          <Row icon="🩺" title={t("settings.home.rows.healthProfile")}  sub={t("settings.home.rows.healthProfileSub")}        onClick={() => navigate("/onboarding/profile")} data-testid="button-settings-health-profile" />
+          <Row icon="🪪" title={t("settings.home.rows.healthProfile")}  sub={t("settings.home.rows.healthProfileSub")}        onClick={() => navigate("/onboarding/profile")} data-testid="button-settings-health-profile" />
         </Section>
 
         <Section title={t("settings.home.sections.privacy")}>
