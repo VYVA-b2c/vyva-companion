@@ -1044,7 +1044,7 @@
       "requestSent": "Connection request sent!"
     },
     "noConnections": "No companions yet — check the Suggestions tab!",
-    "activityTile": "Find a Companion",
+    "activityTile": "Find a Play Companion",
     "activityTileSubtitle": "Meet others with shared interests",
     "sayHello": "Say Hello via VYVA",
     "sayHelloPrompt": "Say hello to {{name}}!",
