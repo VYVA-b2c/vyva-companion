@@ -111,6 +111,7 @@ const ActivitiesScreen = () => {
             {t("companions.activityTileSubtitle")}
           </p>
         </div>
+        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>{"\u2192"}</span>
 
         <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>
           →
@@ -163,3 +164,4 @@ const ActivitiesScreen = () => {
 };
 
 export default ActivitiesScreen;
+
