@@ -1,0 +1,1255 @@
+{
+  "nav": {
+    "home": "Cartref",
+    "symptoms": "Symptomau",
+    "vitalSigns": "Arwyddion Hanfodol",
+    "medications": "Meddyginiaethau",
+    "cognitiveActivity": "Gweithgaredd Gwybyddol",
+    "history": "Hanes",
+    "myProfile": "Fy mhroffil"
+  },
+  "history": {
+    "title": "Fy hanes",
+    "subtitle": "Sganiau ac Adolygiadau",
+    "empty": "Dim sganiau eto",
+    "emptySubtitle": "Bydd eich sganiau anafiadau, gwiriadau diogelwch cartref ac adolygiadau sgamiau yn ymddangos yma.",
+    "badge": {
+      "wound": "Sgan anaf",
+      "home": "Diogelwch cartref",
+      "scam": "Gwirio sgam"
+    },
+    "hazards": "Peryglon",
+    "steps": "Camau i'w cymryd",
+    "advice": "Cyngor"
+  },
+  "home": {
+    "greeting": {
+      "morning": {
+        "withName": {
+          "1": "Bore da,\n{{name}}!",
+          "2": "Bore da, {{name}} — gad i ni gymryd pethau'n araf heddiw.",
+          "3": "Bore da {{name}}. Rwy'n yma gyda chi.",
+          "4": "Mwynhewch fore newydd, {{name}}.",
+          "5": "Bore da, {{name}} — braf eich gweld."
+        },
+        "withoutName": {
+          "1": "Bore da!",
+          "2": "Bore da — gad i ni gymryd pethau'n araf heddiw.",
+          "3": "Bore da. Gadewch i ni ddechrau'n hamddenol.",
+          "4": "Mae bore newydd yn aros.",
+          "5": "Bore da — un cam ar y tro."
+        }
+      },
+      "afternoon": {
+        "withName": {
+          "1": "Prynhawn da, {{name}}.",
+          "2": "Helo {{name}} — gobeithio bod eich prynhawn yn mynd yn dawel.",
+          "3": "Prynhawn da, {{name}}. Rydych chi'n gwneud yn dda.",
+          "4": "Prynhawn da, {{name}} — daliwch ati.",
+          "5": "Prynhawn tawel i chi, {{name}}."
+        },
+        "withoutName": {
+          "1": "Prynhawn da.",
+          "2": "Helo — gobeithio bod eich prynhawn yn mynd yn dawel.",
+          "3": "Prynhawn da. Rydych chi'n gwneud yn dda.",
+          "4": "Prynhawn da — daliwch ati.",
+          "5": "Mae prynhawn tawel o'ch blaen."
+        }
+      },
+      "evening": {
+        "withName": {
+          "1": "Noswaith dda, {{name}}.",
+          "2": "Noswaith, {{name}} — mae'n bryd arafu.",
+          "3": "Noswaith dda, {{name}}. Gwaith da heddiw.",
+          "4": "Helo {{name}} — yn ymlacio nawr?",
+          "5": "Noson heddychlon i chi, {{name}}."
+        },
+        "withoutName": {
+          "1": "Noswaith dda.",
+          "2": "Noswaith — mae'n bryd arafu.",
+          "3": "Noswaith dda. Gwaith da heddiw.",
+          "4": "Helo — yn ymlacio nawr?",
+          "5": "Mae noson heddychlon yn aros."
+        }
+      },
+      "night": {
+        "withName": {
+          "1": "Dal i fod yn effro, {{name}}?",
+          "2": "Mae'n hwyr, {{name}} — rydw i yma os oes arnoch chi angen.",
+          "3": "Noson dawel, {{name}}. Cymerwch eich amser.",
+          "4": "Oriau hwyr i chi, {{name}} — cadwch bopeth yn dawel.",
+          "5": "Nos da, {{name}} — yn barod i orffwys?"
+        },
+        "withoutName": {
+          "1": "Dal i fod yn effro?",
+          "2": "Mae'n hwyr — rydw i yma os oes arnoch chi angen.",
+          "3": "Noson dawel. Cymerwch eich amser.",
+          "4": "Oriau hwyr — cadwch bopeth yn dawel.",
+          "5": "Nos da — yn barod i orffwys?"
+        }
+      }
+    },
+    "subtitle": "Dyma sut mae pethau heddiw",
+    "weatherSubtitle": "{{description}} yn {{city}} · {{temperature}}°C",
+    "quickAccess": "Mynediad cyflym",
+    "todayForYou": {
+      "sectionTitle": "Heddiw i chi",
+      "cards": {
+        "breathing": {
+          "badge": "Anadlu",
+          "title": "Anadlwch ac ymlaciwch",
+          "text": "Ymarfer anadlu dwfn i dawelu eich meddwl mewn 3 munud.",
+          "cta": "Dechrau"
+        },
+        "chatPrompt": {
+          "badge": "Sgwrs",
+          "title": "Dywedwch rywbeth wrth VYVA",
+          "text": "Beth sydd ar eich meddwl heddiw? Mae VYVA yma i wrando.",
+          "cta": "Agor"
+        },
+        "brainGame": {
+          "badge": "Ymennydd",
+          "title": "Gêm gof",
+          "text": "Ymarferwch eich cof gydag ymarfer cyflym a difyr.",
+          "cta": "Chwarae"
+        },
+        "movement": {
+          "badge": "Symudiad",
+          "title": "Ymestyn yn ysgafn",
+          "text": "Ychydig o ymestyn ysgafn i ddechrau'r diwrnod gydag egni.",
+          "cta": "Dechrau"
+        },
+        "healthTip": {
+          "badge": "Iechyd",
+          "title": "Cyngor y dydd",
+          "text": "Mae yfed dŵr yn rheolaidd yn helpu eich calon a'ch meddwl i weithio'n well.",
+          "cta": "Gweld mwy"
+        },
+        "wordGame": {
+          "badge": "Geiriau",
+          "title": "Pos geiriau",
+          "text": "Profwch eich geirfa gyda'r her eiriau hon.",
+          "cta": "Chwarae"
+        },
+        "concierge": {
+          "badge": "Cymorth",
+          "title": "Oes angen rhywbeth arnoch?",
+          "text": "Gall VYVA helpu gydag apwyntiadau, negeseuon neu unrhyw dasg.",
+          "cta": "Gofyn am help"
+        },
+        "meds": {
+          "badge": "Meddyginiaeth",
+          "title": "Gwiriwch eich meddyginiaethau",
+          "text": "Gweld beth rydych wedi'i gymryd heddiw a beth sy'n weddill.",
+          "cta": "Gwirio"
+        },
+        "social": {
+          "badge": "Cymdeithasol",
+          "title": "Sgwrsiwch gyda rhywun",
+          "text": "Gall sgwrs fach oleuo'ch diwrnod yn fawr.",
+          "cta": "Agor sgwrs"
+        }
+      }
+    },
+    "cardCategories": {
+      "Quote": "Dyfyniad",
+      "Fact": "Ffaith",
+      "Tip": "Awgrym",
+      "Achievement": "Cyflawniad",
+      "DidYouKnow": "A oeddech chi'n gwybod?"
+    },
+    "chatPlaceholder": "Anfonwch neges i ddechrau sgwrs",
+    "tile": {
+      "medication": "Meddyginiaeth",
+      "health": "Iechyd",
+      "brain": "Meddwl",
+      "activity": "Gweithgaredd"
+    },
+    "quickTiles": {
+      "health": {
+        "label": "Iechyd",
+        "hint": "Gwirio cyflwr"
+      },
+      "cognitive": {
+        "label": "Gwybyddol",
+        "hint": "Ymarfer cyflym"
+      },
+      "social": {
+        "label": "Cymdeithasol",
+        "hint": "Sgwrsio am dipyn"
+      },
+      "concierge": {
+        "label": "Concierge",
+        "hint": "Gofyn am help"
+      }
+    }
+  },
+  "voiceHero": {
+    "talkToVyva": "Siarad â VYVA",
+    "speaking": "Mae VYVA yn siarad...",
+    "listening": "Yn gwrando...",
+    "connecting": "Yn cysylltu...",
+    "active": "Actif",
+    "live": "Byw",
+    "you": "Chi",
+    "endCall": "Gorffen yr alwad"
+  },
+  "timezoneGroups": {
+    "europe": "Ewrop",
+    "americas": "Yr Américas",
+    "asiaPacific": "Asia / Y Môr Tawel",
+    "africaMiddleEast": "Affrica / Y Dwyrain Canol"
+  },
+  "chat": {
+    "started": "Sgwrs wedi dechrau",
+    "sendMessage": "Anfon neges",
+    "connecting": "Yn cysylltu…",
+    "connected": "Wedi cysylltu",
+    "tapToConnect": "Tapiwch anfon i gysylltu"
+  },
+  "profile": {
+    "roles": {
+      "daughter": "Merch",
+      "son": "Mab",
+      "carer": "Gofalwr/Gofalwraig",
+      "gp": "Meddyg Teulu"
+    },
+    "overview": {
+      "title": "Eich proffil",
+      "subtitle": "Iechyd, hobïau, tîm gofal, argyfwng a mwy",
+      "loading": "Yn llwytho…",
+      "completionCount": "{{done}} o {{total}} adran wedi'u cwblhau",
+      "setUpBy": "Wedi'i sefydlu gan {{name}}",
+      "confirmed": "Rydych wedi cadarnhau mai hwn yw eich cyfrif.",
+      "awaitingConfirmation": "Yn aros am eich cadarnhad mai hwn yw eich cyfrif.",
+      "confirmNow": "Cadarnhau nawr",
+      "allUnlocked": "Rydych wedi datgloi popeth — mae eich proffil yn gyflawn!",
+      "unlockHintSingle": "Cwblhewch 1 adran arall i ddatgloi {{label}}.",
+      "unlockHintPlural": "Cwblhewch {{count}} adran arall i ddatgloi {{label}}.",
+      "unlocked": "Wedi'i ddatgloi",
+      "comingSoon": "Yn dod yn fuan",
+      "goToVyva": "Mynd i VYVA",
+      "milestone25Label": "Sgwrs bersonol",
+      "milestone25Teaser": "Mae VYVA yn dechrau dod i'ch adnabod",
+      "milestone50Label": "Atgoffion clyfar",
+      "milestone50Teaser": "Meddyginiaethau & apwyntiadau",
+      "milestone75Label": "Cymorth argyfwng",
+      "milestone75Teaser": "Mae eich tîm yn cael ei rybuddio pan fo angen",
+      "milestone100Label": "Profiad llawn",
+      "milestone100Teaser": "Popeth sydd gan VYVA i'w gynnig",
+      "sections": {
+        "basics": {
+          "title": "Hanfodion",
+          "description": "Enw, dyddiad geni, iaith",
+          "benefit": "Mae VYVA yn gwybod pwy ydych chi"
+        },
+        "contact": {
+          "title": "Cyswllt a chyfeiriad",
+          "description": "Rhif ffôn, cyfeiriad cartref",
+          "benefit": "Mae cymorth yn cyrraedd yn gyflymach"
+        },
+        "health": {
+          "title": "Cyflyrau iechyd",
+          "description": "Cyflyrau presennol a diagnosis",
+          "benefit": "Gofal mwy clyfar"
+        },
+        "medications": {
+          "title": "Meddyginiaethau",
+          "description": "Beth rydych yn ei gymryd a phryd",
+          "benefit": "Peidiwch byth â cholli dos"
+        },
+        "allergies": {
+          "title": "Alergeddau",
+          "description": "Alergeddau cyffuriau a bwyd",
+          "benefit": "Argymhellion mwy diogel"
+        },
+        "gp": {
+          "title": "Meddyg Teulu",
+          "description": "Eich meddyg teulu",
+          "benefit": "Gall VYVA gysylltu â'ch meddyg"
+        },
+        "providers": {
+          "title": "Darparwyr",
+          "description": "Fferyllfa, ysbyty, arbenigwyr",
+          "benefit": "Negeseuon di-drafferth"
+        },
+        "careTeam": {
+          "title": "Tîm gofal",
+          "description": "Teulu, gofalwr, ffrindiau",
+          "benefit": "Teulu bob amser yn y llun"
+        },
+        "hobbies": {
+          "title": "Hobïau a diddordebau",
+          "description": "Beth rydych chi'n mwynhau ei wneud",
+          "benefit": "Straeon a sgwrs personol"
+        },
+        "emergency": {
+          "title": "Argyfwng",
+          "description": "Cysylltiadau argyfwng a chynllun",
+          "benefit": "Parod am argyfwng"
+        },
+        "privacy": {
+          "title": "Preifatrwydd a chydsyniad",
+          "description": "Beth rydych chi'n ei rannu a phwy",
+          "benefit": "Eich data, eich rheolau"
+        },
+        "subscription": {
+          "title": "Tanysgrifiad",
+          "description": "Eich cynllun VYVA",
+          "benefit": "Profiad llawn VYVA"
+        }
+      }
+    }
+  },
+  "settings": {
+    "profileSubtitle": "Eich proffil a dewisiadau",
+    "personalInfo": "Gwybodaeth Bersonol",
+    "preferences": "Dewisiadau",
+    "address": "Cyfeiriad",
+    "caregiver": "Gofalwr/Gofalwraig",
+    "saveChanges": "Cadw newidiadau",
+    "saving": "Yn cadw…",
+    "saved": "Newidiadau wedi'u cadw!",
+    "toastSaved": "Proffil wedi'i gadw",
+    "toastSavedDesc": "Mae eich newidiadau wedi'u cadw.",
+    "toastError": "Gwall",
+    "toastErrorDesc": "Ni ellid cadw'r proffil. Rhowch gynnig arall arni.",
+    "fields": {
+      "firstName": "Enw Cyntaf",
+      "lastName": "Cyfenw",
+      "email": "Cyfeiriad e-bost",
+      "phone": "Rhif Ffôn",
+      "country": "Gwlad",
+      "timezone": "Cylchfa Amser",
+      "language": "Iaith Ffefrir",
+      "street": "Cyfeiriad Stryd, Blwch Post, ac ati",
+      "cityState": "Dinas / Sir / Talaith",
+      "postalCode": "Cod Post",
+      "caregiverName": "Enw'r Gofalwr/Gofalwraig",
+      "caregiverContact": "Rhif Cyswllt y Gofalwr/Gofalwraig"
+    },
+    "placeholder": {
+      "firstName": "Enw cyntaf",
+      "lastName": "Cyfenw",
+      "email": "Cyfeiriad e-bost",
+      "phone": "Rhif ffôn",
+      "street": "Cyfeiriad post",
+      "cityState": "Dinas, Sir neu Dalaith",
+      "postalCode": "Cod post",
+      "caregiverName": "Enw llawn y gofalwr/gofalwraig",
+      "caregiverContact": "Ffôn y gofalwr/gofalwraig"
+    },
+    "home": {
+      "title": "Gosodiadau",
+      "subtitle": "Rheolwch eich cyfrif, hysbysiadau, preifatrwydd a thanysgrifiad.",
+      "sections": {
+        "account": "Cyfrif",
+        "privacy": "Preifatrwydd",
+        "subscription": "Tanysgrifiad",
+        "about": "Ynglŷn â",
+        "dangerZone": "Parth perygl"
+      },
+      "rows": {
+        "myAccount": "Fy nghyfrif",
+        "myAccountSub": "Enw, ffôn, iaith, cyfrinair",
+        "notifications": "Hysbysiadau a chysylltu",
+        "notificationsSub": "Sianeli, oriau tawel, amlder",
+        "healthProfile": "Proffil iechyd",
+        "healthProfileSub": "Meddyginiaethau, cyflyrau, meddyg, tîm gofal",
+        "privacyConsent": "Preifatrwydd a chydsyniad",
+        "privacyConsentSub": "Beth all eich tîm gofal ei weld, eich hawliau data",
+        "downloadData": "Lawrlwytho fy nata",
+        "downloadDataSub": "Cael copi o bopeth mae VYVA yn ei gadw amdanoch chi",
+        "planBilling": "Cynllun a bilio",
+        "planBillingSub": "Treial am ddim · 14 diwrnod yn weddill",
+        "planBillingValue": "Am ddim",
+        "termsOfService": "Telerau gwasanaeth",
+        "privacyPolicy": "Polisi preifatrwydd",
+        "contactSupport": "Cysylltu â chymorth",
+        "sendFeedback": "Anfon adborth",
+        "appVersion": "Fersiwn yr ap",
+        "signOut": "Allgofnodi",
+        "deleteAccount": "Dileu fy nghyfrif a phob data",
+        "deleteAccountSub": "Parhaol — ni ellir dadwneud"
+      }
+    },
+    "notifications": {
+      "title": "Hysbysiadau a chysylltu",
+      "subtitle": "Dewiswch sut a phryd mae VYVA yn cysylltu â chi.",
+      "channelCheckins": "Sianel a ffefrir ar gyfer check-ins",
+      "channelReminders": "Sianel a ffefrir ar gyfer atgoffion",
+      "channelCall": "VYVA yn fy ffonio",
+      "channelWhatsapp": "Neges WhatsApp",
+      "channelApp": "Yn yr ap",
+      "quietHours": "Oriau tawel — peidiwch â chysylltu â mi rhwng",
+      "from": "O",
+      "until": "Hyd at",
+      "frequencyLimits": "Cyfyngiadau amlder",
+      "maxCalls": "Uchaf galwadau y dydd",
+      "maxWhatsapp": "Uchaf WhatsApp/dydd",
+      "noLimit": "Dim terfyn",
+      "saving": "Yn cadw...",
+      "savePreferences": "Cadw dewisiadau"
+    },
+    "privacy": {
+      "title": "Preifatrwydd a chydsyniad",
+      "vyvaDataUse": "DEFNYDD DATA VYVA",
+      "whatIShare": "BETH RYDW I'N RHANNU A GYDA PHWY",
+      "analyticsLabel": "Dadansoddeg defnydd",
+      "analyticsSub": "Helpu i wella VYVA gyda data anhysbys",
+      "aiImprovementLabel": "Gwella model AI",
+      "aiImprovementSub": "Caniatáu i sgyrsiau wella'r AI (dienw)",
+      "healthLabel": "Data iechyd",
+      "healthSub": "Cyflyrau, meddyginiaethau, lles",
+      "locationLabel": "Lleoliad",
+      "locationSub": "Lleoliad amser real pan fo'n weithredol",
+      "conversationsLabel": "Crynodebau sgwrs",
+      "conversationsSub": "Uchafbwyntiau dyddiol o'ch sgyrsiau",
+      "gdprFooter": "Caiff newidiadau eu cadw'n awtomatig. Wedi'i amddiffyn o dan y GDPR."
+    },
+    "account": {
+      "title": "Fy nghyfrif",
+      "subtitle": "Diweddarwch eich manylion personol.",
+      "fullName": "Enw llawn",
+      "preferredName": "Enw ffafriedig (sut mae VYVA yn eich galw)",
+      "dateOfBirth": "Dyddiad geni",
+      "gender": "Rhyw",
+      "genderFemale": "Benywaidd",
+      "genderMale": "Gwrywaidd",
+      "genderNonBinary": "Di-ryw",
+      "genderPreferNot": "Gwell gennyf beidio â dweud",
+      "phone": "Rhif ffôn",
+      "whatsapp": "WhatsApp (os yn wahanol)",
+      "whatsappPlaceholder": "Gadael yn wag os yr un peth",
+      "email": "E-bost (dewisol)",
+      "language": "Iaith",
+      "timezone": "Cylchfa amser",
+      "saveChanges": "Cadw newidiadau",
+      "saving": "Yn cadw…",
+      "changePassword": "Newid cyfrinair",
+      "signOut": "Allgofnodi",
+      "phonePlaceholder": "+44 7700 900 123",
+      "emailPlaceholder": "chi@ebost.com",
+      "langEn": "English",
+      "langEs": "Español",
+      "langDe": "Deutsch",
+      "langFr": "Français",
+      "langIt": "Italiano",
+      "langPt": "Português",
+      "langCy": "Cymraeg",
+      "tzMadrid": "Sbaen (Madrid)",
+      "tzBerlin": "Yr Almaen (Berlin)",
+      "tzLondon": "Y DU (Llundain)"
+    }
+  },
+  "health": {
+    "voiceSource": "VYVA yn monitro eich iechyd",
+    "headlineWithName": "Sut ydych chi'n teimlo,\n{{name}}?",
+    "headline": "Sut ydych chi'n teimlo?",
+    "bloodPressure": "Pwysedd gwaed",
+    "mood": "Hwyliau",
+    "sleep": "Cwsg",
+    "statNormal": "Normal",
+    "statGood": "Da",
+    "symptomsToday": "Unrhyw symptomau heddiw?",
+    "urgent": "brys",
+    "doctorServices": "Meddyg a gwasanaethau",
+    "speakToDoctor": "Siarad â meddyg",
+    "speakToDoctorSub": "Cael atgyfeiriad neu gyngor meddygol",
+    "nearbyClinics": "Clinigau cyfagos",
+    "nearbyClinicsSub": "Dewch o hyd i ganolfannau iechyd gerllaw",
+    "symptoms": {
+      "headache": "Cur pen",
+      "kneePain": "Poen yn y pen-glin",
+      "tired": "Blinedig",
+      "dizzy": "Penysgafn",
+      "chestPain": "Poen yn y frest"
+    },
+    "seeDoctor": {
+      "title": "Gweld meddyg",
+      "subtitle": "Fideo neu ffôn mewn munudau",
+      "cta": "Archebu nawr",
+      "sheetTitle": "Dewiswch sut i gysylltu",
+      "videoCall": "Galwad fideo",
+      "phoneCall": "Galwad ffôn",
+      "comingSoonBtn": "Yn dod yn fuan",
+      "comingSoon": "Mae'r gwasanaeth hwn yn cael ei baratoi ar eich cyfer. Ar gael yn fuan iawn!",
+      "checkSymptoms": "Gwirio fy symptomau",
+      "checkSymptomsSub": "Triagio AI + sgan arwyddion hanfodol mewn 5 munud"
+    },
+    "symptomCheck": {
+      "title": "Gwirio symptomau",
+      "intro": {
+        "title": "Gwiriwch eich symptomau",
+        "subtitle": "Gwiriad iechyd cyflym a phreifat — wedi'i arwain gan AI ac ar eich ffôn mewn munudau.",
+        "step1Title": "Sgan arwyddion hanfodol",
+        "step1Desc": "Mae'r camera yn mesur eich cyfradd galon — dim angen dyfais wisgo",
+        "step2Title": "Dywedwch wrthyf beth sy'n bod",
+        "step2Desc": "Sgwrsiwch â VYVA am sut rydych chi'n teimlo",
+        "step3Title": "Cael eich adroddiad",
+        "step3Desc": "Derbyniwch grynodeb y gallwch ei rannu gyda'ch meddyg",
+        "startBtn": "Dechrau gwiriad iechyd"
+      },
+      "scan": {
+        "title": "Sgan arwyddion hanfodol",
+        "instruction": "Edrychwch ar y camera a chadwch yn llonydd — rydym yn darllen eich pwls",
+        "complete": "Sgan wedi'i gwblhau! Dyma eich canlyniad.",
+        "heartRate": "Cyfradd y galon",
+        "permissionDenied": "Angen mynediad at y camera",
+        "permissionHint": "Rhowch ganiatâd i'r camera yn eich gosodiadau porwr i ddefnyddio'r sgan arwyddion hanfodol.",
+        "skipBtn": "Hepgor y sgan",
+        "continueBtn": "Parhau i wirio symptomau"
+      },
+      "chat": {
+        "title": "Dywedwch wrth VYVA",
+        "placeholder": "Teipiwch sut rydych chi'n teimlo…",
+        "thinking": "Mae VYVA yn meddwl…",
+        "send": "Anfon",
+        "errorMsg": "Mae'n ddrwg gennyf, cefais drafferth deall hynny. A allech chi roi cynnig arall arni?"
+      },
+      "report": {
+        "title": "Eich adroddiad",
+        "urgencyLabel": "Brys",
+        "urgentLabel": "Ceisiwch ofal nawr",
+        "routineLabel": "Trefnwch ymweliad",
+        "monitorLabel": "Monitro gartref",
+        "chiefComplaint": "Eich pryder",
+        "symptoms": "Symptomau a nodwyd",
+        "recommendations": "Beth i'w wneud nesaf",
+        "shareBtn": "Rhannu adroddiad",
+        "doneBtn": "Gorffen",
+        "shareTitle": "Fy ngwiriad symptomau VYVA",
+        "copiedToast": "Wedi'i gopïo i'r clipfwrdd",
+        "copiedToastDesc": "Rhannwch y testun gyda'ch meddyg neu deulu.",
+        "disclaimer": "Dim ond at ddibenion gwybodaeth y mae'r adroddiad hwn ac nid yw'n cynrychioli cyngor meddygol. Ymgynghorwch bob amser â gweithiwr iechyd proffesiynol cymwys ar gyfer diagnosis a thriniaeth."
+      }
+    },
+    "scanWound": {
+      "title": "Sganio fy anaf",
+      "subtitle": "Tynnwch neu uwchlwythwch lun ar gyfer dadansoddiad AI",
+      "cta": "Tynnu neu uwchlwytho llun",
+      "analyzing": "Dadansoddi...",
+      "resultTitle": "Canlyniad y dadansoddiad",
+      "severity": "Ysgafn",
+      "severityLabel": {
+        "minor": "Ysgafn",
+        "moderate": "Cymedrol",
+        "serious": "Difrifol"
+      },
+      "advice": "Crafiad bach wedi'i ganfod. Cadwch yr ardal yn lân ac wedi'i gorchuddio. Newidiwch y rhwymyn bob dydd.",
+      "disclaimer": "Canllawiau yn unig yw hyn. Ceisiwch ofal proffesiynol bob amser ar gyfer anafiadau difrifol.",
+      "errorTitle": "Dadansoddiad ddim ar gael",
+      "errorAdvice": "Nid oeddem yn gallu dadansoddi'r llun ar hyn o bryd. Rhowch gynnig arall arni, neu os ydych yn bryderus, cysylltwch â gweithiwr iechyd proffesiynol.",
+      "close": "Cau"
+    },
+    "findAlv": {
+      "title": "Dod o hyd i ALV",
+      "subtitle": "Cynorthwywyr Bywyd Lleol yn agos atoch",
+      "callButton": "Ffonio",
+      "distance": "{{dist}} i ffwrdd",
+      "searchPlaceholder": "Chwilio yn ôl enw neu gyfeiriad..."
+    },
+    "findSpecialist": {
+      "title": "Dod o hyd i arbenigwr",
+      "subtitle": "Cysylltwch â'r arbenigwr cywir",
+      "bookButton": "Archebu",
+      "cardiology": "Cardioleg",
+      "neurology": "Niwroleg",
+      "dermatology": "Dermatoleg",
+      "orthopedics": "Orthopedig",
+      "genetics": "Geneteg",
+      "waitDay": "{{count}} diwrnod",
+      "waitDays": "{{count}} diwrnod",
+      "waitWeek": "{{count}} wythnos",
+      "waitWeeks": "{{count}} wythnos"
+    },
+    "latestAdvances": {
+      "title": "Datblygiadau diweddaraf",
+      "readMore": "Darllenwch fwy",
+      "srcHarvard": "Harvard Health",
+      "srcNature": "Nature Medicine",
+      "srcWHO": "WHO",
+      "srcLancet": "The Lancet",
+      "advance1": {
+        "title": "Cerdded 7,000 cam y dydd yn lleihau risg y galon 50%",
+        "blurb": "Mae ymchwil newydd yn cadarnhau y gall tro dyddiol fod mor effeithiol â meddyginiaeth."
+      },
+      "advance2": {
+        "title": "Therapi genynnau yn addawol ar gyfer colli clyw",
+        "blurb": "Mae treialon clinigol yn adrodd gwelliant arwyddocaol mewn oedolion dros 65 oed."
+      },
+      "advance3": {
+        "title": "Diet Môr y Canoldir yn arafu dirywiad gwybyddol",
+        "blurb": "Mae olew olewydd a llysiau gwyrdd yn gysylltiedig â chof craffach mewn oedolion hŷn."
+      },
+      "advance4": {
+        "title": "Dyfais wisgo newydd yn canfod arythmia cynnar",
+        "blurb": "Mae algorithm watsh clyfar yn rhagori ar ECG safonol wrth adnabod curiad calon afreolaidd."
+      }
+    },
+    "pastScans": {
+      "aiAdvice": "Cyngor AI",
+      "delete": "Dileu",
+      "title": "Sganiau blaenorol",
+      "deleteAriaLabel": "Dileu sgan",
+      "copyAdvice": "Copïo cyngor",
+      "shareAdvice": "Rhannu cyngor",
+      "copyAdviceDone": "Cyngor wedi'i gopïo",
+      "shareIntro": "Mae fy sgan iechyd AI yn dweud..."
+    }
+  },
+  "meds": {
+    "voiceSource": "VYVA yn rheoli eich meddyginiaethau",
+    "headline": "Angen help gyda\nmeddyginiaethau?",
+    "headlines": [
+      "Rwy'n yma i helpu gyda\neich meddyginiaethau",
+      "Gallaf wirio a yw eich\nmeddyginiaethau yn gydnaws",
+      "Gallaf awgrymu rwymedïau\nnaturiol i chi",
+      "Gallaf eich helpu i archebu\npresgripsiwn ar-lein",
+      "Gallaf gymharu prisiau\nfferyllfeydd i chi",
+      "Rhanaf yr ymchwil\nfeddygol ddiweddaraf gyda chi",
+      "Atebaf eich cwestiynau\nam feddyginiaethau",
+      "Gallaf eich helpu i gadw\nat eich trefn iechyd"
+    ],
+    "takenToday": "{{taken}} o {{total}} wedi'u cymryd heddiw",
+    "todaySchedule": "Amserlen heddiw",
+    "dueTonight": "1 i'w gymryd heno",
+    "taken": "Cymerwyd",
+    "tonight": "Heno",
+    "newMedication": "Meddyginiaeth newydd",
+    "added": "Ychwanegwyd",
+    "confirm": "Cadarnhau",
+    "allTaken": "Cymerwyd pob dos!",
+    "noMedsTitle": "Dim meddyginiaeth wedi'i hychwanegu eto",
+    "noMedsSub": "Defnyddiwch y botwm isod i ychwanegu eich meddyginiaethau drwy lais",
+    "noMedsScheduled": "Dim meddyginiaethau wedi'u trefnu ar gyfer heddiw",
+    "confirmTaken": "Cadarnhau fy mod wedi cymryd Metfformin",
+    "addByVoice": "Ychwanegu drwy lais",
+    "medicationInfo": "Gwybodaeth meddyginiaeth",
+    "refillReminder": "Atgoffa am ail-lenwi",
+    "refillReminderSub": "Gosodwch atgoffa ar gyfer eich ail-lenwi nesaf",
+    "interactions": "Rhyngweithiadau",
+    "interactionsSub": "Ychwanegwch eich meddyginiaethau i wirio rhyngweithiadau",
+    "interactionsSubWithMeds_one": "{{count}} feddyginiaeth ar eich rhestr",
+    "interactionsSubWithMeds_other": "{{count}} meddyginiaeth ar eich rhestr",
+    "medicationAssistant": "Cynorthwyydd meddyginiaethau",
+    "toastAdded": "Meddyginiaeth wedi'i ychwanegu",
+    "toastAddedDesc": "Mae {{name}} wedi'i ychwanegu at eich rhestr.",
+    "toastAddedDefault": "Mae eich meddyginiaeth wedi'i ychwanegu.",
+    "assistant": {
+      "interactions": {
+        "label": "Gwirio rhyngweithiadau",
+        "sub": "Gweld a yw unrhyw feddyginiaethau'n gwrthdaro",
+        "sheetTitle": "Gwirio rhyngweithiadau",
+        "prompt": "Rwy'n cymryd y meddyginiaethau canlynol: {{medNames}}. Gwiriwch am unrhyw ryngweithiadau hysbys rhwng y meddyginiaethau hyn a rhowch wybod i mi os oes unrhyw beth y dylwn ei drafod gyda fy meddyg neu fferyllydd."
+      },
+      "naturalMedicine": {
+        "label": "Meddygaeth naturiol",
+        "sub": "Meddyginiaethau llysieuol a llesiant naturiol",
+        "sheetTitle": "Meddygaeth naturiol",
+        "prompt": "Rwy'n cymryd y meddyginiaethau canlynol: {{medNames}}. A allwch rannu gwybodaeth am feddyginiaethau llysieuol, atchwanegiadau naturiol, neu opsiynau llesiant ar sail planhigion a allai ategu fy iechyd? Rhowch wybod i mi hefyd os gallai unrhyw feddyginiaeth naturiol gyffredin ryngweithio â'm meddyginiaethau cyfredol, er mwyn i mi aros yn ddiogel."
+      },
+      "order": {
+        "label": "Archebu ar-lein",
+        "sub": "Presgripsiynau ailadrodd a danfon i'r cartref",
+        "links": {
+          "nhsRepeat": "Presgripsiynau ailadrodd y GIG",
+          "pharmacy2u": "Pharmacy2U",
+          "chemistDirect": "Chemist Direct",
+          "lloydsPharmacy": "Lloyds Pharmacy"
+        }
+      },
+      "prices": {
+        "label": "Dod o hyd i'r prisiau gorau",
+        "sub": "Cymharu prisiau rhwng fferyllfeydd",
+        "links": {
+          "pillSorted": "PillSorted",
+          "chemistDirect": "Chemist Direct",
+          "boots": "Boots",
+          "superdrug": "Superdrug Online Doctor"
+        }
+      },
+      "advances": {
+        "label": "Datblygiadau diweddaraf",
+        "sub": "Ymchwil diweddar ar eich meddyginiaethau",
+        "sheetTitle": "Datblygiadau diweddaraf",
+        "prompt": "Rwy'n cymryd y meddyginiaethau canlynol: {{medNames}}. A allwch roi crynodeb cyfeillgar o unrhyw ymchwil neu newyddion diweddar am y meddyginiaethau hyn? Hoffwn aros yn wybodus am ddatblygiadau a allai fod yn berthnasol i'm hiechyd."
+      }
+    },
+    "notes": {
+      "takenMorning": "Cymerwyd bore yma gyda brecwast",
+      "takenAt9": "Cymerwyd am 9:00",
+      "dueEvening": "I'w gymryd heno am 19:00 · Byddaf yn eich atgoffa"
+    },
+    "disclaimer": "Gwybodaeth yn unig yw hon, nid cyngor meddygol — cyfeiriwch at eich meddyg neu fferyllydd bob amser.",
+    "assistantError": "Aeth rhywbeth o'i le. Rhowch gynnig arall arni.",
+    "assistantPlaceholder": "Gofynnwch gwestiwn dilynol…",
+    "names": {
+      "aspirin75": "Aspirin 75mg",
+      "lisinopril10": "Lisinopril 10mg",
+      "metformin500": "Metformin 500mg"
+    },
+    "adherenceReport": "Adherence Report",
+    "adherenceReportSub": "See how consistently you take your medications",
+    "adherence": {
+      "title": "Adherence Report",
+      "backToMeds": "Back to Medications",
+      "overallStats": "Overall Adherence",
+      "thisWeek": "This week",
+      "last30Days": "Last 30 days",
+      "perMedication": "Per Medication",
+      "taken": "taken",
+      "scheduled": "scheduled",
+      "streak": "{{days}} day streak",
+      "streakSingle": "{{days}} day streak",
+      "streakZero": "No current streak",
+      "weeklyView": "7-Day View",
+      "dayLabels": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ],
+      "statusTaken": "Taken",
+      "statusMissed": "Missed",
+      "statusNoSchedule": "No dose",
+      "noDataTitle": "No records yet",
+      "noDataSub": "Your adherence history will appear here as you confirm doses over time.",
+      "shareButton": "Share with care team",
+      "shareCopied": "Report copied!",
+      "shareCopiedDesc": "Your adherence summary has been copied to the clipboard.",
+      "shareFormat": "Medication Adherence Report\n\nThis week: {{week}}%\nLast 30 days: {{month}}%\n\nPer medication:\n{{meds}}\n\nGenerated by VYVA",
+      "shareFormatMed": "{{name}} ({{dosage}}): {{taken}}/{{scheduled}} doses taken this week, {{streak}}-day streak",
+      "loadingTitle": "Loading your report…",
+      "errorTitle": "Could not load report",
+      "errorSub": "Please try again in a moment.",
+      "retry": "Try again",
+      "dosageFallback": "—"
+    }
+  },
+  "brain": {
+    "voiceSource": "VYVA yw eich hyfforddwr ymennydd",
+    "headline": "Barod am ymarfer\nych ymennydd?",
+    "subtitle": "Cyfres {{streak}} diwrnod — daliwch ati!",
+    "startSession": "Dechrau sesiwn",
+    "chooseActivity": "Dewis gweithgaredd",
+    "doneToday": "Wedi'i wneud heddiw",
+    "streakThisWeek": "Eich cyfres yr wythnos hon",
+    "dayStreak": "diwrnod yn olynol",
+    "dayAbbreviations": [
+      "Ll",
+      "Ma",
+      "Me",
+      "Ia",
+      "Gw",
+      "Sa",
+      "Su"
+    ],
+    "activities": {
+      "triviaQuiz": "Cwis",
+      "memoryGame": "Gêm atgof",
+      "scrabble": "Sgrabbl",
+      "logicPuzzle": "Pos rhesymeg",
+      "meditation": "Myfyrdod",
+      "breathing": "Anadlu"
+    }
+  },
+  "activity": {
+    "voiceSource": "VYVA yn olrhain eich symudiad",
+    "headlineWithName": "Eich gweithgaredd,\n{{name}}",
+    "headline": "Eich gweithgaredd",
+    "stepsToday": "Camau heddiw",
+    "activeTime": "Amser gweithgar",
+    "calBurned": "Cal wedi'u llosgi",
+    "dailyStepGoal": "Nod camau dyddiol",
+    "updateSteps": "Diweddaru camau",
+    "enterSteps": "Rhowch eich camau heddiw",
+    "save": "Cadw",
+    "cancel": "Canslo",
+    "noStepsYet": "Dim camau wedi'u cofnodi eto",
+    "goal": "nod: {{steps}}",
+    "progressPct": "{{pct}}% o'r nod dyddiol — daliwch ati!",
+    "tapUpdate": "Tapiwch 'Diweddaru camau' i gofnodi eich camau heddiw",
+    "logMovement": "Cofnodi symudiad",
+    "duration": "Hyd",
+    "saving": "Yn cadw…",
+    "logActivity": "Cofnodi {{duration}}mun o {{type}}",
+    "selectActivity": "Dewiswch weithgaredd uchod",
+    "activityLogged": "Gweithgaredd wedi'i gofnodi — gwaith da!",
+    "couldNotSave": "Methu cadw — rhowch gynnig arall arni.",
+    "todaysSummary": "Crynodeb heddiw",
+    "noMovement": "Dim symudiad wedi'i gofnodi heddiw.",
+    "logToStart": "Cofnodwch weithgaredd uchod i ddechrau!",
+    "stepsCount": "{{count}} cam",
+    "calUnit": "cal",
+    "minAbbr": "mun",
+    "min": "mun",
+    "types": {
+      "walking": "Cerdded",
+      "cycling": "Beicio",
+      "stretching": "Ymestyn",
+      "exercise": "Ymarfer",
+      "breathing": "Anadlu"
+    }
+  },
+  "onboarding": {
+    "careTeam": {
+      "roles": {
+        "familyMember": "Aelod o'r teulu",
+        "caregiver": "Gofalwr",
+        "doctor": "Meddyg"
+      },
+      "relationships": {
+        "son": "Mab",
+        "daughter": "Merch",
+        "spousePartner": "Priod / Partner",
+        "sibling": "Brawd / Chwaer",
+        "friend": "Ffrind",
+        "neighbour": "Cymydog",
+        "professionalCarer": "Gofalwr proffesiynol",
+        "gp": "Meddyg teulu",
+        "specialistDoctor": "Meddyg arbenigol",
+        "other": "Arall"
+      },
+      "status": {
+        "pending": "Yn aros",
+        "accepted": "Derbyniwyd",
+        "declined": "Gwrthodwyd",
+        "expired": "Wedi dod i ben",
+        "revoked": "Wedi'i dynnu"
+      },
+      "roleOptions": {
+        "family": {
+          "title": "Aelod o'r teulu neu ffrind",
+          "sub": "Mab, merch, priod, brawd/chwaer, ffrind, cymydog. Yn cael crynodebau lles — chi sy'n rheoli'r manylion."
+        },
+        "carer": {
+          "title": "Gofalwr",
+          "sub": "Gofalwr proffesiynol neu brif ofalwr. Gall dderbyn rhybuddion diogelwch, meddyginiaeth ac iechyd."
+        },
+        "doctor": {
+          "title": "Meddyg neu arbenigwr",
+          "sub": "Meddyg teulu, cardielegydd, fferyllydd. Gall weld adroddiadau iechyd pan fyddwch chi'n ei alluogi."
+        }
+      },
+      "stepDots": "Cam {{current}} o 4",
+      "frame": {
+        "roster": "👥 Tîm gofal",
+        "step1": "👥 Tîm gofal — cam 1 o 4",
+        "step2": "👥 Tîm gofal — cam 2 o 4",
+        "step3": "👥 Tîm gofal — cam 3 o 4",
+        "step4": "👥 Tîm gofal — cam 4 o 4"
+      },
+      "loading": "Yn llwytho'r tîm gofal…",
+      "errorTitle": "Nid oedd modd llwytho eich tîm gofal",
+      "errorMessage": "Roedd problem gyda'r cysylltiad. Gwiriwch eich cysylltiad a rhowch gynnig arall arni.",
+      "retry": "Rhoi cynnig arall",
+      "rosterTitle": "👥 Eich tîm gofal",
+      "rosterSubtitle": "Pobl rydych chi wedi'u hychwanegu i'ch cefnogi. Chi sy'n rheoli'n union beth all pob person ei weld.",
+      "rosterInfoBanner": "Newidiwch beth all pob person ei weld unrhyw bryd yn Gosodiadau → Preifatrwydd a chydsyniad.",
+      "addAnother": "+ Ychwanegu person arall",
+      "doneBack": "Gorffen — yn ôl i'r proffil",
+      "resending": "Yn ail-anfon…",
+      "resendInvite": "↻ Ail-anfon gwahoddiad",
+      "removeAccess": "Tynnu mynediad",
+      "cancelInvite": "Canslo gwahoddiad",
+      "confirmRemoveAccess": "Tynnu mynediad {{name}}? Ni fyddant yn derbyn unrhyw ddiweddariadau mwyach.",
+      "confirmCancelInvite": "Canslo gwahoddiad {{name}}? Bydd y ddolen yn stopio gweithio.",
+      "keep": "Cadw",
+      "removing": "Yn tynnu…",
+      "yesRemove": "Ie, tynnu",
+      "yesCancel": "Ie, canslo",
+      "toastRemoveError": "Nid oedd modd tynnu aelod o'r tîm gofal",
+      "toastResendError": "Nid oedd modd ail-anfon y gwahoddiad",
+      "toastInviteError": "Nid oedd modd anfon y gwahoddiad",
+      "step1": {
+        "heading": "👥 Ychwanegu rhywun at eich tîm gofal",
+        "subtitle": "Chi sy'n penderfynu'n union beth all pob person ei weld. Nid oes dim yn cael ei rannu hyd nes y byddwch chi'n cadarnhau.",
+        "infoBanner": "Mae pob rhannu o dan eich rheolaeth chi. Gallwch newid neu dynnu mynediad unrhyw bryd yn Gosodiadau → Preifatrwydd a chydsyniad.",
+        "continue": "Parhau"
+      },
+      "step2": {
+        "heading": "Amdanyn nhw",
+        "subtitle": "Dywedwch wrthym pwy rydych chi'n ei ychwanegu.",
+        "labelName": "Eu henw llawn",
+        "labelRelationship": "Eich perthynas â nhw",
+        "labelPhone": "Eu rhif ffôn",
+        "labelWhatsapp": "Eu WhatsApp (os yn wahanol)",
+        "placeholderWhatsapp": "Gadael yn wag os yr un peth â'r ffôn",
+        "labelEmail": "Eu e-bost (dewisol)",
+        "continue": "Parhau",
+        "placeholderName": "e.e. Rhys Jones",
+        "placeholderPhone": "+44 7700 900123",
+        "placeholderEmail": "rhys@email.com"
+      },
+      "step3": {
+        "heading": "Beth all {{name}} ei weld?",
+        "subtitle": "Chi sy'n penderfynu. Trowch ymlaen yr hyn rydych chi'n gyfforddus i'w rannu. Newidiwch unrhyw bryd yn Gosodiadau.",
+        "sectionUpdates": "💬 Diweddariadau a chrynodebau",
+        "sectionHealth": "🏥 Gwybodaeth iechyd",
+        "sectionSafety": "🆘 Rhybuddion diogelwch",
+        "sectionDashboard": "📊 Mynediad i'r dangosfwrdd",
+        "toggleDailySummaryTitle": "Crynodeb lles dyddiol",
+        "toggleDailySummaryDesc": "Diweddariad dyddiol byr — sut rydych chi'n teimlo, a wnaethoch chi siarad â VYVA",
+        "toggleMoodTitle": "Diweddariadau hwyliau",
+        "toggleMoodDesc": "Os bydd VYVA yn canfod eich bod chi'n teimlo'n isel neu'n bryderus",
+        "toggleAppointmentsTitle": "Apwyntiadau sydd i ddod",
+        "toggleAppointmentsDesc": "Apwyntiadau meddyg ac atgofion pwysig",
+        "toggleMedicationTitle": "Rhybuddion meddyginiaeth",
+        "toggleMedicationDesc": "Hysbysiad os ydych chi'n colli dos",
+        "toggleHealthReportsTitle": "Adroddiadau iechyd",
+        "toggleHealthReportsDesc": "Crynodebau iechyd manwl yn cynnwys cyflyrau ac arwyddion hanfodol",
+        "toggleVitalSignsTitle": "Data arwyddion hanfodol",
+        "toggleVitalSignsDesc": "Cyfradd curiad y galon, pwysedd gwaed, lefelau ocsigen o'ch dyfeisiau",
+        "toggleCognitiveTitle": "Canlyniadau sesiynau gwybyddol",
+        "toggleCognitiveDesc": "Sut rydych chi'n dod ymlaen yn y sesiynau hyfforddi'r ymennydd",
+        "toggleEmergencyTitle": "Rhybuddion argyfwng",
+        "toggleEmergencyDesc": "Yn cael ei gysylltu ar unwaith os bydd VYVA yn canfod codwm neu argyfwng",
+        "toggleInactivityTitle": "Rhybuddion anweithgarwch",
+        "toggleInactivityDesc": "Os nad yw VYVA wedi clywed oddi wrthych am gyfnod anarferol o hir",
+        "toggleDashboardTitle": "Gweld fy nangosfwrdd gofal",
+        "toggleDashboardDesc": "Gall {{name}} fewngofnodi i weld crynodeb o'ch iechyd a'ch gweithgareddau",
+        "footerNote": "Newidiwch y rhain unrhyw bryd yn Gosodiadau → Preifatrwydd a chydsyniad",
+        "confirm": "Cadarnhau a pharhau"
+      },
+      "step4": {
+        "heading": "Gwahodd {{name}} i gysylltu",
+        "subtitle": "Byddwn yn anfon neges at {{name}} yn egluro VYVA a'r hyn rydych chi wedi dewis ei rannu. Rhaid iddyn nhw dderbyn cyn bod unrhyw beth yn weladwy.",
+        "channelWhatsapp": "Neges WhatsApp",
+        "channelSms": "Neges SMS",
+        "channelTo": "I {{contact}}",
+        "messagePreviewLabel": "Rhagolwg neges",
+        "messagePreview": "Helo {{name}} — mae eich aelod o'r teulu wedi gosod VYVA, cymhorthydd AI sy'n cefnogi eu lles dyddiol. Maent yn dymuno rhannu diweddariadau dyddiol gyda chi. Tapiwch y ddolen isod i dderbyn a chreu eich cyfrif am ddim.",
+        "sending": "Yn anfon…",
+        "sendInvitation": "Anfon gwahoddiad"
+      },
+      "step5": {
+        "heading": "Mae {{name}} wedi cael gwahoddiad",
+        "subtitle": "Unwaith y bydd {{name}} yn derbyn, dim ond yr hyn rydych chi wedi dewis ei rannu y byddant yn ei weld. Cewch eich hysbysu pan fyddant yn ymuno.",
+        "invitationSent": "Gwahoddiad wedi'i anfon · yn aros i gael ei dderbyn",
+        "infoBanner": "Ni all {{name}} weld dim hyd nes y byddant yn derbyn. Os na fyddant yn derbyn o fewn 7 diwrnod, bydd y ddolen yn dod i ben yn awtomatig.",
+        "addAnother": "Ychwanegu person arall",
+        "done": "Gorffen — gweld y tîm gofal"
+      },
+      "nameFallbackSubject": "nhw",
+      "nameFallbackObject": "nhw",
+      "nameFallbackGreeting": "yno"
+    },
+    "proxySetup": {
+      "relationships": {
+        "child": "Mab / Merch",
+        "spouse": "Gŵr / Gwraig / Partner",
+        "sibling": "Brawd / Chwaer",
+        "grandchild": "Ŵyr / Wyres",
+        "friend": "Ffrind",
+        "professionalCarer": "Gofalwr proffesiynol",
+        "other": "Arall"
+      },
+      "stepLabel": "Cam 2b o 5",
+      "heading": "Pwy sy'n gosod hyn?",
+      "description": "Byddwn yn cofnodi bod y proffil hwn wedi'i osod ar ran rhywun. Gall y person y mae'n perthyn iddo ei gadarnhau pan fydd yn barod.",
+      "labelName": "Eich enw",
+      "labelRelationship": "Eich perthynas â nhw",
+      "placeholderRelationship": "Dewis perthynas…",
+      "infoBox": "Noder: bydd y person rydych chi'n gosod hyn ar ei gyfer yn gweld sgrin gadarnhau cyn i VYVA fynd yn fyw iddyn nhw. Gallant hefyd ei gadarnhau'n ddiweddarach o'r dudalen broffil.",
+      "error": "Aeth rhywbeth o'i le — rhowch gynnig arall arni.",
+      "saving": "Yn cadw…",
+      "continue": "Parhau",
+      "placeholderName": "e.e. Sian Williams"
+    }
+  },
+  "weather": {
+    "clear": "Clir",
+    "partlyCloudy": "Cymylog yn rhannol",
+    "cloudy": "Cymylog",
+    "overcast": "Trwchus cymylog",
+    "fog": "Niwlog",
+    "drizzle": "Glaw mân",
+    "rain": "Glawog",
+    "snow": "Eira",
+    "showers": "Cawodydd",
+    "snowShowers": "Cawodydd eira",
+    "thunderstorm": "Storm fellt a tharanau"
+  },
+  "companions": {
+    "title": "Dod o Hyd i Gydymaith",
+    "subtitle": "Cysylltu ag eraill sy'n rhannu eich diddordebau",
+    "setupTitle": "Beth ydych chi'n ei fwynhau?",
+    "setupSubtitle": "Dewiswch eich diddordebau i ddod o hyd i gwmni addas",
+    "saveInterests": "Dod o Hyd i Gymdeithas",
+    "editInterests": "Golygu diddordebau",
+    "loading": "Yn llwytho…",
+    "yearsOld": "mlwydd oed",
+    "tabs": {
+      "suggestions": "Awgrymiadau",
+      "myCompanions": "Fy Nghymdeithas"
+    },
+    "interests": {
+      "title": {
+        "games": "Gemau",
+        "outdoors": "Awyr agored",
+        "creative": "Creadigol",
+        "learning": "Dysgu"
+      },
+      "chess": "Gwyddbwyll",
+      "bridge": "Bridge",
+      "bingo": "Bingo",
+      "cards": "Cardiau",
+      "dominoes": "Dominos",
+      "sudoku": "Sudoku",
+      "walking": "Cerdded",
+      "gardening": "Garddio",
+      "birdwatching": "Gwylio adar",
+      "cycling": "Beicio",
+      "fishing": "Pysgota",
+      "painting": "Peintio",
+      "knitting": "Gwau",
+      "music": "Cerddoriaeth",
+      "crafts": "Crefftau",
+      "writing": "Ysgrifennu",
+      "reading": "Darllen",
+      "languages": "Ieithoedd",
+      "history": "Hanes",
+      "crosswords": "Croeseiriau",
+      "documentary": "Rhaglenni dogfen"
+    },
+    "suggestion": {
+      "sharedInterests": "Diddordebau cyffredin",
+      "activity": "Gallech chi {{activity}} gyda'ch gilydd!",
+      "connect": "Dweud Helo",
+      "skip": "Neidio"
+    },
+    "noSuggestions": "Dim awgrymiadau newydd ar hyn o bryd. Ychwanegwch fwy o ddiddordebau!",
+    "connection": {
+      "pending": "Cais anfonwyd",
+      "incoming": "Eisiau cysylltu â chi!",
+      "accepted": "Wedi cysylltu",
+      "accept": "Derbyn",
+      "decline": "Gwrthod",
+      "requestSent": "Cais cysylltu anfonwyd!"
+    },
+    "noConnections": "Dim cymdeithas eto — gwiriwch yr adran Awgrymiadau!",
+    "activityTile": "Dod o Hyd i Gydymaith",
+    "activityTileSubtitle": "Cwrdd ag eraill â diddordebau tebyg",
+    "sayHello": "Dweud helo drwy VYVA",
+    "sayHelloPrompt": "Dywedwch helo wrth {{name}}!",
+    "errors": {
+      "saveInterestsFailed": "Nid oedd modd cadw eich diddordebau",
+      "connectFailed": "Nid oedd modd anfon y cais",
+      "respondFailed": "Nid oedd modd diweddaru'r cysylltiad",
+      "activateFailed": "Nid oedd modd actifadu'r gymuned. Rhowch gynnig arall arni."
+    },
+    "profile": {
+      "valuesTitle": "Beth sy'n bwysig i chi",
+      "preferredActivitiesTitle": "Beth hoffech chi ei wneud gyda'ch gilydd",
+      "values": {
+        "family": "Teulu",
+        "health": "Iechyd",
+        "community": "Cymuned",
+        "friendship": "Cyfeillgarwch",
+        "faith": "Ffydd",
+        "humor": "Hiwmor",
+        "nature": "Natur",
+        "independence": "Annibyniaeth"
+      },
+      "preferredActivities": {
+        "chat_together": "Sgwrsio",
+        "walk_together": "Mynd am dro",
+        "play_games": "Chwarae gemau",
+        "watch_movies": "Gwylio ffilmiau",
+        "crafts_together": "Gwneud crefftau",
+        "book_club": "Clwb llyfrau",
+        "cook_together": "Coginio gyda'n gilydd",
+        "garden_together": "Garddio gyda'n gilydd"
+      }
+    },
+    "activityPrompt": {
+      "games": "Gallech chi chwarae gemau gyda'ch gilydd!",
+      "outdoors": "Gallech chi fwynhau'r awyr agored gyda'ch gilydd!",
+      "creative": "Gallech chi greu rhywbeth gyda'ch gilydd!",
+      "learning": "Gallech chi archwilio a dysgu gyda'ch gilydd!"
+    }
+  },
+  "safeHome": {
+    "activityTile": "Sganiwr Cartref Diogel",
+    "activityTileSubtitle": "Sganiwch ystafell am beryglon diogelwch",
+    "headline": "Cartref\nDiogel",
+    "subtitle": "Canfod peryglon cyn iddynt achosi niwed",
+    "scanTitle": "Sganio Ystafell",
+    "scanSubtitle": "Tynnwch neu uwchlwythwch lun o unrhyw ystafell i wirio am beryglon",
+    "takePhoto": "Tynnu neu Uwchlwytho Llun",
+    "analyzing": "Dadansoddi am beryglon…",
+    "riskLabel": {
+      "safe": "Diogel",
+      "lowRisk": "Risg Isel",
+      "highRisk": "Risg Uchel"
+    },
+    "hazardsFound": "Peryglon a Ganfuwyd",
+    "advice": "Cyngor Diogelwch",
+    "scanAgain": "Sganio Ystafell Arall",
+    "history": "Sganiau Blaenorol",
+    "noHistory": "Dim sganiau eto. Sganiwch ystafell i ddechrau.",
+    "viewImage": "Gweld Llun",
+    "deleted": "Sgân wedi'i ddileu",
+    "errorTitle": "Dadansoddiad Ddim ar Gael",
+    "errorAdvice": "Ni allem ddadansoddi'r llun. Rhowch gynnig arall gyda llun cliriach.",
+    "viewAll": "Gweld Popeth",
+    "viewFullImage": "Gweld Llun Llawn"
+  },
+  "concierge": {
+    "voiceSource": "VYVA yw eich cynorthwyydd personol",
+    "headline": "Sut gallaf i\nych helpu heddiw?",
+    "subtitle": "Bargeinion, teithiau, awgrymiadau a mwy",
+    "forYouToday": "I chi heddiw",
+    "loadingRecs": "Yn chwilio am yr awgrymiadau gorau i chi…",
+    "noRecs": "Tapiwch Adnewyddu i weld argymhellion heddiw.",
+    "refreshRecs": "Adnewyddu",
+    "quickActions": "Camau cyflym",
+    "chatTitle": "Sgwrs â VYVA",
+    "placeholder": "Gofynnwch unrhyw beth i mi — teithiau, bargeinion, awgrymiadau…",
+    "chatEmptyHint": "Defnyddiwch gam cyflym uchod neu teipiwch eich cwestiwn eich hun.",
+    "errorMsg": "Aeth rhywbeth o'i le. Rhowch gynnig arall arni.",
+    "newConversation": "Sgwrs newydd",
+    "activityTile": "Eich cynorthwyydd AI",
+    "activityTileSubtitle": "Bargeinion, teithiau, awgrymiadau a mwy — wedi'i bersonoli i chi",
+    "actions": {
+      "bookRide": "Archebu tacsi",
+      "scheduleAppt": "Trefnu apwyntiad",
+      "researchTopic": "Ymchwilio i bwnc",
+      "findDeals": "Dod o hyd i fargeinion",
+      "getAdvice": "Cael cyngor"
+    },
+    "prompts": {
+      "bookRide": "Archebwch dacsi i mi ar gyfer yfory am 10am",
+      "scheduleAppt": "Helpwch fi i drefnu apwyntiad meddyg",
+      "researchTopic": "Eglurwch beth mae Medicare Rhan B yn ei gwmpasu mewn termau syml",
+      "findDeals": "Dewch o hyd i fargeinion yn fy agosaf y penwythnos hwn",
+      "getAdvice": "Beth yw rysáit syml da i un person?"
+    }
+  },
+  "scamGuard": {
+    "activityTile": "Gwarchod rhag Sgamiau",
+    "activityTileSubtitle": "Gwiriwch lythyrau, e-byst a negeseuon amheus",
+    "headline": "Gwarchod rhag Sgamiau",
+    "subtitle": "Gwiriwch unrhyw ddogfen neu neges amheus",
+    "scanTitle": "Dadansoddi Dogfen",
+    "scanSubtitle": "Tynnwch lun llythyr, e-bost wedi’i argraffu neu sgrin-lun",
+    "takePhoto": "Tynnu neu Uwchlwytho Llun",
+    "checkAnother": "Dadansoddi Dogfen Arall",
+    "analyzing": "Yn gwirio am arwyddion sgam…",
+    "riskLabel": {
+      "safe": "Diogel",
+      "suspicious": "Amheus",
+      "scam": "Sgam"
+    },
+    "explanation": "Asesiad",
+    "steps": "Beth i’w wneud",
+    "history": "Gwiriadau Blaenorol",
+    "noHistory": "Dim gwiriadau eto. Tynnwch lun dogfen amheus i ddechrau.",
+    "viewImage": "Gweld llun",
+    "deleted": "Gwiriad wedi’i ddileu",
+    "errorTitle": "Dadansoddiad Unavailable",
+    "errorExplanation": "Nid oeddem yn gallu dadansoddi’r ddogfen. Peidiwch â rhannu gwybodaeth bersonol a ffoniwch 0808 250 5050.",
+    "errorStep1": "Peidiwch â rhannu gwybodaeth bersonol na ariannol.",
+    "errorStep2": "Gofynnwch i berson dibynadwy ei archwilio.",
+    "errorStep3": "Ffoniwch 0808 250 5050 (llinell sgamiau am ddim).",
+    "callCompanionTitle": "Cymrawd Galwad",
+    "callCompanionSubtitle": "Arweiniad byw yn ystod galwad amheus",
+    "callCompanionDesc": "Dechreuwch VYVA yn ystod galwad amheus. Gofynnwch beth i’w ddweud, beth i’w osgoi, ac a ddylech chi roi’r ffôn i lawr.",
+    "callCompanionStart": "Dechrau Cymrawd Galwad",
+    "callCompanionEnd": "Gorffen Galwad",
+    "callCompanionConnecting": "Yn cysylltu…"
+  },
+  "community": {
+    "title": "Fy Nghymuned",
+    "hero": {
+      "title": "Mae VYVA wedi dod o hyd i rywun a allai fod yn addas i chi",
+      "body": "Rosa, 71, o Salamanca — mae hi yn caru garddio a fflamenco, yn union fel chi. Hoffech chi i mi eich cyflwyno?",
+      "cta": "Cwrdd a Rosa"
+    },
+    "mood": {
+      "title": "Sut ydych chi yn teimlo heddiw?",
+      "happy": "Hapus",
+      "calm": "Tawel",
+      "lonely": "Ychydig yn unig",
+      "tired": "Blinedig",
+      "excited": "Cyffrous"
+    },
+    "groups": {
+      "title": "Fy Ngrwpiau",
+      "seeAll": "Gweld i gyd",
+      "members": "aelodau",
+      "join": "Ymuno a grwp newydd",
+      "garden": "Ffrindiau Gardd",
+      "chess": "Clwb Gwyddbwyll",
+      "reading": "Cylch Darllen",
+      "music": "Cariadon Cerddoriaeth"
+    },
+    "groupPanel": {
+      "name": "Ffrindiau Gardd",
+      "schedule": "Eich grwp mwyaf actif · Yn cyfarfod ar ddydd Mawrth am 11am",
+      "liveNow": "Byw nawr",
+      "you": "Chi",
+      "memberR": "Rosa",
+      "memberC": "Carmen",
+      "memberJ": "Josefa",
+      "memberA": "Amparo",
+      "topic": "Heddiw: Y planhigion gorau ar gyfer balconi heulog",
+      "topicSub": "Bydd VYVA yn arwain y sgwrs · 20 mun · Galwad llais",
+      "joinCall": "Ymuno ar alwad"
+    },
+    "matches": {
+      "title": "Pobl a allai fod yn addas i chi",
+      "seeMore": "Gweld rhagor",
+      "match": "cyfatebiaeth",
+      "introduce": "Gofyn i VYVA ein cyflwyno",
+      "skip": "Hepgor",
+      "rosaCity": "Salamanca",
+      "conchaCity": "Valladolid",
+      "lolaCity": "Zamora",
+      "tagGardening": "Garddio",
+      "tagFlamenco": "Fflamenco",
+      "tagMorning": "Person bore",
+      "tagReading": "Darllen",
+      "tagMusic": "Cerddoriaeth",
+      "tagCalm": "Siaradwr tawel",
+      "tagKnitting": "Gweu",
+      "tagTalks": "Sgyrsiau hir",
+      "tagFaith": "Ffydd-ganolog"
+    },
+    "introModal": {
+      "title": "Yn paratoi eich cyflwyniad",
+      "body": "Mae VYVA yn cysylltu a {{name}} ar eich rhan. Fe ch hysbysir cyn gynted ag y bydd yn ymateb.",
+      "ok": "Gwych, diolch!"
+    },
+    "toast": {
+      "title": "Mae VYVA yma",
+      "body": "Mae eich grwp Ffrindiau Gardd yn dechrau mewn 15 munud. A ddylwn i eich atgoffa pan ddaw r amser?",
+      "yes": "Ie, os gwelwch yn dda",
+      "no": "Nid nawr"
+    },
+    "gate": {
+      "title": "Darganfyddwch eich cymuned",
+      "description": "Cysylltwch â phobl sy'n rhannu eich diddordebau. Diogel, cyfeillgar a dan arweiniad VYVA.",
+      "cta": "Ymuno â'r gymuned"
+    },
+    "consent": {
+      "title": "Ymunwch â'ch cymuned",
+      "bullet1": "Byddwch yn gallu cysylltu â phobl sy'n rhannu eich diddordebau a hobïau.",
+      "bullet2": "Mae VYVA yn arwain pob cyflwyniad cyntaf — ni chaiff eich rhif ffôn na'ch manylion cyswllt personol eu rhannu'n uniongyrchol.",
+      "settingsNote": "Gallwch adael y gymuned ar unrhyw adeg o'r Gosodiadau.",
+      "confirmBtn": "Ymuno nawr",
+      "dismissBtn": "Nid nawr"
+    },
+    "bannerMessages": [
+      "Nid ydych byth ar eich pen eich hun yma",
+      "Mae eich stori yn bwysig",
+      "Gyda n gilydd, bob dydd",
+      "Mae rhywun yma bob amser",
+      "Rydych chi n croeso yma"
+    ]
+  }
+}

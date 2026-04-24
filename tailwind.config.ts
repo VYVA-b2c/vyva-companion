@@ -88,6 +88,22 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        "vyva-card": "0 2px 12px rgba(0,0,0,0.07)",
+        "vyva-card-hover": "0 4px 20px rgba(0,0,0,0.12)",
+        "vyva-hero": "0 8px 32px rgba(91,18,160,0.25)",
+        "vyva-sos": "0 4px 16px rgba(185,28,28,0.40)",
+        "vyva-fab": "0 4px 18px rgba(107,33,168,0.40)",
+        "vyva-input": "0 1px 4px rgba(0,0,0,0.06)",
+      },
+      fontSize: {
+        "vyva-hero": ["28px", { lineHeight: "1.25", fontWeight: "700" }],
+        "vyva-title": ["20px", { lineHeight: "1.3", fontWeight: "600" }],
+        "vyva-body-lg": ["17px", { lineHeight: "1.65" }],
+        "vyva-body": ["15px", { lineHeight: "1.6" }],
+        "vyva-caption": ["13px", { lineHeight: "1.5" }],
+        "vyva-label": ["11px", { lineHeight: "1.4", letterSpacing: "0.04em" }],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

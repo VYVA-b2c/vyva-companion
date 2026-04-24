@@ -1,0 +1,113 @@
+# VYVA Onboarding Module — Replit Agent Brief
+
+## What this is
+This is the complete frontend onboarding module for the VYVA B2C platform.
+29 TypeScript/TSX files have been pre-built and are ready to use.
+The setup script (vyva_setup.sh) creates all files automatically.
+
+## Step 1 — Run the setup script
+Upload vyva_setup.sh to this Replit project, then run in the Shell tab:
+  bash vyva_setup.sh
+
+This creates all 29 files in the correct folder structure under src/.
+
+## Step 2 — Update shared/schema.ts
+Replace shared/schema.ts with the approved schema v2.
+Key additions: user_conditions, user_allergies, user_devices, trusted_providers,
+subscription_plans, billing_events, stripe_webhooks tables.
+Then run: npx drizzle-kit push
+
+Seed the subscription plans:
+  INSERT INTO subscription_plans (plan_id, name, description, price_eur, price_gbp, trial_days, features, sort_order)
+  VALUES
+    ('free', 'Free', 'Core features forever free', 0, 0, 14,
+     ARRAY['companionship','brain_training','daily_checkin'], 0),
+    ('premium', 'Premium', 'Full VYVA experience', 2900, 2499, 14,
+     ARRAY['companionship','brain_training','daily_checkin','medication_mgmt',
+           'vital_scan','health_research','nutrition_coach','safety_agent',
+           'fall_detection','concierge','caregiver_alerts','device_triage',
+           'personalised_convos'], 1);
+
+## Step 3 — Install dependencies
+  npm install stripe @stripe/stripe-js
+
+## Step 4 — Add Replit Secrets
+  STRIPE_SECRET_KEY        = sk_test_...
+  STRIPE_WEBHOOK_SECRET    = whsec_...
+  STRIPE_PREMIUM_PRICE_ID  = price_...
+  APP_URL                  = https://your-replit-url.repl.co
+
+## Step 5 — Create server/routes/onboarding.ts
+Full code already provided in the Replit build brief. Key routes:
+  GET  /api/onboarding/state          — returns current onboarding state + features
+  POST /api/onboarding/basics         — saves name, phone, language
+  POST /api/onboarding/channel        — saves channel preferences
+  POST /api/onboarding/consent        — records GDPR consent (required before activation)
+  POST /api/onboarding/field          — marks a single field + unlocks features
+  POST /api/onboarding/section/:id    — saves a complete profile section
+
+## Step 6 — Create server/routes/billing.ts
+Full code already provided. Key routes:
+  GET  /api/billing/status            — returns plan, tier, trial days remaining
+  POST /api/billing/create-checkout   — creates Stripe checkout session, returns URL
+  GET  /api/billing/portal            — creates Stripe customer portal session
+  POST /api/billing/webhook           — receives Stripe webhook events (needs raw body)
+
+## Step 7 — Register routes in server/index.ts
+  import onboardingRoutes from "./routes/onboarding";
+  import billingRoutes from "./routes/billing";
+
+  // Webhook MUST come before express.json() middleware
+  app.post("/api/billing/webhook",
+    express.raw({ type: "application/json" }),
+    (req, res) => billingRoutes(req, res)
+  );
+  app.use(express.json());
+  app.use("/api/onboarding", onboardingRoutes);
+  app.use("/api/billing", billingRoutes);
+
+## Step 8 — Merge App.tsx routes
+The new src/App.tsx contains all onboarding + settings routes.
+Merge these into your existing App.tsx — do NOT replace the whole file,
+as your existing app shell and auth logic must be preserved.
+
+Routes added:
+  /                              WelcomeScreen
+  /onboarding/basics             BasicsStep
+  /onboarding/channel            ChannelStep
+  /onboarding/consent            DataConsentStep
+  /onboarding/activation         ActivationStep
+  /onboarding/profile            ProfileOverview
+  /onboarding/profile/:id        SectionRouter (dispatches to correct section)
+  /onboarding/careteam           CareTeamFlow
+  /onboarding/complete/:id       SectionCompleteScreen
+  /app/settings                  SettingsHome
+  /app/settings/account          AccountSettings
+  /app/settings/notifications    NotificationsSettings
+  /app/settings/privacy          PrivacySettings
+  /app/settings/subscription     SubscriptionSettings
+
+## Step 9 — Verify end to end
+Test this sequence:
+  1. / → Welcome screen loads, path selection works
+  2. Fill basics → POST /api/onboarding/basics succeeds → profile row in DB
+  3. Channel step → consent screen → required toggle enables Continue button
+  4. Activation screen → Complete my profile → Profile overview shows 0/11
+  5. Open Medications → fill one med → save → unlock card appears → 1/11
+  6. Open Care team → 4-step flow → consent toggles → invitation sent
+  7. Settings → Privacy & consent → per-person toggles visible
+  8. Settings → Subscription → Upgrade → Stripe checkout opens
+
+## Design system reference
+  Brand purple: #6b21a8
+  Brand gold:   #c9890a
+  Cream bg:     #faf7ff
+  Min font size: 14px (65+ audience)
+  Min touch target: 44px height
+  All sections have Skip for now — no dead ends
+
+## What is NOT in this brief (next step)
+  - Session start/end API routes for ElevenLabs voice integration
+  - ElevenLabs agent system prompt updates for progressive onboarding
+  - Main app UI (post-onboarding conversation interface)
+  - Caregiver dashboard

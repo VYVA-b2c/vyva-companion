@@ -1,0 +1,81 @@
+VYVA — Community & Matchmaking Feature Brief
+What to build
+A single-page React app (or HTML/CSS/JS) representing the "My Community" tab inside the VYVA senior companion app. This is a mobile-first tablet UI for users aged 65+.
+
+Brand & design system
+
+Primary color: #5B3FA8 (purple)
+Dark purple: #3C2570
+Light purple: #EDE8FA
+Amber accent: #E8A020
+Amber light: #FDF3DC
+Background: #F7F4EF
+Text: #1E1A2E
+Muted text: #7A7290
+Fonts: Lora (serif, for headings) + DM Sans (body) — both via Google Fonts
+Border radius: 20px for cards, 12px for chips, 50px for pill buttons
+No gradients, no shadows except hover states
+
+
+App structure
+Sticky top bar:
+
+Left: VYVA logo (Lora serif, amber V)
+Center: greeting ("Good morning, María")
+Right: large round amber microphone button (52px, voice trigger)
+
+Nav tabs below top bar:
+Home · My Community (active) · Health · Brain Coach
+
+Sections (top to bottom)
+1. VYVA Hero Banner
+Dark purple card with a pulsing orb icon, a first-person VYVA message ("I found someone you might like — Rosa, 71, from Salamanca. She loves gardening and flamenco, just like you."), and a right-aligned amber CTA button ("Meet Rosa →").
+2. Mood check-in row
+Large tappable pill buttons: 😊 Happy · 😌 Calm · 😔 A bit lonely · 😴 Tired · 🎉 Excited. Selecting one highlights it in purple.
+3. My Groups — horizontal scrollable strip
+Each group = a rounded pill chip with emoji icon, group name, member count. Active group has a live green blinking dot. Last chip is a dashed "+" button to join a new group.
+Groups: 🌿 Garden Friends (5, live) · ♟️ Chess Club (3) · 📖 Reading Circle (4) · 🎵 Music Lovers (6)
+4. Active Group Panel
+Full-width card with purple header (group name, meeting schedule, "Live now" green badge). Body shows 5 member avatars (colored circles with initials, green online dot for active ones). Below avatars: an amber-tinted activity strip showing today's topic, facilitated by VYVA, with a "Join call" button.
+5. Match suggestion cards — 3-column grid
+Each card: avatar circle (colored, initial letter) + name + age + city + % match progress bar + interest tags (amber pills) + personality tags (purple pills) + footer with two buttons: "Ask VYVA to introduce us" (purple filled) and "Skip" (ghost).
+Sample matches:
+
+Rosa, 71 · Salamanca · 87% · Gardening, Flamenco, Morning person
+Concha, 68 · Valladolid · 74% · Reading, Music, Calm talker
+Lola, 74 · Zamora · 69% · Knitting, Long talks, Faith-oriented
+
+
+Fixed toast notification (bottom-right)
+Dark purple card, fixed position, slides up on load. Contains: amber orb with mic icon, VYVA message about upcoming group call, two buttons (Yes please / Not now). Auto-dismisses after 8 seconds.
+
+Interactions to implement
+
+Nav tab switching (highlight active tab)
+Group chip selection (highlight selected chip)
+Mood pill selection (one active at a time, purple highlight)
+Toast close button + auto-dismiss timer
+Scroll-reveal animation on all sections (fade up, staggered)
+Match card hover state (lift + purple shadow)
+"Meet Rosa" and "Ask VYVA to introduce us" buttons → show a simple modal or alert saying "VYVA is setting up your introduction…"
+
+
+Accessibility requirements (critical for 65+ users)
+
+Minimum font size: 15px body, 18–24px headings
+All tap targets minimum 48×48px
+High contrast text on all colored backgrounds
+No information conveyed by color alone
+All buttons have clear text labels (no icon-only buttons except the mic)
+
+
+What NOT to build
+
+No backend, no auth, no real data
+No complex routing — single scrollable page
+No social feed, no comments, no likes
+No dark mode toggle needed for this prototype
+
+
+Reference
+The attached HTML file is a working pixel-perfect reference — use it as the exact visual target. Replicate the layout, spacing, colors, and component structure. The goal is a clean React component version of that file.

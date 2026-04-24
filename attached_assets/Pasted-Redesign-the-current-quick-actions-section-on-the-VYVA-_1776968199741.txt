@@ -1,0 +1,107 @@
+Redesign the current quick actions section on the VYVA homepage. This is a refinement of the existing section, not a rebuild of the whole page.
+
+## Goal
+Make this section feel cleaner, calmer, more premium, and more aligned with the VYVA companion experience. It should not feel like a generic dashboard grid or settings menu.
+
+## Rename section
+Change the section title from:
+- "ACCESO RÁPIDO"
+
+to:
+- "¿Qué hacemos ahora?"
+
+This title should feel more action-oriented and human.
+
+## Labels
+Replace the current 4 button labels with:
+- Health
+- Cognitive
+- Social
+- Concierge
+
+## Layout
+Keep a 2x2 grid, but improve it:
+- larger spacing between cards
+- larger internal padding
+- softer, cleaner presentation
+- cards should feel easy to tap and easy to scan
+- maintain mobile-first layout
+
+## Card design
+Each card should contain:
+- one icon
+- one title only
+- no long descriptions
+- optional very small sublabel only if it improves clarity, but default to title-only first
+
+The card should feel:
+- soft
+- premium
+- calm
+- senior-friendly
+
+## Visual style
+- rounded corners
+- subtle border or very soft shadow
+- white or very light card background
+- enough whitespace
+- large readable text
+- avoid visual clutter
+
+## Color system
+Use a consistent semantic color system for the icon backgrounds:
+
+- Health → soft coral / health red tint
+- Cognitive → soft purple tint
+- Social → soft blue tint
+- Concierge → soft green tint
+
+Important:
+- keep all colors equally soft
+- do not make one card feel louder than the others
+- use the same visual treatment across all 4 cards
+
+## Icons
+Use simple, clean, modern icons that match the category:
+- Health
+- Cognitive
+- Social
+- Concierge
+
+Icons should sit inside soft tinted circular or rounded-square backgrounds.
+
+## Typography
+- larger title text than current version
+- high readability
+- clean alignment
+- no cramped text
+
+## Interaction
+Add subtle press / hover feedback:
+- very light elevation or border change
+- slight scale or background shift on tap
+- keep it elegant, not flashy
+
+## UX intention
+This section should answer:
+- "What can I do now?"
+
+It should feel like:
+- a set of simple next paths
+not:
+- a feature dump
+not:
+- a settings menu
+
+## Important constraints
+- Do not add more than 4 cards
+- Do not add long descriptions
+- Do not overcrowd the section
+- Keep the section visually secondary to the hero card
+- Keep the current homepage structure intact
+
+## Optional enhancement
+Structure the component so one of the cards can later become context-aware and highlighted dynamically, but for now keep all 4 cards visually balanced.
+
+## Output
+Refine only this section so it looks polished, senior-friendly, and consistent with the rest of the VYVA homepage.

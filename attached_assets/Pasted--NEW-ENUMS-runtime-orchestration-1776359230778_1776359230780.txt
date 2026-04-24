@@ -1,0 +1,330 @@
+// ============================================================
+// NEW ENUMS — runtime orchestration
+// ============================================================
+
+export const careTeamMemberStatusEnum = pgEnum("care_team_member_status", [
+  "active", "inactive", "revoked",
+]);
+
+export const eventTypeEnum = pgEnum("event_type", [
+  "interaction_started",
+  "interaction_completed",
+  "checkin_completed",
+  "medication_reminder_sent",
+  "medication_confirmed",
+  "medication_missed",
+  "symptom_check_started",
+  "symptom_check_completed",
+  "symptom_check_flagged",
+  "brain_session_completed",
+  "vitals_recorded",
+  "activity_detected",
+  "inactivity_detected",
+  "fall_detected",
+  "family_requested_checkin",
+  "invitation_accepted",
+  "module_enabled",
+  "module_disabled",
+]);
+
+export const eventSourceEnum = pgEnum("event_source", [
+  "system", "user", "family", "caregiver", "doctor",
+  "voice", "whatsapp", "web", "app", "device", "admin",
+]);
+
+export const proactiveCaseStateEnum = pgEnum("proactive_case_state", [
+  "detected",
+  "qualified",
+  "queued",
+  "attempting_contact",
+  "waiting_for_response",
+  "retry_pending",
+  "escalated",
+  "resolved",
+  "suppressed",
+  "cancelled",
+]);
+
+export const proactiveCaseGroupEnum = pgEnum("proactive_case_group", [
+  "critical",
+  "essential",
+  "engagement",
+  "enrichment",
+  "context",
+]);
+
+export const proactiveActionTypeEnum = pgEnum("proactive_action_type", [
+  "send_whatsapp",
+  "send_sms",
+  "place_call",
+  "send_push",
+  "send_email",
+  "notify_family",
+  "notify_caregiver",
+  "offer_telehealth",
+  "trigger_emergency_protocol",
+  "create_dashboard_alert",
+]);
+
+export const proactiveActionStatusEnum = pgEnum("proactive_action_status", [
+  "queued",
+  "sent",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+export const proactiveActionOutcomeEnum = pgEnum("proactive_action_outcome", [
+  "confirmed_ok",
+  "completed_action",
+  "needs_followup",
+  "negative_response",
+  "no_response",
+  "caregiver_acknowledged",
+  "false_positive",
+  "escalated",
+  "unknown",
+]);
+
+export const seniorCurrentStatusEnum = pgEnum("senior_current_status", [
+  "all_good",
+  "attention",
+  "critical",
+]);
+
+export const alertSeverityEnum = pgEnum("alert_severity", [
+  "info", "warning", "critical",
+]);
+
+export const alertStatusEnum = pgEnum("alert_status", [
+  "open", "acknowledged", "resolved", "dismissed",
+]);
+
+
+// ============================================================
+// NEW: care_team_members
+// Persistent relationships after invitation acceptance
+// ============================================================
+
+export const careTeamMembers = pgTable("care_team_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  senior_id: text("senior_id").notNull(),
+  member_user_id: text("member_user_id").notNull(),
+
+  role: teamRoleEnum("role").notNull(),
+  relationship: text("relationship"),
+  status: careTeamMemberStatusEnum("status").notNull().default("active"),
+
+  can_receive_daily_digest:      boolean("can_receive_daily_digest").notNull().default(true),
+  can_receive_safety_alerts:     boolean("can_receive_safety_alerts").notNull().default(true),
+  can_receive_health_alerts:     boolean("can_receive_health_alerts").notNull().default(false),
+  can_receive_mood_alerts:       boolean("can_receive_mood_alerts").notNull().default(false),
+  can_receive_medication_alerts: boolean("can_receive_medication_alerts").notNull().default(false),
+
+  can_view_dashboard:            boolean("can_view_dashboard").notNull().default(false),
+  can_view_health_reports:       boolean("can_view_health_reports").notNull().default(false),
+  can_view_vital_signs:          boolean("can_view_vital_signs").notNull().default(false),
+  can_view_cognitive_results:    boolean("can_view_cognitive_results").notNull().default(false),
+  can_view_journal_summaries:    boolean("can_view_journal_summaries").notNull().default(false),
+
+  added_via_invitation_id: uuid("added_via_invitation_id"),
+});
+
+export const insertCareTeamMemberSchema = createInsertSchema(careTeamMembers).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertCareTeamMember = z.infer<typeof insertCareTeamMemberSchema>;
+export type CareTeamMember = typeof careTeamMembers.$inferSelect;
+
+
+// ============================================================
+// NEW: events
+// Universal event log for the trigger engine
+// ============================================================
+
+export const events = pgTable("events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+
+  user_id: text("user_id").notNull(),
+  event_type: eventTypeEnum("event_type").notNull(),
+  source: eventSourceEnum("source").notNull(),
+
+  entity_type: text("entity_type"),
+  entity_id: text("entity_id"),
+
+  occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  payload: jsonb("payload").notNull().default({}),
+});
+
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  created_at: true,
+});
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Event = typeof events.$inferSelect;
+
+
+// ============================================================
+// NEW: proactive_cases
+// Main container for a trigger-driven proactive workflow
+// ============================================================
+
+export const proactiveCases = pgTable("proactive_cases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  user_id: text("user_id").notNull(),
+
+  trigger_key: text("trigger_key").notNull(), // e.g. no_interaction_24h
+  group_key: proactiveCaseGroupEnum("group_key").notNull(),
+  priority: integer("priority").notNull(),
+
+  current_state: proactiveCaseStateEnum("current_state").notNull().default("detected"),
+  escalation_level: integer("escalation_level").notNull().default(0),
+
+  source_event_id: uuid("source_event_id"),
+
+  opened_at: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+  last_action_at: timestamp("last_action_at", { withTimezone: true }),
+  next_action_at: timestamp("next_action_at", { withTimezone: true }),
+
+  resolved_at: timestamp("resolved_at", { withTimezone: true }),
+  resolution_reason: text("resolution_reason"),
+
+  suppressed_by_case_id: uuid("suppressed_by_case_id"),
+  merged_into_case_id: uuid("merged_into_case_id"),
+
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertProactiveCaseSchema = createInsertSchema(proactiveCases).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertProactiveCase = z.infer<typeof insertProactiveCaseSchema>;
+export type ProactiveCase = typeof proactiveCases.$inferSelect;
+
+
+// ============================================================
+// NEW: proactive_case_actions
+// Every action attempted for a proactive case
+// ============================================================
+
+export const proactiveCaseActions = pgTable("proactive_case_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  proactive_case_id: uuid("proactive_case_id").notNull(),
+  user_id: text("user_id").notNull(),
+
+  action_type: proactiveActionTypeEnum("action_type").notNull(),
+  channel: channelTypeEnum("channel"),
+  status: proactiveActionStatusEnum("status").notNull().default("queued"),
+  outcome: proactiveActionOutcomeEnum("outcome"),
+
+  payload: jsonb("payload").notNull().default({}),
+  response_payload: jsonb("response_payload").default({}),
+
+  requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  completed_at: timestamp("completed_at", { withTimezone: true }),
+
+  failure_reason: text("failure_reason"),
+  retry_count: integer("retry_count").notNull().default(0),
+});
+
+export const insertProactiveCaseActionSchema = createInsertSchema(proactiveCaseActions).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertProactiveCaseAction = z.infer<typeof insertProactiveCaseActionSchema>;
+export type ProactiveCaseAction = typeof proactiveCaseActions.$inferSelect;
+
+
+// ============================================================
+// NEW: senior_state
+// Derived current state used by dashboards
+// ============================================================
+
+export const seniorState = pgTable("senior_state", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  user_id: text("user_id").notNull().unique(),
+
+  current_status: seniorCurrentStatusEnum("current_status").notNull().default("all_good"),
+
+  last_interaction_at: timestamp("last_interaction_at", { withTimezone: true }),
+  last_checkin_at: timestamp("last_checkin_at", { withTimezone: true }),
+  last_medication_event_at: timestamp("last_medication_event_at", { withTimezone: true }),
+  last_brain_session_at: timestamp("last_brain_session_at", { withTimezone: true }),
+  last_vitals_at: timestamp("last_vitals_at", { withTimezone: true }),
+
+  activity_level: text("activity_level"),     // normal / low / unusual
+  mood_status: text("mood_status"),           // good / stable / low
+  engagement_level: text("engagement_level"), // high / moderate / low
+
+  medication_adherence_7d: real("medication_adherence_7d"),
+  brain_sessions_7d: integer("brain_sessions_7d").default(0),
+  symptom_checks_7d: integer("symptom_checks_7d").default(0),
+
+  open_alert_count: integer("open_alert_count").notNull().default(0),
+
+  state_snapshot: jsonb("state_snapshot").notNull().default({}),
+});
+
+export const insertSeniorStateSchema = createInsertSchema(seniorState).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertSeniorState = z.infer<typeof insertSeniorStateSchema>;
+export type SeniorState = typeof seniorState.$inferSelect;
+
+
+// ============================================================
+// NEW: dashboard_alerts
+// Real dashboard-facing alerts with lifecycle
+// ============================================================
+
+export const dashboardAlerts = pgTable("dashboard_alerts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  user_id: text("user_id").notNull(),
+  proactive_case_id: uuid("proactive_case_id"),
+
+  alert_type: text("alert_type").notNull(), // missed_medication, no_response, symptom_concern
+  severity: alertSeverityEnum("severity").notNull().default("info"),
+  status: alertStatusEnum("status").notNull().default("open"),
+
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+
+  acknowledged_at: timestamp("acknowledged_at", { withTimezone: true }),
+  acknowledged_by: text("acknowledged_by"),
+
+  resolved_at: timestamp("resolved_at", { withTimezone: true }),
+  resolved_by: text("resolved_by"),
+
+  evidence: jsonb("evidence").notNull().default({}),
+});
+
+export const insertDashboardAlertSchema = createInsertSchema(dashboardAlerts).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertDashboardAlert = z.infer<typeof insertDashboardAlertSchema>;
+export type DashboardAlert = typeof dashboardAlerts.$inferSelect;

@@ -1,0 +1,427 @@
+import { Router } from "express";
+import { db } from "../db";
+import { profiles, onboardingState, consentLog, userConditions,
+         userAllergies, userDevices, trustedProviders,
+         userMedications, teamInvitations } from "../../shared/schema";
+import { eq } from "drizzle-orm";
+import crypto from "crypto";
+
+const router = Router();
+
+// GET /api/onboarding/state
+// Returns current onboarding state + feature flags for the authenticated user.
+// Called at the start of every session (voice or web) to know what's unlocked.
+router.get("/state", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+  const [state] = await db.select().from(onboardingState).where(eq(onboardingState.user_id, userId));
+
+  if (!state) {
+    // Create onboarding state row if it doesn't exist
+    const [newState] = await db.insert(onboardingState)
+      .values({ user_id: userId })
+      .returning();
+    return res.json({ profile, onboardingState: newState });
+  }
+
+  return res.json({ profile, onboardingState: state });
+});
+
+// POST /api/onboarding/basics
+// Step 1 — creates or updates profile with name, phone, language.
+// Creates onboarding_state row. Sets trial_ends_at.
+router.post("/basics", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const { full_name, preferred_name, phone_number, language, onboarding_channel } = req.body;
+  if (!full_name || !phone_number || !language) {
+    return res.status(400).json({ error: "full_name, phone_number and language are required" });
+  }
+
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+  await db.update(profiles).set({
+    full_name,
+    preferred_name: preferred_name || full_name.split(" ")[0],
+    phone_number,
+    language,
+    onboarding_channel: onboarding_channel || "web_form",
+    trial_ends_at: trialEndsAt,
+    subscription_status: "trial",
+    current_stage: "stage_2_preferences",
+    stage_1_completed_at: new Date(),
+    updated_at: new Date(),
+  }).where(eq(profiles.id, userId));
+
+  // Upsert onboarding state
+  await db.insert(onboardingState).values({
+    user_id: userId,
+    has_preferred_name: true,
+    has_phone_number: true,
+    has_language: true,
+    stage_1_channel: onboarding_channel || "web_form",
+  }).onConflictDoUpdate({
+    target: onboardingState.user_id,
+    set: {
+      has_preferred_name: true,
+      has_phone_number: true,
+      has_language: true,
+      stage_1_channel: onboarding_channel || "web_form",
+      updated_at: new Date(),
+    },
+  });
+
+  return res.json({ success: true });
+});
+
+// POST /api/onboarding/channel
+// Saves channel preferences (app / call / whatsapp).
+router.post("/channel", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const { channels } = req.body;
+  // channels: array of "voice_app" | "voice_outbound" | "whatsapp_outbound"
+
+  await db.update(profiles).set({ updated_at: new Date() })
+    .where(eq(profiles.id, userId));
+
+  // Channel preferences are stored in user_channel_preferences
+  // (handled separately — this just records the stage completion)
+  await db.update(onboardingState).set({
+    has_checkin_preference: true,
+    stage_2_channel: "web_form",
+    updated_at: new Date(),
+  }).where(eq(onboardingState.user_id, userId));
+
+  return res.json({ success: true });
+});
+
+// POST /api/onboarding/consent
+// Records GDPR consent. Required before account activates.
+router.post("/consent", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const { required_consent, improvement_consent } = req.body;
+  if (!required_consent) {
+    return res.status(400).json({ error: "Required consent must be granted" });
+  }
+
+  // Log consent events (append-only)
+  await db.insert(consentLog).values({
+    user_id: userId,
+    scope: "conversation_summary",
+    action: "granted",
+    channel: "web_form",
+    confirmed_by_elder: true,
+    confirmation_method: "screen_tap",
+  });
+
+  if (improvement_consent) {
+    await db.insert(consentLog).values({
+      user_id: userId,
+      scope: "health_conditions", // reuse closest scope for improvement data
+      action: "granted",
+      channel: "web_form",
+      confirmed_by_elder: true,
+      confirmation_method: "screen_tap",
+    });
+  }
+
+  await db.update(profiles).set({
+    elder_confirmed_at: new Date(),
+    onboarding_complete: false, // still need profile sections
+    current_stage: "stage_3_health",
+    stage_2_completed_at: new Date(),
+    data_sharing_consent: {
+      core: { action: "granted", at: new Date().toISOString(), channel: "web_form" },
+      improvement: improvement_consent
+        ? { action: "granted", at: new Date().toISOString() }
+        : { action: "denied", at: new Date().toISOString() },
+    },
+    updated_at: new Date(),
+  }).where(eq(profiles.id, userId));
+
+  return res.json({ success: true });
+});
+
+// POST /api/onboarding/field
+// Marks a single field as provided and updates feature flags.
+// Called by both the web form AND by VYVA voice agent mid-conversation.
+router.post("/field", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const { field, channel } = req.body;
+  // field: one of the has_* boolean columns in onboarding_state
+  // channel: "voice" | "web_form" | "whatsapp"
+
+  const validFields = [
+    "has_date_of_birth", "has_emergency_address", "has_location",
+    "has_health_conditions", "has_medications", "has_allergies",
+    "has_gp_details", "has_cognitive_profile", "has_dietary_prefs",
+    "has_devices", "has_hobbies", "has_caregiver", "has_family_member",
+    "has_doctor", "has_trusted_providers", "has_emergency_contact",
+  ];
+
+  if (!validFields.includes(field)) {
+    return res.status(400).json({ error: "Invalid field" });
+  }
+
+  // Compute feature unlocks based on the field being set
+  const featureMap: Record<string, Record<string, boolean>> = {
+    has_medications:       { feature_medication_mgmt: true },
+    has_date_of_birth:     { feature_vital_scan: true },
+    has_health_conditions: { feature_health_research: true, feature_nutrition_coach: true },
+    has_dietary_prefs:     { feature_nutrition_coach: true },
+    has_emergency_address: { feature_safety_agent: true, feature_fall_detection: true },
+    has_location:          { feature_concierge: true },
+    has_caregiver:         { feature_caregiver_alerts: true },
+    has_devices:           { feature_device_triage: true },
+    has_hobbies:           { feature_personalised_convos: true },
+  };
+
+  const updates: Record<string, boolean | Date> = {
+    [field]: true,
+    updated_at: new Date(),
+    ...(featureMap[field] || {}),
+  };
+
+  // Record nudge timestamp (prevents re-asking within cooldown)
+  const nudgeMap: Record<string, string> = {
+    has_date_of_birth:     "nudge_dob_sent_at",
+    has_emergency_address: "nudge_address_sent_at",
+    has_medications:       "nudge_medications_sent_at",
+    has_health_conditions: "nudge_health_sent_at",
+    has_caregiver:         "nudge_caregiver_sent_at",
+    has_devices:           "nudge_devices_sent_at",
+  };
+  if (nudgeMap[field]) updates[nudgeMap[field]] = new Date();
+
+  await db.update(onboardingState).set(updates)
+    .where(eq(onboardingState.user_id, userId));
+
+  return res.json({ success: true, features_unlocked: featureMap[field] || {} });
+});
+
+// POST /api/onboarding/section/:sectionId
+// Saves a complete profile section. Each section has its own handler.
+router.post("/section/:sectionId", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const { sectionId } = req.params;
+  const data = req.body;
+
+  try {
+    switch (sectionId) {
+
+      case "medications": {
+        // Insert each medication row
+        for (const med of data.medications || []) {
+          await db.insert(userMedications).values({
+            user_id: userId,
+            medication_name: med.name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            scheduled_times: med.times,
+            with_food: med.with_food,
+            prescribed_by: med.prescribed_by,
+            added_by: "user",
+          });
+        }
+        await markField(userId, "has_medications");
+        break;
+      }
+
+      case "conditions": {
+        // Insert each selected condition
+        for (const cond of data.conditions || []) {
+          await db.insert(userConditions).values({
+            user_id: userId,
+            condition_name: cond.name,
+            category: cond.category,
+            status: cond.status || null,
+            severity: cond.severity || null,
+            managed: cond.managed || null,
+            added_by: "user",
+          });
+        }
+        // Update mobility + living situation on profiles
+        await db.update(profiles).set({
+          mobility_level: data.mobility_level || null,
+          living_situation: data.living_situation || null,
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        // Insert allergies
+        for (const allergy of data.allergies || []) {
+          await db.insert(userAllergies).values({
+            user_id: userId,
+            allergen: allergy.allergen,
+            allergy_type: allergy.type,
+            severity: allergy.severity,
+            reaction: allergy.reaction || null,
+            epipens_required: allergy.epipens_required || false,
+          });
+        }
+        await markField(userId, "has_health_conditions");
+        if ((data.allergies || []).length > 0) await markField(userId, "has_allergies");
+        break;
+      }
+
+      case "cognitive": {
+        await db.update(profiles).set({
+          memory_difficulties: data.memory_difficulties || "none",
+          cognitive_diagnosis: data.cognitive_diagnosis || "none",
+          preferred_session_length_mins: data.session_length_mins || 15,
+          preferred_training_time: data.training_time || "morning",
+          cognitive_pace: data.pace || "normal",
+          exercise_variety: data.variety || "variety",
+          communication_style: data.communication_style || "standard",
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_cognitive_profile");
+        break;
+      }
+
+      case "diet": {
+        await db.update(profiles).set({
+          dietary_preferences: data.preferences || [],
+          dietary_notes: data.notes || null,
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_dietary_prefs");
+        break;
+      }
+
+      case "address": {
+        await db.update(profiles).set({
+          address_line_1: data.address_line_1,
+          address_line_2: data.address_line_2 || null,
+          city: data.city,
+          region: data.region || null,
+          postcode: data.postcode,
+          country: data.country || "Spain",
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_emergency_address");
+        await markField(userId, "has_location");
+        break;
+      }
+
+      case "gp": {
+        await db.update(profiles).set({
+          gp_name: data.gp_name,
+          gp_practice_name: data.practice_name || null,
+          gp_address: data.practice_address || null,
+          gp_phone: data.practice_phone || null,
+          gp_email: data.practice_email || null,
+          gp_out_of_hours: data.out_of_hours || null,
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_gp_details");
+        break;
+      }
+
+      case "devices": {
+        for (const device of data.devices || []) {
+          await db.insert(userDevices).values({
+            user_id: userId,
+            device_type: device.type,
+            brand_model: device.brand_model || null,
+            connection_method: device.connection_method,
+            status: device.status || "connected",
+            data_metrics: device.data_metrics || [],
+            use_for_triage: device.use_for_triage ?? true,
+            use_for_symptom_reports: device.use_for_symptom_reports ?? true,
+            use_for_daily_summary: device.use_for_daily_summary ?? true,
+            alert_caregiver_if_abnormal: device.alert_caregiver ?? false,
+          });
+        }
+        await markField(userId, "has_devices");
+        break;
+      }
+
+      case "hobbies": {
+        await db.update(profiles).set({
+          hobbies: data.hobbies || [],
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_hobbies");
+        break;
+      }
+
+      case "providers": {
+        for (const p of data.providers || []) {
+          await db.insert(trustedProviders).values({
+            user_id: userId,
+            category: p.category,
+            name: p.name,
+            nickname: p.nickname || null,
+            phone: p.phone || null,
+            full_address: p.full_address || null,
+            address_line_1: p.address_line_1 || null,
+            city: p.city || null,
+            postcode: p.postcode || null,
+            google_place_id: p.google_place_id || null,
+            google_maps_url: p.google_maps_url || null,
+            source: p.source || "manual",
+            notes: p.notes || null,
+            added_by: "user",
+          });
+        }
+        await markField(userId, "has_trusted_providers");
+        break;
+      }
+
+      case "emergency": {
+        await db.update(profiles).set({
+          emergency_contact_name: data.name,
+          emergency_contact_relation: data.relationship,
+          emergency_contact_phone: data.primary_phone,
+          emergency_contact_phone_2: data.secondary_phone || null,
+          emergency_contact_address: data.address || null,
+          updated_at: new Date(),
+        }).where(eq(profiles.id, userId));
+        await markField(userId, "has_emergency_contact");
+        break;
+      }
+
+      default:
+        return res.status(400).json({ error: "Unknown section" });
+    }
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error("Section save error:", err);
+    return res.status(500).json({ error: "Failed to save section" });
+  }
+});
+
+// Helper — marks a field and computes feature unlocks
+async function markField(userId: string, field: string) {
+  const featureMap: Record<string, Record<string, boolean>> = {
+    has_medications:       { feature_medication_mgmt: true },
+    has_date_of_birth:     { feature_vital_scan: true },
+    has_health_conditions: { feature_health_research: true, feature_nutrition_coach: true },
+    has_dietary_prefs:     { feature_nutrition_coach: true },
+    has_emergency_address: { feature_safety_agent: true, feature_fall_detection: true },
+    has_location:          { feature_concierge: true },
+    has_caregiver:         { feature_caregiver_alerts: true },
+    has_devices:           { feature_device_triage: true },
+    has_hobbies:           { feature_personalised_convos: true },
+  };
+  await db.update(onboardingState).set({
+    [field]: true,
+    updated_at: new Date(),
+    ...(featureMap[field] || {}),
+  }).where(eq(onboardingState.user_id, userId));
+}
+
+export default router;

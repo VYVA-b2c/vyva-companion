@@ -1,0 +1,220 @@
+import { Router } from "express";
+import Stripe from "stripe";
+import { db } from "../db.js";
+import { profiles, billingEvents, stripeWebhooks } from "../../shared/schema.js";
+import { eq } from "drizzle-orm";
+
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is not configured");
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
+const router = Router();
+
+// GET /api/billing/status
+// Returns current plan, trial days remaining, and feature list.
+router.get("/status", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+  if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+  const trialDaysRemaining = profile.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86400000))
+    : 0;
+
+  return res.json({
+    status: profile.subscription_status,
+    tier: profile.subscription_tier,
+    trial_days_remaining: trialDaysRemaining,
+    trial_ends_at: profile.trial_ends_at,
+  });
+});
+
+// POST /api/billing/create-checkout
+// Creates a Stripe Checkout session and returns the URL.
+// Frontend redirects to this URL for payment.
+router.post("/create-checkout", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+  if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+  // Create or retrieve Stripe customer
+  let customerId = profile.stripe_customer_id;
+  if (!customerId) {
+    const customer = await getStripe().customers.create({
+      email: undefined, // add if you have email
+      name: profile.full_name || undefined,
+      phone: profile.phone_number || undefined,
+      metadata: { user_id: userId },
+    });
+    customerId = customer.id;
+    await db.update(profiles).set({
+      stripe_customer_id: customerId,
+      updated_at: new Date(),
+    }).where(eq(profiles.id, userId));
+  }
+
+  const session = await getStripe().checkout.sessions.create({
+    customer: customerId,
+    mode: "subscription",
+    line_items: [{
+      price: process.env.STRIPE_PREMIUM_PRICE_ID!,
+      quantity: 1,
+    }],
+    success_url: `${process.env.APP_URL}/app?upgraded=true`,
+    cancel_url: `${process.env.APP_URL}/app/settings/subscription`,
+    metadata: { user_id: userId },
+  });
+
+  return res.json({ url: session.url });
+});
+
+// GET /api/billing/portal
+// Creates a Stripe Customer Portal session.
+// User can manage card, cancel, view invoices.
+router.get("/portal", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorised" });
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+  if (!profile?.stripe_customer_id) {
+    return res.status(400).json({ error: "No billing account found" });
+  }
+
+  const session = await getStripe().billingPortal.sessions.create({
+    customer: profile.stripe_customer_id,
+    return_url: `${process.env.APP_URL}/app/settings/subscription`,
+  });
+
+  return res.json({ url: session.url });
+});
+
+// POST /api/billing/webhook
+// Receives Stripe webhook events. Must be raw body (not JSON parsed).
+router.post("/webhook", async (req, res) => {
+  const sig = req.headers["stripe-signature"] as string;
+  let event: Stripe.Event;
+
+  try {
+    event = getStripe().webhooks.constructEvent(
+      req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch (err) {
+    return res.status(400).json({ error: "Webhook signature invalid" });
+  }
+
+  // Log the webhook (idempotency check)
+  const existing = await db.select().from(stripeWebhooks)
+    .where(eq(stripeWebhooks.stripe_event_id, event.id));
+  if (existing.length > 0) return res.json({ received: true }); // already processed
+
+  await db.insert(stripeWebhooks).values({
+    stripe_event_id: event.id,
+    event_type: event.type,
+    status: "pending",
+    payload: JSON.parse(JSON.stringify(event)) as Record<string, unknown>,
+  });
+
+  try {
+    switch (event.type) {
+
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const sub = event.data.object as Stripe.Subscription;
+        const customerId = sub.customer as string;
+        await db.update(profiles).set({
+          stripe_subscription_id: sub.id,
+          subscription_status: sub.status === "active" ? "active"
+            : sub.status === "trialing" ? "trial"
+            : sub.status === "past_due" ? "past_due"
+            : "cancelled",
+          subscription_tier: sub.status === "active" ? "premium" : "free",
+          updated_at: new Date(),
+        }).where(eq(profiles.stripe_customer_id, customerId));
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        await db.update(profiles).set({
+          subscription_status: "cancelled",
+          subscription_tier: "free",
+          updated_at: new Date(),
+        }).where(eq(profiles.stripe_customer_id, sub.customer as string));
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        const [profile] = await db.select().from(profiles)
+          .where(eq(profiles.stripe_customer_id, customerId));
+        if (profile) {
+          await db.insert(billingEvents).values({
+            user_id: profile.id,
+            stripe_event_id: event.id,
+            stripe_invoice_id: invoice.id,
+            event_type: "payment_succeeded",
+            amount_cents: invoice.amount_paid,
+            currency: invoice.currency,
+            plan_id: "premium",
+            status: "succeeded",
+            stripe_payload: JSON.parse(JSON.stringify(event)) as Record<string, unknown>,
+          });
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        const [profile] = await db.select().from(profiles)
+          .where(eq(profiles.stripe_customer_id, customerId));
+        if (profile) {
+          await db.update(profiles).set({
+            subscription_status: "past_due",
+            updated_at: new Date(),
+          }).where(eq(profiles.id, profile.id));
+          await db.insert(billingEvents).values({
+            user_id: profile.id,
+            stripe_event_id: event.id,
+            stripe_invoice_id: invoice.id,
+            event_type: "payment_failed",
+            amount_cents: invoice.amount_due,
+            currency: invoice.currency,
+            plan_id: "premium",
+            status: "failed",
+            failure_reason: "payment_failed",
+            stripe_payload: JSON.parse(JSON.stringify(event)) as Record<string, unknown>,
+          });
+        }
+        break;
+      }
+    }
+
+    await db.update(stripeWebhooks).set({
+      status: "processed",
+      processed_at: new Date(),
+    }).where(eq(stripeWebhooks.stripe_event_id, event.id));
+
+    return res.json({ received: true });
+
+  } catch (err) {
+    await db.update(stripeWebhooks).set({
+      status: "failed",
+      error: String(err),
+    }).where(eq(stripeWebhooks.stripe_event_id, event.id));
+    return res.status(500).json({ error: "Webhook processing failed" });
+  }
+});
+
+export default router;

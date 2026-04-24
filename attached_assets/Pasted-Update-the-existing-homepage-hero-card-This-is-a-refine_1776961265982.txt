@@ -1,0 +1,100 @@
+Update the existing homepage hero card. This is a refinement, not a redesign. Keep the current layout and styling, but fix the hierarchy, spacing, and text clarity.
+
+## Goals
+- Make the hero cleaner and more readable
+- Reduce text complexity
+- Improve balance between text and avatar
+- Give the headline more space to breathe
+- Keep one clear primary action
+
+---
+
+## 1. Headline (CRITICAL)
+
+Replace the current headline with:
+
+Line 1: "Hola Karim"  
+Line 2: "¿Charlamos un momento?"
+
+Rules:
+- Max 2 lines only
+- No truncation (no ellipsis)
+- Large font size
+- Comfortable line height
+- Do not allow wrapping into more than 2 lines
+
+---
+
+## 2. Move "En vivo" badge
+
+- Move the "En vivo" badge to the top-right corner of the hero card
+- Keep the green dot
+- Make it subtle (small size, not dominant)
+- Align it horizontally with the top of the text block
+
+---
+
+## 3. Improve spacing
+
+- Increase vertical spacing between:
+  - headline and CTA
+- Add more padding inside the card (top and left especially)
+- Ensure the text block has enough width to avoid wrapping too early
+
+---
+
+## 4. CTA button
+
+Keep:
+- "Hablar con VYVA"
+
+Adjust:
+- Add more space above it (margin-top ~20px)
+- Ensure it feels centered within the text block
+- Keep it large and easy to tap
+
+---
+
+## 5. Avatar positioning
+
+- Keep the avatar on the right
+- Slightly increase its size
+- Anchor it to the bottom-right corner of the card
+- Move it slightly up (a few pixels) so it doesn't feel cut off
+- Ensure it balances the text visually
+
+---
+
+## 6. Layout balance
+
+- Text should occupy roughly 60% of the width
+- Avatar roughly 40%
+- Avoid text being squeezed into narrow columns
+
+---
+
+## 7. Weather line
+
+- Keep it at the bottom of the card
+- Reduce its visual prominence (smaller font or lower opacity)
+- It should feel like secondary metadata
+
+---
+
+## Important constraints
+
+- Do NOT redesign the card
+- Do NOT add new elements
+- Do NOT change the color system
+- Keep everything minimal and calm
+- Prioritize readability and clarity for senior users
+
+---
+
+## Result
+
+The hero should feel like:
+- a simple, clear invitation to talk
+- calm and easy to understand
+- visually balanced
+- with one obvious action

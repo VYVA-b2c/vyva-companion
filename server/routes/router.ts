@@ -84,12 +84,18 @@ const HEALTH_KEYWORDS = [
   "feel dizzy", "blood pressure", "my head feels", "my chest", "my back",
   "my knee", "breathless", "symptom", "nausea", "temperature", "unwell",
   "doctor", "hurts", "ache", "pain",
+  "allergy", "allergies", "allergic", "allergen", "anaphylaxis", "hives", "rash",
+  "epipen", "antihistamine", "hay fever", "pollen", "dust mite",
+  "natural remedy for", "natural remedies for", "remedy for my allerg", "allergic reaction",
+  "my allergies", "my allergens", "remedies",
 ];
 const HEALTH_BODY_OR_SYMPTOM = [
   "worried about my health", "i think i might have", "not feeling well",
   "feel dizzy", "blood pressure", "my head feels", "my chest", "my back",
   "my knee", "breathless", "symptom", "nausea", "temperature", "unwell",
   "doctor", "hurts", "ache", "pain",
+  "allergy", "allergies", "allergic", "allergen", "anaphylaxis", "hives", "rash",
+  "my allergies", "my allergens",
 ];
 const CONCIERGE_KEYWORDS = [
   "remind me to pick up", "remind me to call", "find nearby", "call the pharmacy",

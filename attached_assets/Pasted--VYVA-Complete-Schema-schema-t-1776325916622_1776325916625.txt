@@ -1,0 +1,320 @@
+// ============================================================
+// VYVA — Complete Schema (schema.ts)
+// ============================================================
+// EXISTING TABLES: preserved exactly as-is (profiles,
+// session_state, session_exchanges, agent_difficulty,
+// caregiver_alerts, medication_adherence, user_medications)
+//
+// NEW ADDITIONS:
+//   - profiles: onboarding fields added
+//   - session_state: channel + context_snapshot added
+//   - onboarding_state: feature flags, stage tracking, nudges
+//   - consent_log: append-only GDPR audit trail
+//   - team_invitations: care team invite lifecycle
+//   - user_channel_identity: multi-channel identity map
+//   - user_channel_preferences: per-user channel settings
+//   - inbound_number_routing: local number → deployment map
+//
+// NOTE: profiles.id is TEXT (auth provider ID, e.g. Clerk/Replit).
+// All foreign keys use TEXT to match. No UUIDs for user references.
+// ============================================================
+
+import {
+  pgTable, pgEnum,
+  text, integer, boolean, real, timestamp, uuid, jsonb
+} from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+export const onboardingStageEnum = pgEnum("onboarding_stage", [
+  "stage_1_identity",
+  "stage_2_preferences",
+  "stage_3_health",
+  "stage_4_care_team",
+  "stage_5_consent",
+  "complete",
+]);
+
+export const onboardingChannelEnum = pgEnum("onboarding_channel", [
+  "voice",
+  "web_form",
+  "whatsapp",
+  "proxy_web",
+  "admin_template",
+]);
+
+export const channelTypeEnum = pgEnum("channel_type", [
+  "voice_app",
+  "voice_inbound",
+  "voice_outbound",
+  "whatsapp_text",
+  "whatsapp_voice",
+  "whatsapp_outbound",
+  "web_form",
+  "admin_template",
+]);
+
+export const consentActionEnum = pgEnum("consent_action", [
+  "granted",
+  "denied",
+  "revoked",
+  "updated",
+]);
+
+export const consentScopeEnum = pgEnum("consent_scope", [
+  "health_conditions",
+  "medications",
+  "allergies",
+  "gp_details",
+  "vital_signs",
+  "mood_and_journal",
+  "location",
+  "conversation_summary",
+  "caregiver_full_access",
+  "caregiver_health_alerts",
+  "caregiver_mood_alerts",
+  "caregiver_medication_alerts",
+  "caregiver_safety_alerts",
+  "family_wellbeing_summary",
+  "family_health_detail",
+  "doctor_health_reports",
+  "doctor_vital_summaries",
+  "fall_detection",
+  "emergency_location_share",
+  "whatsapp_notifications",
+  "daily_digest_to_caregiver",
+]);
+
+export const teamRoleEnum = pgEnum("team_role", [
+  "caregiver",
+  "family_member",
+  "friend",
+  "doctor",
+  "gp",
+]);
+
+export const invitationStatusEnum = pgEnum("invitation_status", [
+  "pending",
+  "accepted",
+  "declined",
+  "revoked",
+  "expired",
+]);
+
+
+// ============================================================
+// EXISTING TABLE: profiles — extended, all new columns nullable
+// ============================================================
+
+export const profiles = pgTable("profiles", {
+  id: text("id").primaryKey(),
+
+  // Existing
+  full_name:              text("full_name"),
+  date_of_birth:          text("date_of_birth"),
+  language:               text("language").notNull().default("en"),
+  deployment:             text("deployment").notNull().default("standard"),
+  mem0_user_id:           text("mem0_user_id"),
+  stripe_customer_id:     text("stripe_customer_id"),
+  stripe_subscription_id: text("stripe_subscription_id"),
+  subscription_status:    text("subscription_status").notNull().default("trial"),
+  subscription_tier:      text("subscription_tier").notNull().default("free"),
+  trial_ends_at:          timestamp("trial_ends_at", { withTimezone: true }),
+
+  // New: identity
+  preferred_name:         text("preferred_name"),
+  phone_number:           text("phone_number"),
+  whatsapp_number:        text("whatsapp_number"),
+  country_code:           text("country_code").default("ES"),
+  timezone:               text("timezone").default("Europe/Madrid"),
+
+  // New: onboarding journey
+  current_stage:          onboardingStageEnum("current_stage").default("stage_1_identity"),
+  onboarding_channel:     onboardingChannelEnum("onboarding_channel"),
+  proxy_initiator_id:     text("proxy_initiator_id"),
+  proxy_initiated_at:     timestamp("proxy_initiated_at", { withTimezone: true }),
+  elder_confirmed_at:     timestamp("elder_confirmed_at", { withTimezone: true }),
+  onboarding_complete:    boolean("onboarding_complete").notNull().default(false),
+  stage_1_completed_at:   timestamp("stage_1_completed_at", { withTimezone: true }),
+  stage_2_completed_at:   timestamp("stage_2_completed_at", { withTimezone: true }),
+  stage_3_completed_at:   timestamp("stage_3_completed_at", { withTimezone: true }),
+  stage_4_completed_at:   timestamp("stage_4_completed_at", { withTimezone: true }),
+  stage_5_completed_at:   timestamp("stage_5_completed_at", { withTimezone: true }),
+
+  // New: location
+  address_line_1:         text("address_line_1"),
+  city:                   text("city"),
+  region:                 text("region"),
+  postcode:               text("postcode"),
+
+  // New: health context
+  gp_name:                text("gp_name"),
+  gp_phone:               text("gp_phone"),
+  known_allergies:        text("known_allergies").array(),
+
+  // New: consent cache
+  data_sharing_consent:   jsonb("data_sharing_consent").default({}),
+
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertProfileSchema = createInsertSchema(profiles).omit({ created_at: true, updated_at: true });
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
+export type Profile = typeof profiles.$inferSelect;
+
+
+// ============================================================
+// EXISTING TABLE: session_state — extended with channel fields
+// ============================================================
+
+export const sessionState = pgTable("session_state", {
+  id:                   uuid("id").primaryKey().defaultRandom(),
+  user_id:              text("user_id").notNull(),
+  session_id:           text("session_id").notNull().unique(),
+
+  // Existing
+  current_agent:        text("current_agent").notNull().default("companion"),
+  last_agent:           text("last_agent"),
+  last_intent:          text("last_intent"),
+  last_activity_at:     timestamp("last_activity_at", { withTimezone: true }),
+  turn_count:           integer("turn_count").notNull().default(0),
+  next_agent_override:  text("next_agent_override"),
+
+  // New: channel tracking
+  channel:              channelTypeEnum("channel").default("voice_app"),
+  previous_channel:     channelTypeEnum("previous_channel"),
+  channel_switched:     boolean("channel_switched").default(false),
+
+  // New: context handoff snapshot
+  // Written at end of session, read at start of next (any channel)
+  context_snapshot:     jsonb("context_snapshot").default({}),
+
+  // New: identity resolution
+  resolved_by:          text("resolved_by"),
+  was_unregistered:     boolean("was_unregistered").default(false),
+  onboarding_triggered: boolean("onboarding_triggered").default(false),
+
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSessionStateSchema = createInsertSchema(sessionState).omit({ id: true, created_at: true, updated_at: true });
+export type InsertSessionState = z.infer<typeof insertSessionStateSchema>;
+export type SessionState = typeof sessionState.$inferSelect;
+
+
+// ============================================================
+// EXISTING TABLES — unchanged
+// ============================================================
+
+export const sessionExchanges = pgTable("session_exchanges", {
+  id:                   uuid("id").primaryKey().defaultRandom(),
+  session_id:           text("session_id").notNull(),
+  user_id:              text("user_id").notNull(),
+  speaker:              text("speaker").notNull(),
+  message:              text("message").notNull(),
+  agent_used:           text("agent_used"),
+  intent_classified:    text("intent_classified"),
+  intent_confidence:    real("intent_confidence"),
+  created_at:           timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSessionExchangeSchema = createInsertSchema(sessionExchanges).omit({ id: true, created_at: true });
+export type InsertSessionExchange = z.infer<typeof insertSessionExchangeSchema>;
+export type SessionExchange = typeof sessionExchanges.$inferSelect;
+
+export const agentDifficulty = pgTable("agent_difficulty", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  user_id:           text("user_id").notNull(),
+  agent_name:        text("agent_name").notNull(),
+  difficulty_level:  integer("difficulty_level").notNull().default(1),
+  sessions_at_level: integer("sessions_at_level").notNull().default(0),
+  last_score:        real("last_score"),
+  updated_at:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertAgentDifficultySchema = createInsertSchema(agentDifficulty).omit({ id: true, updated_at: true });
+export type InsertAgentDifficulty = z.infer<typeof insertAgentDifficultySchema>;
+export type AgentDifficulty = typeof agentDifficulty.$inferSelect;
+
+export const caregiverAlerts = pgTable("caregiver_alerts", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  user_id:     text("user_id").notNull(),
+  alert_type:  text("alert_type").notNull(),
+  severity:    text("severity").notNull(),
+  message:     text("message").notNull(),
+  sent_to:     text("sent_to").array(),
+  resolved_at: timestamp("resolved_at", { withTimezone: true }),
+  resolved_by: text("resolved_by"),
+  created_at:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertCaregiverAlertSchema = createInsertSchema(caregiverAlerts).omit({ id: true, created_at: true });
+export type InsertCaregiverAlert = z.infer<typeof insertCaregiverAlertSchema>;
+export type CaregiverAlert = typeof caregiverAlerts.$inferSelect;
+
+export const medicationAdherence = pgTable("medication_adherence", {
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  user_id:            text("user_id").notNull(),
+  medication_name:    text("medication_name").notNull(),
+  scheduled_time:     text("scheduled_time").notNull(),
+  status:             text("status").notNull(),
+  confirmed_by:       text("confirmed_by").notNull().default("user"),
+  confirmed_taken_at: timestamp("confirmed_taken_at", { withTimezone: true }),
+  created_at:         timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertMedicationAdherenceSchema = createInsertSchema(medicationAdherence).omit({ id: true, created_at: true });
+export type InsertMedicationAdherence = z.infer<typeof insertMedicationAdherenceSchema>;
+export type MedicationAdherence = typeof medicationAdherence.$inferSelect;
+
+export const userMedications = pgTable("user_medications", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  user_id:         text("user_id").notNull(),
+  medication_name: text("medication_name").notNull(),
+  dosage:          text("dosage"),
+  frequency:       text("frequency"),
+  scheduled_times: text("scheduled_times").array(),
+  active:          boolean("active").notNull().default(true),
+  added_by:        text("added_by").notNull().default("user"),
+  created_at:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertUserMedicationSchema = createInsertSchema(userMedications).omit({ id: true, created_at: true });
+export type InsertUserMedication = z.infer<typeof insertUserMedicationSchema>;
+export type UserMedication = typeof userMedications.$inferSelect;
+
+
+// ============================================================
+// NEW TABLE: onboarding_state
+// ============================================================
+
+export const onboardingState = pgTable("onboarding_state", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  user_id:    text("user_id").notNull().unique(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+
+  // Stage 1 — minimum to start
+  has_preferred_name:     boolean("has_preferred_name").notNull().default(false),
+  has_phone_number:       boolean("has_phone_number").notNull().default(false),
+  has_language:           boolean("has_language").notNull().default(false),
+
+  // Stage 2 — collected conversationally
+  has_date_of_birth:      boolean("has_date_of_birth").notNull().default(false),
+  has_emergency_address:  boolean("has_emergency_address").notNull().default(false),
+  has_checkin_preference: boolean("has_checkin_preference").notNull().default(false),
+  has_location:           boolean("has_location").notNull().default(false),
+
+  // Stage 3 — health profile, elder-led
+  has_health_conditions:  boolean("has_health_conditions").notNull().default(false),
+  has_medications:        boolean("has_medications").notNull().default(false),
+  has_allergies:          boolean("has_allergies").notNull().default(false),
+  has_gp_details:         boolean("has_gp_details").notNull().default(false),
+
+  // Stag

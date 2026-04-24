@@ -1,9 +1,11 @@
-import { Settings, Cloud, Battery } from "lucide-react";
+import { CircleUser } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const now = new Date();
   const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -18,19 +20,14 @@ const StatusBar = () => {
             <div className="font-body text-[12px] text-vyva-text-2">{date}</div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-vyva-text-2">
-            <Cloud size={14} />
-            <span className="font-body text-[13px]">14° Cloudy</span>
-          </div>
-          <div className="flex items-center gap-1 text-vyva-text-2">
-            <Battery size={14} />
-            <span className="font-body text-[13px]">82%</span>
-          </div>
-          <button onClick={() => navigate("/settings")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-vyva-warm">
-            <Settings size={18} className="text-vyva-text-2" />
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/settings")}
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-full hover:bg-vyva-warm"
+          data-testid="button-my-profile"
+        >
+          <CircleUser size={18} className="text-vyva-text-2" />
+          <span className="font-body text-[13px] font-medium text-vyva-text-1">{t("nav.myProfile")}</span>
+        </button>
       </div>
     </div>
   );

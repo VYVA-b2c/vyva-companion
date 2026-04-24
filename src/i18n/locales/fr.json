@@ -1,0 +1,1255 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "symptoms": "Symptômes",
+    "vitalSigns": "Signes Vitaux",
+    "medications": "Médicaments",
+    "cognitiveActivity": "Activité Cognitive",
+    "history": "Historique",
+    "myProfile": "Mon profil"
+  },
+  "history": {
+    "title": "Mon historique",
+    "subtitle": "Scans & révisions",
+    "empty": "Aucun scan pour l'instant",
+    "emptySubtitle": "Vos scans de plaies, vérifications de sécurité à domicile et contrôles d'arnaques apparaîtront ici.",
+    "badge": {
+      "wound": "Scan de plaie",
+      "home": "Sécurité domicile",
+      "scam": "Vérification arnaque"
+    },
+    "hazards": "Dangers détectés",
+    "steps": "Étapes à suivre",
+    "advice": "Conseil"
+  },
+  "home": {
+    "greeting": {
+      "morning": {
+        "withName": {
+          "1": "Bonjour,\n{{name}} !",
+          "2": "Bonjour, {{name}} — allons-y tout en douceur aujourd'hui.",
+          "3": "Bonjour {{name}}. Je suis là avec vous.",
+          "4": "Une nouvelle matinée pour vous, {{name}}.",
+          "5": "Bonjour, {{name}} — ravi(e) de vous voir."
+        },
+        "withoutName": {
+          "1": "Bonjour !",
+          "2": "Bonjour — allons-y tout en douceur aujourd'hui.",
+          "3": "Bonjour. Commençons tranquillement.",
+          "4": "Une nouvelle matinée vous attend.",
+          "5": "Bonjour — un pas à la fois."
+        }
+      },
+      "afternoon": {
+        "withName": {
+          "1": "Bon après-midi, {{name}}.",
+          "2": "Bonjour {{name}} — j'espère que votre après-midi se passe bien.",
+          "3": "Bon après-midi, {{name}}. Vous vous en sortez bien.",
+          "4": "Bon après-midi, {{name}} — continuez comme ça.",
+          "5": "Un après-midi calme pour vous, {{name}}."
+        },
+        "withoutName": {
+          "1": "Bon après-midi.",
+          "2": "Bonjour — j'espère que votre après-midi se passe bien.",
+          "3": "Bon après-midi. Vous vous en sortez bien.",
+          "4": "Bon après-midi — continuez comme ça.",
+          "5": "Un après-midi calme vous attend."
+        }
+      },
+      "evening": {
+        "withName": {
+          "1": "Bonsoir, {{name}}.",
+          "2": "Soirée, {{name}} — il est temps de ralentir.",
+          "3": "Bonsoir, {{name}}. Beau travail aujourd'hui.",
+          "4": "Bonjour {{name}} — vous vous installez pour la soirée ?",
+          "5": "Une soirée paisible pour vous, {{name}}."
+        },
+        "withoutName": {
+          "1": "Bonsoir.",
+          "2": "Soirée — il est temps de ralentir.",
+          "3": "Bonsoir. Beau travail aujourd'hui.",
+          "4": "Bonjour — vous vous installez pour la soirée ?",
+          "5": "Une soirée paisible vous attend."
+        }
+      },
+      "night": {
+        "withName": {
+          "1": "Toujours debout, {{name}} ?",
+          "2": "Il est tard, {{name}} — je suis là si vous avez besoin.",
+          "3": "Nuit calme, {{name}}. Prenez votre temps.",
+          "4": "Les heures sont tardives, {{name}} — gardons le calme.",
+          "5": "Bonne nuit, {{name}} — bientôt au repos ?"
+        },
+        "withoutName": {
+          "1": "Toujours debout ?",
+          "2": "Il est tard — je suis là si vous avez besoin.",
+          "3": "Nuit calme. Prenez votre temps.",
+          "4": "Les heures sont tardives — gardons le calme.",
+          "5": "Bonne nuit — bientôt au repos ?"
+        }
+      }
+    },
+    "subtitle": "Voici comment vont les choses aujourd'hui",
+    "weatherSubtitle": "{{description}} à {{city}} · {{temperature}}°C",
+    "quickAccess": "Accès rapide",
+    "todayForYou": {
+      "sectionTitle": "Aujourd'hui pour vous",
+      "cards": {
+        "breathing": {
+          "badge": "Respiration",
+          "title": "Respirez et détendez-vous",
+          "text": "Un exercice de respiration profonde pour calmer votre esprit en 3 minutes.",
+          "cta": "Commencer"
+        },
+        "chatPrompt": {
+          "badge": "Conversation",
+          "title": "Parlez à VYVA",
+          "text": "Qu'avez-vous en tête aujourd'hui ? VYVA est là pour vous écouter.",
+          "cta": "Ouvrir"
+        },
+        "brainGame": {
+          "badge": "Cerveau",
+          "title": "Jeu de mémoire",
+          "text": "Entraînez votre mémoire avec un exercice rapide et amusant.",
+          "cta": "Jouer"
+        },
+        "movement": {
+          "badge": "Mouvement",
+          "title": "Étirements doux",
+          "text": "Quelques étirements doux pour commencer la journée avec énergie.",
+          "cta": "Commencer"
+        },
+        "healthTip": {
+          "badge": "Santé",
+          "title": "Conseil du jour",
+          "text": "Boire de l'eau régulièrement aide votre cœur et votre esprit à mieux fonctionner.",
+          "cta": "En savoir plus"
+        },
+        "wordGame": {
+          "badge": "Mots",
+          "title": "Mots croisés",
+          "text": "Testez votre vocabulaire avec ce défi de mots amusant.",
+          "cta": "Jouer"
+        },
+        "concierge": {
+          "badge": "Aide",
+          "title": "Besoin de quelque chose ?",
+          "text": "VYVA peut vous aider pour les rendez-vous, les courses ou toute tâche.",
+          "cta": "Demander de l'aide"
+        },
+        "meds": {
+          "badge": "Médicaments",
+          "title": "Vérifiez vos médicaments",
+          "text": "Voyez ce que vous avez pris aujourd'hui et ce qui est encore à prendre.",
+          "cta": "Vérifier"
+        },
+        "social": {
+          "badge": "Social",
+          "title": "Discutez avec quelqu'un",
+          "text": "Une petite conversation peut beaucoup égayer votre journée.",
+          "cta": "Ouvrir le chat"
+        }
+      }
+    },
+    "cardCategories": {
+      "Quote": "Citation",
+      "Fact": "Fait",
+      "Tip": "Conseil",
+      "Achievement": "Accomplissement",
+      "DidYouKnow": "Le saviez-vous ?"
+    },
+    "chatPlaceholder": "Envoyez un message pour démarrer un chat",
+    "tile": {
+      "medication": "Médication",
+      "health": "Santé",
+      "brain": "Mental",
+      "activity": "Activité"
+    },
+    "quickTiles": {
+      "health": {
+        "label": "Santé",
+        "hint": "Vérifier l'état"
+      },
+      "cognitive": {
+        "label": "Cognitif",
+        "hint": "Exercice rapide"
+      },
+      "social": {
+        "label": "Social",
+        "hint": "Discuter un peu"
+      },
+      "concierge": {
+        "label": "Concierge",
+        "hint": "Obtenir de l'aide"
+      }
+    }
+  },
+  "voiceHero": {
+    "talkToVyva": "Parler à VYVA",
+    "speaking": "VYVA parle...",
+    "listening": "En écoute...",
+    "connecting": "Connexion...",
+    "active": "Active",
+    "live": "En direct",
+    "you": "Vous",
+    "endCall": "Terminer l'appel"
+  },
+  "timezoneGroups": {
+    "europe": "Europe",
+    "americas": "Amériques",
+    "asiaPacific": "Asie / Pacifique",
+    "africaMiddleEast": "Afrique / Moyen-Orient"
+  },
+  "chat": {
+    "started": "Chat démarré",
+    "sendMessage": "Envoyer un message",
+    "connecting": "Connexion…",
+    "connected": "Connecté",
+    "tapToConnect": "Appuyez sur envoyer pour vous connecter"
+  },
+  "profile": {
+    "roles": {
+      "daughter": "Fille",
+      "son": "Fils",
+      "carer": "Aidant(e)",
+      "gp": "Médecin généraliste"
+    },
+    "overview": {
+      "title": "Votre profil",
+      "subtitle": "Santé, loisirs, équipe soignante, urgences et plus",
+      "loading": "Chargement…",
+      "completionCount": "{{done}} sur {{total}} sections complètes",
+      "setUpBy": "Configuré par {{name}}",
+      "confirmed": "Vous avez confirmé que c'est bien votre compte.",
+      "awaitingConfirmation": "En attente de votre confirmation que c'est bien votre compte.",
+      "confirmNow": "Confirmer maintenant",
+      "allUnlocked": "Vous avez tout débloqué — votre profil est complet !",
+      "unlockHintSingle": "Complétez 1 section de plus pour débloquer {{label}}.",
+      "unlockHintPlural": "Complétez {{count}} sections de plus pour débloquer {{label}}.",
+      "unlocked": "Débloqué",
+      "comingSoon": "Bientôt disponible",
+      "goToVyva": "Aller sur VYVA",
+      "milestone25Label": "Chat personnalisé",
+      "milestone25Teaser": "VYVA commence à vous connaître",
+      "milestone50Label": "Rappels intelligents",
+      "milestone50Teaser": "Médicaments et rendez-vous",
+      "milestone75Label": "Soutien d'urgence",
+      "milestone75Teaser": "Votre équipe est alertée si nécessaire",
+      "milestone100Label": "Expérience complète",
+      "milestone100Teaser": "Tout ce que VYVA a à offrir",
+      "sections": {
+        "basics": {
+          "title": "Informations de base",
+          "description": "Nom, date de naissance, langue",
+          "benefit": "VYVA sait qui vous êtes"
+        },
+        "contact": {
+          "title": "Contact et adresse",
+          "description": "Numéro de téléphone, domicile",
+          "benefit": "L'aide arrive plus vite"
+        },
+        "health": {
+          "title": "Problèmes de santé",
+          "description": "Pathologies existantes et diagnostic",
+          "benefit": "Des soins plus intelligents"
+        },
+        "medications": {
+          "title": "Médicaments",
+          "description": "Ce que vous prenez et quand",
+          "benefit": "Ne manquez aucune dose"
+        },
+        "allergies": {
+          "title": "Allergies",
+          "description": "Allergies médicamenteuses et alimentaires",
+          "benefit": "Recommandations plus sûres"
+        },
+        "gp": {
+          "title": "Médecin généraliste",
+          "description": "Votre médecin traitant",
+          "benefit": "VYVA peut contacter votre médecin"
+        },
+        "providers": {
+          "title": "Prestataires",
+          "description": "Pharmacie, hôpital, spécialistes",
+          "benefit": "Démarches simplifiées"
+        },
+        "careTeam": {
+          "title": "Équipe soignante",
+          "description": "Famille, aidants, amis",
+          "benefit": "La famille toujours informée"
+        },
+        "hobbies": {
+          "title": "Loisirs et intérêts",
+          "description": "Ce que vous aimez faire",
+          "benefit": "Histoires et chat personnalisés"
+        },
+        "emergency": {
+          "title": "Urgences",
+          "description": "Contacts d'urgence et plan",
+          "benefit": "Prêt pour les urgences"
+        },
+        "privacy": {
+          "title": "Confidentialité et consentement",
+          "description": "Ce que vous partagez et avec qui",
+          "benefit": "Vos données, vos règles"
+        },
+        "subscription": {
+          "title": "Abonnement",
+          "description": "Votre offre VYVA",
+          "benefit": "Expérience VYVA complète"
+        }
+      }
+    }
+  },
+  "settings": {
+    "profileSubtitle": "Votre profil et préférences",
+    "personalInfo": "Informations Personnelles",
+    "preferences": "Préférences",
+    "address": "Adresse",
+    "caregiver": "Aidant(e)",
+    "saveChanges": "Enregistrer les modifications",
+    "saving": "Enregistrement…",
+    "saved": "Modifications enregistrées !",
+    "toastSaved": "Profil enregistré",
+    "toastSavedDesc": "Vos modifications ont été enregistrées.",
+    "toastError": "Erreur",
+    "toastErrorDesc": "Impossible d'enregistrer le profil. Veuillez réessayer.",
+    "fields": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "email": "Adresse e-mail",
+      "phone": "Numéro de téléphone",
+      "country": "Pays",
+      "timezone": "Fuseau horaire",
+      "language": "Langue préférée",
+      "street": "Adresse, boîte postale, etc.",
+      "cityState": "Ville / Département / Province",
+      "postalCode": "Code postal",
+      "caregiverName": "Nom de l'aidant(e)",
+      "caregiverContact": "Numéro de contact de l'aidant(e)"
+    },
+    "placeholder": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "email": "Adresse e-mail",
+      "phone": "Numéro de téléphone",
+      "street": "Adresse postale",
+      "cityState": "Ville, Département ou Province",
+      "postalCode": "Code postal",
+      "caregiverName": "Nom complet de l'aidant(e)",
+      "caregiverContact": "Téléphone de l'aidant(e)"
+    },
+    "home": {
+      "title": "Paramètres",
+      "subtitle": "Gérez votre compte, vos notifications, votre confidentialité et votre abonnement.",
+      "sections": {
+        "account": "Compte",
+        "privacy": "Confidentialité",
+        "subscription": "Abonnement",
+        "about": "À propos",
+        "dangerZone": "Zone de danger"
+      },
+      "rows": {
+        "myAccount": "Mon compte",
+        "myAccountSub": "Nom, téléphone, langue, mot de passe",
+        "notifications": "Notifications et contact",
+        "notificationsSub": "Canaux, heures silencieuses, fréquence",
+        "healthProfile": "Profil de santé",
+        "healthProfileSub": "Médicaments, conditions, médecin, équipe soignante",
+        "privacyConsent": "Confidentialité et consentement",
+        "privacyConsentSub": "Ce que votre équipe soignante peut voir, vos droits sur les données",
+        "downloadData": "Télécharger mes données",
+        "downloadDataSub": "Obtenez une copie de tout ce que VYVA détient sur vous",
+        "planBilling": "Forfait et facturation",
+        "planBillingSub": "Essai gratuit · 14 jours restants",
+        "planBillingValue": "Gratuit",
+        "termsOfService": "Conditions d'utilisation",
+        "privacyPolicy": "Politique de confidentialité",
+        "contactSupport": "Contacter le support",
+        "sendFeedback": "Envoyer des commentaires",
+        "appVersion": "Version de l'application",
+        "signOut": "Se déconnecter",
+        "deleteAccount": "Supprimer mon compte et toutes les données",
+        "deleteAccountSub": "Permanent — impossible à annuler"
+      }
+    },
+    "notifications": {
+      "title": "Notifications et contact",
+      "subtitle": "Choisissez comment et quand VYVA vous contacte.",
+      "channelCheckins": "Canal préféré pour les check-ins",
+      "channelReminders": "Canal préféré pour les rappels",
+      "channelCall": "VYVA m'appelle",
+      "channelWhatsapp": "Message WhatsApp",
+      "channelApp": "Dans l'application",
+      "quietHours": "Heures silencieuses — ne me contactez pas entre",
+      "from": "De",
+      "until": "À",
+      "frequencyLimits": "Limites de fréquence",
+      "maxCalls": "Appels max par jour",
+      "maxWhatsapp": "Max WhatsApp/jour",
+      "noLimit": "Sans limite",
+      "saving": "Enregistrement...",
+      "savePreferences": "Enregistrer les préférences"
+    },
+    "privacy": {
+      "title": "Confidentialité et consentement",
+      "vyvaDataUse": "UTILISATION DES DONNÉES VYVA",
+      "whatIShare": "CE QUE JE PARTAGE ET AVEC QUI",
+      "analyticsLabel": "Analyses d'utilisation",
+      "analyticsSub": "Aider à améliorer VYVA avec des données anonymes",
+      "aiImprovementLabel": "Amélioration du modèle IA",
+      "aiImprovementSub": "Permettre aux conversations d'améliorer l'IA (anonymisé)",
+      "healthLabel": "Données de santé",
+      "healthSub": "Conditions, médicaments, bien-être",
+      "locationLabel": "Localisation",
+      "locationSub": "Localisation en temps réel lorsqu'actif",
+      "conversationsLabel": "Résumés de conversations",
+      "conversationsSub": "Points forts quotidiens de vos chats",
+      "gdprFooter": "Les modifications sont enregistrées automatiquement. Protégé par le RGPD."
+    },
+    "account": {
+      "title": "Mon compte",
+      "subtitle": "Mettez à jour vos informations personnelles.",
+      "fullName": "Nom complet",
+      "preferredName": "Prénom préféré (comment VYVA vous appelle)",
+      "dateOfBirth": "Date de naissance",
+      "gender": "Genre",
+      "genderFemale": "Féminin",
+      "genderMale": "Masculin",
+      "genderNonBinary": "Non binaire",
+      "genderPreferNot": "Préfère ne pas préciser",
+      "phone": "Numéro de téléphone",
+      "whatsapp": "WhatsApp (si différent)",
+      "whatsappPlaceholder": "Laisser vide si identique",
+      "email": "E-mail (facultatif)",
+      "language": "Langue",
+      "timezone": "Fuseau horaire",
+      "saveChanges": "Enregistrer les modifications",
+      "saving": "Enregistrement…",
+      "changePassword": "Changer le mot de passe",
+      "signOut": "Se déconnecter",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "emailPlaceholder": "vous@email.com",
+      "langEn": "English",
+      "langEs": "Español",
+      "langDe": "Deutsch",
+      "langFr": "Français",
+      "langIt": "Italiano",
+      "langPt": "Português",
+      "langCy": "Cymraeg",
+      "tzMadrid": "Espagne (Madrid)",
+      "tzBerlin": "Allemagne (Berlin)",
+      "tzLondon": "Royaume-Uni (Londres)"
+    }
+  },
+  "health": {
+    "voiceSource": "VYVA surveille votre santé",
+    "headlineWithName": "Comment vous sentez-vous,\n{{name}} ?",
+    "headline": "Comment vous sentez-vous ?",
+    "bloodPressure": "Pression artérielle",
+    "mood": "Humeur",
+    "sleep": "Sommeil",
+    "statNormal": "Normal",
+    "statGood": "Bon",
+    "symptomsToday": "Des symptômes aujourd'hui ?",
+    "urgent": "urgent",
+    "doctorServices": "Médecin & services",
+    "speakToDoctor": "Parler à un médecin",
+    "speakToDoctorSub": "Obtenir une orientation ou un conseil",
+    "nearbyClinics": "Cliniques à proximité",
+    "nearbyClinicsSub": "Trouver des centres de soins près de chez vous",
+    "symptoms": {
+      "headache": "Mal de tête",
+      "kneePain": "Douleur au genou",
+      "tired": "Fatigué(e)",
+      "dizzy": "Vertige",
+      "chestPain": "Douleur thoracique"
+    },
+    "seeDoctor": {
+      "title": "Voir un médecin",
+      "subtitle": "Vidéo ou téléphone en quelques minutes",
+      "cta": "Prendre rendez-vous",
+      "sheetTitle": "Choisissez comment vous connecter",
+      "videoCall": "Appel vidéo",
+      "phoneCall": "Appel téléphonique",
+      "comingSoonBtn": "Bientôt disponible",
+      "comingSoon": "Ce service est en cours de mise en place pour vous. Disponible très bientôt !",
+      "checkSymptoms": "Vérifier mes symptômes",
+      "checkSymptomsSub": "Triage IA + scan des constantes vitales en 5 minutes"
+    },
+    "symptomCheck": {
+      "title": "Vérification des symptômes",
+      "intro": {
+        "title": "Vérifiez vos symptômes",
+        "subtitle": "Un bilan de santé rapide et privé — guidé par l'IA et réalisé sur votre téléphone en quelques minutes.",
+        "step1Title": "Scan des constantes vitales",
+        "step1Desc": "La caméra mesure votre fréquence cardiaque — sans appareil connecté",
+        "step2Title": "Dites-moi ce qui ne va pas",
+        "step2Desc": "Discutez avec VYVA de votre état de santé",
+        "step3Title": "Obtenez votre rapport",
+        "step3Desc": "Recevez un résumé à partager avec votre médecin",
+        "startBtn": "Commencer le bilan de santé"
+      },
+      "scan": {
+        "title": "Scan des constantes vitales",
+        "instruction": "Regardez la caméra et restez immobile — nous lisons votre pouls",
+        "complete": "Scan terminé ! Voici votre résultat.",
+        "heartRate": "Fréquence cardiaque",
+        "permissionDenied": "Accès à la caméra requis",
+        "permissionHint": "Veuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur pour utiliser le scan des constantes vitales.",
+        "skipBtn": "Passer le scan",
+        "continueBtn": "Continuer vers la vérification des symptômes"
+      },
+      "chat": {
+        "title": "Parlez à VYVA",
+        "placeholder": "Décrivez comment vous vous sentez…",
+        "thinking": "VYVA réfléchit…",
+        "send": "Envoyer",
+        "errorMsg": "Je suis désolé, j'ai eu du mal à comprendre. Pourriez-vous réessayer ?"
+      },
+      "report": {
+        "title": "Votre rapport",
+        "urgencyLabel": "Urgence",
+        "urgentLabel": "Consultez immédiatement",
+        "routineLabel": "Prenez rendez-vous",
+        "monitorLabel": "Surveiller à domicile",
+        "chiefComplaint": "Votre préoccupation",
+        "symptoms": "Symptômes notés",
+        "recommendations": "Que faire ensuite",
+        "shareBtn": "Partager le rapport",
+        "doneBtn": "Terminer",
+        "shareTitle": "Mon bilan de symptômes VYVA",
+        "copiedToast": "Copié dans le presse-papiers",
+        "copiedToastDesc": "Partagez le texte avec votre médecin ou votre famille.",
+        "disclaimer": "Ce rapport est fourni à titre informatif uniquement et ne constitue pas un avis médical. Consultez toujours un professionnel de santé qualifié pour le diagnostic et le traitement."
+      }
+    },
+    "scanWound": {
+      "title": "Scanner ma blessure",
+      "subtitle": "Prenez ou importez une photo pour une analyse IA",
+      "cta": "Prendre ou importer une photo",
+      "analyzing": "Analyse en cours...",
+      "resultTitle": "Résultat de l'analyse",
+      "severity": "Légère",
+      "severityLabel": {
+        "minor": "Légère",
+        "moderate": "Modérée",
+        "serious": "Grave"
+      },
+      "advice": "Abrasion mineure détectée. Gardez la zone propre et couverte. Changez le pansement quotidiennement.",
+      "disclaimer": "Ceci est indicatif uniquement. Consultez toujours un professionnel pour les blessures graves.",
+      "errorTitle": "Analyse indisponible",
+      "errorAdvice": "Nous n'avons pas pu analyser l'image pour le moment. Veuillez réessayer ou, si vous êtes inquiet, contactez un professionnel de santé.",
+      "close": "Fermer"
+    },
+    "findAlv": {
+      "title": "Trouver un ALV",
+      "subtitle": "Assistants de vie locaux près de vous",
+      "callButton": "Appeler",
+      "distance": "à {{dist}}",
+      "searchPlaceholder": "Rechercher par nom ou adresse..."
+    },
+    "findSpecialist": {
+      "title": "Trouver un spécialiste",
+      "subtitle": "Entrez en contact avec le bon expert",
+      "bookButton": "Réserver",
+      "cardiology": "Cardiologie",
+      "neurology": "Neurologie",
+      "dermatology": "Dermatologie",
+      "orthopedics": "Orthopédie",
+      "genetics": "Génétique",
+      "waitDay": "{{count}} jour",
+      "waitDays": "{{count}} jours",
+      "waitWeek": "{{count}} semaine",
+      "waitWeeks": "{{count}} semaines"
+    },
+    "latestAdvances": {
+      "title": "Dernières avancées",
+      "readMore": "Lire la suite",
+      "srcHarvard": "Harvard Health",
+      "srcNature": "Nature Medicine",
+      "srcWHO": "OMS",
+      "srcLancet": "The Lancet",
+      "advance1": {
+        "title": "Marcher 7 000 pas réduit le risque cardiaque de 50 %",
+        "blurb": "Une nouvelle étude confirme qu'une marche quotidienne peut être aussi efficace que certains médicaments."
+      },
+      "advance2": {
+        "title": "La thérapie génique promet de traiter la perte auditive",
+        "blurb": "Des essais cliniques rapportent une amélioration significative chez les plus de 65 ans."
+      },
+      "advance3": {
+        "title": "Le régime méditerranéen ralentit le déclin cognitif",
+        "blurb": "L'huile d'olive et les légumes verts sont liés à une meilleure mémoire chez les seniors."
+      },
+      "advance4": {
+        "title": "Un nouveau bracelet connecté détecte la fibrillation auriculaire",
+        "blurb": "L'algorithme surpasse l'ECG standard pour détecter les battements irréguliers."
+      }
+    },
+    "pastScans": {
+      "aiAdvice": "Avis IA",
+      "delete": "Supprimer",
+      "title": "Analyses passées",
+      "deleteAriaLabel": "Supprimer l'analyse",
+      "copyAdvice": "Copier l'avis",
+      "shareAdvice": "Partager l'avis",
+      "copyAdviceDone": "Avis copié",
+      "shareIntro": "Mon analyse de santé par IA dit..."
+    }
+  },
+  "meds": {
+    "voiceSource": "VYVA gère vos médicaments",
+    "headline": "Besoin d'aide avec\nvos médicaments ?",
+    "headlines": [
+      "Je suis là pour vous\naider avec vos médicaments",
+      "Je peux vérifier si vos\nmédicaments sont compatibles",
+      "Je peux vous suggérer\ndes remèdes naturels",
+      "Je peux vous aider à\ncommander vos ordonnances",
+      "Je peux comparer les\nprix des pharmacies pour vous",
+      "Je partagerai avec vous\nles dernières recherches médicales",
+      "Je répondrai à vos\nquestions sur les médicaments",
+      "Je peux vous aider à\nmaintenir votre routine santé"
+    ],
+    "takenToday": "{{taken}} sur {{total}} pris aujourd'hui",
+    "todaySchedule": "Programme du jour",
+    "dueTonight": "1 prévu ce soir",
+    "taken": "Pris",
+    "tonight": "Ce soir",
+    "newMedication": "Nouveau médicament",
+    "added": "Ajouté",
+    "confirm": "Confirmer",
+    "allTaken": "Toutes les doses prises !",
+    "noMedsTitle": "Aucun médicament ajouté pour l'instant",
+    "noMedsSub": "Utilisez le bouton ci-dessous pour ajouter vos médicaments par la voix",
+    "noMedsScheduled": "Aucun médicament prévu pour aujourd'hui",
+    "confirmTaken": "Confirmer la prise de Metformine",
+    "addByVoice": "Ajouter par la voix",
+    "medicationInfo": "Info médicaments",
+    "refillReminder": "Rappel de renouvellement",
+    "refillReminderSub": "Configurez un rappel pour votre prochain renouvellement",
+    "interactions": "Interactions",
+    "interactionsSub": "Ajoutez vos médicaments pour vérifier les interactions",
+    "interactionsSubWithMeds_one": "{{count}} médicament sur votre liste",
+    "interactionsSubWithMeds_other": "{{count}} médicaments sur votre liste",
+    "medicationAssistant": "Assistant médicaments",
+    "toastAdded": "Médicament ajouté",
+    "toastAddedDesc": "{{name}} a été ajouté à votre liste.",
+    "toastAddedDefault": "Votre médicament a été ajouté.",
+    "assistant": {
+      "interactions": {
+        "label": "Vérifier les interactions",
+        "sub": "Voir si vos médicaments se combinent bien",
+        "sheetTitle": "Vérifier les interactions",
+        "prompt": "Je prends les médicaments suivants : {{medNames}}. Veuillez vérifier les interactions connues entre ces médicaments et me dire s'il y a des choses à discuter avec mon médecin ou mon pharmacien."
+      },
+      "naturalMedicine": {
+        "label": "Médecine naturelle",
+        "sub": "Remèdes à base de plantes et bien-être naturel",
+        "sheetTitle": "Médecine naturelle",
+        "prompt": "Je prends les médicaments suivants : {{medNames}}. Pouvez-vous me donner des informations sur les remèdes à base de plantes, les compléments naturels ou les options de bien-être végétal qui pourraient compléter ma santé ? Veuillez également me signaler si des remèdes naturels courants pourraient interagir avec mes médicaments actuels, afin que je puisse rester en sécurité."
+      },
+      "order": {
+        "label": "Commander en ligne",
+        "sub": "Ordonnances répétées et livraison à domicile",
+        "links": {
+          "nhsRepeat": "Ordonnances répétées NHS",
+          "pharmacy2u": "Pharmacy2U",
+          "chemistDirect": "Chemist Direct",
+          "lloydsPharmacy": "Lloyds Pharmacy"
+        }
+      },
+      "prices": {
+        "label": "Meilleurs prix",
+        "sub": "Comparer les prix entre pharmacies",
+        "links": {
+          "pillSorted": "PillSorted",
+          "chemistDirect": "Chemist Direct",
+          "boots": "Boots",
+          "superdrug": "Superdrug Online Doctor"
+        }
+      },
+      "advances": {
+        "label": "Dernières avancées",
+        "sub": "Recherches récentes sur vos médicaments",
+        "sheetTitle": "Dernières avancées",
+        "prompt": "Je prends les médicaments suivants : {{medNames}}. Pouvez-vous me faire un résumé convivial des recherches ou actualités récentes concernant ces médicaments ? Je souhaite rester informé des avancées susceptibles d'être pertinentes pour ma santé."
+      }
+    },
+    "notes": {
+      "takenMorning": "Pris ce matin avec le petit-déjeuner",
+      "takenAt9": "Pris à 9h00",
+      "dueEvening": "Prévu ce soir à 19h00 · Je vous rappellerai"
+    },
+    "disclaimer": "Ceci est uniquement informatif, pas un conseil médical — consultez toujours votre médecin ou pharmacien.",
+    "assistantError": "Quelque chose s'est mal passé. Veuillez réessayer.",
+    "assistantPlaceholder": "Posez une question de suivi…",
+    "names": {
+      "aspirin75": "Aspirine 75mg",
+      "lisinopril10": "Lisinopril 10mg",
+      "metformin500": "Metformine 500mg"
+    },
+    "adherenceReport": "Adherence Report",
+    "adherenceReportSub": "See how consistently you take your medications",
+    "adherence": {
+      "title": "Adherence Report",
+      "backToMeds": "Back to Medications",
+      "overallStats": "Overall Adherence",
+      "thisWeek": "This week",
+      "last30Days": "Last 30 days",
+      "perMedication": "Per Medication",
+      "taken": "taken",
+      "scheduled": "scheduled",
+      "streak": "{{days}} day streak",
+      "streakSingle": "{{days}} day streak",
+      "streakZero": "No current streak",
+      "weeklyView": "7-Day View",
+      "dayLabels": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ],
+      "statusTaken": "Taken",
+      "statusMissed": "Missed",
+      "statusNoSchedule": "No dose",
+      "noDataTitle": "No records yet",
+      "noDataSub": "Your adherence history will appear here as you confirm doses over time.",
+      "shareButton": "Share with care team",
+      "shareCopied": "Report copied!",
+      "shareCopiedDesc": "Your adherence summary has been copied to the clipboard.",
+      "shareFormat": "Medication Adherence Report\n\nThis week: {{week}}%\nLast 30 days: {{month}}%\n\nPer medication:\n{{meds}}\n\nGenerated by VYVA",
+      "shareFormatMed": "{{name}} ({{dosage}}): {{taken}}/{{scheduled}} doses taken this week, {{streak}}-day streak",
+      "loadingTitle": "Loading your report…",
+      "errorTitle": "Could not load report",
+      "errorSub": "Please try again in a moment.",
+      "retry": "Try again",
+      "dosageFallback": "—"
+    }
+  },
+  "brain": {
+    "voiceSource": "VYVA est votre coach cérébral",
+    "headline": "Prêt(e) pour l'entraînement\ncérébral ?",
+    "subtitle": "Série de {{streak}} jours — continuez !",
+    "startSession": "Démarrer une session",
+    "chooseActivity": "Choisir une activité",
+    "doneToday": "Fait aujourd'hui",
+    "streakThisWeek": "Votre série cette semaine",
+    "dayStreak": "jours de suite",
+    "dayAbbreviations": [
+      "L",
+      "M",
+      "M",
+      "J",
+      "V",
+      "S",
+      "D"
+    ],
+    "activities": {
+      "triviaQuiz": "Quiz",
+      "memoryGame": "Jeu de mémoire",
+      "scrabble": "Scrabble",
+      "logicPuzzle": "Puzzle logique",
+      "meditation": "Méditation",
+      "breathing": "Respiration"
+    }
+  },
+  "activity": {
+    "voiceSource": "VYVA suit vos mouvements",
+    "headlineWithName": "Votre activité,\n{{name}}",
+    "headline": "Votre activité",
+    "stepsToday": "Pas aujourd'hui",
+    "activeTime": "Temps actif",
+    "calBurned": "Cal brûlées",
+    "dailyStepGoal": "Objectif de pas quotidien",
+    "updateSteps": "Mettre à jour les pas",
+    "enterSteps": "Entrez les pas d'aujourd'hui",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "noStepsYet": "Aucun pas enregistré",
+    "goal": "objectif : {{steps}}",
+    "progressPct": "{{pct}}% de l'objectif quotidien — continuez !",
+    "tapUpdate": "Appuyez sur 'Mettre à jour les pas' pour enregistrer vos pas",
+    "logMovement": "Enregistrer un mouvement",
+    "duration": "Durée",
+    "saving": "Enregistrement…",
+    "logActivity": "Enregistrer {{duration}}min de {{type}}",
+    "selectActivity": "Sélectionnez une activité ci-dessus",
+    "activityLogged": "Activité enregistrée — bravo !",
+    "couldNotSave": "Impossible d'enregistrer — réessayez.",
+    "todaysSummary": "Résumé du jour",
+    "noMovement": "Aucun mouvement enregistré aujourd'hui.",
+    "logToStart": "Enregistrez une activité ci-dessus pour commencer !",
+    "stepsCount": "{{count}} pas",
+    "calUnit": "cal",
+    "minAbbr": "min",
+    "min": "min",
+    "types": {
+      "walking": "Marche",
+      "cycling": "Vélo",
+      "stretching": "Étirements",
+      "exercise": "Exercice",
+      "breathing": "Respiration"
+    }
+  },
+  "onboarding": {
+    "careTeam": {
+      "roles": {
+        "familyMember": "Membre de la famille",
+        "caregiver": "Aidant",
+        "doctor": "Médecin"
+      },
+      "relationships": {
+        "son": "Fils",
+        "daughter": "Fille",
+        "spousePartner": "Conjoint(e) / Partenaire",
+        "sibling": "Frère / Sœur",
+        "friend": "Ami(e)",
+        "neighbour": "Voisin(e)",
+        "professionalCarer": "Aidant professionnel",
+        "gp": "Médecin généraliste",
+        "specialistDoctor": "Médecin spécialiste",
+        "other": "Autre"
+      },
+      "status": {
+        "pending": "En attente",
+        "accepted": "Accepté",
+        "declined": "Refusé",
+        "expired": "Expiré",
+        "revoked": "Supprimé"
+      },
+      "roleOptions": {
+        "family": {
+          "title": "Membre de la famille ou ami(e)",
+          "sub": "Fils, fille, conjoint, frère, ami, voisin. Reçoit des résumés de bien-être — vous contrôlez les détails."
+        },
+        "carer": {
+          "title": "Aidant",
+          "sub": "Aidant professionnel ou principal. Peut recevoir des alertes de sécurité, de médicaments et de santé."
+        },
+        "doctor": {
+          "title": "Médecin ou spécialiste",
+          "sub": "Généraliste, cardiologue, pharmacien. Peut consulter les rapports de santé lorsque vous l'activez."
+        }
+      },
+      "stepDots": "Étape {{current}} sur 4",
+      "frame": {
+        "roster": "👥 Équipe de soins",
+        "step1": "👥 Équipe de soins — étape 1 sur 4",
+        "step2": "👥 Équipe de soins — étape 2 sur 4",
+        "step3": "👥 Équipe de soins — étape 3 sur 4",
+        "step4": "👥 Équipe de soins — étape 4 sur 4"
+      },
+      "loading": "Chargement de l'équipe de soins…",
+      "errorTitle": "Impossible de charger votre équipe de soins",
+      "errorMessage": "Un problème de connexion s'est produit. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer",
+      "rosterTitle": "👥 Votre équipe de soins",
+      "rosterSubtitle": "Les personnes que vous avez ajoutées pour vous soutenir. Vous contrôlez exactement ce que chaque personne peut voir.",
+      "rosterInfoBanner": "Modifiez ce que chaque personne peut voir à tout moment dans Paramètres → Confidentialité et consentement.",
+      "addAnother": "+ Ajouter une autre personne",
+      "doneBack": "Terminé — retour au profil",
+      "resending": "Renvoi en cours…",
+      "resendInvite": "↻ Renvoyer l'invitation",
+      "removeAccess": "Supprimer l'accès",
+      "cancelInvite": "Annuler l'invitation",
+      "confirmRemoveAccess": "Supprimer l'accès de {{name}} ? Il/elle ne recevra plus aucune mise à jour.",
+      "confirmCancelInvite": "Annuler l'invitation de {{name}} ? Le lien cessera de fonctionner.",
+      "keep": "Conserver",
+      "removing": "Suppression…",
+      "yesRemove": "Oui, supprimer",
+      "yesCancel": "Oui, annuler",
+      "toastRemoveError": "Impossible de supprimer le membre de l'équipe de soins",
+      "toastResendError": "Impossible de renvoyer l'invitation",
+      "toastInviteError": "Impossible d'envoyer l'invitation",
+      "step1": {
+        "heading": "👥 Ajouter quelqu'un à votre équipe de soins",
+        "subtitle": "Vous décidez exactement ce que chaque personne peut voir. Rien n'est partagé avant votre confirmation.",
+        "infoBanner": "Tout le partage est sous votre contrôle. Vous pouvez modifier ou supprimer l'accès à tout moment dans Paramètres → Confidentialité et consentement.",
+        "continue": "Continuer"
+      },
+      "step2": {
+        "heading": "À leur sujet",
+        "subtitle": "Dites-nous qui vous ajoutez.",
+        "labelName": "Leur nom complet",
+        "labelRelationship": "Votre relation avec eux",
+        "labelPhone": "Leur numéro de téléphone",
+        "labelWhatsapp": "Leur WhatsApp (si différent)",
+        "placeholderWhatsapp": "Laisser vide si identique au téléphone",
+        "labelEmail": "Leur e-mail (facultatif)",
+        "continue": "Continuer",
+        "placeholderName": "ex. Pierre Dupont",
+        "placeholderPhone": "+33 6 12 34 56 78",
+        "placeholderEmail": "pierre@email.com"
+      },
+      "step3": {
+        "heading": "Que peut voir {{name}} ?",
+        "subtitle": "Vous décidez. Activez ce que vous êtes à l'aise de partager. Modifiable à tout moment dans Paramètres.",
+        "sectionUpdates": "💬 Mises à jour et résumés",
+        "sectionHealth": "🏥 Informations de santé",
+        "sectionSafety": "🆘 Alertes de sécurité",
+        "sectionDashboard": "📊 Accès au tableau de bord",
+        "toggleDailySummaryTitle": "Résumé quotidien de bien-être",
+        "toggleDailySummaryDesc": "Une brève mise à jour quotidienne — comment vous vous sentez, si vous avez parlé à VYVA",
+        "toggleMoodTitle": "Mises à jour de l'humeur",
+        "toggleMoodDesc": "Si VYVA détecte que vous vous sentez déprimé ou anxieux",
+        "toggleAppointmentsTitle": "Rendez-vous à venir",
+        "toggleAppointmentsDesc": "Rendez-vous médicaux et rappels importants",
+        "toggleMedicationTitle": "Alertes de médicaments",
+        "toggleMedicationDesc": "Notifié si vous oubliez une dose",
+        "toggleHealthReportsTitle": "Rapports de santé",
+        "toggleHealthReportsDesc": "Résumés de santé détaillés incluant les conditions et les constantes vitales",
+        "toggleVitalSignsTitle": "Données des constantes vitales",
+        "toggleVitalSignsDesc": "Fréquence cardiaque, tension artérielle, niveaux d'oxygène de vos appareils",
+        "toggleCognitiveTitle": "Résultats des sessions cognitives",
+        "toggleCognitiveDesc": "Comment vous progressez dans les séances d'entraînement cérébral",
+        "toggleEmergencyTitle": "Alertes d'urgence",
+        "toggleEmergencyDesc": "Appelé immédiatement si VYVA détecte une chute ou une urgence",
+        "toggleInactivityTitle": "Alertes d'inactivité",
+        "toggleInactivityDesc": "Si VYVA n'a pas eu de nouvelles de vous pendant une durée inhabituellement longue",
+        "toggleDashboardTitle": "Voir mon tableau de bord de soins",
+        "toggleDashboardDesc": "{{name}} peut se connecter pour voir un résumé de votre santé et de vos activités",
+        "footerNote": "Modifiez ces paramètres à tout moment dans Paramètres → Confidentialité et consentement",
+        "confirm": "Confirmer et continuer"
+      },
+      "step4": {
+        "heading": "{{name}} inviter à se connecter",
+        "subtitle": "Nous enverrons à {{name}} un message expliquant VYVA et ce que vous avez choisi de partager. Ils doivent accepter avant que quoi que ce soit ne soit visible.",
+        "channelWhatsapp": "Message WhatsApp",
+        "channelSms": "Message SMS",
+        "channelTo": "À {{contact}}",
+        "messagePreviewLabel": "Aperçu du message",
+        "messagePreview": "Bonjour {{name}} — votre proche a configuré VYVA, un assistant IA qui soutient son bien-être quotidien. Il/elle souhaite partager des mises à jour quotidiennes avec vous. Appuyez sur le lien ci-dessous pour accepter et créer votre compte gratuit.",
+        "sending": "Envoi en cours…",
+        "sendInvitation": "Envoyer l'invitation"
+      },
+      "step5": {
+        "heading": "{{name}} a été invité(e)",
+        "subtitle": "Une fois que {{name}} accepte, il/elle ne verra que ce que vous avez choisi de partager. Vous serez notifié(e) quand il/elle rejoindra.",
+        "invitationSent": "Invitation envoyée · en attente d'acceptation",
+        "infoBanner": "{{name}} ne peut rien voir avant d'avoir accepté. S'il/elle n'accepte pas dans les 7 jours, le lien expire automatiquement.",
+        "addAnother": "Ajouter une autre personne",
+        "done": "Terminé — voir l'équipe de soins"
+      },
+      "nameFallbackSubject": "eux",
+      "nameFallbackObject": "eux",
+      "nameFallbackGreeting": "vous"
+    },
+    "proxySetup": {
+      "relationships": {
+        "child": "Fils / Fille",
+        "spouse": "Mari / Femme / Partenaire",
+        "sibling": "Frère / Sœur",
+        "grandchild": "Petit-fils / Petite-fille",
+        "friend": "Ami(e)",
+        "professionalCarer": "Aidant professionnel",
+        "other": "Autre"
+      },
+      "stepLabel": "Étape 2b sur 5",
+      "heading": "Qui configure ceci ?",
+      "description": "Nous enregistrerons que ce profil a été configuré au nom de quelqu'un. La personne à qui il appartient pourra le confirmer quand elle sera prête.",
+      "labelName": "Votre nom",
+      "labelRelationship": "Votre relation avec eux",
+      "placeholderRelationship": "Sélectionner une relation…",
+      "infoBox": "Attention : la personne pour laquelle vous configurez cela verra un écran de confirmation avant que VYVA ne soit actif pour elle. Elle peut également le confirmer plus tard depuis la page de profil.",
+      "error": "Une erreur s'est produite — veuillez réessayer.",
+      "saving": "Enregistrement…",
+      "continue": "Continuer",
+      "placeholderName": "ex. Marie Dupont"
+    }
+  },
+  "weather": {
+    "clear": "Dégagé",
+    "partlyCloudy": "Partiellement nuageux",
+    "cloudy": "Nuageux",
+    "overcast": "Très nuageux",
+    "fog": "Brouillard",
+    "drizzle": "Bruine",
+    "rain": "Pluvieux",
+    "snow": "Neigeux",
+    "showers": "Averses",
+    "snowShowers": "Averses de neige",
+    "thunderstorm": "Orage"
+  },
+  "companions": {
+    "title": "Trouver un Compagnon",
+    "subtitle": "Connectez-vous avec des personnes partageant vos intérêts",
+    "setupTitle": "Qu'est-ce que vous aimez ?",
+    "setupSubtitle": "Choisissez vos centres d'intérêt pour trouver des compagnons",
+    "saveInterests": "Trouver des Compagnons",
+    "editInterests": "Modifier les intérêts",
+    "loading": "Chargement…",
+    "yearsOld": "ans",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "myCompanions": "Mes Compagnons"
+    },
+    "interests": {
+      "title": {
+        "games": "Jeux",
+        "outdoors": "Plein air",
+        "creative": "Créatif",
+        "learning": "Apprentissage"
+      },
+      "chess": "Échecs",
+      "bridge": "Bridge",
+      "bingo": "Bingo",
+      "cards": "Cartes",
+      "dominoes": "Dominos",
+      "sudoku": "Sudoku",
+      "walking": "Marche",
+      "gardening": "Jardinage",
+      "birdwatching": "Observation des oiseaux",
+      "cycling": "Vélo",
+      "fishing": "Pêche",
+      "painting": "Peinture",
+      "knitting": "Tricot",
+      "music": "Musique",
+      "crafts": "Loisirs créatifs",
+      "writing": "Écriture",
+      "reading": "Lecture",
+      "languages": "Langues",
+      "history": "Histoire",
+      "crosswords": "Mots croisés",
+      "documentary": "Documentaires"
+    },
+    "suggestion": {
+      "sharedInterests": "Intérêts communs",
+      "activity": "Vous pourriez {{activity}} ensemble !",
+      "connect": "Dire Bonjour",
+      "skip": "Passer"
+    },
+    "noSuggestions": "Pas de nouvelles suggestions pour l'instant. Ajoutez plus d'intérêts !",
+    "connection": {
+      "pending": "Demande envoyée",
+      "incoming": "Souhaite se connecter avec vous !",
+      "accepted": "Connecté",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "requestSent": "Demande de connexion envoyée !"
+    },
+    "noConnections": "Pas encore de compagnons — consultez l'onglet Suggestions !",
+    "activityTile": "Trouver un Compagnon",
+    "activityTileSubtitle": "Rencontrez des personnes aux intérêts similaires",
+    "sayHello": "Dire bonjour via VYVA",
+    "sayHelloPrompt": "Dites bonjour à {{name}} !",
+    "errors": {
+      "saveInterestsFailed": "Impossible de sauvegarder vos intérêts",
+      "connectFailed": "Impossible d'envoyer la demande",
+      "respondFailed": "Impossible de mettre à jour la connexion",
+      "activateFailed": "Impossible d'activer la communauté. Veuillez réessayer."
+    },
+    "profile": {
+      "valuesTitle": "Ce qui vous tient à cœur",
+      "preferredActivitiesTitle": "Ce que vous aimeriez faire ensemble",
+      "values": {
+        "family": "Famille",
+        "health": "Santé",
+        "community": "Communauté",
+        "friendship": "Amitié",
+        "faith": "Foi",
+        "humor": "Humour",
+        "nature": "Nature",
+        "independence": "Indépendance"
+      },
+      "preferredActivities": {
+        "chat_together": "Discuter",
+        "walk_together": "Se promener",
+        "play_games": "Jouer",
+        "watch_movies": "Regarder des films",
+        "crafts_together": "Faire des loisirs créatifs",
+        "book_club": "Club de lecture",
+        "cook_together": "Cuisiner ensemble",
+        "garden_together": "Jardiner ensemble"
+      }
+    },
+    "activityPrompt": {
+      "games": "Vous pourriez jouer ensemble !",
+      "outdoors": "Vous pourriez profiter du plein air ensemble !",
+      "creative": "Vous pourriez créer quelque chose ensemble !",
+      "learning": "Vous pourriez explorer et apprendre ensemble !"
+    }
+  },
+  "safeHome": {
+    "activityTile": "Scanner Maison Sûre",
+    "activityTileSubtitle": "Scannez une pièce pour détecter les dangers",
+    "headline": "Maison\nSûre",
+    "subtitle": "Repérez les risques avant qu'ils causent des dommages",
+    "scanTitle": "Scanner une Pièce",
+    "scanSubtitle": "Prenez ou importez une photo de n'importe quelle pièce pour vérifier les risques",
+    "takePhoto": "Prendre ou Importer une Photo",
+    "analyzing": "Analyse des dangers en cours…",
+    "riskLabel": {
+      "safe": "Sûr",
+      "lowRisk": "Risque Faible",
+      "highRisk": "Risque Élevé"
+    },
+    "hazardsFound": "Dangers Détectés",
+    "advice": "Conseils de Sécurité",
+    "scanAgain": "Scanner une Autre Pièce",
+    "history": "Scans Précédents",
+    "noHistory": "Pas encore de scan. Scannez une pièce pour commencer.",
+    "viewImage": "Voir la Photo",
+    "deleted": "Scan supprimé",
+    "errorTitle": "Analyse Indisponible",
+    "errorAdvice": "Nous n'avons pas pu analyser l'image. Réessayez avec une photo plus claire.",
+    "viewAll": "Voir Tout",
+    "viewFullImage": "Voir l'image complète"
+  },
+  "concierge": {
+    "voiceSource": "VYVA est votre conciergerie personnelle",
+    "headline": "Comment puis-je\nvous aider aujourd'hui ?",
+    "subtitle": "Bons plans, trajets, conseils et plus",
+    "forYouToday": "Pour vous aujourd'hui",
+    "loadingRecs": "Nous cherchons les meilleures suggestions pour vous…",
+    "noRecs": "Appuyez sur Actualiser pour voir les suggestions du jour.",
+    "refreshRecs": "Actualiser",
+    "quickActions": "Actions rapides",
+    "chatTitle": "Discutez avec VYVA",
+    "placeholder": "Demandez-moi n'importe quoi — trajets, bons plans, conseils…",
+    "chatEmptyHint": "Utilisez une action rapide ci-dessus ou tapez votre propre question.",
+    "errorMsg": "Quelque chose a mal tourné. Veuillez réessayer.",
+    "newConversation": "Nouvelle conversation",
+    "activityTile": "Votre conciergerie IA",
+    "activityTileSubtitle": "Bons plans, trajets, conseils et plus — personnalisés pour vous",
+    "actions": {
+      "bookRide": "Réserver un taxi",
+      "scheduleAppt": "Planifier un rendez-vous",
+      "researchTopic": "Rechercher un sujet",
+      "findDeals": "Trouver des bons plans",
+      "getAdvice": "Obtenir un conseil"
+    },
+    "prompts": {
+      "bookRide": "Réservez-moi un taxi pour demain à 10h",
+      "scheduleAppt": "Aidez-moi à prendre rendez-vous chez le médecin",
+      "researchTopic": "Expliquez ce que couvre la Medicare Partie B en termes simples",
+      "findDeals": "Trouvez des bons plans près de chez moi ce week-end",
+      "getAdvice": "Quelle est une bonne recette simple pour une personne ?"
+    }
+  },
+  "scamGuard": {
+    "activityTile": "Bouclier Anti-Arnaque",
+    "activityTileSubtitle": "Vérifiez les lettres, e-mails et messages suspects",
+    "headline": "Bouclier Anti-Arnaque",
+    "subtitle": "Vérifiez tout document ou message suspect",
+    "scanTitle": "Analyser un Document",
+    "scanSubtitle": "Photographiez une lettre, un e-mail imprimé ou une capture de SMS",
+    "takePhoto": "Prendre ou Importer une Photo",
+    "checkAnother": "Analyser un Autre Document",
+    "analyzing": "Recherche d’indicateurs d’arnaque…",
+    "riskLabel": {
+      "safe": "Sûr",
+      "suspicious": "Suspect",
+      "scam": "Arnaque"
+    },
+    "explanation": "Évaluation",
+    "steps": "Que faire",
+    "history": "Vérifications Précédentes",
+    "noHistory": "Aucune vérification. Photographiez un document suspect pour commencer.",
+    "viewImage": "Voir l’image",
+    "deleted": "Vérification supprimée",
+    "errorTitle": "Analyse Indisponible",
+    "errorExplanation": "Nous n’avons pas pu analyser ce document. En cas de doute, ne partagez pas d’informations personnelles et appelez le 17 (Police).",
+    "errorStep1": "Ne partagez pas d’informations personnelles ou financières.",
+    "errorStep2": "Demandez à une personne de confiance de le vérifier.",
+    "errorStep3": "Appelez le 17 (Police) ou le 3018 (arnaque en ligne).",
+    "callCompanionTitle": "Assistant d’Appel",
+    "callCompanionSubtitle": "Conseils en direct pendant un appel suspect",
+    "callCompanionDesc": "Activez VYVA pendant un appel suspect. Demandez quoi dire, quoi éviter et si vous devez raccrocher.",
+    "callCompanionStart": "Démarrer l’assistant",
+    "callCompanionEnd": "Terminer l’appel",
+    "callCompanionConnecting": "Connexion…"
+  },
+  "community": {
+    "title": "Ma Communaute",
+    "hero": {
+      "title": "VYVA a trouve quelqu un qui pourrait vous plaire",
+      "body": "Rosa, 71 ans, de Salamanque — elle aime le jardinage et le flamenco, tout comme vous. Voulez-vous que je vous presente ?",
+      "cta": "Rencontrer Rosa"
+    },
+    "mood": {
+      "title": "Comment vous sentez-vous aujourd hui ?",
+      "happy": "Heureux/se",
+      "calm": "Calme",
+      "lonely": "Un peu seul(e)",
+      "tired": "Fatigue(e)",
+      "excited": "Enthousiaste"
+    },
+    "groups": {
+      "title": "Mes Groupes",
+      "seeAll": "Tout voir",
+      "members": "membres",
+      "join": "Rejoindre un nouveau groupe",
+      "garden": "Amis du Jardin",
+      "chess": "Club d Echecs",
+      "reading": "Cercle de Lecture",
+      "music": "Amateurs de Musique"
+    },
+    "groupPanel": {
+      "name": "Amis du Jardin",
+      "schedule": "Votre groupe le plus actif · Reunion les mardis a 11h",
+      "liveNow": "En direct",
+      "you": "Vous",
+      "memberR": "Rosa",
+      "memberC": "Carmen",
+      "memberJ": "Josefa",
+      "memberA": "Amparo",
+      "topic": "Aujourd hui : Les meilleures plantes pour un balcon ensoleille",
+      "topicSub": "VYVA guidera la conversation · 20 min · Appel vocal",
+      "joinCall": "Rejoindre l appel"
+    },
+    "matches": {
+      "title": "Personnes qui pourraient vous plaire",
+      "seeMore": "Voir plus",
+      "match": "compatibilite",
+      "introduce": "Demander a VYVA de nous presenter",
+      "skip": "Ignorer",
+      "rosaCity": "Salamanque",
+      "conchaCity": "Valladolid",
+      "lolaCity": "Zamora",
+      "tagGardening": "Jardinage",
+      "tagFlamenco": "Flamenco",
+      "tagMorning": "Leve-tot",
+      "tagReading": "Lecture",
+      "tagMusic": "Musique",
+      "tagCalm": "Causeur calme",
+      "tagKnitting": "Tricot",
+      "tagTalks": "Longues conversations",
+      "tagFaith": "Oriente(e) foi"
+    },
+    "introModal": {
+      "title": "Votre presentation est en cours",
+      "body": "VYVA contacte {{name}} en votre nom. Vous serez notifie des qu il/elle repond.",
+      "ok": "Super, merci !"
+    },
+    "toast": {
+      "title": "VYVA est la",
+      "body": "Votre groupe Amis du Jardin commence dans 15 minutes. Dois-je vous rappeler quand c est l heure ?",
+      "yes": "Oui, s il vous plait",
+      "no": "Pas maintenant"
+    },
+    "gate": {
+      "title": "Découvrez votre communauté",
+      "description": "Connectez-vous avec des personnes qui partagent vos intérêts. Sûr, convivial et guidé par VYVA.",
+      "cta": "Rejoindre la communauté"
+    },
+    "consent": {
+      "title": "Rejoignez votre communauté",
+      "bullet1": "Vous pourrez vous connecter avec des personnes qui partagent vos intérêts et loisirs.",
+      "bullet2": "VYVA guide chaque première présentation — votre numéro de téléphone et vos coordonnées personnelles ne sont jamais partagés directement.",
+      "settingsNote": "Vous pouvez quitter la communauté à tout moment depuis les Paramètres.",
+      "confirmBtn": "Rejoindre maintenant",
+      "dismissBtn": "Pas maintenant"
+    },
+    "bannerMessages": [
+      "Vous n etes jamais seul ici",
+      "Votre histoire compte",
+      "Ensemble, chaque jour",
+      "Quelqu un est toujours la",
+      "Vous etes le bienvenu ici"
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id:                  uuid("id").primaryKey().defaultRandom(),
+  created_at:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  plan_id:             text("plan_id").notNull().unique(),
+  name:                text("name").notNull(),
+  description:         text("description"),
+  price_eur:           integer("price_eur").notNull().default(0),
+  price_gbp:           integer("price_gbp").notNull().default(0),
+  billing_interval:    text("billing_interval").default("month"),
+  trial_days:          integer("trial_days").default(14),
+  stripe_price_id_eur: text("stripe_price_id_eur"),
+  stripe_price_id_gbp: text("stripe_price_id_gbp"),
+  features:            text("features").array(),
+  is_active:           boolean("is_active").notNull().default(true),
+  is_public:           boolean("is_public").notNull().default(true),
+  sort_order:          integer("sort_order").default(0),
+});
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, created_at: true, updated_at: true });
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+
+export const billingEvents = pgTable("billing_events", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  user_id:           text("user_id").notNull(),
+  stripe_event_id:   text("stripe_event_id").unique(),
+  stripe_invoice_id: text("stripe_invoice_id"),
+  stripe_charge_id:  text("stripe_charge_id"),
+  event_type:        text("event_type").notNull(),
+  amount_cents:      integer("amount_cents"),
+  currency:          text("currency"),
+  plan_id:           text("plan_id"),
+  status:            text("status").notNull(),
+  failure_reason:    text("failure_reason"),
+  stripe_payload:    jsonb("stripe_payload").default({}),
+});
+export const insertBillingEventSchema = createInsertSchema(billingEvents).omit({ id: true, created_at: true });
+export type InsertBillingEvent = z.infer<typeof insertBillingEventSchema>;
+export type BillingEvent = typeof billingEvents.$inferSelect;
+
+export const stripeWebhooks = pgTable("stripe_webhooks", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  received_at:     timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  processed_at:    timestamp("processed_at", { withTimezone: true }),
+  stripe_event_id: text("stripe_event_id").notNull().unique(),
+  event_type:      text("event_type").notNull(),
+  status:          text("status").notNull().default("pending"),
+  error:           text("error"),
+  payload:         jsonb("payload").notNull().default({}),
+});
+export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit({ id: true, received_at: true });
+export type InsertStripeWebhook = z.infer<typeof insertStripeWebhookSchema>;
+export type StripeWebhook = typeof stripeWebhooks.$inferSelect;

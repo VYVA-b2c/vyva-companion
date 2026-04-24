@@ -51,8 +51,11 @@ All secrets are stored in Replit Secrets. Required secrets:
 | `ELEVENLABS_BRAIN_COACH_AGENT_ID` | Agent for cognitive exercises |
 | `MEM0_API_KEY` | Memory retrieval for personalised responses (optional) |
 | `DATABASE_URL` | Replit PostgreSQL connection string (auto-provisioned) |
+| `GOOGLE_PLACES_API_KEY` | Google Maps JavaScript API key with Places API (New) enabled — served via `/api/config/places-key` to the `PlacesSearch` component. Used for GP, pharmacy, restaurant, beauty and all provider category searches. Without this key the search bar falls back to manual entry mode. |
 
 ## Key Pages
+
+### Main App (wrapped in AppShell chrome)
 - `/` — Home screen with voice hero and quick-action tiles
 - `/chat` — Full chat screen with live voice transcript
 - `/health` — Health check-in
@@ -61,15 +64,59 @@ All secrets are stored in Replit Secrets. Required secrets:
 - `/concierge` — Concierge/scheduling
 - `/settings` — Settings
 
+### Onboarding Flow (full-screen, no AppShell)
+- `/onboarding` — Welcome screen
+- `/onboarding/basics` — Name, preferred name, DOB, language (Step 1)
+- `/onboarding/channel` — How VYVA contacts you (Step 2)
+- `/onboarding/consent` — GDPR data consent (Step 3)
+- `/onboarding/activation` — Setup complete, prompt to fill profile (Step 4/5)
+- `/onboarding/profile` — Health profile overview (11 sections)
+- `/onboarding/profile/gp` — GP details with Google Places search
+- `/onboarding/profile/providers` — Pharmacy/hospital/specialist details with Places search
+- `/onboarding/complete/:section` — Section saved confirmation
+
+### Settings Sub-pages (full-screen)
+- `/settings/privacy` — Per-person GDPR consent toggles
+- `/settings/subscription` — Free / Premium plan card with upgrade CTA
+
+### Shared Onboarding Components (`src/components/onboarding/`)
+- `PlacesSearch` — Google Places Autocomplete (fetches key from `/api/config/places-key`, which reads the `GOOGLE_PLACES_API_KEY` Replit Secret server-side)
+- `PhoneFrame` — Mobile frame wrapper for previews
+- `ChipSelector` — Multi-select / single-select pill chips
+- `ToggleRow` — Reusable labelled toggle switch row
+- `CategoryFilterBar` — Horizontal scrollable category filter tabs
+- `SectionCard` — Profile section card with completion indicator
+
+## Internationalisation (i18n)
+The app uses **react-i18next** to switch the UI language based on the user's Preferred Language setting.
+
+- **Setup**: `src/i18n/index.ts` — initialises i18next and loads all 7 locale files
+- **Locale files**: `src/i18n/locales/{lang}.json` for en, es, fr, de, it, pt, cy
+- **Language switching**: `src/contexts/ProfileContext.tsx` calls `i18n.changeLanguage()` whenever the profile's `language` field changes
+- **Translated components**: `BottomNav`, `HomeScreen`, `ChatScreen`, `SettingsScreen`, `VoiceHero` (Talk to VYVA, Live, Active, status labels)
+- **Not yet translated**: secondary screens (Health, Meds, Brain Coach, Activity); country and timezone option labels in Settings (proper nouns, kept as-is)
+
+## Companion Matchmaking (Task #99)
+
+A full senior-companion matchmaking system was added at `/companions`:
+
+- **Interest/Values Picker** — First-time setup screen with 21 interests (4 categories), 8 values, and 8 preferred-activity chips; toggled chip UI saved to `companion_profiles`
+- **Suggestion Cards** — Ranked by shared-interest count; shows name, age, shared interests, localized suggested activity; paginated with Connect / Skip; index clamped on refetch to prevent out-of-bounds crash
+- **My Companions Tab** — Lists accepted companions, outgoing pending requests, and incoming requests (accept / decline)
+- **Activity Screen Tile** — "Find a Companion" entry card on the Activities/Brain Coach screen
+- **Backend**: `server/routes/companions.ts` with 5 REST endpoints (GET/POST `/profile`, GET `/suggestions`, POST `/connect`, PATCH `/connect/:id`, GET `/connections`)
+- **Database**: Two new tables (`companion_profiles` with interests/hobbies/values/preferred_activities arrays, `companion_connections`) created via SQL migration + direct ALTER TABLE for new columns
+- **i18n**: Full translations in all 7 locales (en, es, fr, de, it, pt, cy) covering interests, values, preferred activities, error toasts, and all UI strings
+
 ## Agent Routing Logic
 The `router` API classifies each user utterance using keyword scoring across six domains: `safety`, `meds`, `health`, `concierge`, `brain_coach`, and `companion` (default). Safety is always checked first. Session state is persisted in Replit's PostgreSQL so agents have context across turns.
 
 ## Deployment
 Deployment is configured for Replit Autoscale:
-- **Build**: `npm run build && esbuild server/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.cjs --packages=external`
-  - Vite builds the React frontend into `dist/`
-  - esbuild compiles the Express server TypeScript into `dist/index.cjs`
-- **Run**: `NODE_ENV=production node ./dist/index.cjs`
+- **Build**: `npm run build`
+  - `build:client` → Vite builds the React frontend into `dist/`
+  - `build:server` → esbuild compiles the Express server TypeScript into `server-dist/index.cjs`
+- **Run**: `npm start` (`NODE_ENV=production node ./server-dist/index.cjs`)
 
 In production mode (`NODE_ENV=production`):
 - Express listens on port 5000
