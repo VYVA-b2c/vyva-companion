@@ -1,0 +1,32 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "m8I6NSzpXO5Lwjv4PPGRY"
+uri = "file://public/vyva-avatar.png"
+type = "image"
+title = "vyva avatar transparent"
+
+[[generated]]
+id = "evwJzrHr-K2TM9V8yABER"
+uri = "file://public/assets/vyva/avatar-happy.png"
+type = "image"
+title = "vyva avatar happy"
+
+[[generated]]
+id = "CjHDdSSa4YRCbr-6oJU8x"
+uri = "file://public/assets/vyva/avatar-calm.png"
+type = "image"
+title = "vyva avatar calm"
+
+[[generated]]
+id = "OSWLfDWWFdkGc1aClxMxB"
+uri = "file://public/assets/vyva/avatar-thoughtful.png"
+type = "image"
+title = "vyva avatar thoughtful"
+
+[[generated]]
+id = "ymvCRRSajyiM315scfxI8"
+uri = "file://public/assets/vyva/avatar-gentle-concern.png"
+type = "image"
+title = "vyva avatar gentle concern"
