@@ -8,7 +8,7 @@ import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import SocialStyles from "./SocialStyles";
 import { getSocialCopy, getSocialLanguage } from "./roomUtils";
 import { getSocialAgentId, getSocialAgentPersona } from "./agentPersonas";
-import type { SocialLanguage, SocialRoomMember, SocialRoomResponse } from "./types";
+import type { SocialLanguage, SocialRoom, SocialRoomMember, SocialRoomResponse } from "./types";
 
 const FALLBACK_MEMBER_NAMES = ["Carmen", "Josefa", "Manuel", "Ana"];
 const MEMBER_COLOURS = ["#F59E0B", "#0EA5A4", "#EC4899", "#3B82F6"];
@@ -388,6 +388,159 @@ function looksLikeGreeting(text: string) {
   );
 }
 
+function buildFallbackRoomResponse(slug: string, language: SocialLanguage): SocialRoomResponse | null {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const roomMap: Record<string, SocialRoom> = {
+    "garden-chat": {
+      slug: "garden-chat",
+      name: language === "en" ? "Garden Corner" : language === "de" ? "Der Gartenchat" : "El Rincón del Jardín",
+      category: "activity",
+      agentSlug: "rosa",
+      agentFullName: "Rosa Villanueva",
+      agentColour: "#059669",
+      agentCredential:
+        language === "en"
+          ? "Botanist · 40 years gardening"
+          : language === "de"
+            ? "Botanikerin · 40 Jahre Gärtnern"
+            : "Botánica · 40 años cultivando",
+      ctaLabel: language === "en" ? "Ask Rosa" : language === "de" ? "Rosa fragen" : "Preguntar a Rosa",
+      topicTags: ["gardening", "plants"],
+      timeSlots: ["morning", "afternoon"],
+      featured: true,
+      participantCount: 5,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "Happy plants for a bright window"
+          : language === "de"
+            ? "Fröhliche Pflanzen für ein helles Fenster"
+            : "Plantas alegres para una ventana luminosa",
+      opener:
+        language === "en"
+          ? "Hello, I’m Rosa. Which plant keeps you company at home?"
+          : language === "de"
+            ? "Hallo, ich bin Rosa. Welche Pflanze begleitet dich zu Hause?"
+            : "Hola, soy Rosa. ¿Qué planta te acompaña en casa?",
+      quote: "",
+      activityType: "advice",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "Three signs your plant feels happy"
+          : language === "de"
+            ? "Drei Zeichen, dass deine Pflanze zufrieden ist"
+            : "Tres señales de que tu planta está contenta",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
+    },
+    "chess-corner": {
+      slug: "chess-corner",
+      name: language === "en" ? "Chess Corner" : language === "de" ? "Die Schachecke" : "El Club de Ajedrez",
+      category: "activity",
+      agentSlug: "lorenzo",
+      agentFullName: "Lorenzo García",
+      agentColour: "#1E1B4B",
+      agentCredential:
+        language === "en"
+          ? "FIDE Master · National referee"
+          : language === "de"
+            ? "FIDE-Meister · Nationaler Schiedsrichter"
+            : "Maestro FIDE · Árbitro nacional",
+      ctaLabel:
+        language === "en" ? "Analyse with Lorenzo" : language === "de" ? "Mit Lorenzo analysieren" : "Analizar con Lorenzo",
+      topicTags: ["chess", "strategy"],
+      timeSlots: ["afternoon", "evening"],
+      featured: true,
+      participantCount: 4,
+      sessionDate: today,
+      topic: language === "en" ? "Mate in one move" : language === "de" ? "Matt in einem Zug" : "Mate en una jugada",
+      opener:
+        language === "en"
+          ? "Hello, I’m Lorenzo. Shall we look for one calm winning move?"
+          : language === "de"
+            ? "Hallo, ich bin Lorenzo. Suchen wir einen ruhigen Gewinnzug?"
+            : "Hola, soy Lorenzo. ¿Buscamos una jugada ganadora con calma?",
+      quote: "",
+      activityType: "quiz",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "Look for the calmest move"
+          : language === "de"
+            ? "Suche den ruhigsten Zug"
+            : "Busca la jugada más tranquila",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
+    "creative-studio": {
+      slug: "creative-studio",
+      name: language === "en" ? "Creative Studio" : language === "de" ? "Das Kreativstudio" : "El Estudio Creativo",
+      category: "activity",
+      agentSlug: "carmen",
+      agentFullName: "Carmen Ruiz",
+      agentColour: "#9D174D",
+      agentCredential:
+        language === "en"
+          ? "Visual artist · Creative therapy"
+          : language === "de"
+            ? "Bildende Künstlerin · Kreativtherapie"
+            : "Artista plástica · Terapia creativa",
+      ctaLabel: language === "en" ? "Create with Carmen" : language === "de" ? "Mit Carmen gestalten" : "Explorar con Carmen",
+      topicTags: ["art", "drawing"],
+      timeSlots: ["morning", "afternoon"],
+      featured: false,
+      participantCount: 4,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "Drawing with gentle shapes"
+          : language === "de"
+            ? "Mit sanften Formen zeichnen"
+            : "Dibujar con formas suaves",
+      opener:
+        language === "en"
+          ? "Hello, I’m Carmen. Shall we begin with one simple shape?"
+          : language === "de"
+            ? "Hallo, ich bin Carmen. Beginnen wir mit einer einfachen Form?"
+            : "Hola, soy Carmen. ¿Empezamos con una forma sencilla?",
+      quote: "",
+      activityType: "challenge",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A cup, a flower, a shadow"
+          : language === "de"
+            ? "Eine Tasse, eine Blume, ein Schatten"
+            : "Una taza, una flor, una sombra",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
+  };
+
+  const room = roomMap[slug];
+  if (!room) return null;
+
+  return {
+    room,
+    transcript: [
+      {
+        id: `${slug}-fallback-welcome`,
+        speaker: "agent",
+        text: room.opener,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    promptChips: getQuickQuestions(slug, language, []),
+    members: buildFallbackMembers(room, language),
+    memberChat: [],
+  };
+}
+
 const RoomScreen = () => {
   const navigate = useNavigate();
   const { slug = "" } = useParams();
@@ -434,12 +587,13 @@ const RoomScreen = () => {
     staleTime: 30 * 1000,
   });
 
-  const room = data?.room;
+  const roomResponse = useMemo(() => data ?? buildFallbackRoomResponse(slug, language), [data, language, slug]);
+  const room = roomResponse?.room;
 
   const roomMembers = useMemo(() => {
     if (!room) return [];
-    return data?.members?.length ? data.members : buildFallbackMembers(room, language);
-  }, [data?.members, language, room]);
+    return roomResponse?.members?.length ? roomResponse.members : buildFallbackMembers(room, language);
+  }, [language, room, roomResponse]);
 
   const agentName = useMemo(() => {
     if (!room) return "";
@@ -462,8 +616,8 @@ const RoomScreen = () => {
   }, [language, room, socialAgent]);
 
   const quickQuestions = useMemo(
-    () => getQuickQuestions(slug, language, data?.promptChips ?? []),
-    [data?.promptChips, language, slug],
+    () => getQuickQuestions(slug, language, roomResponse?.promptChips ?? []),
+    [language, roomResponse?.promptChips, slug],
   );
 
   const baseKnowledgeFeed = useMemo(
@@ -763,7 +917,7 @@ const RoomScreen = () => {
     );
   }
 
-  if (isError || !room) {
+  if ((isError && !roomResponse) || !room) {
     return (
       <div className="px-6 py-8">
         <button
