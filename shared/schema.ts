@@ -769,6 +769,104 @@ export type CompanionConnection = typeof companionConnections.$inferSelect;
 
 
 // ============================================================
+// NEW TABLES: social_rooms, sessions, visits, interests, connections
+// ============================================================
+
+export const socialRooms = pgTable("social_rooms", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  slug:            text("slug").notNull().unique(),
+  name_es:         text("name_es").notNull(),
+  name_de:         text("name_de").notNull(),
+  name_en:         text("name_en").notNull(),
+  category:        text("category").notNull(),
+  agent_slug:      text("agent_slug").notNull(),
+  agent_full_name: text("agent_full_name").notNull(),
+  agent_colour:    text("agent_colour").notNull(),
+  agent_cred_es:   text("agent_cred_es").notNull(),
+  agent_cred_de:   text("agent_cred_de").notNull(),
+  agent_cred_en:   text("agent_cred_en").notNull(),
+  cta_label_es:    text("cta_label_es").notNull(),
+  cta_label_de:    text("cta_label_de").notNull(),
+  cta_label_en:    text("cta_label_en").notNull(),
+  topic_tags:      text("topic_tags").array().notNull().default([]),
+  time_slots:      text("time_slots").array().notNull().default([]),
+  is_active:       boolean("is_active").notNull().default(true),
+  created_at:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSocialRoomSchema = createInsertSchema(socialRooms).omit({ id: true, created_at: true });
+export type InsertSocialRoom = z.infer<typeof insertSocialRoomSchema>;
+export type SocialRoom = typeof socialRooms.$inferSelect;
+
+export const socialRoomSessions = pgTable("social_room_sessions", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  room_id:           uuid("room_id").notNull().references(() => socialRooms.id, { onDelete: "cascade" }),
+  session_date:      text("session_date").notNull(),
+  topic_es:          text("topic_es").notNull(),
+  topic_de:          text("topic_de").notNull(),
+  topic_en:          text("topic_en").notNull(),
+  opener_es:         text("opener_es").notNull(),
+  opener_de:         text("opener_de").notNull(),
+  opener_en:         text("opener_en").notNull(),
+  activity_type:     text("activity_type").notNull(),
+  participant_count: integer("participant_count").notNull().default(0),
+  is_live:           boolean("is_live").notNull().default(true),
+  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("social_room_sessions_room_date_unique").on(t.room_id, t.session_date),
+]);
+
+export const insertSocialRoomSessionSchema = createInsertSchema(socialRoomSessions).omit({ id: true, created_at: true });
+export type InsertSocialRoomSession = z.infer<typeof insertSocialRoomSessionSchema>;
+export type SocialRoomSession = typeof socialRoomSessions.$inferSelect;
+
+export const socialRoomVisits = pgTable("social_room_visits", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  user_id:          text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  room_id:          uuid("room_id").notNull().references(() => socialRooms.id, { onDelete: "cascade" }),
+  session_id:       uuid("session_id").notNull().references(() => socialRoomSessions.id, { onDelete: "cascade" }),
+  entered_at:       timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
+  last_active_at:   timestamp("last_active_at", { withTimezone: true }).notNull().defaultNow(),
+  messages_sent:    integer("messages_sent").notNull().default(0),
+  duration_seconds: integer("duration_seconds"),
+  completed:        boolean("completed").notNull().default(false),
+});
+
+export const insertSocialRoomVisitSchema = createInsertSchema(socialRoomVisits).omit({ id: true, entered_at: true, last_active_at: true });
+export type InsertSocialRoomVisit = z.infer<typeof insertSocialRoomVisitSchema>;
+export type SocialRoomVisit = typeof socialRoomVisits.$inferSelect;
+
+export const socialUserInterests = pgTable("social_user_interests", {
+  user_id:          text("user_id").primaryKey().references(() => profiles.id, { onDelete: "cascade" }),
+  interest_tags:    text("interest_tags").array().notNull().default([]),
+  preferred_times:  text("preferred_times").array().notNull().default([]),
+  activity_level:   text("activity_level").notNull().default("moderate"),
+  room_visit_counts: jsonb("room_visit_counts").notNull().default({}),
+  last_rooms:       text("last_rooms").array().notNull().default([]),
+  updated_at:       timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertSocialUserInterestsSchema = createInsertSchema(socialUserInterests).omit({ updated_at: true });
+export type InsertSocialUserInterests = z.infer<typeof insertSocialUserInterestsSchema>;
+export type SocialUserInterests = typeof socialUserInterests.$inferSelect;
+
+export const socialConnections = pgTable("social_connections", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  user_id_a:        text("user_id_a").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  user_id_b:        text("user_id_b").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  matched_via_room: text("matched_via_room").notNull(),
+  matched_at:       timestamp("matched_at", { withTimezone: true }).notNull().defaultNow(),
+  status:           text("status").notNull().default("pending"),
+}, (t) => [
+  unique("social_connections_pair_unique").on(t.user_id_a, t.user_id_b),
+]);
+
+export const insertSocialConnectionSchema = createInsertSchema(socialConnections).omit({ id: true, matched_at: true });
+export type InsertSocialConnection = z.infer<typeof insertSocialConnectionSchema>;
+export type SocialConnection = typeof socialConnections.$inferSelect;
+
+
+// ============================================================
 // NEW TABLE: triage_reports — persisted completed TriageSummary + vitals
 // ============================================================
 
@@ -838,6 +936,11 @@ export const schema = {
   woundScans,
   companionProfiles,
   companionConnections,
+  socialRooms,
+  socialRoomSessions,
+  socialRoomVisits,
+  socialUserInterests,
+  socialConnections,
   triageReports,
   vitalsReadings,
 };

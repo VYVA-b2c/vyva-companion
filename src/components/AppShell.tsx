@@ -5,6 +5,7 @@ import StatusBar from "./StatusBar";
 import BottomNav from "./BottomNav";
 const SOS_ROUTES = ["/", "/health", "/meds"];
 const FULL_SCREEN_ROUTES = ["/chat"];
+const WIDE_ROUTES = ["/social-rooms"];
 
 const SosFab = () => {
   const [open, setOpen] = useState(false);
@@ -82,10 +83,11 @@ const AppShell = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const showSos = SOS_ROUTES.includes(location.pathname);
   const isFullScreen = FULL_SCREEN_ROUTES.includes(location.pathname);
+  const isWideRoute = WIDE_ROUTES.some((route) => location.pathname.startsWith(route));
 
   return (
     <div className="min-h-screen bg-vyva-cream flex justify-center">
-      <div className="w-full max-w-[480px] relative">
+      <div className={`w-full relative ${isWideRoute ? "max-w-[768px]" : "max-w-[480px]"}`}>
         {!isFullScreen && <StatusBar />}
         <main className={`overflow-y-auto min-h-screen ${isFullScreen ? "" : "pt-[68px] pb-[84px]"}`}>
           {children}

@@ -63,6 +63,8 @@ import SettingsHome from "./pages/settings/SettingsHome";
 import AccountSettings from "./pages/settings/AccountSettings";
 import NotificationsSettings from "./pages/settings/NotificationsSettings";
 import ProxyPendingPage from "./pages/admin/ProxyPendingPage";
+import SocialHub from "./social/SocialHub";
+import RoomScreen from "./social/RoomScreen";
 
 const SECTION_MAP: Record<string, React.ComponentType> = {
   allergies: AllergiesSection,
@@ -143,6 +145,8 @@ const App = () => (
                   <Route path="/informes" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/informes/:id" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/companions" element={<AppShell><CompanionsScreen /></AppShell>} />
+                  <Route path="/social-rooms" element={<AppShell><SocialHub /></AppShell>} />
+                  <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />
                   <Route path="/meds" element={<AppShell><MedsScreen /></AppShell>} />
                   <Route path="/meds/adherence-report" element={<AppShell><AdherenceReportScreen /></AppShell>} />
                   <Route path="/activities" element={<AppShell><ActivitiesScreen /></AppShell>} />

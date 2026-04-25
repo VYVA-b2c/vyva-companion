@@ -286,7 +286,7 @@ const HomeScreen = () => {
   const QUICK_TILES = [
     { icon: Heart,         iconBg: "#FFF1EF", iconColor: "#E05B4B", label: t("home.quickTiles.health.label"),    hint: t("home.quickTiles.health.hint"),    path: "/health" },
     { icon: Brain,         iconBg: "#F4F0FF", iconColor: "#7C3AED", label: t("home.quickTiles.cognitive.label"), hint: t("home.quickTiles.cognitive.hint"), path: "/activities" },
-    { icon: Users,         iconBg: "#EEF4FF", iconColor: "#3B6FE0", label: t("home.quickTiles.social.label"),    hint: t("home.quickTiles.social.hint"),    path: "/companions" },
+    { icon: Users,         iconBg: "#EEF4FF", iconColor: "#3B6FE0", label: t("home.quickTiles.social.label"),    hint: t("home.quickTiles.social.hint"),    path: "/social-rooms" },
     { icon: ConciergeBell, iconBg: "#EEF9F2", iconColor: "#059669", label: t("home.quickTiles.concierge.label"), hint: t("home.quickTiles.concierge.hint"), path: "/concierge" },
   ];
 
