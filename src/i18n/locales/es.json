@@ -438,8 +438,23 @@
       "langPt": "Português",
       "tzMadrid": "España (Madrid)",
       "tzBerlin": "Alemania (Berlín)",
-      "tzLondon": "Reino Unido (Londres)"
-    }
+        "tzLondon": "Reino Unido (Londres)",
+        "required": "Obligatorio",
+        "optional": "Opcional",
+        "minimumInfoTitle": "Para empezar, completa los datos obligatorios.",
+        "minimumInfoHint": "El nombre, los apellidos y el numero de telefono son obligatorios para usar VYVA.",
+        "firstName": "Nombre",
+        "lastName": "Apellidos",
+        "firstNamePlaceholder": "Escribe el nombre",
+        "lastNamePlaceholder": "Escribe los apellidos",
+        "firstNameRequired": "El nombre es obligatorio.",
+        "lastNameRequired": "Los apellidos son obligatorios.",
+        "phoneRequired": "El numero de telefono es obligatorio.",
+        "requiredFieldsMissing": "Completa los campos obligatorios.",
+        "saved": "Datos de la cuenta guardados",
+        "saveError": "No se pudieron guardar los datos de la cuenta",
+        "defaultName": "Maria"
+      }
   },
   "health": {
     "voiceSource": "VYVA controla tu salud",

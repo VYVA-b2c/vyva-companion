@@ -25,8 +25,10 @@ function resolveUserId(req: Request): string | null {
 const profileBodySchema = z.object({
   firstName:       z.string().min(1).max(100),
   lastName:        z.string().max(100).optional().default(""),
+  preferredName:   z.string().max(100).optional().default(""),
+  dateOfBirth:     z.string().max(50).optional().or(z.literal("")).optional(),
   email:           z.string().email().optional().or(z.literal("")).optional(),
-  phone:           z.string().max(50).optional().default(""),
+  phone:           z.string().trim().min(1, "Phone is required").max(50),
   country:         z.string().max(100).optional().default(""),
   timezone:        z.string().max(100).optional().default(""),
   language:        z.string().max(50).optional().default("en"),
@@ -60,6 +62,8 @@ router.get("/", async (req: Request, res: Response) => {
     return res.json({
       firstName,
       lastName,
+      preferredName:    p.preferred_name ?? "",
+      dateOfBirth:      p.date_of_birth ?? "",
       email:            p.email ?? "",
       phone:            p.phone_number ?? "",
       country:          p.country_code ?? "",
@@ -96,6 +100,8 @@ router.post("/", async (req: Request, res: Response) => {
       .values({
         id:               userId,
         full_name,
+        preferred_name:   d.preferredName || null,
+        date_of_birth:    d.dateOfBirth || null,
         email:            d.email || null,
         phone_number:     d.phone || null,
         country_code:     d.country || null,
@@ -111,6 +117,8 @@ router.post("/", async (req: Request, res: Response) => {
         target: profiles.id,
         set: {
           full_name,
+          preferred_name:   d.preferredName || null,
+          date_of_birth:    d.dateOfBirth || null,
           email:            d.email || null,
           phone_number:     d.phone || null,
           country_code:     d.country || null,

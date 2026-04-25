@@ -1,22 +1,66 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ChipSelector } from "@/components/onboarding/ChipSelector";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { friendlyError } from "@/lib/apiError";
 import { getToken } from "@/lib/auth";
+import { LANGUAGES, type LanguageCode } from "@/i18n/languages";
 
-const LANGUAGES = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Arabic"];
+const ONBOARDING_LANGUAGE_OPTIONS = LANGUAGES.map((entry) => entry.label);
+
+const LANGUAGE_LABEL_BY_CODE: Record<LanguageCode, string> = {
+  es: "Español",
+  en: "English",
+  fr: "Français",
+  de: "Deutsch",
+  it: "Italiano",
+  pt: "Português",
+};
+
+const LANGUAGE_CODE_BY_LABEL = Object.fromEntries(
+  Object.entries(LANGUAGE_LABEL_BY_CODE).map(([code, label]) => [label, code]),
+) as Record<string, LanguageCode>;
+
+type ProfileResponse = {
+  firstName: string;
+  lastName: string;
+  preferredName?: string;
+  dateOfBirth?: string;
+  language?: string;
+};
 
 const BasicsStep = () => {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [dob, setDob] = useState("");
-  const [languages, setLanguages] = useState<string[]>(["English"]);
+  const [languages, setLanguages] = useState<string[]>(["Español"]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const profileQuery = useQuery<ProfileResponse | null>({
+    queryKey: ["/api/profile"],
+  });
+
+  const selectedLanguageCode = useMemo<LanguageCode>(() => {
+    const selected = languages[0];
+    return LANGUAGE_CODE_BY_LABEL[selected] ?? "es";
+  }, [languages]);
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+    const derivedFullName = [profileQuery.data.firstName, profileQuery.data.lastName].filter(Boolean).join(" ").trim();
+    if (derivedFullName) setFullName(derivedFullName);
+    if (profileQuery.data.preferredName) setPreferredName(profileQuery.data.preferredName);
+    if (profileQuery.data.dateOfBirth) setDob(profileQuery.data.dateOfBirth);
+
+    const languageCode = (profileQuery.data.language as LanguageCode | undefined) ?? "es";
+    const languageLabel = LANGUAGE_LABEL_BY_CODE[languageCode] ?? "Español";
+    setLanguages([languageLabel]);
+  }, [profileQuery.data]);
 
   const canContinue = fullName.trim().length > 0 && !saving;
 
@@ -37,7 +81,7 @@ const BasicsStep = () => {
         full_name:      fullName.trim(),
         preferred_name: preferredName.trim() || null,
         date_of_birth:  dob || null,
-        language:       languages[0] ?? "English",
+        language:       selectedLanguageCode,
       };
       res = await apiFetch("/api/onboarding/basics", {
         method: "POST",
@@ -127,7 +171,7 @@ const BasicsStep = () => {
             Preferred language
           </label>
           <ChipSelector
-            options={LANGUAGES}
+            options={ONBOARDING_LANGUAGE_OPTIONS}
             selected={languages}
             onChange={setLanguages}
             multi={false}
