@@ -1,6 +1,7 @@
-import { useTranslation } from "react-i18next";
-import { BrainCircuit, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind, Users } from "lucide-react";
+import { BrainCircuit, ChevronRight, Play, HelpCircle, Layers, Type, Puzzle, Headphones, Wind, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
+import { useLanguage } from "@/i18n";
 import VoiceHero from "@/components/VoiceHero";
 
 const activityIcons: Record<string, any> = {
@@ -21,11 +22,33 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string }> = {
   "brain.activities.breathing":   { iconBg: "#ECFDF5", iconColor: "#0A7C4E" },
 };
 
+const activityRoutes: Partial<Record<string, string>> = {
+  "brain.activities.memoryGame": "/memory-games",
+};
+
 const ActivitiesScreen = () => {
-  const { t } = useTranslation();
+  const { t } = useLanguage();
+  const navigate = useNavigate();
   const todayIndex = new Date().getDay();
   const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1;
-  const days: string[] = t("brain.dayAbbreviations", { returnObjects: true }) as string[];
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+
+  const activityLabels: Record<string, string> = {
+    "brain.activities.triviaQuiz": t("activities.trivia"),
+    "brain.activities.memoryGame": t("activities.memory"),
+    "brain.activities.scrabble": t("activities.scrabble"),
+    "brain.activities.logicPuzzle": t("activities.logicPuzzle"),
+    "brain.activities.meditation": t("activities.meditation"),
+    "brain.activities.breathing": t("activities.breathing"),
+  };
+
+  const handleActivityClick = (activityName: string) => {
+    const targetRoute = activityRoutes[activityName];
+
+    if (targetRoute) {
+      navigate(targetRoute);
+    }
+  };
 
   return (
     <div className="px-[22px]">
@@ -41,9 +64,8 @@ const ActivitiesScreen = () => {
           <span className="font-body text-[16px] font-medium" style={{ color: "#6B21A8" }}>{t("brain.startSession")}</span>
         </button>
       </VoiceHero>
-
       {/* Section header */}
-      <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mt-[18px] mb-[10px]">{t("brain.chooseActivity")}</h2>
+      <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mt-[18px] mb-[10px]">{t("activities.chooseActivity")}</h2>
 
       {/* Activity Grid */}
       <div className="grid grid-cols-3 gap-[10px]">
@@ -53,6 +75,10 @@ const ActivitiesScreen = () => {
           return (
             <button
               key={act.name}
+              type="button"
+              onClick={() => handleActivityClick(act.name)}
+              data-testid={`activity-card-${act.name.replaceAll(".", "-")}`}
+              aria-label={activityLabels[act.name] ?? t("activities.memory")}
               className="rounded-[16px] p-[16px_12px] flex flex-col items-center gap-[8px] bg-white border border-vyva-border"
               style={{
                 minHeight: 100,
@@ -63,11 +89,11 @@ const ActivitiesScreen = () => {
                 <Icon size={20} style={{ color: style.iconColor }} />
               </div>
               <span className="font-body text-[14px] font-medium text-vyva-text-1 text-center leading-tight">
-                {t(act.name)}
+                {activityLabels[act.name] ?? t("activities.memory")}
               </span>
               {act.done && (
                 <span className="font-body text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#065F46" }}>
-                  {t("brain.doneToday")}
+                  {t("activities.doneToday")}
                 </span>
               )}
             </button>
@@ -76,8 +102,10 @@ const ActivitiesScreen = () => {
       </div>
 
       {/* Find a Companion tile */}
-      <div
+      <button
+        type="button"
         data-testid="button-find-companion"
+        onClick={() => navigate("/companions")}
         className="w-full flex items-center gap-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] mt-3 text-left"
         style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
       >
@@ -91,8 +119,8 @@ const ActivitiesScreen = () => {
           <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("companions.activityTile")}</p>
           <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("companions.activityTileSubtitle")}</p>
         </div>
-        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>{"\u2192"}</span>
-      </div>
+        <ChevronRight size={18} style={{ color: "#6B21A8" }} aria-hidden="true" />
+      </button>
 
 
 

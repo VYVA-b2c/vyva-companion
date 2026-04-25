@@ -9,6 +9,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { detectBrowserLanguage } from "@/i18n/detectLanguage";
 import i18n, { LANGUAGE_STORAGE_KEY } from "@/i18n";
+import { LANGUAGES } from "@/i18n/languages";
 
 interface FieldProps {
   label: string;
@@ -45,7 +46,6 @@ const ALL_LANGUAGES = [
   { value: "de", label: "Deutsch" },
   { value: "it", label: "Italiano" },
   { value: "pt", label: "Português" },
-  { value: "cy", label: "Cymraeg" },
 ];
 
 interface ProfileForm {
@@ -71,8 +71,8 @@ const SettingsScreen = () => {
 
   const activeLanguage = i18n.language?.slice(0, 2) ?? "en";
   const sortedLanguages = [
-    ...ALL_LANGUAGES.filter((l) => l.value === activeLanguage),
-    ...ALL_LANGUAGES.filter((l) => l.value !== activeLanguage),
+    ...LANGUAGES.filter((language) => language.code === activeLanguage),
+    ...LANGUAGES.filter((language) => language.code !== activeLanguage),
   ];
 
   const defaultValues: ProfileForm = {
@@ -284,7 +284,7 @@ const SettingsScreen = () => {
             {...register("language")}
           >
             {sortedLanguages.map((lang) => (
-              <option key={lang.value} value={lang.value}>
+              <option key={lang.code} value={lang.code}>
                 {lang.label}
               </option>
             ))}

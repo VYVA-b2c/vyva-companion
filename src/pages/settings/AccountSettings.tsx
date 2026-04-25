@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/i18n";
+import { LANGUAGES, type LanguageCode } from "@/i18n/languages";
 import { queryClient, apiFetch } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +19,7 @@ export default function AccountSettings() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,16 +179,17 @@ export default function AccountSettings() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-gray-600">{t("settings.account.language")}</Label>
-            <Select defaultValue="es">
+            <Select
+              value={language}
+              onValueChange={(value) => setLanguage(value as LanguageCode)}
+            >
               <SelectTrigger className="h-11 border-purple-200"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="es">{t("settings.account.langEs")}</SelectItem>
-                <SelectItem value="en">{t("settings.account.langEn")}</SelectItem>
-                <SelectItem value="fr">{t("settings.account.langFr")}</SelectItem>
-                <SelectItem value="de">{t("settings.account.langDe")}</SelectItem>
-                <SelectItem value="it">{t("settings.account.langIt")}</SelectItem>
-                <SelectItem value="pt">{t("settings.account.langPt")}</SelectItem>
-                <SelectItem value="cy">{t("settings.account.langCy")}</SelectItem>
+                {LANGUAGES.map((entry) => (
+                  <SelectItem key={entry.code} value={entry.code}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

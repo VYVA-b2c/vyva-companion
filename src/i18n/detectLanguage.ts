@@ -1,6 +1,8 @@
-export const SUPPORTED_LANGUAGES = ["en", "es", "fr", "de", "it", "pt", "cy"];
+import { DEFAULT_LANGUAGE, LANGUAGES, type LanguageCode } from "./languages";
 
-export function detectBrowserLanguage(): string {
-  const lang = navigator.language.split("-")[0];
-  return SUPPORTED_LANGUAGES.includes(lang) ? lang : "en";
+export const SUPPORTED_LANGUAGES = LANGUAGES.map((language) => language.code);
+
+export function detectBrowserLanguage(): LanguageCode {
+  const language = typeof navigator === "undefined" ? DEFAULT_LANGUAGE : navigator.language.split("-")[0];
+  return (SUPPORTED_LANGUAGES.includes(language as LanguageCode) ? language : DEFAULT_LANGUAGE) as LanguageCode;
 }
