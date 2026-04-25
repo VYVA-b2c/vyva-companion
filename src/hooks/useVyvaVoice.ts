@@ -1,27 +1,74 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/queryClient";
 
+type TtsSegment = {
+  text: string;
+  lang?: string;
+  rate?: number;
+  delayMs?: number;
+};
+
 export function useTtsReadout() {
   const [isTtsSpeaking, setIsTtsSpeaking] = useState(false);
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  const clearPendingTimeouts = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    timeoutIdsRef.current = [];
+  }, []);
+
+  const stopTts = useCallback(() => {
+    clearPendingTimeouts();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    setIsTtsSpeaking(false);
+  }, [clearPendingTimeouts]);
+
+  const speakSequence = useCallback((segments: TtsSegment[]) => {
+    if (!window.speechSynthesis) return;
+    stopTts();
+
+    const queue = segments.filter((segment) => segment.text.trim().length > 0);
+    if (queue.length === 0) return;
+
+    let index = 0;
+    const playNext = () => {
+      const segment = queue[index];
+      if (!segment) {
+        setIsTtsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(segment.text);
+      if (segment.lang) utterance.lang = segment.lang;
+      utterance.rate = segment.rate ?? 0.9;
+      utterance.onstart = () => setIsTtsSpeaking(true);
+      utterance.onend = () => {
+        index += 1;
+        const timeoutId = window.setTimeout(playNext, segment.delayMs ?? 400);
+        timeoutIdsRef.current.push(timeoutId);
+      };
+      utterance.onerror = () => {
+        index += 1;
+        if (index >= queue.length) {
+          setIsTtsSpeaking(false);
+          return;
+        }
+        const timeoutId = window.setTimeout(playNext, 250);
+        timeoutIdsRef.current.push(timeoutId);
+      };
+      window.speechSynthesis.speak(utterance);
+    };
+
+    playNext();
+  }, [stopTts]);
 
   const speakText = useCallback((text: string, lang?: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    if (lang) utterance.lang = lang;
-    utterance.rate = 0.92;
-    utterance.onstart = () => setIsTtsSpeaking(true);
-    utterance.onend = () => setIsTtsSpeaking(false);
-    utterance.onerror = () => setIsTtsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, []);
+    speakSequence([{ text, lang }]);
+  }, [speakSequence]);
 
-  const stopTts = useCallback(() => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    setIsTtsSpeaking(false);
-  }, []);
-
-  return { speakText, stopTts, isTtsSpeaking };
+  return { speakText, speakSequence, stopTts, isTtsSpeaking };
 }
 
 export interface TranscriptEntry {
@@ -30,7 +77,7 @@ export interface TranscriptEntry {
   timestamp: number;
 }
 
-const VYVA_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID ?? "";
+const VYVA_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID ?? "agent_0401knfndsypfmqa31ssw82h364m";
 
 function uint8ToBase64(bytes: Uint8Array): string {
   let bin = "";

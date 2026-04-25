@@ -19,6 +19,8 @@ import MedsScreen from "./pages/MedsScreen";
 import AdherenceReportScreen from "./pages/AdherenceReportScreen";
 import ActivitiesScreen from "./pages/ActivitiesScreen";
 import ActivityScreen from "./pages/ActivityScreen";
+import MemoryGamesPage from "./games/memory/MemoryGamesPage";
+import MemoryGameRunner from "./games/memory/MemoryGameRunner";
 import ConciergeScreen from "./pages/ConciergeScreen";
 import SafeHomeScreen from "./pages/SafeHomeScreen";
 import ScamGuardScreen from "./pages/ScamGuardScreen";
@@ -145,6 +147,8 @@ const App = () => (
                   <Route path="/meds/adherence-report" element={<AppShell><AdherenceReportScreen /></AppShell>} />
                   <Route path="/activities" element={<AppShell><ActivitiesScreen /></AppShell>} />
                   <Route path="/activity" element={<AppShell><ActivityScreen /></AppShell>} />
+                  <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
+                  <Route path="/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
                   <Route path="/concierge" element={<AppShell><ConciergeScreen /></AppShell>} />
                   <Route path="/safe-home" element={<AppShell><SafeHomeScreen /></AppShell>} />
                   <Route path="/scam-guard" element={<AppShell><ScamGuardScreen /></AppShell>} />
