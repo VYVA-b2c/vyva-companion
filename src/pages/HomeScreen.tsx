@@ -15,7 +15,7 @@ import {
 } from "@/lib/personaliseCards";
 
 const SectionHeader = ({ title }: { title: string }) => (
-  <p className="font-body text-[15px] font-semibold tracking-wider text-vyva-text-2 mb-3">
+  <p className="mb-3 font-display text-[24px] text-vyva-text-1">
     {title}
   </p>
 );
@@ -321,8 +321,8 @@ const HomeScreen = () => {
               key={tile.path}
               data-testid={`button-home-quick-${tile.path.replace("/", "")}`}
               onClick={() => tile.path && handleNavigate(tile.path)}
-              className="min-w-0 flex flex-col items-center gap-2 bg-white rounded-[22px] px-4 py-3.5 border border-vyva-border transition-all active:scale-[0.975] active:shadow-[0_3px_14px_rgba(0,0,0,0.08)]"
-              style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
+              className="min-w-0 flex flex-col items-start gap-3 rounded-[24px] px-4 py-4 border transition-all active:scale-[0.975] active:shadow-[0_3px_14px_rgba(0,0,0,0.08)]"
+              style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.05)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
             >
               <div
                 className="w-[54px] h-[54px] rounded-[16px] flex items-center justify-center flex-shrink-0"
@@ -330,10 +330,10 @@ const HomeScreen = () => {
               >
                 <tile.icon size={26} style={{ color: tile.iconColor }} />
               </div>
-              <span className="font-body text-[15px] font-semibold text-vyva-text-1 leading-tight text-center">
+              <span className="font-body text-[15px] font-semibold text-vyva-text-1 leading-tight text-left">
                 {tile.label}
               </span>
-              <span className="font-body text-[12px] text-vyva-text-2 leading-tight text-center">
+              <span className="font-body text-[12px] text-vyva-text-2 leading-tight text-left">
                 {tile.hint}
               </span>
             </button>
@@ -355,11 +355,11 @@ const HomeScreen = () => {
             <div
               key={card.id}
               data-testid={`card-today-for-you-${card.id}`}
-              className="flex-shrink-0 flex flex-col rounded-[22px] overflow-hidden"
+              className="flex-shrink-0 flex flex-col rounded-[24px] overflow-hidden"
               style={{
                 width: "220px",
                 background: card.bg,
-                border: "1px solid rgba(0,0,0,0.06)",
+                border: "1px solid #EDE2D1",
                 boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
               }}
             >
@@ -398,8 +398,8 @@ const HomeScreen = () => {
 
       <div className="mt-[18px]">
         <div
-          className="rounded-[24px] px-[18px] pt-[18px] pb-[14px] flex flex-col gap-3"
-          style={{ background: "#2D0A5E" }}
+          className="rounded-[26px] px-[18px] pt-[18px] pb-[14px] flex flex-col gap-3"
+          style={{ background: "linear-gradient(145deg, #3D0D82 0%, #6B21A8 58%, #8B3FC8 100%)" }}
           data-testid="card-chat-input"
         >
           <div

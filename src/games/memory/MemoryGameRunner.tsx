@@ -1,5 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, Clock3, Loader2, Mic, RotateCcw, Target, Trophy, Type, Volume2, VolumeX } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  Grid2x2,
+  Hash,
+  Layers3,
+  Link2,
+  Loader2,
+  Mic,
+  NotebookPen,
+  RotateCcw,
+  Route,
+  Type,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
@@ -132,6 +149,27 @@ function dedupeWords(words: string[]) {
     }
   });
   return unique;
+}
+
+function getMemoryGameIcon(gameType: MemoryGameType) {
+  switch (gameType) {
+    case "memory_match":
+      return Grid2x2;
+    case "sequence_memory":
+      return Route;
+    case "word_recall":
+      return NotebookPen;
+    case "number_memory":
+      return Hash;
+    case "routine_memory":
+      return Clock3;
+    case "association_memory":
+      return Link2;
+    case "story_recall":
+      return BookOpen;
+    default:
+      return Layers3;
+  }
 }
 
 function getSpeechLanguage(language: string) {
@@ -832,6 +870,10 @@ const MemoryGameRunner = () => {
   const sequenceAccuracy = getSequenceAccuracy(expectedSequence.length, sequenceTotalMistakes);
   const summaryAccuracy = plan.gameType === "sequence_memory" ? sequenceAccuracy : memoryAccuracy;
   const summaryMistakes = plan.gameType === "sequence_memory" ? sequenceTotalMistakes : mistakes;
+  const gameTitle = getGameTitle(plan.gameType, language);
+  const gamePrompt = localizedVariant?.prompt ?? getGameDescription(plan.gameType, language);
+  const GameIcon = getMemoryGameIcon(plan.gameType);
+  const gameIconStyle = { background: definition.iconBg, color: definition.accentColor };
 
   if (plan.gameType !== "memory_match" && plan.gameType !== "sequence_memory" && plan.gameType !== "word_recall") {
     return (
@@ -845,12 +887,12 @@ const MemoryGameRunner = () => {
         </button>
         <div className="mt-4 rounded-[26px] bg-white p-6 shadow-vyva-card">
           <div
-            className="inline-flex h-[58px] w-[58px] items-center justify-center rounded-[18px] text-[24px] font-semibold"
-            style={{ background: definition.iconBg, color: definition.accentColor }}
+            className="inline-flex h-[64px] w-[64px] items-center justify-center rounded-[20px]"
+            style={gameIconStyle}
           >
-            {getGameTitle(plan.gameType, language).charAt(0)}
+            <GameIcon size={28} />
           </div>
-          <h1 className="mt-4 font-display text-[30px] text-vyva-text-1">{getGameTitle(plan.gameType, language)}</h1>
+          <h1 className="mt-4 font-display text-[30px] text-vyva-text-1">{gameTitle}</h1>
           <p className="mt-2 text-[17px] leading-[1.6] text-vyva-text-2">{getGameDescription(plan.gameType, language)}</p>
           <div className="mt-5 rounded-[20px] border border-vyva-border bg-vyva-cream p-5">
             <p className="text-[18px] font-semibold text-vyva-text-1">{t("common.comingSoon")}</p>
@@ -1159,9 +1201,28 @@ const MemoryGameRunner = () => {
           {t("common.back")}
         </button>
 
-        <section className="mt-4 rounded-[26px] bg-white p-6 shadow-vyva-card">
-          <h1 className="font-display text-[30px] text-vyva-text-1">{getGameTitle(plan.gameType, language)}</h1>
-          <p className="mt-2 text-[17px] leading-[1.6] text-vyva-text-2">{localizedVariant.prompt}</p>
+        <section className="mt-4 overflow-hidden rounded-[28px] border border-[#EFE7DB] bg-[#FFF9F1] p-5 shadow-vyva-card">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple shadow-sm">
+                <NotebookPen size={14} />
+                {t("wordRecall.memorizeInstruction")}
+              </div>
+              <h1 className="mt-4 font-display text-[30px] leading-[1.06] text-vyva-text-1">{gameTitle}</h1>
+              <p className="mt-3 max-w-[24ch] text-[15px] leading-[1.55] text-vyva-text-2">{gamePrompt}</p>
+            </div>
+            <div className="flex h-[84px] w-[84px] flex-shrink-0 items-center justify-center rounded-[24px] bg-white shadow-vyva-card">
+              <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px]" style={gameIconStyle}>
+                <GameIcon size={28} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("common.level")} ${plan.level}`}</span>
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("wordRecall.correctWords")} ${rememberedCount}/${wordRecallWords.length}`}</span>
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("memory.duration")} ${durationSeconds}s`}</span>
+          </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
@@ -1173,27 +1234,10 @@ const MemoryGameRunner = () => {
             </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { icon: <Target size={18} />, label: t("memory.currentLevel"), value: `${t("common.level")} ${plan.level}` },
-              { icon: <Trophy size={18} />, label: t("wordRecall.correctWords"), value: `${rememberedCount}/${wordRecallWords.length}` },
-              { icon: <RotateCcw size={18} />, label: t("memory.mistakes"), value: `${completionMetrics?.mistakes ?? 0}` },
-              { icon: <Clock3 size={18} />, label: t("memory.duration"), value: `${durationSeconds}s` },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[18px] border border-vyva-border bg-vyva-cream p-4">
-                <div className="flex items-center gap-2 text-vyva-purple">{item.icon}</div>
-                <p className="mt-3 text-[13px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{item.label}</p>
-                <p className="mt-1 text-[22px] font-semibold text-vyva-text-1">{item.value}</p>
-              </div>
-            ))}
-          </div>
-
           {wordRecallPhase === "memorize" && (
             <>
-              <div className="mt-4 rounded-[20px] border border-vyva-border bg-vyva-purple-light p-5">
-                <p className="text-[18px] font-semibold text-vyva-text-1">{t("wordRecall.memorizeInstruction")}</p>
-                <p className="mt-2 text-[15px] leading-[1.6] text-vyva-text-2">{localizedVariant.prompt}</p>
-                <p className="mt-3 text-[14px] font-medium text-vyva-text-2">{t("wordRecall.voiceCommandsHint")}</p>
+              <div className="mt-4 rounded-[22px] border border-[#EADFF8] bg-white p-5">
+                <p className="text-[17px] font-semibold text-vyva-text-1">{t("wordRecall.voiceCommandsHint")}</p>
                 {wordRecallMessage && (
                   <div className="mt-4 rounded-[16px] border border-[#D8C7F3] bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1">
                     {wordRecallMessage}
@@ -1202,8 +1246,14 @@ const MemoryGameRunner = () => {
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {wordRecallWords.map((word) => (
-                  <div key={word} className="rounded-[22px] border border-[#E9DDF8] bg-[#FAF7FF] px-5 py-6 text-center shadow-vyva-card">
+                {wordRecallWords.map((word, index) => (
+                  <div
+                    key={word}
+                    className="rounded-[24px] border border-white/70 px-5 py-7 text-center shadow-vyva-card"
+                    style={{
+                      background: index % 2 === 0 ? "#FFFFFF" : "#FAF7FF",
+                    }}
+                  >
                     <span className="text-[28px] font-semibold text-vyva-text-1">{word}</span>
                   </div>
                 ))}
@@ -1396,26 +1446,31 @@ const MemoryGameRunner = () => {
           {t("common.back")}
         </button>
 
-        <section className="mt-4 rounded-[26px] bg-white p-6 shadow-vyva-card">
-          <h1 className="font-display text-[30px] text-vyva-text-1">{getGameTitle(plan.gameType, language)}</h1>
-          <p className="mt-2 text-[17px] leading-[1.6] text-vyva-text-2">{localizedVariant.prompt}</p>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { icon: <Target size={18} />, label: t("memory.currentLevel"), value: `${t("common.level")} ${plan.level}` },
-              { icon: <Trophy size={18} />, label: t("memory.pairs"), value: `${sequenceProgress}/${expectedSequence.length}` },
-              { icon: <RotateCcw size={18} />, label: t("memory.mistakes"), value: `${sequenceTotalMistakes}` },
-              { icon: <Clock3 size={18} />, label: t("memory.duration"), value: `${durationSeconds}s` },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[18px] border border-vyva-border bg-vyva-cream p-4">
-                <div className="flex items-center gap-2 text-vyva-purple">{item.icon}</div>
-                <p className="mt-3 text-[13px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{item.label}</p>
-                <p className="mt-1 text-[22px] font-semibold text-vyva-text-1">{item.value}</p>
+        <section className="mt-4 overflow-hidden rounded-[28px] border border-[#EFE7DB] bg-[#FFF9F1] p-5 shadow-vyva-card">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple shadow-sm">
+                <Route size={14} />
+                {t("memory.sequenceWatch")}
               </div>
-            ))}
+              <h1 className="mt-4 font-display text-[30px] leading-[1.06] text-vyva-text-1">{gameTitle}</h1>
+              <p className="mt-3 max-w-[24ch] text-[15px] leading-[1.55] text-vyva-text-2">{gamePrompt}</p>
+            </div>
+            <div className="flex h-[84px] w-[84px] flex-shrink-0 items-center justify-center rounded-[24px] bg-white shadow-vyva-card">
+              <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px]" style={gameIconStyle}>
+                <GameIcon size={28} />
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 rounded-[18px] border border-vyva-border bg-vyva-purple-light p-5">
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("common.level")} ${plan.level}`}</span>
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${sequenceProgress}/${expectedSequence.length}`}</span>
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("memory.mistakes")} ${sequenceTotalMistakes}`}</span>
+            <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${durationSeconds}s`}</span>
+          </div>
+
+          <div className="mt-4 rounded-[22px] border border-[#EADFF8] bg-white p-5">
             <p className="text-[18px] font-semibold text-vyva-text-1">{sequenceInstruction}</p>
             <p className="mt-2 text-[15px] leading-[1.55] text-vyva-text-2">{sequenceSupportText}</p>
             {sequenceStatus === "wrong" && (
@@ -1439,7 +1494,7 @@ const MemoryGameRunner = () => {
             )}
           </div>
 
-          <div className="mt-4 rounded-[18px] border border-vyva-border bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+          <div className="mt-4 rounded-[20px] border border-[#EADFF8] bg-[#FFFCF8] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
             <div className="flex flex-wrap gap-2">
               {sequencePhase === "input"
                 ? expectedSequencePositions.map((tileIndex, index) => {
@@ -1540,28 +1595,33 @@ const MemoryGameRunner = () => {
         <ArrowLeft size={18} />
         {t("common.back")}
       </button>
-      <section className="mt-4 rounded-[26px] bg-white p-6 shadow-vyva-card">
-        <h1 className="font-display text-[30px] text-vyva-text-1">{getGameTitle(plan.gameType, language)}</h1>
-        <p className="mt-2 text-[17px] leading-[1.6] text-vyva-text-2">{localizedVariant.prompt}</p>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { icon: <Target size={18} />, label: t("memory.currentLevel"), value: `${t("common.level")} ${plan.level}` },
-            { icon: <Trophy size={18} />, label: t("memory.pairs"), value: `${matchedPairs}/${totalPairs}` },
-            { icon: <RotateCcw size={18} />, label: t("memory.mistakes"), value: `${mistakes}` },
-            { icon: <Clock3 size={18} />, label: t("memory.duration"), value: `${durationSeconds}s` },
-          ].map((item) => (
-            <div key={item.label} className="rounded-[18px] border border-vyva-border bg-vyva-cream p-4">
-              <div className="flex items-center gap-2 text-vyva-purple">{item.icon}</div>
-              <p className="mt-3 text-[13px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{item.label}</p>
-              <p className="mt-1 text-[22px] font-semibold text-vyva-text-1">{item.value}</p>
+      <section className="mt-4 overflow-hidden rounded-[28px] border border-[#EFE7DB] bg-[#FFF9F1] p-5 shadow-vyva-card">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple shadow-sm">
+              <Grid2x2 size={14} />
+              {t("memory.matchInstruction")}
             </div>
-          ))}
+            <h1 className="mt-4 font-display text-[30px] leading-[1.06] text-vyva-text-1">{gameTitle}</h1>
+            <p className="mt-3 max-w-[24ch] text-[15px] leading-[1.55] text-vyva-text-2">{gamePrompt}</p>
+          </div>
+          <div className="flex h-[84px] w-[84px] flex-shrink-0 items-center justify-center rounded-[24px] bg-white shadow-vyva-card">
+            <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px]" style={gameIconStyle}>
+              <GameIcon size={28} />
+            </div>
+          </div>
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-vyva-border bg-vyva-purple-light p-4">
+        <div className="mt-5 flex flex-wrap gap-2">
+          <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${t("common.level")} ${plan.level}`}</span>
+          <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${matchedPairs}/${totalPairs} ${t("memory.pairs")}`}</span>
+          <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${memoryAccuracy}%`}</span>
+          <span className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">{`${durationSeconds}s`}</span>
+        </div>
+
+        <div className="mt-4 rounded-[22px] border border-[#EADFF8] bg-white p-4">
           <p className="text-[15px] font-medium text-vyva-text-1">
-            {t("memory.matchInstruction")} {t("memory.currentAccuracy")}: <span className="font-semibold">{memoryAccuracy}%</span>
+            {t("memory.matchInstruction")} <span className="font-semibold text-vyva-purple">{memoryAccuracy}%</span>
           </p>
         </div>
 

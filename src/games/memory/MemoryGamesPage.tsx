@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Brain, ChevronRight, Layers3, Sparkles, Target, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Brain,
+  ChevronRight,
+  Clock3,
+  Grid2x2,
+  Hash,
+  Layers3,
+  Link2,
+  NotebookPen,
+  Route,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
@@ -22,7 +36,28 @@ function formatLastSession(
     month: "short",
   });
 
-  return `${getGameTitle(result.gameType as MemoryGameType, language)} · ${date}`;
+  return `${getGameTitle(result.gameType as MemoryGameType, language)} - ${date}`;
+}
+
+function getGameIcon(gameType: MemoryGameType) {
+  switch (gameType) {
+    case "memory_match":
+      return Grid2x2;
+    case "sequence_memory":
+      return Route;
+    case "word_recall":
+      return NotebookPen;
+    case "number_memory":
+      return Hash;
+    case "routine_memory":
+      return Clock3;
+    case "association_memory":
+      return Link2;
+    case "story_recall":
+      return BookOpen;
+    default:
+      return Brain;
+  }
 }
 
 const MemoryGamesPage = () => {
@@ -87,12 +122,15 @@ const MemoryGamesPage = () => {
     };
   }, [history, language, lastSession, recommendation, t]);
 
+  const recommendedDefinition = recommendation ? memoryGameRegistry[recommendation.gameType] : null;
+  const RecommendedIcon = recommendation ? getGameIcon(recommendation.gameType) : Sparkles;
+
   const openPlan = (plan: Recommendation) => {
     navigate(`/memory-games/${plan.gameType}?level=${plan.level}&variant=${plan.variantId}`);
   };
 
   return (
-    <div className="px-[22px] pb-6">
+    <div className="px-[22px] pb-7">
       <button
         onClick={() => navigate("/activities")}
         className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
@@ -100,86 +138,106 @@ const MemoryGamesPage = () => {
         <ArrowLeft size={18} />
         {t("common.back")}
       </button>
-      <section
-        className="relative mt-4 overflow-hidden rounded-[30px] px-6 py-6 text-white shadow-vyva-hero"
-        style={{ background: "linear-gradient(145deg, #3D0D82 0%, #6B21A8 52%, #8B3FC8 100%)" }}
-      >
+
+      <section className="relative mt-4 overflow-hidden rounded-[30px] border border-[#EFE7DB] bg-[#FFF9F1] px-5 py-5 shadow-vyva-card">
         <div
-          className="pointer-events-none absolute right-[-26px] top-[-18px] h-[130px] w-[130px] rounded-full border border-white/12 bg-white/10 blur-[2px]"
+          className="pointer-events-none absolute right-[-34px] top-[-28px] h-[140px] w-[140px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(107,33,168,0.16) 0%, rgba(107,33,168,0) 72%)" }}
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute bottom-[-36px] right-[22px] h-[96px] w-[96px] rounded-full border border-white/10 bg-[#F5D7FF]/10"
+          className="pointer-events-none absolute bottom-[-44px] left-[-18px] h-[118px] w-[118px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(255,193,94,0.16) 0%, rgba(255,193,94,0) 72%)" }}
           aria-hidden="true"
         />
 
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.06em]">
-              <Brain size={14} />
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple shadow-sm">
+              <Sparkles size={14} />
               {t("memory.trainingDaily")}
             </div>
-            <h1 className="mt-5 max-w-[11ch] font-display text-[30px] leading-[1.08] sm:text-[34px]">{t("memory.title")}</h1>
-            <p className="mt-4 max-w-[28ch] text-[16px] leading-[1.55] text-white/82">{t("memory.subtitle")}</p>
+            <h1 className="mt-4 max-w-[10ch] font-display text-[31px] leading-[1.04] text-vyva-text-1">
+              {t("memory.title")}
+            </h1>
+            <p className="mt-3 max-w-[24ch] text-[15px] leading-[1.55] text-vyva-text-2">
+              {t("memory.subtitle")}
+            </p>
           </div>
 
-          <div className="hidden min-w-[110px] rounded-[24px] border border-white/15 bg-white/10 p-4 text-white/92 sm:block">
-            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[16px] bg-white/14">
-              <Sparkles size={20} />
+          <div className="relative flex h-[96px] w-[96px] flex-shrink-0 items-center justify-center rounded-[28px] bg-white shadow-vyva-card">
+            <div
+              className="absolute inset-[10px] rounded-[22px]"
+              style={{ background: "linear-gradient(145deg, #6B21A8 0%, #8B3FC8 100%)" }}
+            />
+            <RecommendedIcon size={34} className="relative z-[1] text-white" />
+            <div className="absolute -left-2 bottom-3 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#F7D35F] text-[#7C4A00] shadow-sm">
+              <Brain size={12} />
             </div>
-            <p className="mt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-white/70">
-              {t("memory.recommendedToday")}
-            </p>
-            <p className="mt-1 text-[22px] font-semibold leading-none">
-              {recommendation?.level ?? 1}
-            </p>
+            <div className="absolute -right-1 top-3 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#DDF7E9] text-[#15803D] shadow-sm">
+              <Target size={12} />
+            </div>
+          </div>
+        </div>
+
+        <div className="relative mt-5 flex flex-wrap gap-2">
+          <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">
+            {summary.levelLabel}
+          </div>
+          <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">
+            {summary.areaLabel}
+          </div>
+          <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-2 shadow-sm">
+            {summary.lastSessionLabel}
           </div>
         </div>
       </section>
 
-      <section className="mt-5 rounded-[24px] border border-vyva-border bg-white p-5 shadow-vyva-card">
-        <div className="flex items-start justify-between gap-4">
+      <section className="mt-5 rounded-[28px] border border-vyva-border bg-white p-4 shadow-vyva-card">
+        <div className="grid grid-cols-[88px_1fr] gap-4">
+          <div
+            className="flex min-h-[108px] items-center justify-center rounded-[24px] text-white"
+            style={{
+              background: recommendedDefinition
+                ? `linear-gradient(180deg, ${recommendedDefinition.accentColor} 0%, #3D0D82 100%)`
+                : "linear-gradient(180deg, #6B21A8 0%, #3D0D82 100%)",
+            }}
+          >
+            <RecommendedIcon size={34} />
+          </div>
+
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-vyva-purple-light px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple">
               <Sparkles size={14} />
               {t("memory.recommendedToday")}
             </div>
-            <h2 className="mt-4 font-display text-[28px] leading-[1.05] text-vyva-text-1">
+            <h2 className="mt-3 text-[26px] font-semibold leading-[1.08] text-vyva-text-1">
               {recommendation ? getGameTitle(recommendation.gameType, language) : t("common.loading")}
             </h2>
-            <p className="mt-3 max-w-[26ch] text-[17px] leading-[1.55] text-vyva-text-2">
+            <p className="mt-2 text-[15px] leading-[1.55] text-vyva-text-2">
               {recommendation?.reasonLabel ?? t("memory.recommendationLoading")}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-vyva-cream px-3 py-2 text-[13px] font-medium text-vyva-text-1">
-                <Layers3 size={15} className="text-vyva-purple" />
+              <span className="rounded-full bg-vyva-cream px-3 py-2 text-[13px] font-medium text-vyva-text-1">
                 {summary.areaLabel}
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-vyva-cream px-3 py-2 text-[13px] font-medium text-vyva-text-1">
-                <Target size={15} className="text-vyva-purple" />
+              </span>
+              <span className="rounded-full bg-vyva-cream px-3 py-2 text-[13px] font-medium text-vyva-text-1">
                 {summary.levelLabel}
-              </div>
+              </span>
             </div>
-          </div>
-          <div
-            className="flex min-h-[74px] min-w-[74px] flex-col items-center justify-center rounded-[22px] text-white shadow-vyva-card"
-            style={{ background: "linear-gradient(180deg, #6B21A8 0%, #7E32BE 100%)" }}
-          >
-            <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-white/78">{t("common.level")}</span>
-            <span className="mt-1 text-[28px] font-semibold leading-none">{recommendation?.level ?? "…"}</span>
           </div>
         </div>
 
         <button
           onClick={() => recommendation && openPlan(recommendation)}
           disabled={!recommendation || loading}
-          className="mt-5 flex w-full items-center justify-between rounded-[22px] px-5 py-5 text-left text-white shadow-vyva-card disabled:opacity-60"
+          className="mt-4 flex w-full items-center justify-between rounded-[22px] px-5 py-5 text-left text-white shadow-vyva-card disabled:opacity-60"
           style={{ background: "linear-gradient(135deg, #6B21A8 0%, #8B3FC8 100%)" }}
         >
           <div className="min-w-0">
-            <p className="text-[19px] font-semibold">{t("memory.startRecommended")}</p>
-            <p className="mt-1 max-w-[28ch] text-[14px] leading-[1.5] text-white/84">{t("memory.recommendationHint")}</p>
+            <p className="text-[20px] font-semibold">{t("memory.startRecommended")}</p>
+            <p className="mt-1 text-[14px] leading-[1.45] text-white/84">{t("memory.recommendationHint")}</p>
           </div>
           <div className="ml-4 flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-full bg-white/14">
             <ChevronRight size={22} />
@@ -187,61 +245,74 @@ const MemoryGamesPage = () => {
         </button>
       </section>
 
-      <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {[
-          { label: t("memory.lastSession"), value: summary.lastSessionLabel, icon: <Trophy size={16} className="text-vyva-purple" /> },
-          { label: t("memory.currentLevel"), value: summary.levelLabel, icon: <Target size={16} className="text-vyva-purple" /> },
-          { label: t("memory.trainedArea"), value: summary.areaLabel, icon: <Brain size={16} className="text-vyva-purple" /> },
-        ].map((item) => (
-          <div key={item.label} className="rounded-[20px] border border-vyva-border bg-white p-4 shadow-vyva-card">
-            <div className="flex items-center gap-2">
-              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-vyva-purple-light">
-                {item.icon}
-              </div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{item.label}</p>
-            </div>
-            <p className="mt-3 text-[18px] font-medium leading-[1.45] text-vyva-text-1">{item.value}</p>
-          </div>
-        ))}
-      </section>
-
       <section className="mt-5">
         <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-vyva-purple" />
+          <Layers3 size={18} className="text-vyva-purple" />
           <h2 className="font-display text-[24px] text-vyva-text-1">{t("memory.chooseAnother")}</h2>
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-3">
+
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {MEMORY_GAME_ORDER.map((gameType) => {
             const definition = memoryGameRegistry[gameType];
             const plan = manualPlans[gameType];
+            const GameIcon = getGameIcon(gameType);
 
             return (
               <button
                 key={gameType}
                 onClick={() => plan && openPlan(plan)}
-                className="rounded-[22px] border border-vyva-border bg-white p-5 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
+                className="relative overflow-hidden rounded-[24px] border border-vyva-border bg-white p-4 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
               >
-                <div className="flex items-start gap-4">
+                <div
+                  className="absolute inset-x-0 top-0 h-[6px]"
+                  style={{ background: `linear-gradient(90deg, ${definition.accentColor} 0%, ${definition.iconBg} 100%)` }}
+                  aria-hidden="true"
+                />
+
+                <div className="flex items-start justify-between gap-3">
                   <div
-                    className="flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-[18px] text-[24px] font-semibold"
+                    className="flex h-[68px] w-[68px] flex-shrink-0 items-center justify-center rounded-[22px]"
                     style={{ background: definition.iconBg, color: definition.accentColor }}
                   >
-                    {getGameTitle(gameType, language).charAt(0)}
+                    <GameIcon size={30} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-[22px] font-semibold leading-[1.25] text-vyva-text-1">{getGameTitle(gameType, language)}</h3>
-                      <span
-                        className="rounded-full px-3 py-1 text-[12px] font-semibold"
-                        style={{ background: definition.iconBg, color: definition.accentColor }}
-                      >
-                        {plan ? `${t("common.level")} ${plan.level}` : `${t("common.level")} 1`}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[16px] leading-[1.6] text-vyva-text-2">{t(definition.descriptionKey)}</p>
-                    <p className="mt-3 text-[14px] font-medium" style={{ color: definition.accentColor }}>
-                      {getCognitiveDomainLabel(definition.cognitiveDomain, language)}
-                    </p>
+
+                  <div
+                    className="rounded-full px-3 py-1 text-[12px] font-semibold"
+                    style={{ background: definition.iconBg, color: definition.accentColor }}
+                  >
+                    {plan ? `${t("common.level")} ${plan.level}` : `${t("common.level")} 1`}
+                  </div>
+                </div>
+
+                <h3 className="mt-4 text-[22px] font-semibold leading-[1.15] text-vyva-text-1">
+                  {getGameTitle(gameType, language)}
+                </h3>
+
+                <p
+                  className="mt-2 text-[14px] leading-[1.5] text-vyva-text-2"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {t(definition.descriptionKey)}
+                </p>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span
+                    className="rounded-full px-3 py-2 text-[13px] font-medium"
+                    style={{ background: definition.iconBg, color: definition.accentColor }}
+                  >
+                    {getCognitiveDomainLabel(definition.cognitiveDomain, language)}
+                  </span>
+                  <div
+                    className="flex h-[36px] w-[36px] items-center justify-center rounded-full"
+                    style={{ background: definition.iconBg, color: definition.accentColor }}
+                  >
+                    <ChevronRight size={18} />
                   </div>
                 </div>
               </button>

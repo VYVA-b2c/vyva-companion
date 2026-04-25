@@ -209,12 +209,12 @@ const ActivityScreen = () => {
 
       {/* Daily step goal */}
       <div
-        className="mt-[14px] bg-white rounded-[20px] border border-vyva-border overflow-hidden"
-        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+        className="mt-[14px] overflow-hidden rounded-[24px] border"
+        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
       >
         <div
           className="px-[18px] py-[13px] border-b border-vyva-border flex items-center justify-between"
-          style={{ background: "#F5EFE4" }}
+          style={{ background: "#FFF9F1" }}
         >
           <span className="font-body text-[14px] font-medium text-vyva-text-1">
             {t("activity.dailyStepGoal")}
@@ -293,8 +293,8 @@ const ActivityScreen = () => {
 
       {/* Log movement */}
       <div
-        className="mt-[14px] bg-white rounded-[20px] border border-vyva-border overflow-hidden"
-        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+        className="mt-[14px] overflow-hidden rounded-[24px] border"
+        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
       >
         <div
           className="px-[18px] py-[13px] border-b border-vyva-border"
@@ -401,8 +401,8 @@ const ActivityScreen = () => {
 
       {/* Safe Home Check */}
       <div
-        className="mt-[14px] bg-white rounded-[20px] border border-vyva-border overflow-hidden"
-        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+        className="mt-[14px] overflow-hidden rounded-[24px] border"
+        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
       >
         <div
           className="px-[18px] py-[13px] border-b border-vyva-border flex items-center justify-between"
@@ -576,8 +576,8 @@ const ActivityScreen = () => {
 
       {/* Today's activity summary */}
       <div
-        className="mt-[14px] mb-4 bg-white rounded-[20px] border border-vyva-border overflow-hidden"
-        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+        className="mt-[14px] mb-4 overflow-hidden rounded-[24px] border"
+        style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
       >
         <div
           className="px-[18px] py-[13px] border-b border-vyva-border"

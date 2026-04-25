@@ -127,23 +127,26 @@ const ProfileOverview = () => {
   return (
     <div className="min-h-screen bg-vyva-cream">
       {/* Header */}
-      <div className="px-5 pt-12 pb-5">
-        <h1 className="font-display text-[26px] font-semibold text-vyva-text-1">{t("profile.overview.title")}</h1>
-        <p className="font-body text-[13px] text-vyva-text-2 mt-0.5">
-          {t("profile.overview.subtitle")}
-        </p>
-        <p
-          className="font-body text-[14px] text-vyva-text-2 mt-2"
-          data-testid="text-profile-completion-count"
-        >
-          {isLoading ? t("profile.overview.loading") : t("profile.overview.completionCount", { done, total })}
-        </p>
-        <div className="mt-3 h-2 bg-vyva-warm2 rounded-full overflow-hidden">
-          <div
-            data-testid="progress-profile-completion"
-            className="h-full bg-vyva-purple rounded-full transition-all"
-            style={{ width: isLoading ? "0%" : `${(done / total) * 100}%` }}
-          />
+      <div className="px-5 pt-8 pb-4">
+        <div className="rounded-[26px] border border-[#EFE7DB] bg-[#FFF9F1] p-5 shadow-vyva-card">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple">Profile</p>
+          <h1 className="mt-2 font-display text-[30px] font-semibold leading-[1.05] text-vyva-text-1">{t("profile.overview.title")}</h1>
+          <p className="mt-2 text-[14px] leading-[1.55] text-vyva-text-2">
+            {t("profile.overview.subtitle")}
+          </p>
+          <p
+            className="mt-3 text-[14px] font-medium text-vyva-text-2"
+            data-testid="text-profile-completion-count"
+          >
+            {isLoading ? t("profile.overview.loading") : t("profile.overview.completionCount", { done, total })}
+          </p>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
+            <div
+              data-testid="progress-profile-completion"
+              className="h-full rounded-full bg-vyva-purple transition-all"
+              style={{ width: isLoading ? "0%" : `${(done / total) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -192,7 +195,7 @@ const ProfileOverview = () => {
 
       {/* Section cards */}
       <div
-        className="mx-5 bg-white rounded-[22px] border border-vyva-border overflow-hidden"
+        className="mx-5 overflow-hidden rounded-[24px] border border-vyva-border bg-white"
         style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
         data-testid="list-profile-sections"
       >

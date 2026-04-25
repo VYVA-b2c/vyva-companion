@@ -28,21 +28,21 @@ export function SectionCard({
       data-testid={`section-card-${title.toLowerCase().replace(/\s+/g, "-")}`}
       onClick={!locked ? onClick : undefined}
       disabled={locked}
-      className={`w-full flex items-center gap-3 px-4 py-[14px] text-left transition-colors ${
+      className={`w-full flex items-center gap-3 px-4 py-[15px] text-left transition-colors ${
         locked
           ? "opacity-40 cursor-not-allowed"
-          : "hover:bg-vyva-warm/40 cursor-pointer"
+          : "hover:bg-[#FCF8FF] cursor-pointer"
       } border-t border-vyva-border first:border-t-0`}
     >
       <div
-        className="w-10 h-10 rounded-[13px] flex items-center justify-center flex-shrink-0"
+        className="w-11 h-11 rounded-[15px] flex items-center justify-center flex-shrink-0"
         style={{ background: iconBg }}
       >
         <Icon size={20} style={{ color: iconColor }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-body text-[15px] font-medium text-vyva-text-1">{title}</p>
-        <p className="font-body text-[12px] text-vyva-text-2 truncate">{description}</p>
+        <p className="font-body text-[15px] font-semibold text-vyva-text-1">{title}</p>
+        <p className="font-body text-[12px] leading-[1.45] text-vyva-text-2 truncate">{description}</p>
         {benefit && !completed && (
           <span
             data-testid={`benefit-chip-${title.toLowerCase().replace(/\s+/g, "-")}`}
