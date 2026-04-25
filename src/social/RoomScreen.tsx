@@ -520,6 +520,402 @@ function buildFallbackRoomResponse(slug: string, language: SocialLanguage): Soci
       options: [],
       liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
     },
+    "book-club": {
+      slug: "book-club",
+      name: language === "en" ? "Book Club" : language === "de" ? "Der Buchclub" : "El Club del Libro",
+      category: "activity",
+      agentSlug: "isabel",
+      agentFullName: "Isabel Ferrer",
+      agentColour: "#7C2D12",
+      agentCredential:
+        language === "en"
+          ? "Philologist · Spanish literature"
+          : language === "de"
+            ? "Philologin · Spanische Literatur"
+            : "Filóloga · Literatura española",
+      ctaLabel: language === "en" ? "Read with Isabel" : language === "de" ? "Mit Isabel lesen" : "Leer con Isabel",
+      topicTags: ["books", "reading"],
+      timeSlots: ["afternoon", "evening"],
+      featured: false,
+      participantCount: 4,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "A page that stays with you"
+          : language === "de"
+            ? "Eine Seite, die bei dir bleibt"
+            : "Una página que se queda contigo",
+      opener:
+        language === "en"
+          ? "Hello, I’m Isabel. Which line from a book has stayed with you?"
+          : language === "de"
+            ? "Hallo, ich bin Isabel. Welche Zeile aus einem Buch ist dir geblieben?"
+            : "Hola, soy Isabel. ¿Qué frase de un libro se te ha quedado dentro?",
+      quote: "",
+      activityType: "discussion",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A gentle literary question"
+          : language === "de"
+            ? "Eine sanfte literarische Frage"
+            : "Una pregunta literaria suave",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
+    "morning-circle": {
+      slug: "morning-circle",
+      name: language === "en" ? "Morning Circle" : language === "de" ? "Der Morgenkreis" : "Círculo de la Mañana",
+      category: "social",
+      agentSlug: "vyva",
+      agentFullName: "VYVA",
+      agentColour: "#5B21B6",
+      agentCredential:
+        language === "en"
+          ? "Your daily companion"
+          : language === "de"
+            ? "Deine tägliche Begleiterin"
+            : "Tu compañera de cada día",
+      ctaLabel: language === "en" ? "Share with VYVA" : language === "de" ? "Mit VYVA teilen" : "Compartir con VYVA",
+      topicTags: ["check-in", "wellbeing"],
+      timeSlots: ["morning"],
+      featured: false,
+      participantCount: 5,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "How are you arriving today?"
+          : language === "de"
+            ? "Wie kommst du heute an?"
+            : "¿Cómo llegas hoy a este momento?",
+      opener:
+        language === "en"
+          ? "Hello, I’m VYVA. What kind of morning are you having today?"
+          : language === "de"
+            ? "Hallo, ich bin VYVA. Wie fühlt sich dein Morgen heute an?"
+            : "Hola, soy VYVA. ¿Qué tipo de mañana estás teniendo hoy?",
+      quote: "",
+      activityType: "discussion",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A simple morning check-in"
+          : language === "de"
+            ? "Ein einfacher Morgen-Check-in"
+            : "Un chequeo sencillo para empezar el día",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
+    },
+    "memory-lane": {
+      slug: "memory-lane",
+      name: language === "en" ? "Memory Lane" : language === "de" ? "Die Erinnerungsstraße" : "Camino de Recuerdos",
+      category: "social",
+      agentSlug: "sofia",
+      agentFullName: "Sofía Montoya",
+      agentColour: "#6D6352",
+      agentCredential:
+        language === "en"
+          ? "Historian · Oral memory"
+          : language === "de"
+            ? "Historikerin · Mündliche Erinnerung"
+            : "Historiadora · Memoria oral",
+      ctaLabel: language === "en" ? "Remember with Sofía" : language === "de" ? "Mit Sofía erinnern" : "Recordar con Sofía",
+      topicTags: ["memories", "stories"],
+      timeSlots: ["afternoon", "evening"],
+      featured: false,
+      participantCount: 3,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "Which memory comes first today?"
+          : language === "de"
+            ? "Welche Erinnerung kommt heute zuerst?"
+            : "¿Qué recuerdo aparece primero hoy?",
+      opener:
+        language === "en"
+          ? "Hello, I’m Sofía. Which memory arrives first when you pause for a moment?"
+          : language === "de"
+            ? "Hallo, ich bin Sofía. Welche Erinnerung kommt zuerst, wenn du kurz innehältst?"
+            : "Hola, soy Sofía. ¿Qué recuerdo llega primero cuando haces una pausa?",
+      quote: "",
+      activityType: "story",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A gentle memory prompt"
+          : language === "de"
+            ? "Ein sanfter Erinnerungsimpuls"
+            : "Una invitación suave a recordar",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "3 in the room" : language === "de" ? "3 im Raum" : "3 en la sala",
+    },
+    "evening-wind-down": {
+      slug: "evening-wind-down",
+      name: language === "en" ? "Evening Wind-Down" : language === "de" ? "Die Ruhestunde" : "La Hora de la Calma",
+      category: "social",
+      agentSlug: "marco",
+      agentFullName: "Marco Reyes",
+      agentColour: "#1D4ED8",
+      agentCredential:
+        language === "en"
+          ? "Psychologist · Clinical mindfulness"
+          : language === "de"
+            ? "Psychologe · Klinische Achtsamkeit"
+            : "Psicólogo · Mindfulness clínico",
+      ctaLabel: language === "en" ? "Breathe with Marco" : language === "de" ? "Mit Marco atmen" : "Respirar con Marco",
+      topicTags: ["calm", "breathing"],
+      timeSlots: ["evening"],
+      featured: false,
+      participantCount: 4,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "One quiet breath for the evening"
+          : language === "de"
+            ? "Ein ruhiger Atemzug für den Abend"
+            : "Una respiración tranquila para la tarde",
+      opener:
+        language === "en"
+          ? "Hello, I’m Marco. Shall we slow the evening down together?"
+          : language === "de"
+            ? "Hallo, ich bin Marco. Wollen wir den Abend gemeinsam beruhigen?"
+            : "Hola, soy Marco. ¿Bajamos juntos el ritmo de la tarde?",
+      quote: "",
+      activityType: "advice",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A short calming pause"
+          : language === "de"
+            ? "Eine kurze ruhige Pause"
+            : "Una pausa breve para bajar el ritmo",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
+    "kitchen-table": {
+      slug: "kitchen-table",
+      name: language === "en" ? "Kitchen Table" : language === "de" ? "Der Küchentisch" : "La Mesa de la Cocina",
+      category: "useful",
+      agentSlug: "lola",
+      agentFullName: "Lola Martínez",
+      agentColour: "#C2410C",
+      agentCredential:
+        language === "en"
+          ? "Chef · Mediterranean cuisine"
+          : language === "de"
+            ? "Köchin · Mediterrane Küche"
+            : "Chef · Cocina mediterránea",
+      ctaLabel: language === "en" ? "Cook with Lola" : language === "de" ? "Mit Lola kochen" : "Cocinar con Lola",
+      topicTags: ["cooking", "recipes"],
+      timeSlots: ["morning", "afternoon"],
+      featured: false,
+      participantCount: 6,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "A simple dish with familiar flavours"
+          : language === "de"
+            ? "Ein einfaches Gericht mit vertrauten Aromen"
+            : "Un plato sencillo con sabores de siempre",
+      opener:
+        language === "en"
+          ? "Hello, I’m Lola. What dish makes your kitchen feel like home?"
+          : language === "de"
+            ? "Hallo, ich bin Lola. Welches Gericht lässt deine Küche wie Zuhause fühlen?"
+            : "Hola, soy Lola. ¿Qué plato hace que tu cocina se sienta como casa?",
+      quote: "",
+      activityType: "recipe",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "One warm idea for today"
+          : language === "de"
+            ? "Eine warme Idee für heute"
+            : "Una idea cálida para hoy",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "6 in the room" : language === "de" ? "6 im Raum" : "6 en la sala",
+    },
+    "walking-club": {
+      slug: "walking-club",
+      name: language === "en" ? "Walking Club" : language === "de" ? "Der Wanderclub" : "El Club de los Pasos",
+      category: "useful",
+      agentSlug: "pedro",
+      agentFullName: "Pedro Navarro",
+      agentColour: "#0F766E",
+      agentCredential:
+        language === "en"
+          ? "Physiotherapist · Gentle movement"
+          : language === "de"
+            ? "Physiotherapeut · Sanfte Bewegung"
+            : "Fisioterapeuta · Movimiento suave",
+      ctaLabel: language === "en" ? "Move with Pedro" : language === "de" ? "Mit Pedro bewegen" : "Moverte con Pedro",
+      topicTags: ["walking", "movement"],
+      timeSlots: ["morning", "afternoon"],
+      featured: false,
+      participantCount: 5,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "Five minutes still count"
+          : language === "de"
+            ? "Fünf Minuten zählen auch"
+            : "Cinco minutos también cuentan",
+      opener:
+        language === "en"
+          ? "Hello, I’m Pedro. When does your body enjoy moving most?"
+          : language === "de"
+            ? "Hallo, ich bin Pedro. Wann bewegt sich dein Körper am liebsten?"
+            : "Hola, soy Pedro. ¿Cuándo disfruta más tu cuerpo moverse?",
+      quote: "",
+      activityType: "advice",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A gentle movement question"
+          : language === "de"
+            ? "Eine sanfte Bewegungsfrage"
+            : "Una pregunta suave sobre movimiento",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
+    },
+    "news-cafe": {
+      slug: "news-cafe",
+      name: language === "en" ? "News Café" : language === "de" ? "Das Nachrichtencafé" : "El Café de las Noticias",
+      category: "useful",
+      agentSlug: "elena",
+      agentFullName: "Elena Castillo",
+      agentColour: "#92400E",
+      agentCredential:
+        language === "en"
+          ? "Journalist · Positive news"
+          : language === "de"
+            ? "Journalistin · Positive Nachrichten"
+            : "Periodista · Noticias positivas",
+      ctaLabel: language === "en" ? "Understand with Elena" : language === "de" ? "Mit Elena verstehen" : "Entender con Elena",
+      topicTags: ["news", "culture"],
+      timeSlots: ["morning", "afternoon"],
+      featured: false,
+      participantCount: 4,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "One hopeful story for today"
+          : language === "de"
+            ? "Eine hoffnungsvolle Geschichte für heute"
+            : "Una noticia esperanzadora para hoy",
+      opener:
+        language === "en"
+          ? "Hello, I’m Elena. Shall we look at one piece of good news together?"
+          : language === "de"
+            ? "Hallo, ich bin Elena. Wollen wir gemeinsam eine gute Nachricht anschauen?"
+            : "Hola, soy Elena. ¿Vemos juntas una buena noticia de hoy?",
+      quote: "",
+      activityType: "discussion",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A calm news conversation"
+          : language === "de"
+            ? "Ein ruhiges Nachrichtengespräch"
+            : "Una conversación tranquila sobre noticias",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
+    "pen-pals": {
+      slug: "pen-pals",
+      name: language === "en" ? "Pen Pals" : language === "de" ? "Die Brieffreunde" : "Amigos por Correspondencia",
+      category: "connection",
+      agentSlug: "vyva",
+      agentFullName: "VYVA Conecta",
+      agentColour: "#5B21B6",
+      agentCredential:
+        language === "en"
+          ? "Matching by interests"
+          : language === "de"
+            ? "Matching nach Interessen"
+            : "Matching por intereses",
+      ctaLabel: language === "en" ? "Meet someone" : language === "de" ? "Jemanden kennenlernen" : "Conocer a alguien",
+      topicTags: ["friendship", "connection"],
+      timeSlots: ["morning", "afternoon", "evening"],
+      featured: false,
+      participantCount: 3,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "Who would you enjoy writing to?"
+          : language === "de"
+            ? "Wem würdest du gern schreiben?"
+            : "¿A quién te gustaría escribir?",
+      opener:
+        language === "en"
+          ? "Hello, I’m VYVA. What kind of person would you enjoy meeting here?"
+          : language === "de"
+            ? "Hallo, ich bin VYVA. Welche Art von Person würdest du hier gern kennenlernen?"
+            : "Hola, soy VYVA. ¿Qué tipo de persona te gustaría conocer aquí?",
+      quote: "",
+      activityType: "discussion",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A gentle way to connect"
+          : language === "de"
+            ? "Ein sanfter Weg zur Verbindung"
+            : "Una forma amable de conectar",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "3 in the room" : language === "de" ? "3 im Raum" : "3 en la sala",
+    },
+    "heritage-exchange": {
+      slug: "heritage-exchange",
+      name: language === "en" ? "Heritage Exchange" : language === "de" ? "Der Kulturaustausch" : "El Intercambio Cultural",
+      category: "connection",
+      agentSlug: "vyva",
+      agentFullName: "VYVA Conecta",
+      agentColour: "#5B21B6",
+      agentCredential:
+        language === "en"
+          ? "Matching by interests"
+          : language === "de"
+            ? "Matching nach Interessen"
+            : "Matching por intereses",
+      ctaLabel: language === "en" ? "Share culture" : language === "de" ? "Kultur teilen" : "Compartir cultura",
+      topicTags: ["culture", "heritage"],
+      timeSlots: ["afternoon", "evening"],
+      featured: false,
+      participantCount: 4,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "What tradition would you share first?"
+          : language === "de"
+            ? "Welche Tradition würdest du zuerst teilen?"
+            : "¿Qué tradición compartirías primero?",
+      opener:
+        language === "en"
+          ? "Hello, I’m VYVA. Which tradition from your life would you love to share today?"
+          : language === "de"
+            ? "Hallo, ich bin VYVA. Welche Tradition aus deinem Leben würdest du heute gern teilen?"
+            : "Hola, soy VYVA. ¿Qué tradición de tu vida te gustaría compartir hoy?",
+      quote: "",
+      activityType: "story",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "A cultural memory prompt"
+          : language === "de"
+            ? "Ein kultureller Erinnerungsimpuls"
+            : "Una invitación a compartir cultura",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
+    },
   };
 
   const room = roomMap[slug];
