@@ -120,12 +120,21 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
   const phoneNumberId = readEnv(["ELEVENLABS_OUTBOUND_PHONE_NUMBER_ID", "ELEVENLABS_CONCIERGE_PHONE_NUMBER_ID", "ELEVENLABS_AGENT_PHONE_NUMBER_ID"]);
 
   if (!apiKey || !agentId || !phoneNumberId) {
+    const missingConfig = [
+      !apiKey ? "ELEVENLABS_API_KEY" : null,
+      !agentId ? "ELEVENLABS_OUTBOUND_AGENT_ID" : null,
+      !phoneNumberId ? "ELEVENLABS_OUTBOUND_PHONE_NUMBER_ID" : null,
+    ].filter(Boolean);
+
     await restRequest(
       "PATCH",
       `concierge_pending?id=${encodeFilter(pendingId)}`,
       { body: { status: "failed", updated_at: new Date().toISOString() } },
     );
-    return jsonResponse({ error: "ElevenLabs outbound call configuration is missing" }, 500);
+    return jsonResponse({
+      error: "ElevenLabs outbound call configuration is missing",
+      missing_config: missingConfig,
+    }, 500);
   }
 
   const elevenLabsRes = await fetch("https://api.elevenlabs.io/v1/convai/twilio/outbound-call", {
@@ -165,4 +174,3 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
       : "Calling now. I will tell you what they say shortly.",
   });
 }));
-
