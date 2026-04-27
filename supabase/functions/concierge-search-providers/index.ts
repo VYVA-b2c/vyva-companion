@@ -25,6 +25,7 @@ interface PlacesTextResult {
 
 interface PlacesTextResponse {
   results?: PlacesTextResult[];
+  status?: string;
 }
 
 interface PlaceDetailsResponse {
@@ -56,6 +57,13 @@ const CATEGORY_KEYWORDS: Record<string, string> = {
   other: "servicio local",
 };
 
+function addressSearchParts(address: string): string[] {
+  const parts = address.split(",").map((part) => part.trim()).filter(Boolean);
+  const postcodeCity = parts.find((part) => /\b\d{5}\b/.test(part));
+  const cityRegion = parts.length >= 3 ? `${parts[1]}, ${parts[2]}` : "";
+  return [postcodeCity, cityRegion, parts.slice(-2).join(", "), address].filter(Boolean);
+}
+
 function resolveLocation(profile: ProfileLocationRow | null) {
   if (profile?.postcode) {
     return {
@@ -84,13 +92,14 @@ function resolveLocation(profile: ProfileLocationRow | null) {
   const address = profile?.address ?? profile?.address_line_1;
   if (address) {
     return {
-      suffix: `near ${address}`,
+      suffix: address,
+      search_parts: addressSearchParts(address),
       location_type: "address",
       location_label: address,
     };
   }
 
-  return { suffix: "", location_type: "none", location_label: "" };
+  return { suffix: "", search_parts: [], location_type: "none", location_label: "" };
 }
 
 Deno.serve((req: Request) => routeTool(req, async (body) => {
@@ -128,11 +137,19 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
   }
 
   const keyword = CATEGORY_KEYWORDS[category] ?? CATEGORY_KEYWORDS.other;
-  const query = `${keyword} ${location.suffix}`;
-  const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeParam(query)}&language=${encodeParam(language)}&key=${encodeParam(googleKey)}`;
-  const placesRes = await fetch(placesUrl);
-  const placesData = await placesRes.json() as PlacesTextResponse;
-  const top3 = (placesData.results ?? []).filter((place) => place.place_id).slice(0, 3);
+  const searchParts = location.search_parts?.length ? location.search_parts : [location.suffix];
+  let top3: PlacesTextResult[] = [];
+  let googleStatus = "";
+
+  for (const part of searchParts) {
+    const query = `${keyword} ${part}`;
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeParam(query)}&language=${encodeParam(language)}&key=${encodeParam(googleKey)}`;
+    const placesRes = await fetch(placesUrl);
+    const placesData = await placesRes.json() as PlacesTextResponse;
+    googleStatus = placesData.status ?? googleStatus;
+    top3 = (placesData.results ?? []).filter((place) => place.place_id).slice(0, 3);
+    if (top3.length > 0) break;
+  }
 
   const results = await Promise.all(top3.map(async (place) => {
     const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeParam(place.place_id!)}&fields=name,formatted_phone_number,formatted_address,url,rating&key=${encodeParam(googleKey)}`;
@@ -155,5 +172,6 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
     location_type: location.location_type,
     location_label: location.location_label,
     count: results.length,
+    provider_search_status: googleStatus,
   });
 }));
