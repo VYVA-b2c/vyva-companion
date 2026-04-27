@@ -56,19 +56,19 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
 
   const profileResult = await restRequest<ProfileRow>(
     "GET",
-    `profiles?select=preferred_name,address_line_1,city,region,postcode,country_code,date_of_birth,language,gp_name,gp_phone,gp_address,gp_place_id,gp_maps_url&id=${encodeFilter(userId)}`,
+    `profiles?select=*&id=${encodeFilter(userId)}`,
     { acceptObject: true, allowEmpty: true },
   );
 
-  if (profileResult.error) {
+  if (profileResult.error && !profileResult.error.includes("\"22P02\"")) {
     return jsonResponse({ error: profileResult.error }, 500);
   }
 
-  const profile = profileResult.data;
+  const profile = profileResult.error ? null : profileResult.data;
 
   const providerResult = await restRequest<ProviderRow>(
     "GET",
-    `user_providers?select=id,name,phone,address,place_id,maps_url,notes&user_id=${encodeFilter(userId)}&category=${encodeFilter(category)}&is_primary=eq.true&is_active=eq.true&limit=1`,
+    `user_providers?select=*&user_id=${encodeFilter(userId)}&category=${encodeFilter(category)}&is_primary=eq.true&is_active=eq.true&limit=1`,
     { acceptObject: true, allowEmpty: true },
   );
 
@@ -129,4 +129,3 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
     location_type: locationType(profile),
   });
 }));
-

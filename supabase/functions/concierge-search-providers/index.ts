@@ -98,15 +98,15 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
 
   const profileResult = await restRequest<ProfileLocationRow>(
     "GET",
-    `profiles?select=postcode,city,region,country_code&id=${encodeFilter(userId)}`,
+    `profiles?select=*&id=${encodeFilter(userId)}`,
     { acceptObject: true, allowEmpty: true },
   );
 
-  if (profileResult.error) {
+  if (profileResult.error && !profileResult.error.includes("\"22P02\"")) {
     return jsonResponse({ error: profileResult.error }, 500);
   }
 
-  const location = resolveLocation(profileResult.data);
+  const location = resolveLocation(profileResult.error ? null : profileResult.data);
   if (location.location_type === "none") {
     return jsonResponse({
       results: [],
@@ -146,4 +146,3 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
     count: results.length,
   });
 }));
-
