@@ -8,13 +8,16 @@ import {
 
 interface ProfileRow {
   preferred_name: string | null;
+  full_name?: string | null;
   address_line_1: string | null;
+  address?: string | null;
   city: string | null;
   region: string | null;
   postcode: string | null;
   country_code: string | null;
   date_of_birth: string | null;
   language: string | null;
+  language_preference?: string | null;
   gp_name: string | null;
   gp_phone: string | null;
   gp_address: string | null;
@@ -42,6 +45,7 @@ function locationType(profile: ProfileRow | null): string {
   if (profile?.postcode) return "postcode";
   if (profile?.city && profile?.region) return "city_region";
   if (profile?.city) return "city_country";
+  if (profile?.address) return "address";
   return "none";
 }
 
@@ -111,13 +115,15 @@ Deno.serve((req: Request) => routeTool(req, async (body) => {
     profile: profile
       ? {
           preferred_name: profile.preferred_name,
-          address_line_1: profile.address_line_1,
+          full_name: profile.full_name ?? null,
+          address_line_1: profile.address_line_1 ?? profile.address ?? null,
+          address: profile.address ?? profile.address_line_1 ?? null,
           city: profile.city,
           region: profile.region,
           postcode: profile.postcode,
           country_code: profile.country_code,
           date_of_birth: profile.date_of_birth,
-          language: profile.language ?? "es",
+          language: profile.language ?? profile.language_preference ?? "es",
           gp_name: profile.gp_name,
           gp_phone: profile.gp_phone,
           gp_address: profile.gp_address,

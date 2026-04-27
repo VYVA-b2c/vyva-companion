@@ -12,6 +12,8 @@ interface ProfileLocationRow {
   city: string | null;
   region: string | null;
   country_code: string | null;
+  address?: string | null;
+  address_line_1?: string | null;
 }
 
 interface PlacesTextResult {
@@ -76,6 +78,15 @@ function resolveLocation(profile: ProfileLocationRow | null) {
       suffix: `in ${profile.city}, ${profile.country_code ?? "ES"}`,
       location_type: "city_country",
       location_label: profile.city,
+    };
+  }
+
+  const address = profile?.address ?? profile?.address_line_1;
+  if (address) {
+    return {
+      suffix: `near ${address}`,
+      location_type: "address",
+      location_label: address,
     };
   }
 
