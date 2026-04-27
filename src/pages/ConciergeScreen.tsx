@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Send, Loader2, Car, Calendar, Search, Tag, Lightbulb, RefreshCw, Plus, Sparkles, Home, ShieldCheck } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Send, Loader2, Car, Calendar, Search, Tag, Lightbulb, RefreshCw, Plus, Sparkles, Home, ShieldCheck, PhoneCall, CircleCheck, CircleX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import VoiceHero from "@/components/VoiceHero";
+import { apiFetch } from "@/lib/queryClient";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -22,6 +24,32 @@ interface RecommendationCard {
   category: "deal" | "event" | "tip" | "activity";
   emoji: string;
 }
+
+interface ConciergePendingItem {
+  id: string;
+  use_case: string;
+  provider_name: string | null;
+  provider_phone: string | null;
+  action_summary: string;
+  action_payload: Record<string, unknown> | null;
+  status: "pending" | "calling" | "completed" | "failed" | "cancelled";
+  language: string;
+  confirmed_at?: string | null;
+  expires_at?: string | null;
+}
+
+interface ConciergeSessionItem {
+  id: string;
+  pending_id: string | null;
+  use_case: string;
+  provider_name: string | null;
+  outcome: string;
+  outcome_payload: Record<string, unknown> | null;
+  outcome_summary: string | null;
+  completed_at?: string | null;
+}
+
+type ConciergeActionListResponse<T> = { items?: T[] };
 
 const RECS_CACHE_BASE = "vyva_concierge_recs";
 const RECS_DATE_BASE = "vyva_concierge_recs_date";
@@ -92,9 +120,87 @@ async function fetchRecommendations(locale: string): Promise<RecommendationCard[
   return data.recommendations ?? [];
 }
 
+async function fetchPendingActions(): Promise<ConciergePendingItem[]> {
+  const res = await apiFetch("/api/concierge/actions/pending");
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  const data = (await res.json()) as ConciergeActionListResponse<ConciergePendingItem>;
+  return data.items ?? [];
+}
+
+async function fetchRecentSessions(): Promise<ConciergeSessionItem[]> {
+  const res = await apiFetch("/api/concierge/actions/sessions");
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  const data = (await res.json()) as ConciergeActionListResponse<ConciergeSessionItem>;
+  return data.items ?? [];
+}
+
+async function confirmPendingAction(id: string) {
+  const res = await apiFetch(`/api/concierge/actions/${id}/confirm`, { method: "POST" });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? "Failed to confirm concierge action");
+  }
+}
+
+async function cancelPendingAction(id: string) {
+  const res = await apiFetch(`/api/concierge/actions/${id}/cancel`, { method: "POST" });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? "Failed to cancel concierge action");
+  }
+}
+
+function statusLabel(status: ConciergePendingItem["status"]): string {
+  switch (status) {
+    case "pending":
+      return "Awaiting confirmation";
+    case "calling":
+      return "Calling now";
+    case "completed":
+      return "Completed";
+    case "failed":
+      return "Needs attention";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return status;
+  }
+}
+
+function sessionOutcomeLabel(outcome: string): string {
+  switch (outcome) {
+    case "confirmed":
+      return "Confirmed";
+    case "no_answer":
+      return "No answer";
+    case "cant_fulfil":
+      return "Could not complete";
+    case "user_cancelled":
+      return "Cancelled";
+    case "error":
+      return "Problem";
+    default:
+      return outcome;
+  }
+}
+
+function useCaseLabel(useCase: string): string {
+  switch (useCase) {
+    case "book_ride":
+      return "Ride";
+    case "order_medicine":
+      return "Medicine";
+    case "book_appointment":
+      return "Appointment";
+    default:
+      return useCase.replace(/_/g, " ");
+  }
+}
+
 const ConciergeScreen = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hasRestoredHistory, setHasRestoredHistory] = useState(false);
@@ -110,6 +216,38 @@ const ConciergeScreen = () => {
 
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
+
+  const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
+    queryKey: ["/api/concierge/actions/pending"],
+    queryFn: fetchPendingActions,
+    refetchInterval: 8000,
+  });
+
+  const { data: recentSessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["/api/concierge/actions/sessions"],
+    queryFn: fetchRecentSessions,
+    refetchInterval: 8000,
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: confirmPendingAction,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/concierge/actions/pending"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/concierge/actions/sessions"] }),
+      ]);
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelPendingAction,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/concierge/actions/pending"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/concierge/actions/sessions"] }),
+      ]);
+    },
+  });
 
   // Keep currentLocaleRef in sync every render
   useEffect(() => {
@@ -400,6 +538,158 @@ const ConciergeScreen = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Concierge Actions */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-[10px]">
+          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
+            Concierge actions
+          </h2>
+        </div>
+
+        {pendingLoading ? (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 size={16} className="animate-spin text-vyva-purple" />
+            <span className="font-body text-[13px] text-vyva-text-2">Loading your actions…</span>
+          </div>
+        ) : pendingActions.length === 0 ? (
+          <div
+            className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
+            style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+          >
+            <p className="font-body text-[14px] text-vyva-text-1">
+              Confirmed concierge requests will appear here with the provider, what VYVA is doing, and the result.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingActions.map((item) => {
+              const isPending = item.status === "pending";
+              const isCalling = item.status === "calling";
+              const busy = confirmMutation.isPending || cancelMutation.isPending;
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
+                  style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
+                        {useCaseLabel(item.use_case)}
+                      </p>
+                      <p className="font-body text-[16px] font-semibold text-vyva-text-1">
+                        {item.provider_name || "Selected provider"}
+                      </p>
+                    </div>
+                    <span
+                      className="rounded-full px-3 py-1 text-[12px] font-medium"
+                      style={{
+                        background: isCalling ? "#F5F3FF" : "#F3F4F6",
+                        color: isCalling ? "#6B21A8" : "#374151",
+                      }}
+                    >
+                      {statusLabel(item.status)}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 font-body text-[14px] leading-relaxed text-vyva-text-1">
+                    {item.action_summary}
+                  </p>
+
+                  {item.provider_phone && (
+                    <p className="mt-2 font-body text-[13px] text-vyva-text-2">
+                      Provider number: {item.provider_phone}
+                    </p>
+                  )}
+
+                  {isPending && (
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        data-testid={`button-concierge-confirm-${item.id}`}
+                        onClick={() => confirmMutation.mutate(item.id)}
+                        disabled={busy}
+                        className="rounded-full bg-vyva-purple hover:bg-vyva-purple/90"
+                      >
+                        <PhoneCall size={15} className="mr-2" />
+                        Confirm and call
+                      </Button>
+                      <Button
+                        data-testid={`button-concierge-cancel-${item.id}`}
+                        onClick={() => cancelMutation.mutate(item.id)}
+                        disabled={busy}
+                        variant="outline"
+                        className="rounded-full"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Results */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-[10px]">
+          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
+            Recent concierge results
+          </h2>
+        </div>
+
+        {sessionsLoading ? (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 size={16} className="animate-spin text-vyva-purple" />
+            <span className="font-body text-[13px] text-vyva-text-2">Loading recent results…</span>
+          </div>
+        ) : recentSessions.length === 0 ? (
+          <p className="font-body text-[13px] text-vyva-text-2">
+            Completed concierge actions will show up here once a call finishes.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {recentSessions.slice(0, 5).map((item) => {
+              const success = item.outcome === "confirmed";
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
+                  style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
+                        {useCaseLabel(item.use_case)}
+                      </p>
+                      <p className="font-body text-[16px] font-semibold text-vyva-text-1">
+                        {item.provider_name || "Provider"}
+                      </p>
+                    </div>
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-medium"
+                      style={{
+                        background: success ? "#ECFDF5" : "#FEF2F2",
+                        color: success ? "#0A7C4E" : "#B91C1C",
+                      }}
+                    >
+                      {success ? <CircleCheck size={14} /> : <CircleX size={14} />}
+                      {sessionOutcomeLabel(item.outcome)}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 font-body text-[14px] leading-relaxed text-vyva-text-1">
+                    {item.outcome_summary || "No summary available yet."}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Chat area */}
