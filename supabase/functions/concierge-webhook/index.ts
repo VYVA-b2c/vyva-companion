@@ -37,6 +37,7 @@ type DataCollectionResults = Record<string, DataCollectionField | undefined>;
 type OutcomePayload = Record<string, unknown> & {
   confirmed_time?: string | null;
   eta_minutes?: number | null;
+  fare_estimate?: string | null;
   reference?: string | null;
   delivery_date?: string | null;
   delivery_window?: string | null;
@@ -208,6 +209,7 @@ function buildOutcomePayload(outcome: ConciergeOutcome, results: DataCollectionR
     return {
       confirmed_time: results.confirmed_time?.value ?? null,
       eta_minutes: results.eta_minutes?.value ? Number.parseInt(results.eta_minutes.value, 10) : null,
+      fare_estimate: results.fare_estimate?.value ?? null,
       reference: results.reference?.value ?? null,
       delivery_date: results.delivery_date?.value ?? null,
       delivery_window: results.delivery_window?.value ?? null,
