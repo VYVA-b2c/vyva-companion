@@ -101,6 +101,11 @@ interface RecommendationCandidate {
   actionLabel: Record<"en" | "es", string>;
   actionPrompt: Record<"en" | "es", string>;
   safetyNote: Record<"en" | "es", string>;
+  actionPayload?: {
+    flow: string;
+    needs: string[];
+    searchTerms?: string[];
+  };
   tags: string[];
   physicalDemand: "none" | "low" | "moderate";
   outdoorExposure?: "none" | "some" | "mostly";
@@ -134,6 +139,16 @@ export interface RecommendationCard {
   freshness?: string;
   personal_signals?: string[];
   action_kind?: "chat" | "call" | "booking" | "check" | "plan";
+  action_payload?: {
+    flow: string;
+    needs: string[];
+    search_terms?: string[];
+    title?: string;
+    category?: RecommendationCard["category"];
+    personal_signals?: string[];
+    location_hint?: string;
+    safety_note?: string;
+  };
   location_hint?: string;
   score?: number;
   reason_codes?: string[];
@@ -1078,6 +1093,78 @@ function locationHintFor(ranked: RankedRecommendationCandidate, context: UserPro
   return es ? `Pensado para ${place}.` : `Designed around ${place}.`;
 }
 
+function actionPayloadFor(
+  ranked: RankedRecommendationCandidate,
+  context: UserProfileContext,
+  locale: string,
+): NonNullable<RecommendationCard["action_payload"]> {
+  const candidate = ranked.candidate;
+  const signals = signalLabelsFor(ranked, context, locale);
+  const location = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
+  const defaults: Record<string, { flow: string; needs: string[]; search_terms?: string[] }> = {
+    accessible_local_culture: {
+      flow: "local_accessible_outing",
+      needs: ["nearby_options", "opening_hours", "ticket_price", "accessibility", "transport_options", "booking_or_call_next_step"],
+      search_terms: ["accessible museum", "cultural centre", "senior friendly activity", context.city].filter(Boolean),
+    },
+    local_savings_check: {
+      flow: "local_savings_research",
+      needs: ["nearby_shops", "current_offers", "distance", "validity", "practicality_for_user"],
+      search_terms: ["senior discounts", "pharmacy offers", "supermarket offers", context.city].filter(Boolean),
+    },
+    medication_admin_check: {
+      flow: "medication_admin",
+      needs: ["active_medications", "supply_check", "pharmacy_details", "refill_or_delivery_next_step"],
+      search_terms: ["pharmacy", context.city].filter(Boolean),
+    },
+    trusted_provider_followup: {
+      flow: "repeat_concierge_task",
+      needs: ["recent_task", "saved_provider", "missing_details", "confirmation_summary"],
+    },
+    home_based_hobby: {
+      flow: "guided_home_activity",
+      needs: ["saved_interests", "materials_needed", "short_guided_steps", "low_effort_variant"],
+    },
+    health_admin_next_step: {
+      flow: "health_admin_planning",
+      needs: ["non_clinical_goal", "questions_to_prepare", "provider_or_gp_details", "appointment_or_transport_next_step"],
+    },
+    appointment_transport_prep: {
+      flow: "appointment_transport_prep",
+      needs: ["upcoming_appointment", "pickup_location", "destination", "travel_buffer", "taxi_provider", "confirmation_summary"],
+      search_terms: ["taxi", context.city].filter(Boolean),
+    },
+    weather_comfort_plan: {
+      flow: "weather_comfort_plan",
+      needs: ["weather", "mobility_fit", "indoor_or_nearby_options", "simple_instructions"],
+    },
+    family_check_in: {
+      flow: "social_check_in",
+      needs: ["recipient_choice", "message_draft", "call_or_message_option", "warm_closing"],
+    },
+    scam_guard_check: {
+      flow: "scam_or_paperwork_review",
+      needs: ["content_to_review", "red_flags", "safe_next_steps", "what_not_to_do"],
+    },
+  };
+
+  const base = candidate.actionPayload ?? defaults[candidate.id] ?? {
+    flow: actionKindFor(candidate) ?? "chat",
+    needs: ["context", "practical_steps", "safe_next_step"],
+  };
+
+  return {
+    flow: base.flow,
+    needs: base.needs,
+    search_terms: base.search_terms,
+    title: candidate.title[locale === "es" ? "es" : "en"],
+    category: candidate.category,
+    personal_signals: signals,
+    location_hint: location ? locationHintFor(ranked, context, locale) : "",
+    safety_note: candidate.safetyNote[locale === "es" ? "es" : "en"],
+  };
+}
+
 function candidateToCard(
   ranked: RankedRecommendationCandidate,
   locale: string,
@@ -1102,6 +1189,7 @@ function candidateToCard(
     freshness: freshnessFor(ranked, context, locale),
     personal_signals: signalLabelsFor(ranked, context, locale),
     action_kind: actionKindFor(candidate),
+    action_payload: actionPayloadFor(ranked, context, locale),
     location_hint: locationHintFor(ranked, context, locale),
     score: ranked.score,
     reason_codes: ranked.reasons,
@@ -1182,6 +1270,7 @@ Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have
 - "freshness": a short phrase explaining why it feels timely today
 - "personal_signals": an array of 2-4 short labels showing what context this used
 - "action_kind": one of "chat", "call", "booking", "check", "plan"
+- "action_payload": keep the baseline object's structured action_payload unless you only add clearer wording inside it
 - "location_hint": a short local or home-based hint
 
 Rules:
@@ -1287,6 +1376,9 @@ function sanitiseRecommendation(item: unknown): RecommendationCard | null {
     personal_signals: asStringArray(raw.personal_signals).slice(0, 4),
     action_kind: ["chat", "call", "booking", "check", "plan"].includes(String(raw.action_kind))
       ? raw.action_kind as RecommendationCard["action_kind"]
+      : undefined,
+    action_payload: raw.action_payload && typeof raw.action_payload === "object"
+      ? raw.action_payload as RecommendationCard["action_payload"]
       : undefined,
     location_hint: typeof raw.location_hint === "string" ? raw.location_hint : "",
     score: typeof raw.score === "number" ? raw.score : undefined,
@@ -1419,7 +1511,11 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
       const parsed = JSON.parse(raw) as unknown[];
       if (Array.isArray(parsed)) {
         const cleaned = parsed.map(sanitiseRecommendation).filter(Boolean) as RecommendationCard[];
-        if (cleaned.length > 0) recommendations = cleaned.slice(0, 4);
+        const merged = cleaned.map((card) => {
+          const baseline = deterministicCards.find((item) => item.id && item.id === card.id);
+          return baseline ? { ...baseline, ...card, action_payload: card.action_payload ?? baseline.action_payload } : card;
+        });
+        if (merged.length > 0) recommendations = merged.slice(0, 4);
       }
     } catch {
       console.warn("[concierge/recs] Failed to parse JSON response, using fallback");

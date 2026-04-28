@@ -50,6 +50,16 @@ interface RecommendationCard {
   freshness?: string;
   personal_signals?: string[];
   action_kind?: "chat" | "call" | "booking" | "check" | "plan";
+  action_payload?: {
+    flow?: string;
+    needs?: string[];
+    search_terms?: string[];
+    title?: string;
+    category?: RecommendationCard["category"];
+    personal_signals?: string[];
+    location_hint?: string;
+    safety_note?: string;
+  };
   location_hint?: string;
   score?: number;
   reason_codes?: string[];
@@ -116,6 +126,39 @@ function effortLabel(effort: RecommendationCard["effort"], isSpanish: boolean) {
   if (effort === "low") return isSpanish ? "Suave" : "Gentle";
   if (effort === "medium") return isSpanish ? "Moderado" : "Moderate";
   return "";
+}
+
+function buildRecommendationActionPrompt(card: RecommendationCard, isSpanish: boolean) {
+  const payload = card.action_payload;
+  const needs = payload?.needs?.length ? payload.needs.join(", ") : "";
+  const searchTerms = payload?.search_terms?.length ? payload.search_terms.join(", ") : "";
+  const signals = card.personal_signals?.length ? card.personal_signals.join(", ") : "";
+
+  if (isSpanish) {
+    return [
+      `Quiero que me ayudes con esta recomendacion: "${card.title}".`,
+      `Tipo de accion: ${card.action_kind || "plan"}.`,
+      payload?.flow ? `Flujo: ${payload.flow}.` : "",
+      needs ? `Necesito que cubras: ${needs}.` : "",
+      searchTerms ? `Si hace falta buscar, usa estos terminos: ${searchTerms}.` : "",
+      card.location_hint ? `Contexto local: ${card.location_hint}` : "",
+      signals ? `Personalizalo usando estas senales: ${signals}.` : "",
+      card.safety_note ? `Ten en cuenta esta nota de cuidado: ${card.safety_note}` : "",
+      "Dame el siguiente paso concreto. Si requiere llamar, reservar o confirmar algo, prepara primero un resumen claro y pideme confirmacion.",
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    `Help me with this recommendation: "${card.title}".`,
+    `Action type: ${card.action_kind || "plan"}.`,
+    payload?.flow ? `Flow: ${payload.flow}.` : "",
+    needs ? `Cover these needs: ${needs}.` : "",
+    searchTerms ? `If search is needed, use these terms: ${searchTerms}.` : "",
+    card.location_hint ? `Local context: ${card.location_hint}` : "",
+    signals ? `Personalise it using these signals: ${signals}.` : "",
+    card.safety_note ? `Care note: ${card.safety_note}` : "",
+    "Give me the next concrete step. If it requires a call, booking, or confirmation, prepare a clear summary and ask me to confirm first.",
+  ].filter(Boolean).join("\n");
 }
 
 const QUICK_ACTIONS = [
@@ -456,10 +499,17 @@ const ConciergeScreen = () => {
   }
 
   function handleRecommendationAction(card: RecommendationCard) {
-    const prompt = card.action_prompt || card.description;
+    const prompt = buildRecommendationActionPrompt(card, isSpanish) || card.action_prompt || card.description;
+    const visibleText = isSpanish
+      ? `Ayudame con "${card.title}".`
+      : `Help me with "${card.title}".`;
+    const userMsg: ChatMessage = { role: "user", content: visibleText };
+    const nextHistory = [...messages, userMsg];
     sendRecommendationFeedback(card, "liked").catch(() => undefined);
-    setInput(prompt);
+    setMessages(nextHistory);
+    setInput("");
     setSelectedRec(null);
+    sendMessage(prompt, nextHistory);
   }
 
   function handleOpenRecommendation(card: RecommendationCard) {
