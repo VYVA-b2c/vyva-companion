@@ -40,6 +40,7 @@ import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler } from "./
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
 const PORT = isProduction ? parseInt(process.env.PORT || "5000", 10) : 3001;
+const SERVER_BUILD_ID = "checkins-direct-2026-04-28";
 
 app.use(cors());
 
@@ -99,8 +100,18 @@ app.post("/api/checkins/analyze", authMiddleware, requireUser, analyzeCheckinHan
 app.get("/api/checkins/history", authMiddleware, requireUser, checkinHistoryHandler);
 app.use("/api/checkins", authMiddleware, checkinsRouter);
 
+app.get("/api/debug-runtime", (_req, res) => {
+  res.json({
+    ok: true,
+    build: SERVER_BUILD_ID,
+    cwd: process.cwd(),
+    node_env: process.env.NODE_ENV ?? null,
+    checkins_direct_routes: true,
+  });
+});
+
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, build: SERVER_BUILD_ID });
 });
 
 app.get("/api/config/places-key", (_req, res) => {
