@@ -56,6 +56,7 @@ type SingleOption = {
   label: string;
   helper?: string;
   value?: number;
+  icon?: string;
 };
 
 const STEPS: StepId[] = ["welcome", "energy", "mood", "body", "sleep", "symptoms", "social", "analyzing", "result"];
@@ -71,53 +72,53 @@ const initialAnswers: Answers = {
 };
 
 const energyOptions: SingleOption[] = [
-  { id: "1", value: 1, label: "Sin energía", helper: "Me cuesta empezar el día" },
-  { id: "2", value: 2, label: "Algo cansada", helper: "Voy más lenta de lo normal" },
-  { id: "3", value: 3, label: "Normal", helper: "Como un día corriente" },
-  { id: "4", value: 4, label: "Bastante bien", helper: "Tengo ganas de hacer cosas" },
-  { id: "5", value: 5, label: "Con mucha energía", helper: "Me siento activa y despierta" },
+  { id: "1", value: 1, icon: "🌙", label: "Sin energía", helper: "Me cuesta empezar el día" },
+  { id: "2", value: 2, icon: "☁️", label: "Algo cansada", helper: "Voy más lenta de lo normal" },
+  { id: "3", value: 3, icon: "🌤️", label: "Normal", helper: "Como un día corriente" },
+  { id: "4", value: 4, icon: "☀️", label: "Bastante bien", helper: "Tengo ganas de hacer cosas" },
+  { id: "5", value: 5, icon: "✨", label: "Con mucha energía", helper: "Me siento activa y despierta" },
 ];
 
 const moodOptions: SingleOption[] = [
-  { id: "alegre", label: "Alegre", helper: "Con buen ánimo" },
-  { id: "tranquila", label: "Tranquila", helper: "Serena y estable" },
-  { id: "triste", label: "Triste", helper: "Un poco apagada" },
-  { id: "ansiosa", label: "Inquieta", helper: "Con preocupación o nervios" },
-  { id: "irritable", label: "Irritable", helper: "Con poca paciencia" },
+  { id: "alegre", icon: "😊", label: "Alegre", helper: "Con buen ánimo" },
+  { id: "tranquila", icon: "🌿", label: "Tranquila", helper: "Serena y estable" },
+  { id: "triste", icon: "💧", label: "Triste", helper: "Un poco apagada" },
+  { id: "ansiosa", icon: "🌀", label: "Inquieta", helper: "Con preocupación o nervios" },
+  { id: "irritable", icon: "⚡", label: "Irritable", helper: "Con poca paciencia" },
 ];
 
 const bodyOptions: SingleOption[] = [
-  { id: "cabeza", label: "Cabeza" },
-  { id: "pecho", label: "Pecho" },
-  { id: "estomago", label: "Estómago" },
-  { id: "espalda", label: "Espalda" },
-  { id: "articulaciones", label: "Articulaciones" },
-  { id: "piernas", label: "Piernas" },
-  { id: "ninguno", label: "Nada especial" },
+  { id: "cabeza", icon: "🧠", label: "Cabeza" },
+  { id: "pecho", icon: "💛", label: "Pecho" },
+  { id: "estomago", icon: "🍵", label: "Estómago" },
+  { id: "espalda", icon: "🪑", label: "Espalda" },
+  { id: "articulaciones", icon: "🦴", label: "Articulaciones" },
+  { id: "piernas", icon: "🦵", label: "Piernas" },
+  { id: "ninguno", icon: "👌", label: "Nada especial" },
 ];
 
 const sleepOptions: SingleOption[] = [
-  { id: "muy_bien", label: "Muy bien", helper: "Dormí seguido y descansé" },
-  { id: "bien", label: "Bien", helper: "Dormí lo suficiente" },
-  { id: "regular", label: "Regular", helper: "Me desperté varias veces" },
-  { id: "mal", label: "Mal", helper: "Dormí poco" },
-  { id: "muy_mal", label: "Muy mal", helper: "Casi no descansé" },
+  { id: "muy_bien", icon: "🌅", label: "Muy bien", helper: "Dormí seguido y descansé" },
+  { id: "bien", icon: "🌙", label: "Bien", helper: "Dormí lo suficiente" },
+  { id: "regular", icon: "☕", label: "Regular", helper: "Me desperté varias veces" },
+  { id: "mal", icon: "🌧️", label: "Mal", helper: "Dormí poco" },
+  { id: "muy_mal", icon: "🛌", label: "Muy mal", helper: "Casi no descansé" },
 ];
 
 const symptomOptions: SingleOption[] = [
-  { id: "dolor_cabeza", label: "Dolor de cabeza" },
-  { id: "mareo", label: "Mareo" },
-  { id: "nauseas", label: "Náuseas" },
-  { id: "fiebre", label: "Sensación de fiebre" },
-  { id: "falta_aire", label: "Me falta el aire" },
-  { id: "confusion", label: "Me siento confundida" },
-  { id: "ninguno", label: "Ninguno de estos" },
+  { id: "dolor_cabeza", icon: "🤕", label: "Dolor de cabeza" },
+  { id: "mareo", icon: "🌀", label: "Mareo" },
+  { id: "nauseas", icon: "🍵", label: "Náuseas" },
+  { id: "fiebre", icon: "🌡️", label: "Sensación de fiebre" },
+  { id: "falta_aire", icon: "🫁", label: "Me falta el aire" },
+  { id: "confusion", icon: "❔", label: "Me siento confundida" },
+  { id: "ninguno", icon: "👌", label: "Ninguno de estos" },
 ];
 
 const socialOptions: SingleOption[] = [
-  { id: "mucho", label: "Sí, bastante", helper: "He hablado o estaré con gente" },
-  { id: "algo", label: "Un poco", helper: "Algún mensaje o llamada" },
-  { id: "no", label: "No mucho", helper: "Hoy estoy más sola" },
+  { id: "mucho", icon: "🤝", label: "Sí, bastante", helper: "He hablado o estaré con gente" },
+  { id: "algo", icon: "💬", label: "Un poco", helper: "Algún mensaje o llamada" },
+  { id: "no", icon: "🕯️", label: "No mucho", helper: "Hoy estoy más sola" },
 ];
 
 function progressFor(step: StepId) {
@@ -369,6 +370,21 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
   return actions.slice(0, 3);
 }
 
+function resultVisualFor(state: CheckinResult["overall_state"]) {
+  switch (state) {
+    case "excellent":
+      return { icon: "✨", labelBg: "#FFFBEB", labelText: "#78350F" };
+    case "good":
+      return { icon: "🌤️", labelBg: "#ECFDF5", labelText: "#0A7C4E" };
+    case "tired":
+      return { icon: "🌙", labelBg: "#F5F3FF", labelText: "#6B21A8" };
+    case "low":
+      return { icon: "💙", labelBg: "#EFF6FF", labelText: "#1D4ED8" };
+    default:
+      return { icon: "💜", labelBg: "#F5F3FF", labelText: "#6B21A8" };
+  }
+}
+
 const CheckHowIFeelScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -382,6 +398,7 @@ const CheckHowIFeelScreen = () => {
   const stepIndex = STEPS.indexOf(step);
   const canGoBack = stepIndex > 0 && step !== "analyzing" && step !== "result";
   const appActions = result ? appActionsFor(answers, result) : [];
+  const resultVisual = result ? resultVisualFor(result.overall_state) : null;
 
   const loadingMessage = useMemo(() => {
     const messages = [
@@ -468,68 +485,81 @@ const CheckHowIFeelScreen = () => {
   };
 
   return (
-    <div className="vyva-page">
-      <div className="mb-4 flex items-center justify-between">
-        <button
-          onClick={goBack}
-          className="vyva-tap flex min-h-[52px] items-center gap-2 rounded-full bg-white px-4 font-body text-[16px] font-semibold text-vyva-text-1 shadow-sm"
-        >
-          <ArrowLeft size={19} />
-          Atrás
-        </button>
-        {QUESTION_STEPS.includes(step) && (
-          <span className="rounded-full bg-vyva-purple-light px-4 py-2 font-body text-[14px] font-bold text-vyva-purple">
-            {QUESTION_STEPS.indexOf(step) + 1} de {QUESTION_STEPS.length}
-          </span>
-        )}
-      </div>
-
+    <div className="vyva-page bg-[radial-gradient(circle_at_top_left,#FFF7ED_0%,transparent_34%),linear-gradient(180deg,#FAF7F2_0%,#F6EFE7_100%)]">
       {QUESTION_STEPS.includes(step) && (
-        <div className="mb-5 h-2 overflow-hidden rounded-full bg-white">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-vyva-purple to-[#8B5CF6] transition-all duration-300"
-            style={{ width: `${progressFor(step)}%` }}
-          />
+        <div className="mb-4 rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-[0_10px_30px_rgba(63,45,35,0.06)] backdrop-blur">
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              onClick={goBack}
+              className="vyva-tap flex min-h-[50px] items-center gap-2 rounded-full bg-[#F5EFE7] px-4 font-body text-[16px] font-semibold text-vyva-text-1"
+            >
+              <ArrowLeft size={19} />
+              Atrás
+            </button>
+            <span className="rounded-full bg-vyva-purple-light px-4 py-2 font-body text-[14px] font-bold text-vyva-purple shadow-sm">
+              {QUESTION_STEPS.indexOf(step) + 1} de {QUESTION_STEPS.length}
+            </span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-[#EDE4DA]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-vyva-purple to-[#8B5CF6] transition-all duration-300"
+              style={{ width: `${progressFor(step)}%` }}
+            />
+          </div>
+          <p className="mt-2 text-right font-body text-[13px] font-semibold text-vyva-text-2">
+            Vamos paso a paso
+          </p>
         </div>
       )}
 
       {step === "welcome" && (
-        <section className="rounded-[32px] border border-vyva-border bg-white p-6 shadow-[0_10px_28px_rgba(63,45,35,0.08)]">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-[22px] bg-vyva-purple-light">
-            <Heart size={34} className="text-vyva-purple" />
+        <section className="overflow-hidden rounded-[36px] border border-white/80 bg-white shadow-[0_16px_44px_rgba(63,45,35,0.10)]">
+          <div className="relative bg-gradient-to-br from-[#FFF7ED] via-[#F5F3FF] to-white p-7 pb-6">
+            <div className="absolute right-[-28px] top-[-34px] h-32 w-32 rounded-full bg-vyva-purple/10" />
+            <div className="absolute bottom-[-46px] right-10 h-24 w-24 rounded-full bg-[#F59E0B]/12" />
+            <div className="relative mb-5 flex h-[76px] w-[76px] items-center justify-center rounded-[28px] bg-white text-[36px] shadow-[0_12px_30px_rgba(107,33,168,0.14)]">
+              💜
+            </div>
+            <p className="relative mb-2 font-body text-[18px] font-semibold text-vyva-text-2">Hola, {name}</p>
+            <h1 className="relative mb-4 font-display text-[38px] leading-tight text-vyva-text-1">
+              Revisemos cómo te sientes hoy.
+            </h1>
+            <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">
+              Seis preguntas sencillas. VYVA las convierte en una lectura útil para tu día.
+            </p>
           </div>
-          <p className="mb-2 font-body text-[18px] font-semibold text-vyva-text-2">Hola, {name}</p>
-          <h1 className="mb-4 font-display text-[34px] leading-tight text-vyva-text-1">
-            Revisemos cómo te sientes hoy.
-          </h1>
-          <p className="mb-5 font-body text-[21px] leading-relaxed text-vyva-text-2">
-            Son seis preguntas sencillas. Al final te daré una lectura cálida y pasos útiles para hoy.
-          </p>
-          <div className="mb-6 grid gap-3">
+          <div className="grid gap-3 p-6">
             {[
-              { Icon: ShieldCheck, text: "Tus respuestas son privadas." },
-              { Icon: Sparkles, text: "La lectura se adapta a tu perfil." },
-              { Icon: Sun, text: "No es un diagnóstico, es una guía de bienestar." },
-            ].map(({ Icon, text }) => (
-              <div key={text} className="flex min-h-[70px] items-center gap-3 rounded-[22px] bg-[#FAF9F6] px-4">
-                <Icon size={25} className="text-vyva-purple" />
-                <span className="font-body text-[18px] text-vyva-text-1">{text}</span>
+              { Icon: ShieldCheck, title: "Privado", text: "Tus respuestas se tratan con cuidado." },
+              { Icon: Sparkles, title: "Personal", text: "Usa tu perfil para adaptar las ideas." },
+              { Icon: Sun, title: "Suave", text: "No es un diagnóstico, es una guía de bienestar." },
+            ].map(({ Icon, title, text }) => (
+              <div key={text} className="flex min-h-[82px] items-center gap-4 rounded-[24px] bg-[#FAF9F6] px-4">
+                <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-vyva-purple-light">
+                  <Icon size={25} className="text-vyva-purple" />
+                </span>
+                <span>
+                  <span className="block font-body text-[18px] font-bold text-vyva-text-1">{title}</span>
+                  <span className="block font-body text-[17px] leading-snug text-vyva-text-2">{text}</span>
+                </span>
               </div>
             ))}
           </div>
-          <button
-            onClick={() => setStep("energy")}
-            className="vyva-primary-action min-h-[74px] w-full text-[21px]"
-            data-testid="button-checkin-start"
-          >
-            Empezar ahora
-          </button>
-          <button
-            onClick={abandonAndExit}
-            className="vyva-tap mt-3 min-h-[60px] w-full rounded-full font-body text-[18px] font-semibold text-vyva-text-2"
-          >
-            Ahora no
-          </button>
+          <div className="px-6 pb-6">
+            <button
+              onClick={() => setStep("energy")}
+              className="vyva-primary-action min-h-[74px] w-full text-[21px]"
+              data-testid="button-checkin-start"
+            >
+              Empezar ahora
+            </button>
+            <button
+              onClick={abandonAndExit}
+              className="vyva-tap mt-3 min-h-[60px] w-full rounded-full font-body text-[18px] font-semibold text-vyva-text-2"
+            >
+              Ahora no
+            </button>
+          </div>
         </section>
       )}
 
@@ -608,31 +638,42 @@ const CheckHowIFeelScreen = () => {
       )}
 
       {step === "analyzing" && (
-        <section className="flex min-h-[520px] flex-col items-center justify-center rounded-[32px] border border-vyva-border bg-white p-8 text-center">
-          <Loader2 size={54} className="mb-5 animate-spin text-vyva-purple" />
+        <section className="flex min-h-[520px] flex-col items-center justify-center overflow-hidden rounded-[36px] border border-white/80 bg-gradient-to-br from-white via-[#F5F3FF] to-[#FFF7ED] p-8 text-center shadow-[0_16px_44px_rgba(63,45,35,0.10)]">
+          <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-[34px] bg-white shadow-[0_12px_30px_rgba(107,33,168,0.14)]">
+            <Loader2 size={54} className="animate-spin text-vyva-purple" />
+          </div>
           <h1 className="mb-3 font-display text-[32px] text-vyva-text-1">Un momento, {name}</h1>
           <p className="font-body text-[21px] leading-relaxed text-vyva-text-2">{loadingMessage}</p>
         </section>
       )}
 
-      {step === "result" && result && (
-        <section className="rounded-[32px] border border-vyva-border bg-white p-6 shadow-[0_10px_28px_rgba(63,45,35,0.08)]">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#FFFBEB]">
-            <Sparkles size={34} className="text-[#B45309]" />
+      {step === "result" && result && resultVisual && (
+        <section className="overflow-hidden rounded-[36px] border border-white/80 bg-white shadow-[0_16px_44px_rgba(63,45,35,0.10)]">
+          <div className="relative bg-gradient-to-br from-[#FFF7ED] via-[#F5F3FF] to-white p-7 pb-6">
+            <div className="absolute right-[-30px] top-[-42px] h-36 w-36 rounded-full bg-vyva-purple/10" />
+            <div className="absolute bottom-[-48px] left-10 h-24 w-24 rounded-full bg-[#F59E0B]/12" />
+            <div className="relative mb-5 flex h-[78px] w-[78px] items-center justify-center rounded-[28px] bg-white text-[38px] shadow-[0_12px_30px_rgba(107,33,168,0.14)]">
+              {resultVisual.icon}
+            </div>
+            <p className="relative mb-3 inline-flex rounded-full px-4 py-2 font-body text-[14px] font-bold uppercase tracking-[0.14em]" style={{ background: resultVisual.labelBg, color: resultVisual.labelText }}>
+              Tu lectura de hoy
+            </p>
+            <h1 className="relative mb-4 font-display text-[38px] leading-tight text-vyva-text-1">{result.feeling_label}</h1>
+            <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">{result.vyva_reading}</p>
           </div>
-          <p className="mb-2 font-body text-[16px] font-bold uppercase tracking-[0.16em] text-vyva-purple">
-            Tu lectura de hoy
-          </p>
-          <h1 className="mb-4 font-display text-[34px] leading-tight text-vyva-text-1">{result.feeling_label}</h1>
-          <p className="mb-5 font-body text-[21px] leading-relaxed text-vyva-text-2">{result.vyva_reading}</p>
-          <div className="mb-5 rounded-[24px] bg-vyva-purple-light p-5">
-            <p className="mb-1 font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">Lo importante</p>
-            <p className="font-body text-[20px] font-semibold text-vyva-text-1">{result.highlight}</p>
+          <div className="p-6">
+          <div className="mb-5 flex gap-4 rounded-[26px] bg-vyva-purple-light p-5">
+            <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-[24px]">💡</span>
+            <span>
+              <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">Lo importante</span>
+              <span className="block font-body text-[20px] font-semibold leading-relaxed text-vyva-text-1">{result.highlight}</span>
+            </span>
           </div>
-          <ResultList title="Ahora mismo" items={result.right_now} />
-          <ResultList title="Para hoy" items={result.today_actions} />
+          <ResultList title="Ahora mismo" icon="⚡" items={result.right_now} />
+          <ResultList title="Para hoy" icon="☀️" items={result.today_actions} />
           {result.watch_for && (
-            <div className="mt-4 rounded-[24px] border border-[#F59E0B]/30 bg-[#FFFBEB] p-5">
+            <div className="mt-4 flex gap-3 rounded-[24px] border border-[#F59E0B]/30 bg-[#FFFBEB] p-5">
+              <span className="text-[24px]">🔎</span>
               <p className="font-body text-[18px] leading-relaxed text-[#78350F]">{result.watch_for}</p>
             </div>
           )}
@@ -662,6 +703,7 @@ const CheckHowIFeelScreen = () => {
               Repetir check-in
             </button>
           </div>
+          </div>
         </section>
       )}
     </div>
@@ -680,13 +722,16 @@ function QuestionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[32px] border border-vyva-border bg-white p-5 shadow-[0_10px_28px_rgba(63,45,35,0.08)]">
-      <div className="mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-[22px] bg-vyva-purple-light text-vyva-purple">
-        {icon}
+    <section className="overflow-hidden rounded-[36px] border border-white/80 bg-white shadow-[0_16px_44px_rgba(63,45,35,0.10)]">
+      <div className="relative bg-gradient-to-br from-[#F5F3FF] via-white to-[#FFF7ED] p-6 pb-5">
+        <div className="absolute right-[-36px] top-[-42px] h-32 w-32 rounded-full bg-vyva-purple/10" />
+        <div className="relative mb-4 flex h-[68px] w-[68px] items-center justify-center rounded-[24px] bg-white text-vyva-purple shadow-[0_10px_26px_rgba(107,33,168,0.14)]">
+          {icon}
+        </div>
+        <h1 className="relative mb-2 font-display text-[34px] leading-tight text-vyva-text-1">{title}</h1>
+        <p className="relative font-body text-[20px] leading-relaxed text-vyva-text-2">{subtitle}</p>
       </div>
-      <h1 className="mb-2 font-display text-[32px] leading-tight text-vyva-text-1">{title}</h1>
-      <p className="mb-5 font-body text-[20px] leading-relaxed text-vyva-text-2">{subtitle}</p>
-      {children}
+      <div className="p-5 pt-4">{children}</div>
     </section>
   );
 }
@@ -712,21 +757,32 @@ function OptionList({
           <button
             key={option.id}
             onClick={() => onSelect(option)}
-            className={`vyva-tap flex min-h-[74px] items-center justify-between gap-3 rounded-[22px] border px-4 py-3 text-left transition-all ${
-              isSelected ? "border-vyva-purple bg-vyva-purple text-white" : "border-vyva-border bg-[#FAF9F6] text-vyva-text-1"
+            className={`vyva-tap flex min-h-[86px] items-center justify-between gap-4 rounded-[24px] border px-4 py-3 text-left transition-all ${
+              isSelected
+                ? "border-vyva-purple bg-gradient-to-r from-vyva-purple to-[#8B5CF6] text-white shadow-[0_10px_26px_rgba(107,33,168,0.22)]"
+                : "border-vyva-border bg-[#FAF9F6] text-vyva-text-1 shadow-[0_4px_14px_rgba(63,45,35,0.04)]"
             }`}
           >
-            <span>
+            <span className="flex min-w-0 flex-1 items-center gap-4">
+              <span
+                className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[19px] text-[27px] ${
+                  isSelected ? "bg-white/18" : "bg-white"
+                }`}
+              >
+                {option.icon ?? "•"}
+              </span>
+              <span className="min-w-0">
               <span className="block font-body text-[21px] font-bold leading-tight">{option.label}</span>
               {option.helper && (
                 <span className={`mt-1 block font-body text-[16px] leading-snug ${isSelected ? "text-white/85" : "text-vyva-text-2"}`}>
                   {option.helper}
                 </span>
               )}
+              </span>
             </span>
             <span
-              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                isSelected ? "bg-[#F59E0B]" : "border-2 border-vyva-border bg-white"
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+                isSelected ? "bg-[#F59E0B] shadow-sm" : "border-2 border-vyva-border bg-white"
               }`}
             >
               {isSelected && <Check size={19} className="text-white" />}
@@ -750,14 +806,17 @@ function NextButton({ disabled, onClick }: { disabled: boolean; onClick: () => v
   );
 }
 
-function ResultList({ title, items }: { title: string; items: string[] }) {
+function ResultList({ title, icon, items }: { title: string; icon: string; items: string[] }) {
   return (
-    <div className="mt-4 rounded-[24px] border border-vyva-border bg-[#FAF9F6] p-5">
-      <p className="mb-3 font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-text-2">{title}</p>
+    <div className="mt-4 rounded-[26px] border border-vyva-border bg-[#FAF9F6] p-5 shadow-[0_4px_16px_rgba(63,45,35,0.04)]">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white text-[22px]">{icon}</span>
+        <p className="font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-text-2">{title}</p>
+      </div>
       <div className="grid gap-3">
         {items.slice(0, 3).map((item) => (
-          <div key={item} className="flex gap-3">
-            <span className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple text-[14px] font-bold text-white">
+          <div key={item} className="flex gap-3 rounded-[18px] bg-white p-3">
+            <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple text-[14px] font-bold text-white">
               <Check size={16} />
             </span>
             <p className="font-body text-[19px] leading-relaxed text-vyva-text-1">{item}</p>
