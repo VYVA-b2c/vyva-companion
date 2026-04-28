@@ -23,6 +23,8 @@ import {
   BookOpen,
   Bandage,
   Star,
+  Mic,
+  Square,
 } from "lucide-react";
 import VoiceHero from "@/components/VoiceHero";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -63,6 +65,26 @@ type SpecialistRecommendation = {
   providers: SpecialistProvider[];
   nextStep: string;
 };
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
 
 const SEVERITY_COLORS: Record<string, { bg: string; text: string }> = {
   minor:    { bg: "#DCFCE7", text: "#15803D" },
@@ -230,6 +252,7 @@ const HealthScreen = () => {
   const [specialistCondition, setSpecialistCondition] = useState("");
   const [specialistLocation, setSpecialistLocation] = useState("Tarifa, Cadiz");
   const [specialistResult, setSpecialistResult] = useState<SpecialistRecommendation | null>(null);
+  const [specialistVoiceListening, setSpecialistVoiceListening] = useState(false);
   const [historialOpen,    setHistorialOpen]    = useState(false);
   const [expandedScanId,   setExpandedScanId]   = useState<string | null>(null);
   const [fullScreenScan,   setFullScreenScan]   = useState<WoundScan | null>(null);
@@ -237,6 +260,7 @@ const HealthScreen = () => {
   const [woundResult,      setWoundResult]      = useState<null | { severity: string; resultTitle: string; advice: string }>(null);
   const [vyvaExpanded,     setVyvaExpanded]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const specialistRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   const dailyTip = getDailyTip();
 
@@ -260,12 +284,14 @@ const HealthScreen = () => {
   });
 
   const specialistMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (input?: { condition?: string; location?: string }) => {
+      const condition = input?.condition ?? specialistCondition;
+      const location = input?.location ?? specialistLocation;
       const res = await apiFetch("/api/specialists/recommendations", {
         method: "POST",
         body: JSON.stringify({
-          condition: specialistCondition,
-          location: specialistLocation,
+          condition,
+          location,
           language: i18n.language || "es",
           urgency: "routine",
         }),
@@ -279,13 +305,57 @@ const HealthScreen = () => {
     },
   });
 
-  const runSpecialistSearch = () => {
-    if (!specialistCondition.trim()) {
+  const runSpecialistSearch = (condition = specialistCondition) => {
+    const trimmedCondition = condition.trim();
+    if (!trimmedCondition) {
       toast({ description: "Dime la condicion o necesidad para buscar el especialista adecuado." });
       return;
     }
-    specialistMutation.mutate();
+    setSpecialistCondition(trimmedCondition);
+    specialistMutation.mutate({ condition: trimmedCondition, location: specialistLocation });
   };
+
+  const stopSpecialistVoice = () => {
+    specialistRecognitionRef.current?.stop();
+    specialistRecognitionRef.current = null;
+    setSpecialistVoiceListening(false);
+  };
+
+  const startSpecialistVoice = () => {
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast({ description: "Tu navegador no permite dictado por voz aqui. Puedes escribir la condicion." });
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = i18n.language?.startsWith("en") ? "en-US" : i18n.language?.startsWith("de") ? "de-DE" : "es-ES";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim() ?? "";
+      if (transcript) {
+        setSpecialistCondition(transcript);
+        runSpecialistSearch(transcript);
+      }
+    };
+    recognition.onerror = () => {
+      toast({ description: "No he podido escuchar bien. Intentalo de nuevo o escribelo." });
+      setSpecialistVoiceListening(false);
+    };
+    recognition.onend = () => {
+      setSpecialistVoiceListening(false);
+      specialistRecognitionRef.current = null;
+    };
+
+    specialistRecognitionRef.current = recognition;
+    setSpecialistVoiceListening(true);
+    recognition.start();
+  };
+
+  useEffect(() => () => {
+    specialistRecognitionRef.current?.stop();
+  }, []);
 
   const bookSpecialistMutation = useMutation({
     mutationFn: async (provider: SpecialistProvider) => {
@@ -753,6 +823,20 @@ const HealthScreen = () => {
                     ))}
                   </div>
                   <div className="flex flex-col gap-2">
+                    <button
+                      data-testid="button-specialist-voice-search"
+                      onClick={specialistVoiceListening ? stopSpecialistVoice : startSpecialistVoice}
+                      disabled={specialistMutation.isPending}
+                      className={`w-full flex items-center justify-center gap-2 rounded-[16px] px-[14px] py-[12px] font-body text-[14px] font-semibold transition-all active:scale-95 ${specialistVoiceListening ? "mic-pulse-listening" : ""}`}
+                      style={{
+                        background: specialistVoiceListening ? "#ECFDF5" : "#F5F3FF",
+                        color: specialistVoiceListening ? "#0A7C4E" : "#7C3AED",
+                        border: specialistVoiceListening ? "1px solid #6EE7B7" : "1px solid #DDD6FE",
+                      }}
+                    >
+                      {specialistVoiceListening ? <Square size={16} /> : <Mic size={16} />}
+                      {specialistVoiceListening ? "Escuchando..." : "Buscar por voz"}
+                    </button>
                     <input
                       data-testid="input-specialist-condition"
                       value={specialistCondition}
