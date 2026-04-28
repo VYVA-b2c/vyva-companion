@@ -38,8 +38,10 @@ type AiCheckinResult = {
   overall_state: "excellent" | "good" | "moderate" | "tired" | "low";
   vyva_reading: string;
   why_today?: string | null;
+  trend_note?: string | null;
   personal_plan?: string | null;
   app_suggestion?: string | null;
+  suggested_app_action?: "concierge" | "symptom" | "vitals" | "care" | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -88,7 +90,24 @@ type ProfileContext = {
     common_activities: string[];
   };
   recent_triage: Array<{ chief_complaint: string; urgency: string; created_at: string }>;
-  recent_checkins: Array<{ energy_level: number | null; mood: string | null; sleep_quality: string | null; completed_at: string }>;
+  recent_checkins: Array<{
+    energy_level: number | null;
+    mood: string | null;
+    sleep_quality: string | null;
+    symptoms: string[];
+    social_contact: string | null;
+    completed_at: string;
+  }>;
+  trend_summary: {
+    total_recent: number;
+    avg_energy: number | null;
+    energy_direction: "up" | "down" | "steady" | "unknown";
+    repeated_low_energy: number;
+    repeated_poor_sleep: number;
+    repeated_low_mood: number;
+    repeated_no_social: number;
+    recurring_symptoms: string[];
+  };
   medication_adherence: {
     taken_14d: number;
     missed_14d: number;
@@ -151,6 +170,50 @@ function parseConsentRecord(consent: unknown, section: string, key: string): Rec
     Object.entries(value as Record<string, unknown>)
       .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim().length > 0),
   );
+}
+
+function buildTrendSummary(checkins: ProfileContext["recent_checkins"]): ProfileContext["trend_summary"] {
+  const energyValues = checkins
+    .map((row) => row.energy_level)
+    .filter((value): value is number => typeof value === "number");
+  const avgEnergy = energyValues.length
+    ? Math.round((energyValues.reduce((sum, value) => sum + value, 0) / energyValues.length) * 10) / 10
+    : null;
+  const latestEnergy = energyValues[0];
+  const olderEnergy = energyValues.slice(1);
+  const olderAvg = olderEnergy.length
+    ? olderEnergy.reduce((sum, value) => sum + value, 0) / olderEnergy.length
+    : null;
+
+  let energyDirection: ProfileContext["trend_summary"]["energy_direction"] = "unknown";
+  if (typeof latestEnergy === "number" && typeof olderAvg === "number") {
+    if (latestEnergy <= olderAvg - 0.6) energyDirection = "down";
+    else if (latestEnergy >= olderAvg + 0.6) energyDirection = "up";
+    else energyDirection = "steady";
+  }
+
+  const symptomCounts = new Map<string, number>();
+  for (const row of checkins) {
+    for (const symptom of row.symptoms ?? []) {
+      if (symptom === "ninguno") continue;
+      symptomCounts.set(symptom, (symptomCounts.get(symptom) ?? 0) + 1);
+    }
+  }
+
+  return {
+    total_recent: checkins.length,
+    avg_energy: avgEnergy,
+    energy_direction: energyDirection,
+    repeated_low_energy: checkins.filter((row) => (row.energy_level ?? 5) <= 2).length,
+    repeated_poor_sleep: checkins.filter((row) => ["mal", "muy_mal"].includes(row.sleep_quality ?? "")).length,
+    repeated_low_mood: checkins.filter((row) => ["triste", "ansiosa"].includes(row.mood ?? "")).length,
+    repeated_no_social: checkins.filter((row) => row.social_contact === "no").length,
+    recurring_symptoms: Array.from(symptomCounts.entries())
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([symptom]) => symptom)
+      .slice(0, 3),
+  };
 }
 
 async function optionalRows<T = Record<string, unknown>>(sql: string, values: unknown[] = []): Promise<T[]> {
@@ -276,13 +339,15 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
     energy_level: number | null;
     mood: string | null;
     sleep_quality: string | null;
+    symptoms: string[] | null;
+    social_contact: string | null;
     completed_at: Date;
   }>(
-    `select energy_level, mood, sleep_quality, completed_at
+    `select energy_level, mood, sleep_quality, symptoms, social_contact, completed_at
      from checkin_sessions
      where user_id = $1 and completed = true
      order by completed_at desc
-     limit 5`,
+     limit 7`,
     [userId],
   );
 
@@ -313,6 +378,15 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
     },
     { taken_14d: 0, missed_14d: 0 },
   );
+
+  const recentCheckins = checkinRows.map((row) => ({
+    energy_level: row.energy_level,
+    mood: row.mood,
+    sleep_quality: row.sleep_quality,
+    symptoms: row.symptoms ?? [],
+    social_contact: row.social_contact,
+    completed_at: row.completed_at.toISOString(),
+  }));
 
   return {
     name,
@@ -371,12 +445,8 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
       urgency: row.urgency,
       created_at: row.created_at.toISOString(),
     })),
-    recent_checkins: checkinRows.map((row) => ({
-      energy_level: row.energy_level,
-      mood: row.mood,
-      sleep_quality: row.sleep_quality,
-      completed_at: row.completed_at.toISOString(),
-    })),
+    recent_checkins: recentCheckins,
+    trend_summary: buildTrendSummary(recentCheckins),
     medication_adherence: adherenceCounts,
   };
 }
@@ -386,6 +456,10 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
   const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality);
   const lowMood = ["triste", "ansiosa"].includes(answers.mood);
   const hasSymptoms = answers.symptoms.some((s) => s !== "ninguno");
+  const safetySignal =
+    answers.symptoms.includes("falta_aire") ||
+    answers.symptoms.includes("confusion") ||
+    answers.body_areas.includes("pecho");
   const limitedMobility = ["stick_or_frame", "wheelchair_part_time", "wheelchair_full_time", "housebound"]
     .includes(profile.mobility_level ?? "");
   const favouriteQuietActivity =
@@ -399,6 +473,27 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
     overall_state === "good" ? "Un día bastante estable" :
     overall_state === "tired" ? gendered(gender, "Algo cansada hoy", "Algo cansado hoy", "Algo de cansancio hoy") :
     "Un día para cuidarte con calma";
+  const trendSignals = [
+    profile.trend_summary.repeated_low_energy >= 2
+      ? `Has marcado energía baja en ${profile.trend_summary.repeated_low_energy} check-ins recientes.`
+      : null,
+    profile.trend_summary.repeated_poor_sleep >= 2
+      ? `El descanso flojo aparece en ${profile.trend_summary.repeated_poor_sleep} check-ins recientes.`
+      : null,
+    profile.trend_summary.repeated_no_social >= 2
+      ? "También se repite poca compañía, así que conviene añadir un contacto humano sencillo."
+      : null,
+    profile.trend_summary.energy_direction === "down"
+      ? "La energía parece ir algo más baja que en tus últimas lecturas."
+      : profile.trend_summary.energy_direction === "up"
+        ? "La energía parece algo mejor que en tus últimas lecturas."
+        : null,
+  ].filter(Boolean);
+  const suggestedAppAction: AiCheckinResult["suggested_app_action"] =
+    safetySignal ? "care" :
+    hasSymptoms ? "symptom" :
+    lowEnergy || poorSleep ? "vitals" :
+    "concierge";
 
   return {
     feeling_label,
@@ -408,14 +503,20 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
       lowEnergy ? "Tu nivel de energía está bajo, así que hoy pesa más proteger el ritmo." : null,
       poorSleep ? "Dormiste peor de lo habitual, y eso puede hacer que todo cueste un poco más." : null,
       lowMood ? "El ánimo también pide compañía suave y planes sencillos." : null,
-      profile.recent_checkins.length ? "También he tenido en cuenta tus últimos check-ins." : null,
+      profile.trend_summary.total_recent ? "También he tenido en cuenta tus últimos check-ins." : null,
     ].filter(Boolean).join(" ") || "La lectura combina tus respuestas de hoy con tu perfil personal.",
+    trend_note: trendSignals.join(" ") || null,
     personal_plan: limitedMobility
       ? `Hoy te conviene algo cómodo, sentado o de baja movilidad; si te apetece, dedica un rato a ${favouriteQuietActivity}.`
       : "Si te apetece salir, mira Para ti hoy en Concierge para elegir una idea cercana, concreta y fácil de adaptar.",
-    app_suggestion: hasSymptoms
+    app_suggestion: safetySignal
+      ? "El mejor siguiente paso es buscar atención médica si esto continúa o empeora, y avisar a alguien cercano."
+      : hasSymptoms
       ? "El mejor siguiente paso es usar el chequeo de síntomas o tomar signos vitales antes de decidir qué hacer."
-      : "El mejor siguiente paso es mirar Para ti hoy para convertir esta lectura en un plan concreto.",
+      : lowEnergy || poorSleep
+        ? "El mejor siguiente paso es tomar signos vitales si tienes dudas, y después elegir un plan muy suave."
+        : "El mejor siguiente paso es mirar Para ti hoy para convertir esta lectura en un plan concreto.",
+    suggested_app_action: suggestedAppAction,
     right_now: [
       "Bebe un vaso de agua despacio.",
       gendered(gender, "Siéntate cómoda y respira profundo durante un minuto.", "Siéntate cómodo y respira profundo durante un minuto.", "Siéntate en una postura cómoda y respira profundo durante un minuto."),
@@ -460,7 +561,9 @@ Safety and personalization rules:
 - Do not only say "see a doctor". Prefer: "haz el chequeo de síntomas", "toma signos vitales", and "busca atención médica si empeora o parece urgente".
 - Make the result feel like a small personalized report, not a generic wellness paragraph.
 - Explain why this reading fits today, using the user's answers and relevant profile signals.
+- Use trend_summary to mention repeated patterns when they matter. Do not exaggerate one-off signals.
 - Include one concrete plan that fits the user's health profile, location, mobility, interests, and app capabilities.
+- Set suggested_app_action to the single best primary next action: care for urgent warning signs, symptom for symptoms, vitals for dizziness/low energy/breathlessness, concierge for outings/social/helpful plans.
 
 User profile:
 ${JSON.stringify(profile, null, 2)}
@@ -474,8 +577,10 @@ Return ONLY valid JSON with this shape:
   "overall_state": "excellent|good|moderate|tired|low",
   "vyva_reading": "2 short warm sentences",
   "why_today": "why this reading fits today's answers and profile, max 2 sentences",
+  "trend_note": "brief pattern from recent check-ins, or null if there is no useful trend",
   "personal_plan": "a concrete mini-plan adapted to profile, location, mobility and interests, max 2 sentences",
   "app_suggestion": "the best next step inside VYVA, such as Concierge Para ti hoy, symptom check, vitals scan, or medical attention, max 1 sentence",
+  "suggested_app_action": "concierge|symptom|vitals|care",
   "right_now": ["one simple action", "one simple action", "one simple action"],
   "today_actions": ["one useful action for today", "one useful action for today", "one useful action for today"],
   "highlight": "one insight, max 20 words",
@@ -493,8 +598,12 @@ function normalizeAiResult(value: unknown, fallback: AiCheckinResult): AiCheckin
     overall_state: states.includes(raw.overall_state ?? "") ? raw.overall_state! : fallback.overall_state,
     vyva_reading: typeof raw.vyva_reading === "string" ? raw.vyva_reading.slice(0, 700) : fallback.vyva_reading,
     why_today: typeof raw.why_today === "string" ? raw.why_today.slice(0, 360) : fallback.why_today ?? null,
+    trend_note: typeof raw.trend_note === "string" ? raw.trend_note.slice(0, 320) : fallback.trend_note ?? null,
     personal_plan: typeof raw.personal_plan === "string" ? raw.personal_plan.slice(0, 420) : fallback.personal_plan ?? null,
     app_suggestion: typeof raw.app_suggestion === "string" ? raw.app_suggestion.slice(0, 320) : fallback.app_suggestion ?? null,
+    suggested_app_action: ["concierge", "symptom", "vitals", "care"].includes(raw.suggested_app_action ?? "")
+      ? raw.suggested_app_action!
+      : fallback.suggested_app_action ?? null,
     right_now: Array.isArray(raw.right_now) ? raw.right_now.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.right_now,
     today_actions: Array.isArray(raw.today_actions) ? raw.today_actions.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.today_actions,
     highlight: typeof raw.highlight === "string" ? raw.highlight.slice(0, 160) : fallback.highlight,

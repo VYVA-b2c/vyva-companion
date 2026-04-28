@@ -38,8 +38,10 @@ type CheckinResult = {
   overall_state: "excellent" | "good" | "moderate" | "tired" | "low";
   vyva_reading: string;
   why_today?: string | null;
+  trend_note?: string | null;
   personal_plan?: string | null;
   app_suggestion?: string | null;
+  suggested_app_action?: AppAction["key"] | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -157,6 +159,7 @@ const CHECKIN_TEXT = {
     resultKicker: "Tu lectura de hoy",
     important: "Lo importante",
     whyTitle: "Por qué hoy",
+    trendTitle: "Tendencia",
     planTitle: "Plan adaptado",
     suggestionTitle: "Siguiente paso",
     rightNow: "Ahora mismo",
@@ -220,6 +223,7 @@ const CHECKIN_TEXT = {
     resultKicker: "Today’s reading",
     important: "Important",
     whyTitle: "Why today",
+    trendTitle: "Trend",
     planTitle: "Personal plan",
     suggestionTitle: "Next step",
     rightNow: "Right now",
@@ -288,6 +292,7 @@ const CHECKIN_LAUNCH_TEXT = {
     resultKicker: "Deine heutige Einschätzung",
     important: "Wichtig",
     whyTitle: "Warum heute",
+    trendTitle: "Tendenz",
     planTitle: "Persönlicher Plan",
     suggestionTitle: "Nächster Schritt",
     rightNow: "Jetzt gerade",
@@ -352,6 +357,7 @@ const CHECKIN_LAUNCH_TEXT = {
     resultKicker: "Ta lecture du jour",
     important: "Important",
     whyTitle: "Pourquoi aujourd’hui",
+    trendTitle: "Tendance",
     planTitle: "Plan adapté",
     suggestionTitle: "Prochaine étape",
     rightNow: "Maintenant",
@@ -416,6 +422,7 @@ const CHECKIN_LAUNCH_TEXT = {
     resultKicker: "La lettura di oggi",
     important: "Importante",
     whyTitle: "Perché oggi",
+    trendTitle: "Tendenza",
     planTitle: "Piano personale",
     suggestionTitle: "Prossimo passo",
     rightNow: "Adesso",
@@ -480,6 +487,7 @@ const CHECKIN_LAUNCH_TEXT = {
     resultKicker: "A leitura de hoje",
     important: "Importante",
     whyTitle: "Porque hoje",
+    trendTitle: "Tendência",
     planTitle: "Plano adaptado",
     suggestionTitle: "Próximo passo",
     rightNow: "Agora mesmo",
@@ -831,6 +839,10 @@ function enrichLocalResult(result: CheckinResult, answers: Answers, copy: Return
   const hasSymptoms = answers.symptoms.some((item) => item !== "ninguno") || answers.body_areas.some((item) => item !== "ninguno");
   const lowEnergy = (answers.energy_level ?? 3) <= 2;
   const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality ?? "");
+  const safetySignal =
+    answers.symptoms.includes("falta_aire") ||
+    answers.symptoms.includes("confusion") ||
+    answers.body_areas.includes("pecho");
 
   return {
     ...result,
@@ -853,13 +865,20 @@ function enrichLocalResult(result: CheckinResult, answers: Answers, copy: Return
         : "Choose one small action now, and if you feel like going out, use For you today to find something nearby, real, and adapted."
     ),
     app_suggestion: result.app_suggestion ?? (
-      hasSymptoms
+      safetySignal
+        ? (copy === CHECKIN_TEXT.es
+            ? "El siguiente paso más útil es buscar ayuda médica si esto continúa o empeora."
+            : "The most useful next step is to seek medical help if this continues or worsens.")
+        : hasSymptoms
         ? (copy === CHECKIN_TEXT.es
             ? "El siguiente paso más útil es abrir el chequeo de síntomas o tomar signos vitales en VYVA."
             : "The most useful next step is to open the symptom check or take vital signs in VYVA.")
         : (copy === CHECKIN_TEXT.es
             ? "El siguiente paso más útil es mirar Para ti hoy en Concierge."
             : "The most useful next step is to look at For you today in Concierge.")
+    ),
+    suggested_app_action: result.suggested_app_action ?? (
+      safetySignal ? "care" : hasSymptoms ? "symptom" : lowEnergy || poorSleep ? "vitals" : "concierge"
     ),
   };
 }
@@ -929,44 +948,69 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
     !["pecho", "falta_aire", "mareo", "confusion"].some(hasSymptom);
 
   const actions: AppAction[] = [];
+  const defaultAction = (key: AppAction["key"], primary = false): AppAction => {
+    switch (key) {
+      case "care":
+        return {
+          key,
+          title: "Buscar atención médica",
+          description: "Si empeora, hay dolor en el pecho, falta de aire o confusión, no esperes.",
+          to: "/health",
+          primary,
+        };
+      case "symptom":
+        return {
+          key,
+          title: "Hacer chequeo de síntomas",
+          description: "VYVA te guía con preguntas claras y te ayuda a decidir el siguiente paso.",
+          to: "/health/symptom-check",
+          primary,
+        };
+      case "vitals":
+        return {
+          key,
+          title: "Tomar signos vitales",
+          description: "Haz un escaneo rápido para registrar pulso y respiración antes de decidir.",
+          to: "/health/vitals",
+          primary,
+        };
+      default:
+        return {
+          key: "concierge",
+          title: "Ver Para ti hoy",
+          description: "Encuentra una salida o idea cercana, adaptada a tu energía y movilidad.",
+          to: "/concierge",
+          primary,
+        };
+    }
+  };
 
   if (safetySignal) {
-    actions.push({
-      key: "care",
-      title: "Buscar atención médica",
-      description: "Si empeora, hay dolor en el pecho, falta de aire o confusión, no esperes.",
-      to: "/health",
-      primary: true,
-    });
+    actions.push(defaultAction("care", true));
   }
 
   if (symptomSignal || result.watch_for) {
-    actions.push({
-      key: "symptom",
-      title: "Hacer chequeo de síntomas",
-      description: "VYVA te guía con preguntas claras y te ayuda a decidir el siguiente paso.",
-      to: "/health/symptom-check",
-      primary: !safetySignal,
-    });
+    actions.push(defaultAction("symptom", !safetySignal));
   }
 
   if (hasSymptom("mareo") || hasSymptom("falta_aire") || hasSymptom("pecho") || (answers.energy_level ?? 3) <= 2) {
-    actions.push({
-      key: "vitals",
-      title: "Tomar signos vitales",
-      description: "Haz un escaneo rápido para registrar pulso y respiración antes de decidir.",
-      to: "/health/vitals",
-    });
+    actions.push(defaultAction("vitals"));
   }
 
   if (outingFriendly || actions.length === 0) {
-    actions.push({
-      key: "concierge",
-      title: "Ver Para ti hoy",
-      description: "Encuentra una salida o idea cercana, adaptada a tu energía y movilidad.",
-      to: "/concierge",
-      primary: actions.length === 0,
-    });
+    actions.push(defaultAction("concierge", actions.length === 0));
+  }
+
+  const preferred = result.suggested_app_action;
+  if (preferred && !actions.some((action) => action.key === preferred)) {
+    actions.unshift(defaultAction(preferred, true));
+  }
+
+  if (preferred) {
+    return actions
+      .map((action) => ({ ...action, primary: action.key === preferred }))
+      .sort((a, b) => Number(b.key === preferred) - Number(a.key === preferred))
+      .slice(0, 3);
   }
 
   return actions.slice(0, 3);
@@ -1009,6 +1053,7 @@ function shareTextFor(name: string, result: CheckinResult, copy: ReturnType<type
     "",
     `${copy.important}: ${result.highlight}`,
     result.why_today ? `${copy.whyTitle}: ${result.why_today}` : "",
+    result.trend_note ? `${copy.trendTitle}: ${result.trend_note}` : "",
     result.personal_plan ? `${copy.planTitle}: ${result.personal_plan}` : "",
     result.app_suggestion ? `${copy.suggestionTitle}: ${result.app_suggestion}` : "",
     "",
@@ -1329,10 +1374,13 @@ const CheckHowIFeelScreen = () => {
               <span className="block font-body text-[20px] font-semibold leading-relaxed text-vyva-text-1">{result.highlight}</span>
             </span>
           </div>
-          {(result.why_today || result.personal_plan || result.app_suggestion) && (
+          {(result.why_today || result.trend_note || result.personal_plan || result.app_suggestion) && (
             <div className="mb-5 grid gap-3">
               {result.why_today && (
                 <InsightCard title={copy.whyTitle} icon="🔍" text={result.why_today} tone="lavender" />
+              )}
+              {result.trend_note && (
+                <InsightCard title={copy.trendTitle} icon="📈" text={result.trend_note} tone="sky" />
               )}
               {result.personal_plan && (
                 <InsightCard title={copy.planTitle} icon="🧭" text={result.personal_plan} tone="mint" />
@@ -1513,11 +1561,13 @@ function InsightCard({
   title: string;
   icon: string;
   text: string;
-  tone: "lavender" | "mint" | "cream";
+  tone: "lavender" | "mint" | "cream" | "sky";
 }) {
   const toneClass =
     tone === "mint"
       ? "border-[#BBF7D0] bg-[#ECFDF5]"
+      : tone === "sky"
+        ? "border-[#BAE6FD] bg-[#F0F9FF]"
       : tone === "cream"
         ? "border-[#FED7AA] bg-[#FFF7ED]"
         : "border-[#DDD6FE] bg-[#F5F3FF]";
