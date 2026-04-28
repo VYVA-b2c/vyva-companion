@@ -39,6 +39,30 @@ type WoundScan = {
   scanned_at: string;
 };
 
+type SpecialistProvider = {
+  name: string;
+  specialty: string;
+  clinicName?: string;
+  phone?: string | null;
+  address?: string;
+  bookingUrl?: string | null;
+  sourceName: string;
+  reviewScore?: number | null;
+  reviewCount?: number | null;
+  distanceLabel?: string | null;
+  availabilityText?: string | null;
+  rationale: string;
+  score: number;
+};
+
+type SpecialistRecommendation = {
+  condition: string;
+  matchedSpecialties: string[];
+  safetyNote: string;
+  providers: SpecialistProvider[];
+  nextStep: string;
+};
+
 const SEVERITY_COLORS: Record<string, { bg: string; text: string }> = {
   minor:    { bg: "#DCFCE7", text: "#15803D" },
   moderate: { bg: "#FEF9C3", text: "#A16207" },
@@ -70,6 +94,7 @@ const MOCK_SPECIALISTS: Record<string, { name: string; rating: number; waitN: nu
   ],
 };
 const SPECIALTIES = Object.keys(MOCK_SPECIALISTS);
+const SPECIALIST_EXAMPLES = ["dolor de rodilla", "problemas de memoria", "diabetes", "mancha en la piel"];
 
 const DAILY_TIPS = [
   { emoji: "💧", badge: "Hidratación",  tip: "Bebe un vaso de agua ahora mismo. Tu cuerpo lo agradece y tu energía mejora." },
@@ -179,6 +204,9 @@ const HealthScreen = () => {
   const [seeDoctorOpen,    setSeeDoctorOpen]    = useState(false);
   const [specialistOpen,   setSpecialistOpen]   = useState(false);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
+  const [specialistCondition, setSpecialistCondition] = useState("");
+  const [specialistLocation, setSpecialistLocation] = useState("Tarifa, Cadiz");
+  const [specialistResult, setSpecialistResult] = useState<SpecialistRecommendation | null>(null);
   const [historialOpen,    setHistorialOpen]    = useState(false);
   const [expandedScanId,   setExpandedScanId]   = useState<string | null>(null);
   const [fullScreenScan,   setFullScreenScan]   = useState<WoundScan | null>(null);
@@ -207,6 +235,34 @@ const HealthScreen = () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wound-scan/history"] });
     },
   });
+
+  const specialistMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch("/api/specialists/recommendations", {
+        method: "POST",
+        body: JSON.stringify({
+          condition: specialistCondition,
+          location: specialistLocation,
+          language: i18n.language || "es",
+          urgency: "routine",
+        }),
+      });
+      if (!res.ok) throw new Error("Specialist search failed");
+      return res.json() as Promise<SpecialistRecommendation>;
+    },
+    onSuccess: (data) => setSpecialistResult(data),
+    onError: () => {
+      toast({ description: "No he podido buscar especialistas ahora mismo. Intentalo de nuevo en un momento." });
+    },
+  });
+
+  const runSpecialistSearch = () => {
+    if (!specialistCondition.trim()) {
+      toast({ description: "Dime la condicion o necesidad para buscar el especialista adecuado." });
+      return;
+    }
+    specialistMutation.mutate();
+  };
 
   const compressImage = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -606,7 +662,7 @@ const HealthScreen = () => {
                 </div>
                 <button
                   data-testid="button-find-specialist"
-                  onClick={() => { setSpecialistOpen((v) => !v); setSelectedSpecialty(null); }}
+                  onClick={() => { setSpecialistOpen((v) => !v); setSpecialistResult(null); }}
                   className="flex-shrink-0 px-[16px] py-[8px] rounded-full font-body text-[13px] font-semibold transition-all active:scale-95"
                   style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
                 >
@@ -616,39 +672,83 @@ const HealthScreen = () => {
 
               {specialistOpen && (
                 <div className="px-[18px] pb-[16px]" style={{ borderTop: "1px solid #F5F3FF" }}>
-                  <div className="flex flex-wrap gap-2 pt-[14px] pb-[10px]">
-                    {SPECIALTIES.map((sp) => (
+                  <p className="font-body text-[13px] text-vyva-text-2 leading-snug pt-[14px]">
+                    Describe la condicion o preocupacion. VYVA buscara el tipo de especialista adecuado y opciones cercanas.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-[12px] pb-[10px]">
+                    {SPECIALIST_EXAMPLES.map((example) => (
                       <button
-                        key={sp}
-                        data-testid={`chip-specialty-${sp}`}
-                        onClick={() => setSelectedSpecialty((prev) => (prev === sp ? null : sp))}
-                        className="px-[12px] py-[6px] rounded-full font-body text-[13px] font-medium transition-colors capitalize"
-                        style={
-                          selectedSpecialty === sp
-                            ? { background: "#7C3AED", color: "#fff" }
-                            : { background: "#EDE9FE", color: "#7C3AED" }
-                        }
+                        key={example}
+                        data-testid={`chip-specialist-example-${example}`}
+                        onClick={() => setSpecialistCondition(example)}
+                        className="px-[12px] py-[6px] rounded-full font-body text-[13px] font-medium transition-colors"
+                        style={{ background: "#EDE9FE", color: "#7C3AED" }}
                       >
-                        {sp}
+                        {example}
                       </button>
                     ))}
                   </div>
-                  {selectedSpecialty && (
-                    <div className="flex flex-col gap-2">
-                      {MOCK_SPECIALISTS[selectedSpecialty].map((spec, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-[12px] px-[14px] py-[11px]" style={{ background: "#F9F6F2", border: "1px solid #EDE5DB" }}>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      data-testid="input-specialist-condition"
+                      value={specialistCondition}
+                      onChange={(e) => setSpecialistCondition(e.target.value)}
+                      placeholder="Ej. dolor de rodilla, diabetes, memoria..."
+                      className="w-full rounded-[14px] px-[14px] py-[11px] font-body text-[14px] outline-none"
+                      style={{ border: "1px solid #DDD6FE", background: "#FFFFFF", color: "#2F2925" }}
+                    />
+                    <input
+                      data-testid="input-specialist-location"
+                      value={specialistLocation}
+                      onChange={(e) => setSpecialistLocation(e.target.value)}
+                      placeholder="Ciudad o zona"
+                      className="w-full rounded-[14px] px-[14px] py-[11px] font-body text-[14px] outline-none"
+                      style={{ border: "1px solid #EDE5DB", background: "#FFFFFF", color: "#2F2925" }}
+                    />
+                    <button
+                      data-testid="button-run-specialist-search"
+                      onClick={runSpecialistSearch}
+                      disabled={specialistMutation.isPending}
+                      className="w-full px-[14px] py-[11px] rounded-full font-body text-[14px] font-semibold transition-all active:scale-95 disabled:opacity-60"
+                      style={{ background: "#7C3AED", color: "#FFFFFF" }}
+                    >
+                      {specialistMutation.isPending ? "Buscando especialistas..." : "Buscar especialistas"}
+                    </button>
+                  </div>
+
+                  {specialistResult && (
+                    <div className="mt-[12px] flex flex-col gap-2">
+                      <div className="rounded-[14px] px-[14px] py-[11px]" style={{ background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
+                        <p className="font-body text-[12px] font-semibold" style={{ color: "#6D28D9" }}>
+                          Especialidades recomendadas
+                        </p>
+                        <p className="font-body text-[14px] font-semibold text-vyva-text-1">
+                          {specialistResult.matchedSpecialties.join(", ")}
+                        </p>
+                        <p className="font-body text-[11px] text-vyva-text-2 leading-snug mt-[6px]">
+                          Esto no es un diagnostico. Si los sintomas son graves o repentinos, llama a emergencias o a tu medico.
+                        </p>
+                      </div>
+                      {specialistResult.providers.map((spec, i) => (
+                        <div key={`${spec.name}-${i}`} className="flex items-start gap-3 rounded-[12px] px-[14px] py-[11px]" style={{ background: "#F9F6F2", border: "1px solid #EDE5DB" }}>
                           <div className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#EDE9FE" }}>
                             <UserSearch size={16} style={{ color: "#7C3AED" }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-body text-[14px] font-semibold text-vyva-text-1">{spec.name}</p>
-                            <div className="flex items-center gap-1">
+                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{spec.specialty}</p>
+                            <p className="font-body text-[12px] text-vyva-text-2 leading-snug">{spec.address ?? spec.clinicName}</p>
+                            <div className="flex items-center gap-1 mt-[4px]">
                               <Star size={10} fill="#F59E0B" style={{ color: "#F59E0B" }} />
-                              <span className="font-body text-[12px] text-vyva-text-2">{spec.rating} · {spec.waitN} {spec.waitUnit === "day" ? "día" : "semana"}{spec.waitN !== 1 ? "s" : ""}</span>
+                              <span className="font-body text-[12px] text-vyva-text-2">
+                                {spec.reviewScore ? `${spec.reviewScore} · ` : ""}{spec.availabilityText ?? "Consultar disponibilidad"}
+                              </span>
                             </div>
+                            <p className="font-body text-[11px] text-vyva-text-2 leading-snug mt-[5px]">{spec.rationale}</p>
                           </div>
                           <button
                             data-testid={`button-book-specialist-${i}`}
+                            onClick={() => navigate("/concierge")}
                             className="px-[12px] py-[6px] rounded-full font-body text-[12px] font-semibold flex-shrink-0"
                             style={{ background: "#EDE9FE", color: "#7C3AED" }}
                           >

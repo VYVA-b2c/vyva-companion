@@ -29,6 +29,7 @@ import { scanHistoryHandler } from "./routes/history.js";
 import { requireUser } from "./middleware/auth.js";
 import reportsRouter from "./routes/reports.js";
 import vitalsRouter from "./routes/vitals.js";
+import specialistsRouter from "./routes/specialists.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
@@ -85,6 +86,7 @@ app.use("/api/meds", authMiddleware, medsAdherenceRouter);
 app.get("/api/history/scans", authMiddleware, requireUser, scanHistoryHandler);
 app.use("/api/reports", authMiddleware, reportsRouter);
 app.use("/api/vitals", authMiddleware, vitalsRouter);
+app.use("/api/specialists", authMiddleware, specialistsRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
