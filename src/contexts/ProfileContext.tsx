@@ -16,6 +16,7 @@ interface ProfileData {
   postalCode: string;
   caregiverName: string;
   caregiverContact: string;
+  gender?: string;
 }
 
 interface ProfileContextValue {

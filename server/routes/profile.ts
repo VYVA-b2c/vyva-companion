@@ -27,6 +27,7 @@ const profileBodySchema = z.object({
   lastName:        z.string().max(100).optional().default(""),
   preferredName:   z.string().max(100).optional().default(""),
   dateOfBirth:     z.string().max(50).optional().or(z.literal("")).optional(),
+  gender:          z.string().max(40).optional().default("prefer_not"),
   email:           z.string().email().optional().or(z.literal("")).optional(),
   phone:           z.string().trim().min(1, "Phone is required").max(50),
   country:         z.string().max(100).optional().default(""),
@@ -38,6 +39,26 @@ const profileBodySchema = z.object({
   caregiverName:   z.string().max(150).optional().default(""),
   caregiverContact: z.string().max(50).optional().default(""),
 });
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readGender(consent: unknown): string {
+  const identity = asRecord(asRecord(consent).identity);
+  return typeof identity.gender === "string" ? identity.gender : "prefer_not";
+}
+
+function mergeGender(consent: unknown, gender: string): Record<string, unknown> {
+  const root = { ...asRecord(consent) };
+  root.identity = {
+    ...asRecord(root.identity),
+    gender: gender || "prefer_not",
+  };
+  return root;
+}
 
 router.get("/", async (req: Request, res: Response) => {
   const userId = resolveUserId(req);
@@ -64,6 +85,7 @@ router.get("/", async (req: Request, res: Response) => {
       lastName,
       preferredName:    p.preferred_name ?? "",
       dateOfBirth:      p.date_of_birth ?? "",
+      gender:           readGender(p.data_sharing_consent),
       email:            p.email ?? "",
       phone:            p.phone_number ?? "",
       country:          p.country_code ?? "",
@@ -95,6 +117,13 @@ router.post("/", async (req: Request, res: Response) => {
   const full_name = [d.firstName, d.lastName].filter(Boolean).join(" ").trim();
 
   try {
+    const existingRows = await db
+      .select({ data_sharing_consent: profiles.data_sharing_consent })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1);
+    const dataSharingConsent = mergeGender(existingRows[0]?.data_sharing_consent, d.gender);
+
     await db
       .insert(profiles)
       .values({
@@ -112,6 +141,7 @@ router.post("/", async (req: Request, res: Response) => {
         postcode:         d.postalCode || null,
         caregiver_name:   d.caregiverName || null,
         caregiver_contact: d.caregiverContact || null,
+        data_sharing_consent: dataSharingConsent,
       })
       .onConflictDoUpdate({
         target: profiles.id,
@@ -129,6 +159,7 @@ router.post("/", async (req: Request, res: Response) => {
           postcode:         d.postalCode || null,
           caregiver_name:   d.caregiverName || null,
           caregiver_contact: d.caregiverContact || null,
+          data_sharing_consent: dataSharingConsent,
           updated_at:       new Date(),
         },
       });

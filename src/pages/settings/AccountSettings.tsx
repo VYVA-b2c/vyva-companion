@@ -19,6 +19,7 @@ type ProfileResponse = {
   lastName: string;
   preferredName?: string;
   dateOfBirth?: string;
+  gender?: string;
   email?: string;
   phone?: string;
   country?: string;
@@ -234,7 +235,7 @@ export default function AccountSettings() {
     lastName: "",
     preferredName: "",
     dateOfBirth: "",
-    gender: "female",
+    gender: "prefer_not",
     phoneCountry: "ES",
     phoneLocal: "",
     whatsapp: "",
@@ -258,6 +259,7 @@ export default function AccountSettings() {
       lastName: profileQuery.data.lastName ?? "",
       preferredName: profileQuery.data.preferredName ?? "",
       dateOfBirth: profileQuery.data.dateOfBirth ?? "",
+      gender: profileQuery.data.gender ?? "prefer_not",
       phoneCountry: phoneParts.phoneCountry,
       phoneLocal: formatPhoneLocal(phoneParts.phoneLocal),
       email: profileQuery.data.email ?? "",
@@ -359,6 +361,7 @@ export default function AccountSettings() {
           lastName: form.lastName.trim(),
           preferredName: form.preferredName.trim(),
           dateOfBirth: form.dateOfBirth,
+          gender: form.gender,
           phone: buildPhoneNumber(form.phoneCountry, form.phoneLocal),
           email: form.email.trim(),
           language: form.language,

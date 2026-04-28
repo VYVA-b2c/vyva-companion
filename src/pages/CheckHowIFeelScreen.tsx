@@ -60,6 +60,8 @@ type SingleOption = {
   icon?: string;
 };
 
+type GrammaticalGender = "female" | "male" | "neutral";
+
 const STEPS: StepId[] = ["welcome", "energy", "mood", "body", "sleep", "symptoms", "social", "analyzing", "result"];
 const QUESTION_STEPS: StepId[] = ["energy", "mood", "body", "sleep", "symptoms", "social"];
 
@@ -71,14 +73,6 @@ const initialAnswers: Answers = {
   symptoms: [],
   social_contact: null,
 };
-
-const energyOptions: SingleOption[] = [
-  { id: "1", value: 1, icon: "🌙", label: "Sin energía", helper: "Me cuesta empezar el día" },
-  { id: "2", value: 2, icon: "☁️", label: "Algo cansada", helper: "Voy más lenta de lo normal" },
-  { id: "3", value: 3, icon: "🌤️", label: "Normal", helper: "Como un día corriente" },
-  { id: "4", value: 4, icon: "☀️", label: "Bastante bien", helper: "Tengo ganas de hacer cosas" },
-  { id: "5", value: 5, icon: "✨", label: "Con mucha energía", helper: "Me siento activa y despierta" },
-];
 
 const moodOptions: SingleOption[] = [
   { id: "alegre", icon: "😊", label: "Alegre", helper: "Con buen ánimo" },
@@ -106,28 +100,84 @@ const sleepOptions: SingleOption[] = [
   { id: "muy_mal", icon: "🛌", label: "Muy mal", helper: "Casi no descansé" },
 ];
 
-const symptomOptions: SingleOption[] = [
+const symptomOptionsBase: SingleOption[] = [
   { id: "dolor_cabeza", icon: "🤕", label: "Dolor de cabeza" },
   { id: "mareo", icon: "🌀", label: "Mareo" },
   { id: "nauseas", icon: "🍵", label: "Náuseas" },
   { id: "fiebre", icon: "🌡️", label: "Sensación de fiebre" },
   { id: "falta_aire", icon: "🫁", label: "Me falta el aire" },
-  { id: "confusion", icon: "❔", label: "Me siento confundida" },
   { id: "ninguno", icon: "👌", label: "Ninguno de estos" },
 ];
 
-const socialOptions: SingleOption[] = [
+const socialOptionsBase: SingleOption[] = [
   { id: "mucho", icon: "🤝", label: "Sí, bastante", helper: "He hablado o estaré con gente" },
   { id: "algo", icon: "💬", label: "Un poco", helper: "Algún mensaje o llamada" },
-  { id: "no", icon: "🕯️", label: "No mucho", helper: "Hoy estoy más sola" },
 ];
+
+function inferGender(profile: { gender?: string } | null, firstName: string): GrammaticalGender {
+  const raw = profile?.gender?.toLowerCase().trim();
+  if (raw && ["male", "masculino", "hombre", "m"].includes(raw)) return "male";
+  if (raw && ["female", "femenino", "mujer", "f"].includes(raw)) return "female";
+
+  const first = firstName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const maleNames = new Set(["carlos", "karim", "marco", "jose", "antonio", "manuel", "juan", "miguel", "luis", "javier", "david", "daniel", "pedro", "rafael", "francisco", "pablo", "sergio", "jorge"]);
+  const femaleNames = new Set(["carmen", "maria", "ana", "lucia", "isabel", "pilar", "laura", "marta", "elena", "sofia", "paula", "teresa", "rosa", "dolores", "julia"]);
+  if (maleNames.has(first)) return "male";
+  if (femaleNames.has(first)) return "female";
+  if (first.endsWith("a") && !["luca", "sasha", "elias"].includes(first)) return "female";
+  if (first.endsWith("o") || first.endsWith("os")) return "male";
+  return "neutral";
+}
+
+function gendered(gender: GrammaticalGender, female: string, male: string, neutral: string) {
+  if (gender === "female") return female;
+  if (gender === "male") return male;
+  return neutral;
+}
+
+function energyOptionsFor(gender: GrammaticalGender): SingleOption[] {
+  return [
+    { id: "1", value: 1, icon: "🌙", label: "Sin energía", helper: "Me cuesta empezar el día" },
+    {
+      id: "2",
+      value: 2,
+      icon: "☁️",
+      label: gendered(gender, "Algo cansada", "Algo cansado", "Algo de cansancio"),
+      helper: gendered(gender, "Voy más lenta de lo normal", "Voy más lento de lo normal", "Voy más despacio de lo normal"),
+    },
+    { id: "3", value: 3, icon: "🌤️", label: "Normal", helper: "Como un día corriente" },
+    { id: "4", value: 4, icon: "☀️", label: "Bastante bien", helper: "Tengo ganas de hacer cosas" },
+    {
+      id: "5",
+      value: 5,
+      icon: "✨",
+      label: "Con mucha energía",
+      helper: gendered(gender, "Me siento activa y despierta", "Me siento activo y despierto", "Me siento con energía y claridad"),
+    },
+  ];
+}
+
+function symptomOptionsFor(gender: GrammaticalGender): SingleOption[] {
+  return [
+    ...symptomOptionsBase.slice(0, 5),
+    { id: "confusion", icon: "❔", label: gendered(gender, "Me siento confundida", "Me siento confundido", "Siento confusión") },
+    symptomOptionsBase[5],
+  ];
+}
+
+function socialOptionsFor(gender: GrammaticalGender): SingleOption[] {
+  return [
+    ...socialOptionsBase,
+    { id: "no", icon: "🕯️", label: "No mucho", helper: gendered(gender, "Hoy estoy más sola", "Hoy estoy más solo", "Hoy tengo poca compañía") },
+  ];
+}
 
 function progressFor(step: StepId) {
   const index = QUESTION_STEPS.indexOf(step);
   return index === -1 ? 0 : ((index + 1) / QUESTION_STEPS.length) * 100;
 }
 
-function localResult(name: string, answers: Answers): CheckinResult {
+function localResult(name: string, answers: Answers, gender: GrammaticalGender): CheckinResult {
   const energy = answers.energy_level ?? 3;
   const lowEnergy = energy <= 2;
   const strongEnergy = energy >= 4;
@@ -149,11 +199,11 @@ function localResult(name: string, answers: Answers): CheckinResult {
 
   if (safetySignal) {
     return {
-      feeling_label: "Un día para estar acompañada",
+      feeling_label: gendered(gender, "Un día para estar acompañada", "Un día para estar acompañado", "Un día para tener compañía"),
       overall_state: "low",
       vyva_reading: `${name || "Cariño"}, gracias por decírmelo. Algunas respuestas merecen atención y hoy no conviene esperar en silencio.`,
       right_now: [
-        "Siéntate en una postura cómoda y evita caminar sola ahora.",
+        gendered(gender, "Siéntate en una postura cómoda y evita caminar sola ahora.", "Siéntate en una postura cómoda y evita caminar solo ahora.", "Siéntate en una postura cómoda y evita caminar sin compañía ahora."),
         "Avisa a alguien cercano para que esté pendiente de ti.",
         "Si la molestia en el pecho, la confusión o la falta de aire continúa, pide ayuda urgente.",
       ],
@@ -196,7 +246,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
       vyva_reading: `${name || "Cariño"}, dormir poco cambia mucho el cuerpo y el ánimo. Hoy conviene bajar el ritmo y cuidar lo básico.`,
       right_now: [
         "Bebe agua y toma algo ligero si no has desayunado.",
-        "Haz una pausa sentada durante unos minutos.",
+        gendered(gender, "Haz una pausa sentada durante unos minutos.", "Haz una pausa sentado durante unos minutos.", "Haz una pausa con calma durante unos minutos."),
         "Deja para mas tarde cualquier tarea que no sea urgente.",
       ],
       today_actions: [
@@ -218,7 +268,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
       right_now: [
         "Toma pequeños sorbos de agua.",
         "Elige comida suave si tienes hambre.",
-        "Descansa sentada y evita moverte rápido.",
+        gendered(gender, "Descansa sentada y evita moverte rápido.", "Descansa sentado y evita moverte rápido.", "Descansa en una postura cómoda y evita moverte rápido."),
       ],
       today_actions: [
         "Observa si las náuseas mejoran después de hidratarte.",
@@ -242,7 +292,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
         "Busca un sitio tranquilo con poca luz si puedes.",
       ],
       today_actions: [
-        "Haz solo desplazamientos necesarios y evita salir sola si te notas inestable.",
+        gendered(gender, "Haz solo desplazamientos necesarios y evita salir sola si te notas inestable.", "Haz solo desplazamientos necesarios y evita salir solo si te notas inestable.", "Haz solo desplazamientos necesarios y evita salir sin compañía si te notas inestable."),
         "Pide ayuda con tareas que requieran esfuerzo.",
         "Si no mejora, revisa tus signos vitales o inicia el chequeo de síntomas.",
       ],
@@ -275,7 +325,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
 
   if (lowMood || unsettledMood || alone) {
     return {
-      feeling_label: alone ? "Un día para sentirte acompañada" : "Un día emocionalmente sensible",
+      feeling_label: alone ? gendered(gender, "Un día para sentirte acompañada", "Un día para sentirte acompañado", "Un día para buscar compañía") : "Un día emocionalmente sensible",
       overall_state: lowEnergy ? "low" : "moderate",
       vyva_reading: `${name || "Cariño"}, hoy no todo pasa por el cuerpo. También cuenta cómo está el ánimo, y merece cuidado sencillo.`,
       right_now: [
@@ -284,8 +334,8 @@ function localResult(name: string, answers: Answers): CheckinResult {
         "Si puedes, manda un mensaje corto a alguien de confianza.",
       ],
       today_actions: [
-        "Evita quedarte con preocupaciones dando vueltas sola.",
-        "Mira Para ti hoy para encontrar algo cercano, tranquilo y acompañado.",
+        gendered(gender, "Evita quedarte con preocupaciones dando vueltas sola.", "Evita quedarte con preocupaciones dando vueltas solo.", "Evita quedarte con preocupaciones dando vueltas sin apoyo."),
+        gendered(gender, "Mira Para ti hoy para encontrar algo cercano, tranquilo y acompañado.", "Mira Para ti hoy para encontrar algo cercano, tranquilo y acompañado.", "Mira Para ti hoy para encontrar algo cercano, tranquilo y con compañía."),
         "Si te apetece, pide a VYVA que te ayude a llamar a alguien.",
       ],
       highlight: "Hoy la compañía y la calma pueden ayudar más que hacer muchas cosas.",
@@ -420,6 +470,10 @@ const CheckHowIFeelScreen = () => {
   const canGoBack = stepIndex > 0 && step !== "analyzing" && step !== "result";
   const appActions = result ? appActionsFor(answers, result) : [];
   const resultVisual = result ? resultVisualFor(result.overall_state) : null;
+  const gender = inferGender(profile, name);
+  const energyOptions = energyOptionsFor(gender);
+  const symptomOptions = symptomOptionsFor(gender);
+  const socialOptions = socialOptionsFor(gender);
 
   const loadingMessage = useMemo(() => {
     const messages = [
@@ -491,7 +545,7 @@ const CheckHowIFeelScreen = () => {
       setResult(data.result);
     } catch (err) {
       console.warn("[check-in] falling back locally", err);
-      setResult(localResult(name, answers));
+      setResult(localResult(name, answers, gender));
       toast({ description: "He preparado una lectura local porque la conexión no respondió a tiempo." });
     } finally {
       setStep("result");

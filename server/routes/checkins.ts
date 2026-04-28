@@ -40,6 +40,7 @@ type AiCheckinResult = {
 
 type ProfileContext = {
   name: string;
+  grammatical_gender: "female" | "male" | "neutral";
   age: number | null;
   language: string;
   location: {
@@ -92,6 +93,36 @@ const MOOD_SCORE: Record<string, number> = {
   ansiosa: 2,
   triste: 2,
 };
+
+function inferGenderFromName(name: string): ProfileContext["grammatical_gender"] {
+  const first = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const maleNames = new Set(["carlos", "karim", "marco", "jose", "antonio", "manuel", "juan", "miguel", "luis", "javier", "david", "daniel", "pedro", "rafael", "francisco", "pablo", "sergio", "jorge"]);
+  const femaleNames = new Set(["carmen", "maria", "ana", "lucia", "isabel", "pilar", "laura", "marta", "elena", "sofia", "paula", "teresa", "rosa", "dolores", "julia"]);
+  if (maleNames.has(first)) return "male";
+  if (femaleNames.has(first)) return "female";
+  if (first.endsWith("a") && !["luca", "sasha", "elias"].includes(first)) return "female";
+  if (first.endsWith("o") || first.endsWith("os")) return "male";
+  return "neutral";
+}
+
+function inferProfileGender(consent: unknown, fallbackName: string): ProfileContext["grammatical_gender"] {
+  if (consent && typeof consent === "object" && !Array.isArray(consent)) {
+    const identity = (consent as Record<string, unknown>)["identity"];
+    if (identity && typeof identity === "object" && !Array.isArray(identity)) {
+      const raw = String((identity as Record<string, unknown>)["gender"] ?? "").toLowerCase().trim();
+      if (["male", "masculino", "hombre", "m"].includes(raw)) return "male";
+      if (["female", "femenino", "mujer", "f"].includes(raw)) return "female";
+      if (["non_binary", "non-binary", "prefer_not", "prefer-not", "neutral"].includes(raw)) return "neutral";
+    }
+  }
+  return inferGenderFromName(fallbackName);
+}
+
+function gendered(gender: ProfileContext["grammatical_gender"], female: string, male: string, neutral: string) {
+  if (gender === "female") return female;
+  if (gender === "male") return male;
+  return neutral;
+}
 
 function parseConsentArray(consent: unknown, section: string, key: string): string[] {
   if (!consent || typeof consent !== "object") return [];
@@ -306,6 +337,7 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
 
   return {
     name,
+    grammatical_gender: inferProfileGender(consent, name),
     age: ageFromDate(profile?.date_of_birth ?? null),
     language: profile?.language ?? "es",
     location: {
@@ -382,19 +414,20 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
     "algo tranquilo que te guste";
   const overall_state: AiCheckinResult["overall_state"] =
     lowEnergy || poorSleep || lowMood || hasSymptoms ? "moderate" : answers.energy_level >= 4 ? "good" : "tired";
+  const gender = profile.grammatical_gender;
 
   const feeling_label =
     overall_state === "good" ? "Un día bastante estable" :
-    overall_state === "tired" ? "Algo cansada hoy" :
+    overall_state === "tired" ? gendered(gender, "Algo cansada hoy", "Algo cansado hoy", "Algo de cansancio hoy") :
     "Un día para cuidarte con calma";
 
   return {
     feeling_label,
     overall_state,
-    vyva_reading: `${profile.name}, hoy conviene ir con calma y escucharte un poco. No hace falta hacer mucho: con dos o tres gestos sencillos puedes sentirte más acompañada y estable.`,
+    vyva_reading: `${profile.name}, hoy conviene ir con calma y escucharte un poco. No hace falta hacer mucho: con dos o tres gestos sencillos puedes sentirte ${gendered(gender, "más acompañada", "más acompañado", "con más apoyo")} y estable.`,
     right_now: [
       "Bebe un vaso de agua despacio.",
-      "Siéntate cómoda y respira profundo durante un minuto.",
+      gendered(gender, "Siéntate cómoda y respira profundo durante un minuto.", "Siéntate cómodo y respira profundo durante un minuto.", "Siéntate en una postura cómoda y respira profundo durante un minuto."),
       "Elige una cosa pequeña que te apetezca hacer ahora.",
     ],
     today_actions: [
@@ -425,6 +458,7 @@ Use all available context below. Personalize recommendations using:
 - hobbies and preferred activities, so suggestions feel familiar and enjoyable.
 
 Safety and personalization rules:
+- Use the user's grammatical gender when writing in Spanish. Profile grammatical_gender is "${profile.grammatical_gender}". If neutral, avoid gendered adjectives.
 - Do not suggest walking, outings, exercise, food, or social plans that conflict with mobility, symptoms, diet, allergies, or low energy.
 - If symptoms include chest discomfort, breathlessness, confusion, severe dizziness, or a worrying pattern, include a calm watch_for note.
 - If the user has low mood, low social contact, or repeated low energy, suggest one small connection step.
