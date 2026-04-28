@@ -56,6 +56,33 @@ interface RecommendationsRequestBody {
   locale?: string;
 }
 
+interface RecommendationCandidate {
+  id: string;
+  category: RecommendationCard["category"];
+  emoji: string;
+  title: Record<"en" | "es", string>;
+  description: Record<"en" | "es", string>;
+  why: Record<"en" | "es", string>;
+  details: Record<"en" | "es", string>;
+  steps: Record<"en" | "es", string[]>;
+  actionLabel: Record<"en" | "es", string>;
+  actionPrompt: Record<"en" | "es", string>;
+  safetyNote: Record<"en" | "es", string>;
+  tags: string[];
+  physicalDemand: "none" | "low" | "moderate";
+  requiresLocation?: boolean;
+  requiresMedicationContext?: boolean;
+  requiresHealthContext?: boolean;
+  requiresInterests?: boolean;
+  preferredWhen?: (context: UserProfileContext) => boolean;
+}
+
+interface RankedRecommendationCandidate {
+  candidate: RecommendationCandidate;
+  score: number;
+  reasons: string[];
+}
+
 export interface RecommendationCard {
   title: string;
   description: string;
@@ -237,9 +264,348 @@ function hasMobilityLimit(context: UserProfileContext): boolean {
   return /(limited|low|baja|reducida|mobility|walker|wheelchair|cane|fall|falls|arthritis|knee|hip|rodilla|cadera|artrosis|dolor)/i.test(text);
 }
 
-function buildRecommendationsPrompt(context: UserProfileContext, dayOfWeek: string, locale: string): string {
+function textMatchesAny(text: string, terms: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return terms.some((term) => normalized.includes(term.toLowerCase()));
+}
+
+function contextText(context: UserProfileContext): string {
+  return [
+    ...context.interests,
+    ...context.healthConditions,
+    ...context.activeMedications,
+    ...context.recentActivityTypes,
+    ...context.recentConciergeUseCases,
+    context.mobilityLevel,
+    context.socialActivityLevel,
+  ].join(" ");
+}
+
+const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
+  {
+    id: "accessible_local_culture",
+    category: "event",
+    emoji: "🎭",
+    title: { en: "A calm local outing", es: "Una salida tranquila" },
+    description: {
+      en: "VYVA can check an accessible nearby museum, talk, or cultural visit.",
+      es: "VYVA puede buscar un museo, charla o visita cultural accesible cerca.",
+    },
+    why: {
+      en: "It keeps the day social and stimulating without needing a demanding plan.",
+      es: "Mantiene el dia activo y agradable sin exigir demasiado esfuerzo.",
+    },
+    details: {
+      en: "Choose somewhere close, seated, and easy to leave if tired. VYVA can check opening hours, access, and transport.",
+      es: "Conviene elegir un sitio cercano, con asientos y facil de abandonar si hay cansancio. VYVA puede revisar horarios, acceso y transporte.",
+    },
+    steps: {
+      en: ["Pick a nearby venue", "Check access and timing", "Arrange transport if needed"],
+      es: ["Elegir un sitio cercano", "Revisar acceso y horarios", "Pedir transporte si hace falta"],
+    },
+    actionLabel: { en: "Plan it", es: "Planearlo" },
+    actionPrompt: {
+      en: "Help me plan a calm accessible local outing today.",
+      es: "Ayudame a planear una salida tranquila y accesible cerca de mi.",
+    },
+    safetyNote: {
+      en: "Prefer daytime options with seating and step-free access.",
+      es: "Mejor de dia, con asientos y acceso sin escaleras.",
+    },
+    tags: ["culture", "museum", "events", "social", "local", "art", "music", "historia", "arte", "musica"],
+    physicalDemand: "low",
+    requiresLocation: true,
+    preferredWhen: (context) => context.socialActivityLevel !== "low" || context.interests.length > 0,
+  },
+  {
+    id: "medication_admin_check",
+    category: "tip",
+    emoji: "💊",
+    title: { en: "Medication admin check", es: "Revision de medicacion" },
+    description: {
+      en: "VYVA can help check whether anything needs ordering or organising.",
+      es: "VYVA puede ayudarte a revisar si hay algo que pedir u organizar.",
+    },
+    why: {
+      en: "It fits because there are active medication records.",
+      es: "Encaja porque hay medicacion registrada.",
+    },
+    details: {
+      en: "This is not medical advice. It is practical support: checking supplies, timings, or whether to call the pharmacy.",
+      es: "No es consejo medico. Es ayuda practica: revisar existencias, horarios o si conviene llamar a la farmacia.",
+    },
+    steps: {
+      en: ["Check what is running low", "Confirm pharmacy details", "Ask VYVA to call if needed"],
+      es: ["Revisar que queda poco", "Confirmar farmacia", "Pedir a VYVA que llame si hace falta"],
+    },
+    actionLabel: { en: "Check meds", es: "Revisar" },
+    actionPrompt: {
+      en: "Help me check whether any medication needs ordering.",
+      es: "Ayudame a revisar si hay medicacion que pedir.",
+    },
+    safetyNote: {
+      en: "For clinical questions, speak with the GP or pharmacist.",
+      es: "Para dudas clinicas, consulta con el medico o farmaceutico.",
+    },
+    tags: ["medication", "pharmacy", "medicine", "prescription", "medicacion", "farmacia"],
+    physicalDemand: "none",
+    requiresMedicationContext: true,
+  },
+  {
+    id: "trusted_provider_followup",
+    category: "tip",
+    emoji: "☎️",
+    title: { en: "Follow up a routine task", es: "Retomar una gestion" },
+    description: {
+      en: "VYVA can help repeat or follow up a task you often need.",
+      es: "VYVA puede repetir o seguir una gestion que sueles necesitar.",
+    },
+    why: {
+      en: "It is based on recent concierge activity.",
+      es: "Se basa en actividad reciente de Concierge.",
+    },
+    details: {
+      en: "If you often book rides, appointments, or pharmacy calls, VYVA can prepare the next one for confirmation.",
+      es: "Si sueles pedir taxis, citas o llamadas a farmacia, VYVA puede preparar la siguiente para confirmarla.",
+    },
+    steps: {
+      en: ["Review the recent task", "Confirm the details", "Let VYVA prepare it"],
+      es: ["Revisar la gestion reciente", "Confirmar detalles", "Dejar que VYVA la prepare"],
+    },
+    actionLabel: { en: "Prepare it", es: "Preparar" },
+    actionPrompt: {
+      en: "Help me prepare a repeat concierge task based on what I usually do.",
+      es: "Ayudame a preparar una gestion habitual de Concierge.",
+    },
+    safetyNote: { en: "", es: "" },
+    tags: ["book_ride", "book_appointment", "order_medicine", "routine", "taxi", "appointment"],
+    physicalDemand: "none",
+    preferredWhen: (context) => context.recentConciergeUseCases.length > 0,
+  },
+  {
+    id: "local_savings_check",
+    category: "deal",
+    emoji: "🛒",
+    title: { en: "Useful local savings", es: "Ahorros utiles cerca" },
+    description: {
+      en: "VYVA can look for practical nearby discounts before your next errand.",
+      es: "VYVA puede buscar descuentos cercanos utiles antes de tu proximo recado.",
+    },
+    why: {
+      en: "It is useful only if the shop or service is nearby and practical.",
+      es: "Solo sirve si la tienda o servicio queda cerca y es practico.",
+    },
+    details: {
+      en: "Focus on pharmacies, supermarkets, transport, or community offers. VYVA can filter out anything awkward to reach.",
+      es: "Conviene mirar farmacias, supermercados, transporte u ofertas comunitarias. VYVA puede descartar lo dificil de aprovechar.",
+    },
+    steps: {
+      en: ["Choose a category", "Check nearby offers", "Save the useful ones"],
+      es: ["Elegir categoria", "Buscar ofertas cerca", "Guardar las utiles"],
+    },
+    actionLabel: { en: "Find offers", es: "Buscar" },
+    actionPrompt: {
+      en: "Find practical local offers near me today.",
+      es: "Busca ofertas practicas cerca de mi para hoy.",
+    },
+    safetyNote: { en: "", es: "" },
+    tags: ["deal", "discount", "shopping", "pharmacy", "supermarket", "ahorro", "oferta", "farmacia"],
+    physicalDemand: "low",
+    requiresLocation: true,
+  },
+  {
+    id: "home_based_hobby",
+    category: "activity",
+    emoji: "☕",
+    title: { en: "A hobby at home", es: "Un plan en casa" },
+    description: {
+      en: "VYVA can shape one saved interest into an easy activity at home.",
+      es: "VYVA puede convertir un interes guardado en una actividad sencilla en casa.",
+    },
+    why: {
+      en: "It uses saved interests without needing travel or effort.",
+      es: "Usa tus intereses guardados sin exigir desplazamiento ni esfuerzo.",
+    },
+    details: {
+      en: "This works well for reading, music, cooking ideas, family calls, puzzles, or learning something new.",
+      es: "Puede servir para lectura, musica, cocina sencilla, llamadas familiares, pasatiempos o aprender algo nuevo.",
+    },
+    steps: {
+      en: ["Pick one interest", "Choose a short version", "Let VYVA guide it"],
+      es: ["Elegir un interes", "Hacer una version corta", "Dejar que VYVA guie"],
+    },
+    actionLabel: { en: "Guide me", es: "Guiame" },
+    actionPrompt: {
+      en: "Suggest an easy home activity based on my interests.",
+      es: "Sugiere una actividad sencilla en casa basada en mis intereses.",
+    },
+    safetyNote: { en: "", es: "" },
+    tags: ["home", "hobby", "music", "reading", "cooking", "family", "casa", "lectura", "musica"],
+    physicalDemand: "none",
+    requiresInterests: true,
+  },
+  {
+    id: "health_admin_next_step",
+    category: "tip",
+    emoji: "🩺",
+    title: { en: "Health admin next step", es: "Siguiente paso de salud" },
+    description: {
+      en: "VYVA can help organise a practical health task, like booking or preparing questions.",
+      es: "VYVA puede organizar una gestion de salud, como pedir cita o preparar preguntas.",
+    },
+    why: {
+      en: "It fits because health context is saved, but avoids clinical advice.",
+      es: "Encaja porque hay contexto de salud guardado, sin dar consejo clinico.",
+    },
+    details: {
+      en: "VYVA can help prepare a GP appointment, collect questions, or organise transport. It will not diagnose or recommend treatment.",
+      es: "VYVA puede preparar una cita medica, reunir preguntas u organizar transporte. No diagnostica ni recomienda tratamientos.",
+    },
+    steps: {
+      en: ["Choose the admin task", "Prepare key details", "Confirm before VYVA acts"],
+      es: ["Elegir la gestion", "Preparar detalles clave", "Confirmar antes de actuar"],
+    },
+    actionLabel: { en: "Prepare", es: "Preparar" },
+    actionPrompt: {
+      en: "Help me prepare a practical health admin task.",
+      es: "Ayudame a preparar una gestion practica de salud.",
+    },
+    safetyNote: {
+      en: "For symptoms or treatment, contact your GP or emergency services if urgent.",
+      es: "Para sintomas o tratamiento, consulta al medico o emergencias si es urgente.",
+    },
+    tags: ["health", "appointment", "doctor", "gp", "medico", "cita", "salud"],
+    physicalDemand: "none",
+    requiresHealthContext: true,
+  },
+  {
+    id: "scam_guard_check",
+    category: "tip",
+    emoji: "🛡️",
+    title: { en: "Check a suspicious message", es: "Revisar un mensaje raro" },
+    description: {
+      en: "VYVA can help review a letter, SMS, or email before you respond.",
+      es: "VYVA puede revisar una carta, SMS o email antes de responder.",
+    },
+    why: {
+      en: "It is a safe, practical task that can prevent stress or mistakes.",
+      es: "Es una ayuda practica y segura para evitar sustos o errores.",
+    },
+    details: {
+      en: "Read or paste the message. VYVA will look for pressure, strange links, payment requests, or personal data requests.",
+      es: "Lee o pega el mensaje. VYVA buscara prisas, enlaces raros, pagos o peticiones de datos.",
+    },
+    steps: {
+      en: ["Show the message", "Check for red flags", "Decide what not to do"],
+      es: ["Mostrar el mensaje", "Buscar senales de alerta", "Decidir que no hacer"],
+    },
+    actionLabel: { en: "Check it", es: "Revisar" },
+    actionPrompt: {
+      en: "Help me check whether a message or letter is suspicious.",
+      es: "Ayudame a revisar si un mensaje o carta es sospechoso.",
+    },
+    safetyNote: {
+      en: "Never share banking details or passwords while checking.",
+      es: "No compartas datos bancarios ni contrasenas al revisarlo.",
+    },
+    tags: ["scam", "safety", "paperwork", "sms", "email", "estafa", "seguridad"],
+    physicalDemand: "none",
+  },
+];
+
+function scoreCandidate(candidate: RecommendationCandidate, context: UserProfileContext): RankedRecommendationCandidate | null {
+  if (hasMobilityLimit(context) && candidate.physicalDemand === "moderate") return null;
+  if (candidate.requiresLocation && !context.city && !context.region) return null;
+  if (candidate.requiresMedicationContext && context.activeMedications.length === 0) return null;
+  if (candidate.requiresHealthContext && context.healthConditions.length === 0) return null;
+  if (candidate.requiresInterests && context.interests.length === 0) return null;
+  if (candidate.preferredWhen && !candidate.preferredWhen(context)) return null;
+
+  const allContext = contextText(context);
+  const reasons: string[] = [];
+  let score = 40;
+
+  if (candidate.requiresLocation && (context.city || context.region)) {
+    score += 15;
+    reasons.push("location_match");
+  }
+  if (candidate.requiresMedicationContext && context.activeMedications.length > 0) {
+    score += 25;
+    reasons.push("medication_context");
+  }
+  if (candidate.requiresHealthContext && context.healthConditions.length > 0) {
+    score += 20;
+    reasons.push("health_context");
+  }
+  if (candidate.requiresInterests && context.interests.length > 0) {
+    score += 18;
+    reasons.push("interest_context");
+  }
+  if (textMatchesAny(allContext, candidate.tags)) {
+    score += 18;
+    reasons.push("profile_tags");
+  }
+  if (candidate.id === "trusted_provider_followup" && context.recentConciergeUseCases.length > 0) {
+    score += 20;
+    reasons.push("recent_pattern");
+  }
+  if (hasMobilityLimit(context) && candidate.physicalDemand === "none") {
+    score += 10;
+    reasons.push("mobility_safe");
+  }
+  if (context.socialActivityLevel === "low" && candidate.id === "home_based_hobby") {
+    score += 10;
+    reasons.push("low_social_pressure");
+  }
+
+  return { candidate, score, reasons };
+}
+
+function rankRecommendationCandidates(context: UserProfileContext): RankedRecommendationCandidate[] {
+  return RECOMMENDATION_CANDIDATES
+    .map((candidate) => scoreCandidate(candidate, context))
+    .filter((item): item is RankedRecommendationCandidate => Boolean(item))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+function candidateToCard(ranked: RankedRecommendationCandidate, locale: string): RecommendationCard {
+  const lang: "en" | "es" = locale === "es" ? "es" : "en";
+  const candidate = ranked.candidate;
+  return {
+    title: candidate.title[lang],
+    description: candidate.description[lang],
+    category: candidate.category,
+    emoji: candidate.emoji,
+    why: candidate.why[lang],
+    details: candidate.details[lang],
+    steps: candidate.steps[lang],
+    action_label: candidate.actionLabel[lang],
+    action_prompt: candidate.actionPrompt[lang],
+    safety_note: candidate.safetyNote[lang],
+  };
+}
+
+function cardsFromRankedCandidates(ranked: RankedRecommendationCandidate[], locale: string): RecommendationCard[] {
+  const cards = ranked.map((item) => candidateToCard(item, locale)).slice(0, 4);
+  return cards.length > 0 ? cards : FALLBACK_RECOMMENDATIONS;
+}
+
+function buildRecommendationsPrompt(
+  context: UserProfileContext,
+  dayOfWeek: string,
+  locale: string,
+  rankedCandidates: RankedRecommendationCandidate[],
+): string {
   const language = LOCALE_TO_LANGUAGE[locale] ?? "English";
   const location = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
+  const candidateSummary = rankedCandidates.map((item) => ({
+    id: item.candidate.id,
+    score: item.score,
+    reasons: item.reasons,
+    category: item.candidate.category,
+    baseline: candidateToCard(item, locale),
+  }));
   const interestClause = context.interests.length
     ? `Interests and hobbies: ${context.interests.slice(0, 10).join(", ")}.`
     : "Interests and hobbies: unknown.";
@@ -263,7 +629,10 @@ User context:
 - Social activity level: ${context.socialActivityLevel}
 - Preferred times: ${context.preferredTimes.join(", ") || "unknown"}
 
-Generate exactly 4 useful, safe, personalised recommendation cards for today. They must be actionable, not generic. Prefer ideas based on location, interests, health-safe routines, local services, hobbies, family/social connection, errands, or practical support.
+VYVA has already scored and safety-filtered candidate opportunities. You MUST choose from these candidates only. You may improve wording, make the local framing warmer, and tailor the details, but do not invent unrelated card types:
+${JSON.stringify(candidateSummary, null, 2)}
+
+Generate exactly 4 useful, safe, personalised recommendation cards for today from the ranked candidates. They must be actionable, not generic. Prefer higher scores unless a lower-scored candidate gives better variety.
 
 Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have:
 - "title": a short catchy title, 4-7 words
@@ -278,6 +647,8 @@ Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have
 - "safety_note": one brief note if relevant, otherwise an empty string
 
 Rules:
+- Choose only from the candidate list above.
+- Keep the core intent of each selected candidate.
 - Never recommend something that conflicts with mobility limitations or known health context.
 - Do not diagnose, treat, or give clinical advice.
 - If mentioning a local place or event, phrase it as something VYVA can check, not as guaranteed.
@@ -430,10 +801,12 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
   const dayOfWeek = DAYS_OF_WEEK[new Date().getDay()];
+  const rankedCandidates = rankRecommendationCandidates(context);
+  const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale);
 
   if (!apiKey) {
-    console.warn("[concierge/recs] OPENAI_API_KEY not set, returning fallback");
-    return res.json({ recommendations: FALLBACK_RECOMMENDATIONS });
+    console.warn("[concierge/recs] OPENAI_API_KEY not set, returning ranked deterministic cards");
+    return res.json({ recommendations: deterministicCards });
   }
 
   try {
@@ -444,7 +817,7 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
       messages: [
         {
           role: "user",
-          content: buildRecommendationsPrompt(context, dayOfWeek, normalizedLocale),
+          content: buildRecommendationsPrompt(context, dayOfWeek, normalizedLocale, rankedCandidates),
         },
       ],
       temperature: 0.7,
@@ -452,7 +825,7 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    let recommendations = FALLBACK_RECOMMENDATIONS;
+    let recommendations = deterministicCards;
 
     try {
       const parsed = JSON.parse(raw) as unknown[];
@@ -467,6 +840,6 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
     return res.json({ recommendations });
   } catch (err) {
     console.error("[concierge/recs] OpenAI error:", err);
-    return res.json({ recommendations: FALLBACK_RECOMMENDATIONS });
+    return res.json({ recommendations: deterministicCards });
   }
 }
