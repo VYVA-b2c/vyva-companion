@@ -134,8 +134,17 @@ async function fetchRecentSessions(): Promise<ConciergeSessionItem[]> {
   return data.items ?? [];
 }
 
-async function confirmPendingAction(id: string) {
-  const res = await apiFetch(`/api/concierge/actions/${id}/confirm`, { method: "POST" });
+async function confirmPendingAction(item: ConciergePendingItem) {
+  const bookingUrl = typeof item.action_payload?.booking_url === "string"
+    ? item.action_payload.booking_url.trim()
+    : "";
+
+  if (!item.provider_phone && bookingUrl) {
+    window.open(bookingUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  const res = await apiFetch(`/api/concierge/actions/${item.id}/confirm`, { method: "POST" });
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(data?.error ?? "Failed to confirm concierge action");
@@ -573,6 +582,10 @@ const ConciergeScreen = () => {
               const isPending = item.status === "pending";
               const isCalling = item.status === "calling";
               const busy = confirmMutation.isPending || cancelMutation.isPending;
+              const bookingUrl = typeof item.action_payload?.booking_url === "string"
+                ? item.action_payload.booking_url.trim()
+                : "";
+              const usesBookingLink = !item.provider_phone && Boolean(bookingUrl);
 
               return (
                 <div
@@ -614,12 +627,14 @@ const ConciergeScreen = () => {
                     <div className="mt-4 flex gap-2">
                       <Button
                         data-testid={`button-concierge-confirm-${item.id}`}
-                        onClick={() => confirmMutation.mutate(item.id)}
+                        onClick={() => confirmMutation.mutate(item)}
                         disabled={busy}
                         className="rounded-full bg-vyva-purple hover:bg-vyva-purple/90"
                       >
                         <PhoneCall size={15} className="mr-2" />
-                        {isSpanish ? "Confirmar y llamar" : "Confirm and call"}
+                        {usesBookingLink
+                          ? (isSpanish ? "Abrir reserva" : "Open booking")
+                          : (isSpanish ? "Confirmar y llamar" : "Confirm and call")}
                       </Button>
                       <Button
                         data-testid={`button-concierge-cancel-${item.id}`}
