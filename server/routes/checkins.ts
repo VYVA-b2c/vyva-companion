@@ -22,6 +22,7 @@ const checkinBodySchema = z.object({
     body_areas: z.array(z.string().max(60)).max(7).default([]),
     sleep_quality: z.string().min(1).max(40),
     symptoms: z.array(z.string().max(80)).max(7).default([]),
+    symptom_details: z.array(z.string().max(80)).max(16).default([]),
     safety_flags: z.array(z.string().max(80)).max(8).default([]),
     social_contact: z.string().min(1).max(40),
   }),
@@ -42,7 +43,7 @@ type AiCheckinResult = {
   trend_note?: string | null;
   personal_plan?: string | null;
   app_suggestion?: string | null;
-  suggested_app_action?: "concierge" | "symptom" | "vitals" | "care" | "meditation" | "social" | "music" | null;
+  suggested_app_action?: "concierge" | "symptom" | "vitals" | "care" | "meditation" | "social" | "music" | "exercise" | "chess" | "cooking" | "art" | "literature" | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -510,6 +511,19 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
   const urgentSafetyFlag = answers.safety_flags.some((flag) =>
     ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)
   );
+  const urgentDetailFlag = answers.symptom_details.some((detail) =>
+    [
+      "fever_temp_39",
+      "breath_rest",
+      "breath_speaking",
+      "dizzy_faint",
+      "nausea_vomiting",
+      "headache_sudden",
+      "headache_vision",
+      "chest_pressure_detail",
+      "confusion_now_detail",
+    ].includes(detail)
+  );
   const mildSafetySignal = answers.safety_flags.includes("mild_stable") || answers.safety_flags.includes("resolved");
   const seriousSymptom =
     answers.symptoms.includes("falta_aire") ||
@@ -517,6 +531,7 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
     answers.body_areas.includes("pecho");
   const safetySignal =
     urgentSafetyFlag ||
+    urgentDetailFlag ||
     (seriousSymptom && !mildSafetySignal);
   const limitedMobility = ["stick_or_frame", "wheelchair_part_time", "wheelchair_full_time", "housebound"]
     .includes(profile.mobility_level ?? "");
@@ -556,6 +571,7 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
   const suggestedAppAction: AiCheckinResult["suggested_app_action"] =
     safetySignal ? "care" :
     hasSymptoms ? "symptom" :
+    answers.social_contact === "no" || lowMood ? "social" :
     lowEnergy || poorSleep ? "vitals" :
     "concierge";
 
@@ -635,6 +651,7 @@ Safety and personalization rules:
 - ${genderInstruction(profile.grammatical_gender)}
 - Do not suggest walking, outings, exercise, food, or social plans that conflict with mobility, symptoms, diet, allergies, or low energy.
 - If symptoms include chest discomfort, breathlessness, confusion, severe dizziness, or a worrying pattern, include a calm watch_for note.
+- Use symptom_details as higher-resolution context. Fever of 39C+, breathlessness at rest, trouble speaking, faintness, vomiting/cannot keep fluids down, sudden severe headache, chest pressure, or current confusion should be treated as safety-first signals.
 - If the user has low mood, low social contact, or repeated low energy, suggest one small connection step.
 - Keep every action concrete and doable today.
 - Make recommendations creative, specific, and useful. Avoid generic advice like "try a hobby" unless it connects to a known hobby, location, routine, or profile signal.
@@ -646,8 +663,10 @@ Safety and personalization rules:
 - Use trend_summary to mention repeated patterns when they matter. Do not exaggerate one-off signals.
 - Include one concrete plan that fits the user's health profile, location, mobility, interests, and app capabilities.
 - Avoid repeating the same type of advice in the same section. If one action is calming, make the others hydration, connection, safety, planning, or app navigation.
-- If you suggest meditation, breathing, calming music, social contact, or an outing, connect it to the relevant VYVA feature: activities for meditation/breathing, social spaces for connection, Concierge Para ti hoy for outings, chat/music journey for learning about music.
-- Set suggested_app_action to the single best primary next action: care for urgent warning signs, symptom for symptoms, vitals for dizziness/low energy/breathlessness, meditation for anxiety/restlessness/sleep recovery, social for loneliness/low mood, music for music-based engagement, concierge for outings/helpful plans.
+- Use a varied initiative palette when it is safe: Social Spaces for connection, music, literature and cultural rooms; Activities for meditation, breathing and gentle exercise; memory games/chess for light cognitive engagement; Concierge Para ti hoy for real local plans.
+- Do not recommend music by default. Use music only when it clearly fits the user's stated mood, interest, or plan. Otherwise choose from social, art, literature, chess, cooking, gentle exercise, concierge, vitals, symptom check or care.
+- If you suggest meditation, breathing, music, social contact, cooking, art, literature, chess, exercise, or an outing, connect it to the relevant VYVA feature.
+- Set suggested_app_action to the single best primary next action: care for urgent warning signs, symptom for symptoms, vitals for dizziness/low energy/breathlessness, meditation for anxiety/restlessness/sleep recovery, social for loneliness/low mood, music for music-based engagement, exercise for safe mobility, chess for light cognitive engagement, cooking/art/literature for creative engagement, concierge for outings/helpful plans.
 
 User profile:
 ${JSON.stringify(profile, null, 2)}
@@ -664,7 +683,7 @@ Return ONLY valid JSON with this shape:
   "trend_note": "brief pattern from recent check-ins, or null if there is no useful trend",
   "personal_plan": "a concrete mini-plan adapted to profile, location, mobility and interests, max 2 sentences",
   "app_suggestion": "the best next step inside VYVA, such as Concierge Para ti hoy, symptom check, vitals scan, or medical attention, max 1 sentence",
-  "suggested_app_action": "concierge|symptom|vitals|care|meditation|social|music",
+  "suggested_app_action": "concierge|symptom|vitals|care|meditation|social|music|exercise|chess|cooking|art|literature",
   "right_now": ["one simple action", "one simple action", "one simple action"],
   "today_actions": ["one useful action for today", "one useful action for today", "one useful action for today"],
   "highlight": "one insight, max 20 words",
@@ -685,7 +704,7 @@ function normalizeAiResult(value: unknown, fallback: AiCheckinResult): AiCheckin
     trend_note: typeof raw.trend_note === "string" ? raw.trend_note.slice(0, 320) : fallback.trend_note ?? null,
     personal_plan: typeof raw.personal_plan === "string" ? raw.personal_plan.slice(0, 420) : fallback.personal_plan ?? null,
     app_suggestion: typeof raw.app_suggestion === "string" ? raw.app_suggestion.slice(0, 320) : fallback.app_suggestion ?? null,
-    suggested_app_action: ["concierge", "symptom", "vitals", "care", "meditation", "social", "music"].includes(raw.suggested_app_action ?? "")
+    suggested_app_action: ["concierge", "symptom", "vitals", "care", "meditation", "social", "music", "exercise", "chess", "cooking", "art", "literature"].includes(raw.suggested_app_action ?? "")
       ? raw.suggested_app_action!
       : fallback.suggested_app_action ?? null,
     right_now: Array.isArray(raw.right_now) ? raw.right_now.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.right_now,
