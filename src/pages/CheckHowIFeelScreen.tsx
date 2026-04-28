@@ -115,25 +115,187 @@ function progressFor(step: StepId) {
 }
 
 function localResult(name: string, answers: Answers): CheckinResult {
-  const lowEnergy = (answers.energy_level ?? 3) <= 2;
+  const energy = answers.energy_level ?? 3;
+  const lowEnergy = energy <= 2;
+  const strongEnergy = energy >= 4;
   const lowMood = answers.mood === "triste" || answers.mood === "ansiosa";
+  const unsettledMood = answers.mood === "ansiosa" || answers.mood === "irritable";
   const poorSleep = answers.sleep_quality === "mal" || answers.sleep_quality === "muy_mal";
+  const lightSleep = answers.sleep_quality === "regular";
+  const goodSleep = answers.sleep_quality === "bien" || answers.sleep_quality === "muy_bien";
+  const noBodyNotes = answers.body_areas.includes("ninguno") || answers.body_areas.length === 0;
+  const noSymptoms = answers.symptoms.includes("ninguno") || answers.symptoms.length === 0;
+  const has = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
+  const safetySignal = has("falta_aire") || has("pecho") || has("confusion");
+  const dizzy = has("mareo");
+  const feverish = has("fiebre");
+  const stomach = has("estomago") || has("nauseas");
+  const headache = has("cabeza") || has("dolor_cabeza");
+  const joints = has("espalda") || has("articulaciones") || has("piernas");
+  const alone = answers.social_contact === "no";
+
+  if (safetySignal) {
+    return {
+      feeling_label: "Un día para estar acompañada",
+      overall_state: "low",
+      vyva_reading: `${name || "Cariño"}, gracias por decírmelo. Algunas respuestas merecen atención y hoy no conviene esperar en silencio.`,
+      right_now: [
+        "Siéntate en una postura cómoda y evita caminar sola ahora.",
+        "Avisa a alguien cercano para que esté pendiente de ti.",
+        "Si la molestia en el pecho, la confusión o la falta de aire continúa, pide ayuda urgente.",
+      ],
+      today_actions: [
+        "Mantente cerca del teléfono y no hagas esfuerzos.",
+        "Anota a qué hora empezó lo que notas.",
+        "Si empeora o te asusta, llama a emergencias o a tu medico.",
+      ],
+      highlight: "Lo importante hoy es seguridad, compañía y observar si mejora pronto.",
+      flag_caregiver: true,
+      watch_for: "Si notas falta de aire, dolor en el pecho, confusión intensa o empeoramiento rápido, busca ayuda urgente.",
+    };
+  }
+
+  if (strongEnergy && !lowMood && goodSleep && noBodyNotes && noSymptoms) {
+    return {
+      feeling_label: "Un día con buen impulso",
+      overall_state: "excellent",
+      vyva_reading: `${name || "Cariño"}, hoy tus respuestas suenan estables y con buena energía. Es un buen día para hacer algo agradable sin llenarlo demasiado.`,
+      right_now: [
+        "Elige una actividad sencilla que te apetezca de verdad.",
+        "Toma agua antes de salir o empezar.",
+        "Reserva un momento tranquilo para después.",
+      ],
+      today_actions: [
+        "Haz una salida corta o una llamada que te ilusione.",
+        "Aprovecha la energía para una tarea pendiente pequeña.",
+        "Para antes de cansarte, aunque te sientas bien.",
+      ],
+      highlight: "Tienes margen para disfrutar, manteniendo un ritmo amable.",
+      flag_caregiver: false,
+      watch_for: null,
+    };
+  }
+
+  if (poorSleep) {
+    return {
+      feeling_label: "Un día de recuperar descanso",
+      overall_state: lowEnergy ? "tired" : "moderate",
+      vyva_reading: `${name || "Cariño"}, dormir poco cambia mucho el cuerpo y el ánimo. Hoy conviene bajar el ritmo y cuidar lo básico.`,
+      right_now: [
+        "Bebe agua y toma algo ligero si no has desayunado.",
+        "Haz una pausa sentada durante unos minutos.",
+        "Deja para mas tarde cualquier tarea que no sea urgente.",
+      ],
+      today_actions: [
+        "Busca luz natural suave durante un rato.",
+        "Evita una siesta larga; mejor un descanso corto.",
+        alone ? "Haz una llamada breve a alguien de confianza." : "Mantente con planes sencillos y conocidos.",
+      ],
+      highlight: "Tu cuerpo está pidiendo recuperar energía, no demostrar fuerza.",
+      flag_caregiver: lowEnergy && lowMood,
+      watch_for: dizzy ? "Si el mareo se repite, aumenta o viene con debilidad fuerte, avisa a alguien y consulta." : null,
+    };
+  }
+
+  if (stomach) {
+    return {
+      feeling_label: "Un día para cuidar el estómago",
+      overall_state: "moderate",
+      vyva_reading: `${name || "Cariño"}, hoy tu cuerpo parece pedir calma digestiva y un plan sencillo, sin prisas ni comidas pesadas.`,
+      right_now: [
+        "Toma pequeños sorbos de agua.",
+        "Elige comida suave si tienes hambre.",
+        "Descansa sentada y evita moverte rápido.",
+      ],
+      today_actions: [
+        "Observa si las náuseas mejoran después de hidratarte.",
+        "Evita comidas muy grasas o abundantes hoy.",
+        alone ? "Avisa a alguien si te notas más débil." : "Comenta cómo te sientes si estás con alguien.",
+      ],
+      highlight: "Hoy ayuda más la suavidad que intentar seguir como siempre.",
+      flag_caregiver: lowEnergy && alone,
+      watch_for: feverish ? "Si hay fiebre, vómitos persistentes o dolor fuerte, conviene consultar." : null,
+    };
+  }
+
+  if (headache || dizzy) {
+    return {
+      feeling_label: dizzy ? "Un día para ir con cuidado" : "Un día de bajar estímulos",
+      overall_state: "moderate",
+      vyva_reading: `${name || "Cariño"}, tus respuestas apuntan a que hoy conviene reducir ruido, pantallas y movimientos bruscos.`,
+      right_now: [
+        "Bebe agua y sientate un momento.",
+        "Evita levantarte deprisa.",
+        "Busca un sitio tranquilo con poca luz si puedes.",
+      ],
+      today_actions: [
+        "Haz solo desplazamientos necesarios.",
+        "Pide ayuda con tareas que requieran esfuerzo.",
+        alone ? "Llama a alguien para que sepa cómo estás." : "Comenta el mareo o dolor si no mejora.",
+      ],
+      highlight: "Ir despacio hoy es una decisión inteligente.",
+      flag_caregiver: dizzy && lowEnergy,
+      watch_for: dizzy ? "Si el mareo continúa, aparece debilidad o te cuesta hablar, pide ayuda enseguida." : null,
+    };
+  }
+
+  if (joints) {
+    return {
+      feeling_label: "Un día de movimiento suave",
+      overall_state: lowEnergy ? "tired" : "moderate",
+      vyva_reading: `${name || "Cariño"}, hoy parece mejor proteger el cuerpo y elegir movimientos pequeños, seguros y sin prisa.`,
+      right_now: [
+        "Cambia de postura despacio.",
+        "Evita cargar peso o subir muchas escaleras.",
+        "Prepara lo que necesites cerca para moverte menos.",
+      ],
+      today_actions: [
+        "Elige una actividad sentada o con descansos frecuentes.",
+        "Usa calzado cómodo si sales.",
+        "Pide ayuda si una tarea implica esfuerzo físico.",
+      ],
+      highlight: "Cuidar articulaciones y espalda hoy te ayuda a llegar mejor a la tarde.",
+      flag_caregiver: false,
+      watch_for: null,
+    };
+  }
+
+  if (lowMood || unsettledMood || alone) {
+    return {
+      feeling_label: alone ? "Un día para sentirte acompañada" : "Un día emocionalmente sensible",
+      overall_state: lowEnergy ? "low" : "moderate",
+      vyva_reading: `${name || "Cariño"}, hoy no todo pasa por el cuerpo. También cuenta cómo está el ánimo, y merece cuidado sencillo.`,
+      right_now: [
+        "Respira despacio durante un minuto.",
+        "Haz una cosa pequeña que te dé sensación de orden.",
+        "Si puedes, manda un mensaje corto a alguien de confianza.",
+      ],
+      today_actions: [
+        "Evita quedarte con preocupaciones dando vueltas sola.",
+        "Escoge una actividad conocida y tranquila.",
+        "Si te apetece, pide a VYVA que te ayude a llamar a alguien.",
+      ],
+      highlight: "Hoy la compañía y la calma pueden ayudar más que hacer muchas cosas.",
+      flag_caregiver: lowEnergy && alone,
+      watch_for: answers.mood === "triste" && alone ? "Si esta tristeza se mantiene varios días o se vuelve muy pesada, conviene contárselo a alguien de confianza." : null,
+    };
+  }
 
   return {
-    feeling_label: lowEnergy || poorSleep ? "Un día más suave" : "Un día estable",
-    overall_state: lowEnergy || lowMood || poorSleep ? "moderate" : "good",
-    vyva_reading: `${name || "Cariño"}, gracias por contármelo. Hoy parece un día para cuidarte sin exigirte demasiado.`,
+    feeling_label: lightSleep || lowEnergy ? "Un día estable, con calma" : "Un día estable",
+    overall_state: lowEnergy ? "tired" : "good",
+    vyva_reading: `${name || "Cariño"}, gracias por contármelo. Tus respuestas no señalan nada fuerte, pero hoy conviene escucharte y mantener un ritmo claro.`,
     right_now: [
       "Bebe un vaso de agua despacio.",
-      "Siéntate cómoda y respira con calma durante un minuto.",
-      "Elige una tarea pequeña y agradable para empezar.",
+      "Elige una tarea pequeña y fácil para empezar.",
+      "Haz una pausa breve antes de pasar a lo siguiente.",
     ],
     today_actions: [
-      "Haz una pausa tranquila después de comer.",
-      "Busca un momento de luz natural o aire fresco.",
+      "Busca un momento de luz natural o aire fresco si te apetece.",
+      "Mantén planes sencillos y deja margen para descansar.",
       "Habla con alguien cercano si te apetece compañía.",
     ],
-    highlight: "Tu cuerpo agradece un ritmo amable hoy.",
+    highlight: lightSleep ? "Dormiste regular, así que te irá mejor un día sin prisas." : "Tu cuerpo agradece un ritmo amable y bien elegido.",
     flag_caregiver: lowEnergy && lowMood,
     watch_for: null,
   };
