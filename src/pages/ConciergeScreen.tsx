@@ -17,6 +17,10 @@ import {
   PhoneCall,
   CircleCheck,
   CircleX,
+  Share2,
+  MapPin,
+  Clock,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +67,23 @@ interface RecommendationCard {
   location_hint?: string;
   score?: number;
   reason_codes?: string[];
+}
+
+interface RecommendationActionPlan {
+  title: string;
+  summary: string;
+  place_name?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  maps_url?: string;
+  opening_hours?: string[];
+  price_info: string;
+  travel_info: string;
+  accessibility_note: string;
+  next_steps: string[];
+  caveat: string;
+  share_text: string;
 }
 
 interface ConciergePendingItem {
@@ -144,7 +165,9 @@ function buildRecommendationActionPrompt(card: RecommendationCard, isSpanish: bo
       card.location_hint ? `Contexto local: ${card.location_hint}` : "",
       signals ? `Personalizalo usando estas senales: ${signals}.` : "",
       card.safety_note ? `Ten en cuenta esta nota de cuidado: ${card.safety_note}` : "",
-      "Dame el siguiente paso concreto. Si requiere llamar, reservar o confirmar algo, prepara primero un resumen claro y pideme confirmacion.",
+      "Responde como una conversacion natural de movil, sin titulos markdown, sin tablas y sin listas largas.",
+      "Empieza con una frase clara de lo que puedes hacer y pide solo el siguiente dato o confirmacion necesaria.",
+      "Si requiere llamar, reservar o confirmar algo, prepara primero un resumen claro y pideme confirmacion.",
     ].filter(Boolean).join("\n");
   }
 
@@ -157,7 +180,9 @@ function buildRecommendationActionPrompt(card: RecommendationCard, isSpanish: bo
     card.location_hint ? `Local context: ${card.location_hint}` : "",
     signals ? `Personalise it using these signals: ${signals}.` : "",
     card.safety_note ? `Care note: ${card.safety_note}` : "",
-    "Give me the next concrete step. If it requires a call, booking, or confirmation, prepare a clear summary and ask me to confirm first.",
+    "Respond like a natural mobile chat, with no markdown headings, no tables, and no long lists.",
+    "Start with one clear sentence about what you can do and ask only for the next needed detail or confirmation.",
+    "If it requires a call, booking, or confirmation, prepare a clear summary and ask me to confirm first.",
   ].filter(Boolean).join("\n");
 }
 
@@ -191,6 +216,17 @@ async function fetchRecommendations(locale: string, refresh = false): Promise<Re
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   const data = (await res.json()) as { recommendations?: RecommendationCard[] };
   return data.recommendations ?? [];
+}
+
+async function fetchRecommendationPlan(card: RecommendationCard, locale: string): Promise<RecommendationActionPlan> {
+  const res = await apiFetch("/api/concierge/recommendations/plan", {
+    method: "POST",
+    body: JSON.stringify({ card, locale }),
+  });
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  const data = (await res.json()) as { plan?: RecommendationActionPlan };
+  if (!data.plan) throw new Error("Missing recommendation plan");
+  return data.plan;
 }
 
 async function sendRecommendationFeedback(
@@ -325,6 +361,8 @@ const ConciergeScreen = () => {
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
   const [selectedRec, setSelectedRec] = useState<RecommendationCard | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<RecommendationActionPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -499,22 +537,31 @@ const ConciergeScreen = () => {
     setInput(prompt);
   }
 
-  function handleRecommendationAction(card: RecommendationCard) {
+  async function handleRecommendationAction(card: RecommendationCard) {
     if (chatLoading) return;
-    const prompt = buildRecommendationActionPrompt(card, isSpanish) || card.action_prompt || card.description;
-    const visibleText = isSpanish
-      ? `Ayudame con "${card.title}".`
-      : `Help me with "${card.title}".`;
-    const userMsg: ChatMessage = { role: "user", content: visibleText };
-    const nextHistory = [...messages, userMsg];
     sendRecommendationFeedback(card, "liked").catch(() => undefined);
-    setMessages(nextHistory);
-    setInput("");
-    setSelectedRec(null);
-    window.setTimeout(() => {
-      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-    sendMessage(prompt, nextHistory);
+    setPlanLoading(true);
+    try {
+      const plan = await fetchRecommendationPlan(card, i18n.language);
+      setSelectedPlan(plan);
+      setSelectedRec(null);
+    } catch {
+      const prompt = buildRecommendationActionPrompt(card, isSpanish) || card.action_prompt || card.description;
+      const visibleText = isSpanish
+        ? `Ayudame con "${card.title}".`
+        : `Help me with "${card.title}".`;
+      const userMsg: ChatMessage = { role: "user", content: visibleText };
+      const nextHistory = [...messages, userMsg];
+      setMessages(nextHistory);
+      setInput("");
+      setSelectedRec(null);
+      window.setTimeout(() => {
+        chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+      sendMessage(prompt, nextHistory);
+    } finally {
+      setPlanLoading(false);
+    }
   }
 
   function handleOpenRecommendation(card: RecommendationCard) {
@@ -534,6 +581,18 @@ const ConciergeScreen = () => {
     if (action === "completed") {
       setSelectedRec(null);
     }
+  }
+
+  async function handleSharePlan(plan: RecommendationActionPlan) {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: plan.title, text: plan.share_text });
+        return;
+      } catch {
+        // Fall back to clipboard.
+      }
+    }
+    await navigator.clipboard?.writeText(plan.share_text).catch(() => undefined);
   }
 
   const activeAction = pendingActions[0];
@@ -1009,9 +1068,14 @@ const ConciergeScreen = () => {
                   <Button
                     data-testid="button-rec-action"
                     onClick={() => handleRecommendationAction(selectedRec)}
+                    disabled={planLoading}
                     className="h-[46px] flex-1 rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
                   >
-                    {selectedRec.action_label || (isSpanish ? "Ayudame" : "Help me")}
+                    {planLoading ? (
+                      <Loader2 size={16} className="animate-spin text-white" />
+                    ) : (
+                      selectedRec.action_label || (isSpanish ? "Ayudame" : "Help me")
+                    )}
                   </Button>
                   <Button
                     data-testid="button-rec-dismiss"
@@ -1021,6 +1085,144 @@ const ConciergeScreen = () => {
                   >
                     {isSpanish ? "Cerrar" : "Close"}
                   </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedPlan && (
+          <div
+            className="fixed inset-0 z-[1000] flex items-end bg-black/35 px-[10px] sm:items-center sm:justify-center sm:px-4"
+            style={{ paddingBottom: "calc(88px + env(safe-area-inset-bottom))", paddingTop: 16 }}
+            role="dialog"
+            aria-modal="true"
+            data-testid="dialog-concierge-rec-plan"
+            onClick={() => setSelectedPlan(null)}
+          >
+            <div
+              className="w-full max-w-[600px] overflow-hidden rounded-[28px] border border-vyva-border bg-white"
+              style={{ boxShadow: "0 18px 50px rgba(0,0,0,0.22)", maxHeight: "calc(100dvh - 128px)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="max-h-[inherit] overflow-y-auto p-[18px] pb-0">
+                <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E7DDD4]" />
+                <div className="flex items-start gap-3">
+                  <div className="flex h-[48px] w-[48px] flex-shrink-0 items-center justify-center rounded-[17px] bg-[#F5F3FF]">
+                    <Sparkles size={22} className="text-vyva-purple" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
+                      {selectedPlan.title}
+                    </p>
+                    <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                      {selectedPlan.summary}
+                    </p>
+                  </div>
+                  <button
+                    data-testid="button-close-rec-plan"
+                    onClick={() => setSelectedPlan(null)}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F5F1EC] font-body text-[16px] text-vyva-text-2"
+                    aria-label={isSpanish ? "Cerrar" : "Close"}
+                  >
+                    x
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  {(selectedPlan.place_name || selectedPlan.address) && (
+                    <div className="rounded-[18px] border border-vyva-border bg-[#FBF8F4] p-4">
+                      <div className="flex items-start gap-3">
+                        <MapPin size={18} className="mt-0.5 flex-shrink-0 text-vyva-purple" />
+                        <div>
+                          {selectedPlan.place_name && (
+                            <p className="font-body text-[15px] font-semibold text-vyva-text-1">{selectedPlan.place_name}</p>
+                          )}
+                          {selectedPlan.address && (
+                            <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">{selectedPlan.address}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-[18px] bg-[#F5F3FF] p-4">
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#6B21A8]">
+                        {isSpanish ? "Precio" : "Price"}
+                      </p>
+                      <p className="mt-2 font-body text-[13px] leading-relaxed text-vyva-text-1">{selectedPlan.price_info}</p>
+                    </div>
+                    <div className="rounded-[18px] bg-[#ECFDF5] p-4">
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#0A7C4E]">
+                        {isSpanish ? "Como llegar" : "How to get there"}
+                      </p>
+                      <p className="mt-2 font-body text-[13px] leading-relaxed text-vyva-text-1">{selectedPlan.travel_info}</p>
+                    </div>
+                  </div>
+
+                  {selectedPlan.opening_hours && selectedPlan.opening_hours.length > 0 && (
+                    <div className="rounded-[18px] border border-vyva-border bg-white p-4">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-vyva-purple" />
+                        <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                          {isSpanish ? "Horarios" : "Opening hours"}
+                        </p>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        {selectedPlan.opening_hours.slice(0, 4).map((hour) => (
+                          <p key={hour} className="font-body text-[13px] leading-relaxed text-vyva-text-1">{hour}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-[18px] border border-vyva-border bg-white p-4">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                      {isSpanish ? "Accesibilidad" : "Accessibility"}
+                    </p>
+                    <p className="mt-2 font-body text-[13px] leading-relaxed text-vyva-text-1">{selectedPlan.accessibility_note}</p>
+                  </div>
+
+                  <div className="rounded-[18px] border border-vyva-border bg-white p-4">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                      {isSpanish ? "Siguientes pasos" : "Next steps"}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {selectedPlan.next_steps.map((step, index) => (
+                        <div key={`${step}-${index}`} className="flex gap-3">
+                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-semibold text-white">
+                            {index + 1}
+                          </span>
+                          <p className="font-body text-[13px] leading-relaxed text-vyva-text-1">{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{selectedPlan.caveat}</p>
+                </div>
+
+                <div className="sticky bottom-0 -mx-[18px] mt-5 grid grid-cols-2 gap-2 border-t border-vyva-border bg-white p-[14px_18px]">
+                  <Button
+                    data-testid="button-rec-plan-share"
+                    onClick={() => handleSharePlan(selectedPlan)}
+                    className="h-[46px] rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
+                  >
+                    <Share2 size={15} className="mr-2" />
+                    {isSpanish ? "Compartir" : "Share"}
+                  </Button>
+                  {(selectedPlan.maps_url || selectedPlan.website) && (
+                    <Button
+                      data-testid="button-rec-plan-open"
+                      onClick={() => window.open(selectedPlan.maps_url || selectedPlan.website, "_blank", "noopener,noreferrer")}
+                      variant="outline"
+                      className="h-[46px] rounded-full font-body text-[14px]"
+                    >
+                      <ExternalLink size={15} className="mr-2" />
+                      {selectedPlan.maps_url ? (isSpanish ? "Abrir mapa" : "Open map") : (isSpanish ? "Abrir web" : "Open site")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

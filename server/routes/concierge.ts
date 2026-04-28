@@ -74,6 +74,28 @@ interface RecommendationFeedbackRequestBody {
   reasons?: string[];
 }
 
+interface RecommendationPlanRequestBody {
+  card?: RecommendationCard;
+  locale?: string;
+}
+
+export interface RecommendationActionPlan {
+  title: string;
+  summary: string;
+  place_name?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  maps_url?: string;
+  opening_hours?: string[];
+  price_info: string;
+  travel_info: string;
+  accessibility_note: string;
+  next_steps: string[];
+  caveat: string;
+  share_text: string;
+}
+
 interface RecommendationFeedbackSummary {
   shownIds: string[];
   openedIds: string[];
@@ -495,9 +517,16 @@ ${nameClause} ${cityClause}
 Guidelines:
 - Respond conversationally and warmly. Use the user's name occasionally.
 - Keep responses concise and easy to read.
+- Never use markdown headings, tables, code blocks, or raw checklist formatting.
+- For mobile chat, use short natural paragraphs. If steps are needed, keep them as plain short sentences.
 - For ride booking: suggest how to use a local taxi service or app, provide practical steps.
 - For appointment scheduling: give a clear step-by-step guide.
 - For deal finding: suggest where to look.
+- Never invent specific shop names, brands, prices, opening times, routes, or events.
+- Do not give generic seasonal ideas like "autumn offers" unless the user asked for that specifically.
+- If live/local information is needed, ask for the exact category or permission to look it up instead of guessing.
+- If the user starts from a recommendation card, behave like a guided mini-flow: explain what you can do, mention the most useful next detail, and ask one simple confirmation question.
+- Do not expose internal words such as flow, needs, action_kind, payload, or search_terms.
 - For research topics: give clear, plain-language explanations.
 - IMPORTANT: If asked for medical diagnosis, treatment recommendations, or specific clinical advice, politely redirect to VYVA's Health section or their GP.
 - Administrative or informational health topics are fine, such as scheduling a medical appointment.
@@ -639,27 +668,27 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     id: "local_savings_check",
     category: "deal",
     emoji: "🛒",
-    title: { en: "Useful local savings", es: "Ahorros utiles cerca" },
+    title: { en: "Compare one useful errand", es: "Comparar un recado util" },
     description: {
-      en: "VYVA can look for practical nearby discounts before your next errand.",
-      es: "VYVA puede buscar descuentos cercanos utiles antes de tu proximo recado.",
+      en: "VYVA can help compare one practical nearby errand before you go.",
+      es: "VYVA puede ayudarte a comparar un recado cercano antes de salir.",
     },
     why: {
-      en: "It is useful only if the shop or service is nearby and practical.",
-      es: "Solo sirve si la tienda o servicio queda cerca y es practico.",
+      en: "It only helps when it is tied to a real errand you actually need.",
+      es: "Solo ayuda si se conecta con un recado real que necesitas.",
     },
     details: {
-      en: "Focus on pharmacies, supermarkets, transport, or community offers. VYVA can filter out anything awkward to reach.",
-      es: "Conviene mirar farmacias, supermercados, transporte u ofertas comunitarias. VYVA puede descartar lo dificil de aprovechar.",
+      en: "Pick one category, such as pharmacy, groceries, transport, or a local activity. VYVA should not invent shops or offers; it should check only what is practical.",
+      es: "Elige una categoria, como farmacia, compra, transporte o actividad local. VYVA no debe inventar tiendas ni ofertas; solo debe revisar lo practico.",
     },
     steps: {
-      en: ["Choose a category", "Check nearby offers", "Save the useful ones"],
-      es: ["Elegir categoria", "Buscar ofertas cerca", "Guardar las utiles"],
+      en: ["Choose the errand", "Compare nearby options", "Keep the practical one"],
+      es: ["Elegir el recado", "Comparar opciones cercanas", "Quedarse con lo practico"],
     },
-    actionLabel: { en: "Find offers", es: "Buscar" },
+    actionLabel: { en: "Compare", es: "Comparar" },
     actionPrompt: {
-      en: "Find practical local offers near me today.",
-      es: "Busca ofertas practicas cerca de mi para hoy.",
+      en: "Help me compare one practical local errand.",
+      es: "Ayudame a comparar un recado practico cerca de mi.",
     },
     safetyNote: { en: "", es: "" },
     tags: ["deal", "discount", "shopping", "pharmacy", "supermarket", "ahorro", "oferta", "farmacia"],
@@ -1289,6 +1318,179 @@ function fallbackChatResponse(name: string): string {
   return `${greeting} I'm here to help with everyday tasks: booking rides, finding deals, scheduling appointments, and more. What can I help you with today?`;
 }
 
+function priceLevelLabel(level: number | undefined, locale: string): string {
+  const es = locale === "es";
+  if (typeof level !== "number") return es ? "Precio no publicado. VYVA puede revisar la web o llamar para confirmarlo." : "Price not published. VYVA can check the website or call to confirm.";
+  const symbols = "€".repeat(Math.min(Math.max(level, 1), 4));
+  return es ? `Nivel de precio aproximado: ${symbols}. Confirmar antes de ir.` : `Approximate price level: ${symbols}. Confirm before going.`;
+}
+
+async function searchActionPlace(
+  card: RecommendationCard,
+  context: UserProfileContext,
+  locale: string,
+): Promise<{
+  name?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  mapsUrl?: string;
+  openingHours?: string[];
+  priceLevel?: number;
+  rating?: number;
+  reviewCount?: number;
+} | null> {
+  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  const terms = card.action_payload?.search_terms?.filter(Boolean) ?? [];
+  const place = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
+  if (!key || !terms.length || !place) return null;
+
+  const query = `${terms.filter((term) => term !== context.city).join(" ")} ${place}`.trim();
+  const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+  searchUrl.searchParams.set("query", query);
+  searchUrl.searchParams.set("language", locale || "es");
+  searchUrl.searchParams.set("key", key);
+
+  const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(6500) });
+  if (!searchRes.ok) return null;
+  const searchData = await searchRes.json() as {
+    status?: string;
+    results?: Array<{ place_id?: string; name?: string; formatted_address?: string; rating?: number; user_ratings_total?: number; price_level?: number }>;
+  };
+  const first = searchData.results?.[0];
+  if (!first) return null;
+
+  if (!first.place_id) {
+    return {
+      name: first.name,
+      address: first.formatted_address,
+      rating: first.rating,
+      reviewCount: first.user_ratings_total,
+      priceLevel: first.price_level,
+    };
+  }
+
+  const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  detailsUrl.searchParams.set("place_id", first.place_id);
+  detailsUrl.searchParams.set("language", locale || "es");
+  detailsUrl.searchParams.set("fields", "name,formatted_address,formatted_phone_number,website,url,opening_hours,price_level,rating,user_ratings_total");
+  detailsUrl.searchParams.set("key", key);
+
+  const detailsRes = await fetch(detailsUrl, { signal: AbortSignal.timeout(6500) });
+  if (!detailsRes.ok) return null;
+  const detailsData = await detailsRes.json() as {
+    result?: {
+      name?: string;
+      formatted_address?: string;
+      formatted_phone_number?: string;
+      website?: string;
+      url?: string;
+      opening_hours?: { weekday_text?: string[] };
+      price_level?: number;
+      rating?: number;
+      user_ratings_total?: number;
+    };
+  };
+  const result = detailsData.result;
+  if (!result) return null;
+
+  return {
+    name: result.name ?? first.name,
+    address: result.formatted_address ?? first.formatted_address,
+    phone: result.formatted_phone_number,
+    website: result.website,
+    mapsUrl: result.url,
+    openingHours: result.opening_hours?.weekday_text,
+    priceLevel: result.price_level ?? first.price_level,
+    rating: result.rating ?? first.rating,
+    reviewCount: result.user_ratings_total ?? first.user_ratings_total,
+  };
+}
+
+function buildShareText(plan: Omit<RecommendationActionPlan, "share_text">): string {
+  return [
+    plan.title,
+    plan.summary,
+    plan.place_name ? `Lugar: ${plan.place_name}` : "",
+    plan.address ? `Direccion: ${plan.address}` : "",
+    plan.phone ? `Telefono: ${plan.phone}` : "",
+    plan.website ? `Web: ${plan.website}` : "",
+    plan.maps_url ? `Mapa: ${plan.maps_url}` : "",
+    `Precio: ${plan.price_info}`,
+    `Como llegar: ${plan.travel_info}`,
+    `Nota: ${plan.caveat}`,
+  ].filter(Boolean).join("\n");
+}
+
+async function buildRecommendationActionPlan(
+  card: RecommendationCard,
+  context: UserProfileContext,
+  locale: string,
+): Promise<RecommendationActionPlan> {
+  const es = locale === "es";
+  const place = await searchActionPlace(card, context, locale).catch(() => null);
+  const placeName = place?.name;
+  const hasPlace = Boolean(placeName);
+  const ratingText = place?.rating
+    ? es
+      ? ` Valoracion: ${place.rating}/5${place.reviewCount ? ` con ${place.reviewCount} resenas` : ""}.`
+      : ` Rating: ${place.rating}/5${place.reviewCount ? ` from ${place.reviewCount} reviews` : ""}.`
+    : "";
+  const title = es ? `Plan para: ${card.title}` : `Plan for: ${card.title}`;
+  const summary = hasPlace
+    ? es
+      ? `He encontrado una opcion concreta para revisar: ${placeName}.${ratingText}`
+      : `I found a concrete option to check: ${placeName}.${ratingText}`
+    : es
+      ? `Puedo ayudarte a convertir esta idea en un plan concreto y seguro.`
+      : `I can help turn this idea into a concrete, safe plan.`;
+  const travelInfo = hasPlace
+    ? es
+      ? "Usa el mapa para ver ruta y tiempo real. Si hace falta, VYVA puede preparar un taxi antes de confirmar."
+      : "Use the map for live route and travel time. If needed, VYVA can prepare a taxi before confirming."
+    : es
+      ? "Primero necesito concretar lugar o preferencia. Despues puedo revisar ruta, distancia y transporte."
+      : "First we need to choose a place or preference. Then I can check route, distance, and transport.";
+  const accessibilityNote = card.effort === "none" || card.effort === "low"
+    ? es
+      ? "Mantenerlo corto, con asiento disponible y evitando escaleras si es posible."
+      : "Keep it short, with seating available and avoiding stairs where possible."
+    : es
+      ? "Confirmar accesibilidad, descansos y distancia antes de ir."
+      : "Confirm accessibility, breaks, and distance before going.";
+  const nextSteps = hasPlace
+    ? es
+      ? ["Revisar horario de hoy", "Confirmar precio o entrada", "Elegir transporte o pedir a VYVA que llame"]
+      : ["Check today's hours", "Confirm price or entry", "Choose transport or ask VYVA to call"]
+    : es
+      ? ["Elegir una categoria o lugar", "VYVA revisa datos utiles", "Confirmar si quieres reservar o llamar"]
+      : ["Choose a category or place", "VYVA checks useful details", "Confirm if you want to book or call"];
+  const caveat = es
+    ? "Los horarios, precios y disponibilidad pueden cambiar. Conviene confirmar antes de salir."
+    : "Hours, prices, and availability can change. Confirm before leaving.";
+
+  const planWithoutShare: Omit<RecommendationActionPlan, "share_text"> = {
+    title,
+    summary,
+    place_name: place?.name,
+    address: place?.address,
+    phone: place?.phone,
+    website: place?.website,
+    maps_url: place?.mapsUrl,
+    opening_hours: place?.openingHours?.slice(0, 7),
+    price_info: priceLevelLabel(place?.priceLevel, locale),
+    travel_info: travelInfo,
+    accessibility_note: accessibilityNote,
+    next_steps: nextSteps,
+    caveat,
+  };
+
+  return {
+    ...planWithoutShare,
+    share_text: buildShareText(planWithoutShare),
+  };
+}
+
 const FALLBACK_RECOMMENDATIONS: RecommendationCard[] = [
   {
     title: "Plan a gentle outing",
@@ -1474,56 +1676,32 @@ export async function conciergeRecommendationFeedbackHandler(req: Request, res: 
   }
 }
 
+export async function conciergeRecommendationPlanHandler(req: Request, res: Response) {
+  const { card, locale = "en" } = req.body as RecommendationPlanRequestBody;
+  if (!card || typeof card !== "object" || typeof card.title !== "string") {
+    return res.status(400).json({ error: "card is required" });
+  }
+
+  const normalizedLocale = normaliseLocale(locale);
+  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const context = await getUserProfile(userId);
+
+  try {
+    const plan = await buildRecommendationActionPlan(card, context, normalizedLocale);
+    return res.json({ plan });
+  } catch (err) {
+    console.error("[concierge/recs/plan]", err);
+    return res.status(500).json({ error: "Failed to build recommendation plan" });
+  }
+}
+
 export async function conciergeRecommendationsHandler(req: Request, res: Response) {
   const { locale = "en", refresh = false } = req.body as RecommendationsRequestBody;
   const normalizedLocale = normaliseLocale(locale);
-  const apiKey = process.env.OPENAI_API_KEY ?? "";
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
-  const dayOfWeek = DAYS_OF_WEEK[new Date().getDay()];
   const rankedCandidates = rankRecommendationCandidates(context, { refresh });
   const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale, context);
 
-  if (!apiKey) {
-    console.warn("[concierge/recs] OPENAI_API_KEY not set, returning ranked deterministic cards");
-    return res.json({ recommendations: deterministicCards });
-  }
-
-  try {
-    const client = new OpenAI({ apiKey });
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: buildRecommendationsPrompt(context, dayOfWeek, normalizedLocale, rankedCandidates, { refresh }),
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 900,
-    });
-
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    let recommendations = deterministicCards;
-
-    try {
-      const parsed = JSON.parse(raw) as unknown[];
-      if (Array.isArray(parsed)) {
-        const cleaned = parsed.map(sanitiseRecommendation).filter(Boolean) as RecommendationCard[];
-        const merged = cleaned.map((card) => {
-          const baseline = deterministicCards.find((item) => item.id && item.id === card.id);
-          return baseline ? { ...baseline, ...card, action_payload: card.action_payload ?? baseline.action_payload } : card;
-        });
-        if (merged.length > 0) recommendations = merged.slice(0, 4);
-      }
-    } catch {
-      console.warn("[concierge/recs] Failed to parse JSON response, using fallback");
-    }
-
-    return res.json({ recommendations });
-  } catch (err) {
-    console.error("[concierge/recs] OpenAI error:", err);
-    return res.json({ recommendations: deterministicCards });
-  }
+  return res.json({ recommendations: deterministicCards });
 }

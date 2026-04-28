@@ -13,6 +13,7 @@ import { medsVoiceParseHandler } from "./routes/medsVoiceParse.js";
 import { medsAssistantHandler } from "./routes/medsAssistant.js";
 import {
   conciergeHandler,
+  conciergeRecommendationPlanHandler,
   conciergeRecommendationFeedbackHandler,
   conciergeRecommendationsHandler,
 } from "./routes/concierge.js";
@@ -69,6 +70,7 @@ app.post("/api/meds-voice-parse", medsVoiceParseHandler);
 app.post("/api/meds-assistant", medsAssistantHandler);
 app.post("/api/concierge", authMiddleware, conciergeHandler);
 app.post("/api/concierge/recommendations", authMiddleware, conciergeRecommendationsHandler);
+app.post("/api/concierge/recommendations/plan", authMiddleware, conciergeRecommendationPlanHandler);
 app.post("/api/concierge/recommendations/feedback", authMiddleware, conciergeRecommendationFeedbackHandler);
 app.use("/api/concierge/actions", conciergeActionsRouter);
 app.post("/api/allergies-voice-parse", allergiesVoiceParseHandler);
