@@ -786,7 +786,7 @@ async function updateTrend(userId: string, answers: CheckinAnswers, result: AiCh
   }
 }
 
-router.post("/analyze", requireUser, async (req: Request, res: Response) => {
+export async function analyzeCheckinHandler(req: Request, res: Response) {
   const parsed = checkinBodySchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -814,9 +814,9 @@ router.post("/analyze", requireUser, async (req: Request, res: Response) => {
     console.error("[checkins] analyze failed:", err);
     return res.status(500).json({ error: "Failed to analyze check-in" });
   }
-});
+}
 
-router.get("/history", requireUser, async (req: Request, res: Response) => {
+export async function checkinHistoryHandler(req: Request, res: Response) {
   const userId = req.user!.id;
 
   try {
@@ -858,7 +858,10 @@ router.get("/history", requireUser, async (req: Request, res: Response) => {
     console.error("[checkins] history failed:", err);
     return res.status(500).json({ error: "Failed to load check-in history" });
   }
-});
+}
+
+router.post("/analyze", requireUser, analyzeCheckinHandler);
+router.get("/history", requireUser, checkinHistoryHandler);
 
 router.post("/abandon", requireUser, async (req: Request, res: Response) => {
   const parsed = abandonBodySchema.safeParse(req.body);
