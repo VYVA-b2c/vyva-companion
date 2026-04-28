@@ -2,7 +2,22 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Loader2, Car, Calendar, Search, Tag, Lightbulb, RefreshCw, Plus, Sparkles, Home, ShieldCheck, PhoneCall, CircleCheck, CircleX } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Car,
+  Calendar,
+  Search,
+  Tag,
+  RefreshCw,
+  Plus,
+  Sparkles,
+  Home,
+  ShieldCheck,
+  PhoneCall,
+  CircleCheck,
+  CircleX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import VoiceHero from "@/components/VoiceHero";
@@ -73,20 +88,19 @@ function chatHistoryKey(locale: string) {
 
 function getCategoryColors(category: RecommendationCard["category"]) {
   const map: Record<RecommendationCard["category"], { bg: string; border: string }> = {
-    deal:     { bg: "#FEF3C7", border: "#FCD34D" },
-    event:    { bg: "#EDE9FE", border: "#C4B5FD" },
-    tip:      { bg: "#ECFDF5", border: "#6EE7B7" },
+    deal: { bg: "#FEF3C7", border: "#FCD34D" },
+    event: { bg: "#EDE9FE", border: "#C4B5FD" },
+    tip: { bg: "#ECFDF5", border: "#6EE7B7" },
     activity: { bg: "#F5F3FF", border: "#DDD6FE" },
   };
   return map[category] ?? map.tip;
 }
 
 const QUICK_ACTIONS = [
-  { key: "bookRide",      Icon: Car,       color: "#6B21A8", bg: "#F5F3FF" },
-  { key: "scheduleAppt",  Icon: Calendar,  color: "#0F766E", bg: "#F0FDFA" },
-  { key: "researchTopic", Icon: Search,    color: "#0A7C4E", bg: "#ECFDF5" },
-  { key: "findDeals",     Icon: Tag,       color: "#C9890A", bg: "#FEF3C7" },
-  { key: "getAdvice",     Icon: Lightbulb, color: "#B0355A", bg: "#FDF2F8" },
+  { key: "bookRide", Icon: Car, color: "#6B21A8", bg: "#F5F3FF" },
+  { key: "scheduleAppt", Icon: Calendar, color: "#0F766E", bg: "#F0FDFA" },
+  { key: "researchTopic", Icon: Search, color: "#0A7C4E", bg: "#ECFDF5" },
+  { key: "findDeals", Icon: Tag, color: "#C9890A", bg: "#FEF3C7" },
 ] as const;
 
 async function callConcierge(
@@ -104,11 +118,6 @@ async function callConcierge(
   return data.response ?? "";
 }
 
-/**
- * Fetch localised recommendation cards for the given locale (e.g. "es", "fr").
- * The backend uses this locale to instruct the AI to write card titles and
- * descriptions in the user's chosen language.
- */
 async function fetchRecommendations(locale: string): Promise<RecommendationCard[]> {
   const res = await fetch("/api/concierge/recommendations", {
     method: "POST",
@@ -135,9 +144,7 @@ async function fetchRecentSessions(): Promise<ConciergeSessionItem[]> {
 }
 
 async function confirmPendingAction(item: ConciergePendingItem) {
-  const bookingUrl = typeof item.action_payload?.booking_url === "string"
-    ? item.action_payload.booking_url.trim()
-    : "";
+  const bookingUrl = getBookingUrl(item);
 
   if (!item.provider_phone && bookingUrl) {
     window.open(bookingUrl, "_blank", "noopener,noreferrer");
@@ -157,6 +164,12 @@ async function cancelPendingAction(id: string) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(data?.error ?? "Failed to cancel concierge action");
   }
+}
+
+function getBookingUrl(item: ConciergePendingItem): string {
+  return typeof item.action_payload?.booking_url === "string"
+    ? item.action_payload.booking_url.trim()
+    : "";
 }
 
 function statusLabel(status: ConciergePendingItem["status"], locale = "es"): string {
@@ -223,9 +236,7 @@ const ConciergeScreen = () => {
   const [chatError, setChatError] = useState<string | null>(null);
   const reqIdRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Always holds the current locale so the save effect reads the right key
   const currentLocaleRef = useRef(i18n.language);
-  // Skip the very first save-effect invocation (before restore has run)
   const saveReadyRef = useRef(false);
 
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
@@ -263,12 +274,10 @@ const ConciergeScreen = () => {
     },
   });
 
-  // Keep currentLocaleRef in sync every render
   useEffect(() => {
     currentLocaleRef.current = i18n.language;
   });
 
-  // Restore chat history whenever the active locale changes (including on mount)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(chatHistoryKey(i18n.language));
@@ -280,36 +289,29 @@ const ConciergeScreen = () => {
           setHasRestoredHistory(true);
           return;
         }
-        // Stale — remove so future visits start clean
         localStorage.removeItem(chatHistoryKey(i18n.language));
       }
     } catch {
-      // ignore corrupt cache
+      // Ignore corrupt cache.
     }
-    // No valid history for this locale
     setMessages([]);
     setHasRestoredHistory(false);
   }, [i18n.language]);
 
-  // Persist chat history when messages change.
-  // Uses currentLocaleRef (not i18n.language) so the correct key is always written —
-  // avoids the cross-locale write that would occur if both locale and messages change
-  // in the same render cycle.
   useEffect(() => {
     if (!saveReadyRef.current) {
       saveReadyRef.current = true;
-      return; // Skip the initial render before restore has completed
+      return;
     }
     if (messages.length === 0) return;
     try {
       const stored: StoredChatHistory = { savedAt: new Date().toISOString(), messages };
       localStorage.setItem(chatHistoryKey(currentLocaleRef.current), JSON.stringify(stored));
     } catch {
-      // ignore storage errors (e.g. private mode quota)
+      // Ignore storage errors.
     }
   }, [messages]);
 
-  // Load recommendations from cache or fetch
   useEffect(() => {
     const today = new Date().toDateString();
     const cachedDate = localStorage.getItem(recsDateKey(i18n.language));
@@ -322,7 +324,7 @@ const ConciergeScreen = () => {
           return;
         }
       } catch {
-        // fall through to fetch
+        // Fall through to fetch.
       }
     }
     loadRecommendations();
@@ -343,7 +345,7 @@ const ConciergeScreen = () => {
       localStorage.setItem(recsDateKey(i18n.language), today);
       localStorage.setItem(recsCacheKey(i18n.language), JSON.stringify(cards));
     } catch {
-      // silent — show empty state
+      // Keep the page calm; recommendations are optional.
     } finally {
       setRecsLoading(false);
     }
@@ -361,7 +363,7 @@ const ConciergeScreen = () => {
     try {
       localStorage.removeItem(chatHistoryKey(i18n.language));
     } catch {
-      // ignore
+      // Ignore.
     }
   }
 
@@ -404,8 +406,11 @@ const ConciergeScreen = () => {
     setInput(prompt);
   }
 
+  const activeAction = pendingActions[0];
+  const queuedActionCount = Math.max(0, pendingActions.length - 1);
+
   return (
-    <div className="px-[22px]">
+    <div className="px-[22px] pb-6">
       <VoiceHero
         sourceText={t("concierge.voiceSource")}
         headline={t("concierge.headline")}
@@ -413,66 +418,209 @@ const ConciergeScreen = () => {
         contextHint="concierge"
       />
 
-      {/* Intro banner */}
-      <div
-        className="flex items-center gap-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] mt-4"
-        style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
-        data-testid="banner-concierge-intro"
-      >
-        <div
-          className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
-          style={{ background: "#F5F3FF" }}
-        >
-          <Sparkles size={22} style={{ color: "#6B21A8" }} />
+      <section className="mt-5" data-testid="section-concierge-active-task">
+        <div className="flex items-center justify-between mb-[10px]">
+          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
+            {isSpanish ? "Ahora mismo" : "Right now"}
+          </h2>
+          {queuedActionCount > 0 && (
+            <span className="font-body text-[12px] font-medium text-vyva-text-2">
+              +{queuedActionCount} {isSpanish ? "en cola" : "queued"}
+            </span>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("concierge.activityTile")}</p>
-          <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("concierge.activityTileSubtitle")}</p>
-        </div>
-      </div>
 
-      {/* Safe Home Scanner */}
-      <button
-        data-testid="button-safe-home-teaser"
-        onClick={() => navigate("/activity")}
-        className="w-full flex items-center gap-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] mt-3 text-left"
-        style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
-      >
-        <div
-          className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
-          style={{ background: "#ECFDF5" }}
-        >
-          <Home size={22} style={{ color: "#0A7C4E" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("safeHome.activityTile")}</p>
-          <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("safeHome.activityTileSubtitle")}</p>
-        </div>
-        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>→</span>
-      </button>
+        {pendingLoading ? (
+          <div className="flex items-center gap-2 py-4">
+            <Loader2 size={16} className="animate-spin text-vyva-purple" />
+            <span className="font-body text-[13px] text-vyva-text-2">
+              {isSpanish ? "Buscando acciones activas..." : "Looking for active actions..."}
+            </span>
+          </div>
+        ) : !activeAction ? (
+          <div
+            className="rounded-[24px] border border-vyva-border bg-white p-[18px]"
+            style={{ boxShadow: "0 10px 30px rgba(107,33,168,0.08)" }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-[48px] h-[48px] rounded-[16px] flex items-center justify-center bg-[#F5F3FF]">
+                <Sparkles size={22} style={{ color: "#6B21A8" }} />
+              </div>
+              <div className="flex-1">
+                <p className="font-body text-[15px] font-semibold text-vyva-text-1">
+                  {isSpanish ? "Sin tareas pendientes" : "No pending tasks"}
+                </p>
+                <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                  {isSpanish
+                    ? "Cuando VYVA prepare una llamada, reserva o gestion, aparecera aqui para que la confirmes."
+                    : "When VYVA prepares a call, booking, or task, it will appear here for your confirmation."}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="rounded-[26px] border border-vyva-border bg-white p-[18px]"
+            style={{ boxShadow: "0 14px 38px rgba(107,33,168,0.12)" }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-body text-[12px] uppercase tracking-[0.12em] text-vyva-text-2">
+                  {useCaseLabel(activeAction.use_case, locale)}
+                </p>
+                <p className="mt-1 font-body text-[20px] font-semibold leading-tight text-vyva-text-1">
+                  {activeAction.provider_name || (isSpanish ? "Proveedor seleccionado" : "Selected provider")}
+                </p>
+              </div>
+              <span
+                className="rounded-full px-3 py-1 text-[12px] font-medium"
+                style={{
+                  background: activeAction.status === "calling" ? "#F5F3FF" : "#F3F4F6",
+                  color: activeAction.status === "calling" ? "#6B21A8" : "#374151",
+                }}
+              >
+                {statusLabel(activeAction.status, locale)}
+              </span>
+            </div>
 
-      {/* Scam Guard */}
-      <button
-        data-testid="button-scam-guard-teaser"
-        onClick={() => navigate("/scam-guard")}
-        className="w-full flex items-center gap-4 bg-white rounded-[16px] border border-vyva-border p-[16px_18px] mt-3 text-left"
-        style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
-      >
-        <div
-          className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
-          style={{ background: "#EDE9FE" }}
-        >
-          <ShieldCheck size={22} style={{ color: "#6B21A8" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("scamGuard.activityTile")}</p>
-          <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("scamGuard.activityTileSubtitle")}</p>
-        </div>
-        <span className="font-body text-[13px] font-medium" style={{ color: "#6B21A8" }}>→</span>
-      </button>
+            <p className="mt-4 font-body text-[15px] leading-relaxed text-vyva-text-1">
+              {activeAction.action_summary}
+            </p>
 
-      {/* For You Today */}
-      <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
+              {activeAction.provider_phone && (
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#F5F3FF] px-3 py-2 font-body text-[12px] text-vyva-text-1">
+                  <PhoneCall size={13} style={{ color: "#6B21A8" }} />
+                  {activeAction.provider_phone}
+                </span>
+              )}
+              {!activeAction.provider_phone && getBookingUrl(activeAction) && (
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#ECFDF5] px-3 py-2 font-body text-[12px] text-vyva-text-1">
+                  <Calendar size={13} style={{ color: "#0A7C4E" }} />
+                  {isSpanish ? "Reserva online disponible" : "Online booking available"}
+                </span>
+              )}
+            </div>
+
+            {activeAction.status === "pending" && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Button
+                  data-testid={`button-concierge-confirm-${activeAction.id}`}
+                  onClick={() => confirmMutation.mutate(activeAction)}
+                  disabled={confirmMutation.isPending || cancelMutation.isPending}
+                  className="h-[48px] rounded-full bg-vyva-purple px-5 font-body text-[15px] hover:bg-vyva-purple/90"
+                >
+                  <PhoneCall size={16} className="mr-2" />
+                  {!activeAction.provider_phone && getBookingUrl(activeAction)
+                    ? (isSpanish ? "Abrir reserva" : "Open booking")
+                    : (isSpanish ? "Confirmar y llamar" : "Confirm and call")}
+                </Button>
+                <Button
+                  data-testid={`button-concierge-cancel-${activeAction.id}`}
+                  onClick={() => cancelMutation.mutate(activeAction.id)}
+                  disabled={confirmMutation.isPending || cancelMutation.isPending}
+                  variant="outline"
+                  className="h-[48px] rounded-full px-5 font-body text-[15px]"
+                >
+                  {isSpanish ? "Cancelar" : "Cancel"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6">
+        <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mb-[10px]">
+          {t("concierge.quickActions")}
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {QUICK_ACTIONS.map(({ key, Icon, color, bg }) => (
+            <button
+              key={key}
+              data-testid={`button-concierge-action-${key}`}
+              onClick={() => handleQuickAction(key)}
+              disabled={chatLoading}
+              className="flex min-h-[108px] flex-col items-start justify-between rounded-[22px] border border-vyva-border bg-white p-[15px] text-left disabled:opacity-50"
+              style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
+            >
+              <div
+                className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center"
+                style={{ background: bg }}
+              >
+                <Icon size={19} style={{ color }} />
+              </div>
+              <span className="font-body text-[14px] font-semibold leading-tight text-vyva-text-1">
+                {t(`concierge.actions.${key}`)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mb-[10px]">
+          {isSpanish ? "Herramientas de ayuda" : "Help tools"}
+        </h2>
+        <div className="space-y-3">
+          <div
+            className="flex items-center gap-4 rounded-[20px] border border-vyva-border bg-white p-[16px_18px]"
+            style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+            data-testid="banner-concierge-intro"
+          >
+            <div
+              className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
+              style={{ background: "#F5F3FF" }}
+            >
+              <Sparkles size={22} style={{ color: "#6B21A8" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("concierge.activityTile")}</p>
+              <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("concierge.activityTileSubtitle")}</p>
+            </div>
+          </div>
+
+          <button
+            data-testid="button-safe-home-teaser"
+            onClick={() => navigate("/activity")}
+            className="w-full flex items-center gap-4 rounded-[20px] border border-vyva-border bg-white p-[16px_18px] text-left"
+            style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+          >
+            <div
+              className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
+              style={{ background: "#ECFDF5" }}
+            >
+              <Home size={22} style={{ color: "#0A7C4E" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("safeHome.activityTile")}</p>
+              <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("safeHome.activityTileSubtitle")}</p>
+            </div>
+            <span className="font-body text-[18px] font-medium" style={{ color: "#6B21A8" }}>›</span>
+          </button>
+
+          <button
+            data-testid="button-scam-guard-teaser"
+            onClick={() => navigate("/scam-guard")}
+            className="w-full flex items-center gap-4 rounded-[20px] border border-vyva-border bg-white p-[16px_18px] text-left"
+            style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
+          >
+            <div
+              className="w-[48px] h-[48px] rounded-[14px] flex items-center justify-center flex-shrink-0"
+              style={{ background: "#EDE9FE" }}
+            >
+              <ShieldCheck size={22} style={{ color: "#6B21A8" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-body text-[15px] font-semibold text-vyva-text-1">{t("scamGuard.activityTile")}</p>
+              <p className="font-body text-[13px] text-vyva-text-2 truncate">{t("scamGuard.activityTileSubtitle")}</p>
+            </div>
+            <span className="font-body text-[18px] font-medium" style={{ color: "#6B21A8" }}>›</span>
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
             {t("concierge.forYouToday")}
@@ -508,7 +656,7 @@ const ConciergeScreen = () => {
                 <div
                   key={i}
                   data-testid={`card-concierge-rec-${i}`}
-                  className="flex-shrink-0 w-[200px] rounded-[16px] p-[14px] border"
+                  className="flex-shrink-0 w-[210px] rounded-[18px] p-[14px] border"
                   style={{ background: colors.bg, borderColor: colors.border }}
                 >
                   <div className="text-[26px] mb-[6px]">{card.emoji}</div>
@@ -523,139 +671,9 @@ const ConciergeScreen = () => {
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Quick Actions */}
-      <div className="mt-4">
-        <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mb-[10px]">
-          {t("concierge.quickActions")}
-        </h2>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-[22px] px-[22px] scrollbar-hide">
-          {QUICK_ACTIONS.map(({ key, Icon, color, bg }) => (
-            <button
-              key={key}
-              data-testid={`button-concierge-action-${key}`}
-              onClick={() => handleQuickAction(key)}
-              disabled={chatLoading}
-              className="flex-shrink-0 flex flex-col items-center gap-[8px] rounded-[16px] border border-vyva-border bg-white p-[14px_12px] text-center disabled:opacity-50"
-              style={{ minWidth: 90, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
-            >
-              <div
-                className="w-[40px] h-[40px] rounded-[12px] flex items-center justify-center"
-                style={{ background: bg }}
-              >
-                <Icon size={18} style={{ color }} />
-              </div>
-              <span className="font-body text-[11px] font-medium text-vyva-text-1 leading-tight">
-                {t(`concierge.actions.${key}`)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Concierge Actions */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-[10px]">
-          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
-            {isSpanish ? "Acciones de Concierge" : "Concierge actions"}
-          </h2>
-        </div>
-
-        {pendingLoading ? (
-          <div className="flex items-center gap-2 py-2">
-            <Loader2 size={16} className="animate-spin text-vyva-purple" />
-            <span className="font-body text-[13px] text-vyva-text-2">{isSpanish ? "Cargando tus acciones..." : "Loading your actions..."}</span>
-          </div>
-        ) : pendingActions.length === 0 ? (
-          <div
-            className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
-            style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
-          >
-            <p className="font-body text-[14px] text-vyva-text-1">
-              {isSpanish ? "Las solicitudes confirmadas apareceran aqui con el proveedor, lo que VYVA esta haciendo y el resultado." : "Confirmed concierge requests will appear here with the provider, what VYVA is doing, and the result."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pendingActions.map((item) => {
-              const isPending = item.status === "pending";
-              const isCalling = item.status === "calling";
-              const busy = confirmMutation.isPending || cancelMutation.isPending;
-              const bookingUrl = typeof item.action_payload?.booking_url === "string"
-                ? item.action_payload.booking_url.trim()
-                : "";
-              const usesBookingLink = !item.provider_phone && Boolean(bookingUrl);
-
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
-                  style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
-                        {useCaseLabel(item.use_case, locale)}
-                      </p>
-                      <p className="font-body text-[16px] font-semibold text-vyva-text-1">
-                        {item.provider_name || (isSpanish ? "Proveedor seleccionado" : "Selected provider")}
-                      </p>
-                    </div>
-                    <span
-                      className="rounded-full px-3 py-1 text-[12px] font-medium"
-                      style={{
-                        background: isCalling ? "#F5F3FF" : "#F3F4F6",
-                        color: isCalling ? "#6B21A8" : "#374151",
-                      }}
-                    >
-                      {statusLabel(item.status, locale)}
-                    </span>
-                  </div>
-
-                  <p className="mt-3 font-body text-[14px] leading-relaxed text-vyva-text-1">
-                    {item.action_summary}
-                  </p>
-
-                  {item.provider_phone && (
-                    <p className="mt-2 font-body text-[13px] text-vyva-text-2">
-                      {isSpanish ? "Telefono del proveedor" : "Provider number"}: {item.provider_phone}
-                    </p>
-                  )}
-
-                  {isPending && (
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        data-testid={`button-concierge-confirm-${item.id}`}
-                        onClick={() => confirmMutation.mutate(item)}
-                        disabled={busy}
-                        className="rounded-full bg-vyva-purple hover:bg-vyva-purple/90"
-                      >
-                        <PhoneCall size={15} className="mr-2" />
-                        {usesBookingLink
-                          ? (isSpanish ? "Abrir reserva" : "Open booking")
-                          : (isSpanish ? "Confirmar y llamar" : "Confirm and call")}
-                      </Button>
-                      <Button
-                        data-testid={`button-concierge-cancel-${item.id}`}
-                        onClick={() => cancelMutation.mutate(item.id)}
-                        disabled={busy}
-                        variant="outline"
-                        className="rounded-full"
-                      >
-                        {isSpanish ? "Cancelar" : "Cancel"}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Results */}
-      <div className="mt-4">
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
             {isSpanish ? "Resultados recientes" : "Recent concierge results"}
@@ -665,20 +683,24 @@ const ConciergeScreen = () => {
         {sessionsLoading ? (
           <div className="flex items-center gap-2 py-2">
             <Loader2 size={16} className="animate-spin text-vyva-purple" />
-            <span className="font-body text-[13px] text-vyva-text-2">{isSpanish ? "Cargando resultados..." : "Loading recent results..."}</span>
+            <span className="font-body text-[13px] text-vyva-text-2">
+              {isSpanish ? "Cargando resultados..." : "Loading recent results..."}
+            </span>
           </div>
         ) : recentSessions.length === 0 ? (
           <p className="font-body text-[13px] text-vyva-text-2">
-            {isSpanish ? "Las acciones completadas apareceran aqui cuando termine una llamada." : "Completed concierge actions will show up here once a call finishes."}
+            {isSpanish
+              ? "Las acciones completadas apareceran aqui cuando termine una llamada o reserva."
+              : "Completed concierge actions will show up here once a call or booking finishes."}
           </p>
         ) : (
           <div className="space-y-3">
-            {recentSessions.slice(0, 5).map((item) => {
+            {recentSessions.slice(0, 4).map((item) => {
               const success = item.outcome === "confirmed";
               return (
                 <div
                   key={item.id}
-                  className="rounded-[16px] border border-vyva-border bg-white p-[16px]"
+                  className="rounded-[18px] border border-vyva-border bg-white p-[16px]"
                   style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -710,13 +732,12 @@ const ConciergeScreen = () => {
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Chat area */}
-      <div className="mt-4 mb-4">
+      <section className="mt-6 mb-4">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
-            {t("concierge.chatTitle")}
+            {isSpanish ? "Tambien puedes escribir" : "You can also type"}
           </h2>
           {hasRestoredHistory && messages.length > 0 && (
             <button
@@ -731,10 +752,9 @@ const ConciergeScreen = () => {
           )}
         </div>
 
-        {/* Message list */}
         <div
           ref={scrollRef}
-          className="rounded-[16px] border border-vyva-border bg-white overflow-y-auto p-3 space-y-3 mb-3"
+          className="rounded-[22px] border border-vyva-border bg-white overflow-y-auto p-3 space-y-3 mb-3"
           style={{ minHeight: 140, maxHeight: 320 }}
         >
           {messages.length === 0 && !chatLoading && (
@@ -786,7 +806,6 @@ const ConciergeScreen = () => {
           )}
         </div>
 
-        {/* Input bar */}
         <div className="flex items-center gap-2">
           <Input
             data-testid="input-concierge-chat"
@@ -811,10 +830,9 @@ const ConciergeScreen = () => {
             )}
           </Button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
 
 export default ConciergeScreen;
-
