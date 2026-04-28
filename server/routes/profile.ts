@@ -4,6 +4,7 @@ import { eq, count } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
 import { profiles, userMedications } from "../../shared/schema.js";
+import { mergeIdentityGender, readProfileGender } from "../lib/userPersonalization.js";
 
 const DEMO_USER_ID = "demo-user";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -40,26 +41,6 @@ const profileBodySchema = z.object({
   caregiverContact: z.string().max(50).optional().default(""),
 });
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function readGender(consent: unknown): string {
-  const identity = asRecord(asRecord(consent).identity);
-  return typeof identity.gender === "string" ? identity.gender : "prefer_not";
-}
-
-function mergeGender(consent: unknown, gender: string): Record<string, unknown> {
-  const root = { ...asRecord(consent) };
-  root.identity = {
-    ...asRecord(root.identity),
-    gender: gender || "prefer_not",
-  };
-  return root;
-}
-
 router.get("/", async (req: Request, res: Response) => {
   const userId = resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
@@ -85,7 +66,7 @@ router.get("/", async (req: Request, res: Response) => {
       lastName,
       preferredName:    p.preferred_name ?? "",
       dateOfBirth:      p.date_of_birth ?? "",
-      gender:           readGender(p.data_sharing_consent),
+      gender:           readProfileGender(p.data_sharing_consent),
       email:            p.email ?? "",
       phone:            p.phone_number ?? "",
       country:          p.country_code ?? "",
@@ -122,7 +103,7 @@ router.post("/", async (req: Request, res: Response) => {
       .from(profiles)
       .where(eq(profiles.id, userId))
       .limit(1);
-    const dataSharingConsent = mergeGender(existingRows[0]?.data_sharing_consent, d.gender);
+    const dataSharingConsent = mergeIdentityGender(existingRows[0]?.data_sharing_consent, d.gender);
 
     await db
       .insert(profiles)

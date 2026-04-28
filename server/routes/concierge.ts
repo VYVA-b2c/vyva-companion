@@ -9,6 +9,7 @@ import {
   userMedications,
   activityLogs,
 } from "../../shared/schema.js";
+import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
 
 const DEMO_USER_ID = "demo-user";
 
@@ -26,6 +27,7 @@ const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "F
 
 interface UserProfileContext {
   name: string;
+  grammaticalGender: GrammaticalGender;
   city: string;
   region: string;
   countryCode: string;
@@ -213,6 +215,7 @@ function normaliseLocale(locale: unknown): string {
 function emptyProfileContext(): UserProfileContext {
   return {
     name: "",
+    grammaticalGender: "neutral",
     city: "",
     region: "",
     countryCode: "ES",
@@ -516,6 +519,7 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
     context.countryCode = profile.country_code?.trim() || "ES";
     context.address = profile.address_line_1?.trim() || "";
     context.knownAllergies = profile.known_allergies ?? [];
+    context.grammaticalGender = inferProfileGender(consent, context.name);
     context.weather = await getWeatherContext(context);
     return context;
   } catch (err) {
@@ -535,6 +539,7 @@ ${nameClause} ${cityClause}
 
 Guidelines:
 - Respond conversationally and warmly. Use the user's name occasionally.
+- ${genderInstruction(context.grammaticalGender)}
 - Keep responses concise and easy to read.
 - Never use markdown headings, tables, code blocks, or raw checklist formatting.
 - For mobile chat, use short natural paragraphs. If steps are needed, keep them as plain short sentences.

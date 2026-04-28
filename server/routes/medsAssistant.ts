@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
 import OpenAI from "openai";
+import { eq } from "drizzle-orm";
+import { db } from "../db.js";
+import { profiles } from "../../shared/schema.js";
+import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
 
 const LOCALE_TO_LANGUAGE: Record<string, string> = {
   en: "English",
@@ -14,12 +18,26 @@ const LOCALE_TO_LANGUAGE: Record<string, string> = {
 const DISCLAIMER =
   "This is information only, not medical advice — always check with your doctor or pharmacist.";
 
-function buildSystemPrompt(locale: string): string {
+async function getRequestGender(req: Request): Promise<GrammaticalGender> {
+  const userId = req.user?.id;
+  if (!userId) return "neutral";
+  const rows = await db
+    .select({ full_name: profiles.full_name, data_sharing_consent: profiles.data_sharing_consent })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  const profile = rows[0];
+  return inferProfileGender(profile?.data_sharing_consent, profile?.full_name ?? "");
+}
+
+function buildSystemPrompt(locale: string, gender: GrammaticalGender): string {
   const language = LOCALE_TO_LANGUAGE[locale];
   const languageInstruction = language
     ? `\n\nIMPORTANT: You MUST respond entirely in ${language}. All your advice, explanations and questions must be in ${language}. Only the disclaimer at the end must remain exactly in English as specified — never translate it.`
     : "";
   return `You are VYVA, a warm and knowledgeable medication assistant for older adults. You answer questions about medications clearly and accessibly. Keep responses concise (2-4 sentences where possible). You are not a doctor — always be supportive and encouraging.
+
+${genderInstruction(gender)}
 
 After EVERY response you give, append this disclaimer on a new line:
 "${DISCLAIMER}"
@@ -67,6 +85,7 @@ export async function medsAssistantHandler(req: Request, res: Response) {
   }
 
   const normalizedLocale = typeof locale === "string" ? locale.split("-")[0].toLowerCase() : "en";
+  const gender = await getRequestGender(req).catch(() => "neutral" as const);
 
   const validHistory: HistoryTurn[] = Array.isArray(history)
     ? history
@@ -78,7 +97,7 @@ export async function medsAssistantHandler(req: Request, res: Response) {
     const client = new OpenAI({ apiKey });
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: buildSystemPrompt(normalizedLocale) },
+      { role: "system", content: buildSystemPrompt(normalizedLocale, gender) },
       ...validHistory.map((t) => ({ role: t.role, content: t.content })),
       { role: "user", content: prompt.trim() },
     ];

@@ -1,6 +1,10 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import OpenAI from "openai";
+import { eq } from "drizzle-orm";
+import { db } from "../db.js";
+import { profiles } from "../../shared/schema.js";
+import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
 
 const router = Router();
 
@@ -33,14 +37,27 @@ interface TriageRequestBody {
   locale?: string;
 }
 
-function buildSystemPrompt(language: string, bpm: number | null): string {
+async function getRequestGender(req: Request): Promise<GrammaticalGender> {
+  const userId = req.user?.id;
+  if (!userId) return "neutral";
+  const rows = await db
+    .select({ full_name: profiles.full_name, data_sharing_consent: profiles.data_sharing_consent })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  const profile = rows[0];
+  return inferProfileGender(profile?.data_sharing_consent, profile?.full_name ?? "");
+}
+
+function buildSystemPrompt(language: string, bpm: number | null, gender: GrammaticalGender): string {
   const vitalsContext = bpm != null
     ? `\n\nThe user has just completed a vitals scan. Their estimated heart rate is ${bpm} bpm. Reference this gently if relevant.`
     : "";
 
   return `You are VYVA, a warm and caring medical triage assistant helping an elderly person understand their symptoms. Your role is to ask clear, simple questions and provide a helpful triage summary.
 
-IMPORTANT: Respond entirely in ${language}.${vitalsContext}
+IMPORTANT: Respond entirely in ${language}.
+${genderInstruction(gender)}${vitalsContext}
 
 CONVERSATION FLOW:
 1. Begin with a warm, reassuring greeting. Ask what's bothering them today.
@@ -101,6 +118,7 @@ router.post("/message", async (req: Request, res: Response) => {
     ? locale.split("-")[0].toLowerCase()
     : "en";
   const language = LOCALE_TO_LANGUAGE[normalizedLocale] ?? "English";
+  const gender = await getRequestGender(req).catch(() => "neutral" as const);
 
   const apiKey = process.env.OPENAI_API_KEY ?? "";
   if (!apiKey) {
@@ -114,7 +132,7 @@ router.post("/message", async (req: Request, res: Response) => {
   try {
     const client = new OpenAI({ apiKey });
 
-    const systemContent = buildSystemPrompt(language, vitals?.bpm ?? null);
+    const systemContent = buildSystemPrompt(language, vitals?.bpm ?? null, gender);
 
     const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemContent },

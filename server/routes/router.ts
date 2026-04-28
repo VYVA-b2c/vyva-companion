@@ -7,6 +7,7 @@ import {
   sessionExchanges,
   agentDifficulty,
 } from "../../shared/schema.js";
+import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
 
 type RoutingDomain =
   | "safety"
@@ -279,11 +280,20 @@ function buildMem0Messages(history: ConversationTurn[], utterance: string): Conv
 
 async function getProfile(userId: string) {
   const rows = await db
-    .select({ full_name: profiles.full_name, mem0_user_id: profiles.mem0_user_id })
+    .select({
+      full_name: profiles.full_name,
+      mem0_user_id: profiles.mem0_user_id,
+      data_sharing_consent: profiles.data_sharing_consent,
+    })
     .from(profiles)
     .where(eq(profiles.id, userId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+function profileGender(profile: Awaited<ReturnType<typeof getProfile>>): GrammaticalGender {
+  const name = firstName(profile?.full_name ?? null);
+  return inferProfileGender(profile?.data_sharing_consent, name);
 }
 
 async function getSessionState(sessionId: string) {
@@ -393,6 +403,7 @@ export async function routerHandler(req: Request, res: Response) {
     }
 
     const firstSafe = firstName(profileSafe?.full_name ?? null);
+    const genderSafe = profileGender(profileSafe);
     const nowSafe = new Date();
     const memoryBlockSafe = formatMemoryBlock(memoriesSafe);
     const lastTopicSafe = prevSafe?.last_intent ?? prevSafe?.last_agent ?? "general chat";
@@ -400,7 +411,7 @@ export async function routerHandler(req: Request, res: Response) {
     const system_prompt_override = [
       memoryBlockSafe ? `MEMORY BLOCK:\n${memoryBlockSafe}` : "MEMORY BLOCK:\n(no memory retrieved)",
       "",
-      `SESSION BLOCK:\nCurrent agent domain: safety.\nLast topic discussed: ${lastTopicSafe}.\nTime of day (UTC bucket): ${timeOfDayLabel(nowSafe)}.\nUser first name: ${firstSafe}.\n`,
+      `SESSION BLOCK:\nCurrent agent domain: safety.\nLast topic discussed: ${lastTopicSafe}.\nTime of day (UTC bucket): ${timeOfDayLabel(nowSafe)}.\nUser first name: ${firstSafe}.\n${genderInstruction(genderSafe)}\n`,
       "URGENT: Treat this as a potential safety or crisis situation. Prioritise calm, clear guidance and appropriate escalation.",
     ].join("\n");
 
@@ -464,6 +475,7 @@ export async function routerHandler(req: Request, res: Response) {
   ]);
 
   const first = firstName(profile?.full_name ?? null);
+  const gender = profileGender(profile);
   const now = new Date();
   const memoryBlock = formatMemoryBlock(memories);
 
@@ -473,6 +485,7 @@ export async function routerHandler(req: Request, res: Response) {
     `Last topic discussed: ${lastTopic}.`,
     `Time of day (UTC bucket): ${timeOfDayLabel(now)}.`,
     `User first name: ${first}.`,
+    genderInstruction(gender),
   ];
   if (domain === "brain_coach") {
     sessionBlockLines.push(`Brain Coach streak (recent turns): ${streak}.`);
