@@ -127,10 +127,10 @@ async function callConcierge(
   return data.response ?? "";
 }
 
-async function fetchRecommendations(locale: string): Promise<RecommendationCard[]> {
+async function fetchRecommendations(locale: string, refresh = false): Promise<RecommendationCard[]> {
   const res = await apiFetch("/api/concierge/recommendations", {
     method: "POST",
-    body: JSON.stringify({ locale }),
+    body: JSON.stringify({ locale, refresh }),
   });
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   const data = (await res.json()) as { recommendations?: RecommendationCard[] };
@@ -371,10 +371,10 @@ const ConciergeScreen = () => {
     });
   }, [recs]);
 
-  async function loadRecommendations() {
+  async function loadRecommendations(refresh = false) {
     setRecsLoading(true);
     try {
-      const cards = await fetchRecommendations(i18n.language);
+      const cards = await fetchRecommendations(i18n.language, refresh);
       setRecs(cards);
       const today = new Date().toDateString();
       localStorage.setItem(recsDateKey(i18n.language), today);
@@ -389,7 +389,8 @@ const ConciergeScreen = () => {
   function handleRefreshRecs() {
     localStorage.removeItem(recsDateKey(i18n.language));
     localStorage.removeItem(recsCacheKey(i18n.language));
-    loadRecommendations();
+    shownRecIdsRef.current.clear();
+    loadRecommendations(true);
   }
 
   function handleNewConversation() {

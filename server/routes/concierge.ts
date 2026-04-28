@@ -56,6 +56,7 @@ interface ChatRequestBody {
 
 interface RecommendationsRequestBody {
   locale?: string;
+  refresh?: boolean;
 }
 
 interface RecommendationFeedbackRequestBody {
@@ -693,7 +694,11 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
   },
 ];
 
-function scoreCandidate(candidate: RecommendationCandidate, context: UserProfileContext): RankedRecommendationCandidate | null {
+function scoreCandidate(
+  candidate: RecommendationCandidate,
+  context: UserProfileContext,
+  options: { refresh?: boolean } = {},
+): RankedRecommendationCandidate | null {
   if (hasMobilityLimit(context) && candidate.physicalDemand === "moderate") return null;
   if (candidate.requiresLocation && !context.city && !context.region) return null;
   if (candidate.requiresMedicationContext && context.activeMedications.length === 0) return null;
@@ -750,7 +755,7 @@ function scoreCandidate(candidate: RecommendationCandidate, context: UserProfile
     reasons.push("previously_opened");
   }
   if (context.recommendationFeedback.shownIds.includes(candidate.id)) {
-    score -= 12;
+    score -= options.refresh ? 45 : 12;
     reasons.push("recently_shown");
   }
   if (context.recommendationFeedback.dismissedIds.includes(candidate.id)) {
@@ -776,12 +781,29 @@ function scoreCandidate(candidate: RecommendationCandidate, context: UserProfile
   return { candidate, score, reasons };
 }
 
-function rankRecommendationCandidates(context: UserProfileContext): RankedRecommendationCandidate[] {
-  return RECOMMENDATION_CANDIDATES
-    .map((candidate) => scoreCandidate(candidate, context))
+function rankRecommendationCandidates(
+  context: UserProfileContext,
+  options: { refresh?: boolean } = {},
+): RankedRecommendationCandidate[] {
+  const ranked = RECOMMENDATION_CANDIDATES
+    .map((candidate) => scoreCandidate(candidate, context, options))
     .filter((item): item is RankedRecommendationCandidate => Boolean(item))
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
+
+  if (ranked.length >= 4 || !options.refresh) return ranked;
+
+  const existingIds = new Set(ranked.map((item) => item.candidate.id));
+  const filler = RECOMMENDATION_CANDIDATES
+    .filter((candidate) => !existingIds.has(candidate.id))
+    .map((candidate): RankedRecommendationCandidate => ({
+      candidate,
+      score: 25,
+      reasons: ["variety_fallback"],
+    }))
+    .slice(0, 4 - ranked.length);
+
+  return [...ranked, ...filler];
 }
 
 function candidateToCard(ranked: RankedRecommendationCandidate, locale: string): RecommendationCard {
@@ -814,6 +836,7 @@ function buildRecommendationsPrompt(
   dayOfWeek: string,
   locale: string,
   rankedCandidates: RankedRecommendationCandidate[],
+  options: { refresh?: boolean } = {},
 ): string {
   const language = LOCALE_TO_LANGUAGE[locale] ?? "English";
   const location = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
@@ -852,6 +875,7 @@ VYVA has already scored and safety-filtered candidate opportunities. You MUST ch
 ${JSON.stringify(candidateSummary, null, 2)}
 
 Generate exactly 4 useful, safe, personalised recommendation cards for today from the ranked candidates. They must be actionable, not generic. Prefer higher scores unless a lower-scored candidate gives better variety.
+${options.refresh ? "This is an explicit refresh request. Prioritise variety and avoid repeating the same titles, angles, or first-card idea from earlier today." : ""}
 
 Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have:
 - "title": a short catchy title, 4-7 words
@@ -1054,13 +1078,13 @@ export async function conciergeRecommendationFeedbackHandler(req: Request, res: 
 }
 
 export async function conciergeRecommendationsHandler(req: Request, res: Response) {
-  const { locale = "en" } = req.body as RecommendationsRequestBody;
+  const { locale = "en", refresh = false } = req.body as RecommendationsRequestBody;
   const normalizedLocale = normaliseLocale(locale);
   const apiKey = process.env.OPENAI_API_KEY ?? "";
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
   const dayOfWeek = DAYS_OF_WEEK[new Date().getDay()];
-  const rankedCandidates = rankRecommendationCandidates(context);
+  const rankedCandidates = rankRecommendationCandidates(context, { refresh });
   const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale);
 
   if (!apiKey) {
@@ -1076,7 +1100,7 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
       messages: [
         {
           role: "user",
-          content: buildRecommendationsPrompt(context, dayOfWeek, normalizedLocale, rankedCandidates),
+          content: buildRecommendationsPrompt(context, dayOfWeek, normalizedLocale, rankedCandidates, { refresh }),
         },
       ],
       temperature: 0.7,
