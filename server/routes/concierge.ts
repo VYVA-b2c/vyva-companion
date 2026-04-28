@@ -96,6 +96,18 @@ export interface RecommendationActionPlan {
   share_text: string;
 }
 
+interface RecommendationResolvedPlace {
+  name?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  mapsUrl?: string;
+  openingHours?: string[];
+  priceLevel?: number;
+  rating?: number;
+  reviewCount?: number;
+}
+
 interface RecommendationFeedbackSummary {
   shownIds: string[];
   openedIds: string[];
@@ -170,6 +182,7 @@ export interface RecommendationCard {
     personal_signals?: string[];
     location_hint?: string;
     safety_note?: string;
+    resolved_place?: RecommendationResolvedPlace;
   };
   location_hint?: string;
   score?: number;
@@ -1233,13 +1246,101 @@ function candidateToCard(
   };
 }
 
-function cardsFromRankedCandidates(
+function isLocalRecommendationCard(card: RecommendationCard): boolean {
+  return [
+    "local_accessible_outing",
+    "interest_based_local_plan",
+    "weather_comfort_plan",
+  ].includes(card.action_payload?.flow ?? "");
+}
+
+function placeRatingText(place: RecommendationResolvedPlace, locale: string): string {
+  if (!place.rating) return "";
+  const es = locale === "es";
+  return es
+    ? `${place.rating}/5${place.reviewCount ? ` (${place.reviewCount} resenas)` : ""}`
+    : `${place.rating}/5${place.reviewCount ? ` (${place.reviewCount} reviews)` : ""}`;
+}
+
+function firstOpeningLine(place: RecommendationResolvedPlace, locale: string): string {
+  const es = locale === "es";
+  const firstLine = place.openingHours?.[0];
+  if (firstLine) return es ? `Horario publicado: ${firstLine}.` : `Published hours: ${firstLine}.`;
+  return es ? "Horario no publicado; conviene confirmarlo antes de salir." : "Hours are not published; confirm before going.";
+}
+
+async function enrichLocalCardWithResolvedPlace(
+  card: RecommendationCard,
+  context: UserProfileContext,
+  locale: string,
+): Promise<RecommendationCard> {
+  if (!isLocalRecommendationCard(card)) return card;
+
+  const es = locale === "es";
+  const place = await searchActionPlace(card, context, locale).catch(() => null);
+  if (!place?.name) {
+    return {
+      ...card,
+      freshness: es ? "Pendiente de verificar cerca de ti" : "Needs a nearby live check",
+      details: es
+        ? "No he podido verificar un lugar cercano en vivo ahora mismo. Actualiza la tarjeta o pide a VYVA que busque otra opcion concreta."
+        : "I could not verify a nearby place live right now. Refresh the card or ask VYVA to find another concrete option.",
+      steps: es
+        ? ["Actualizar recomendaciones", "Buscar una opcion cercana", "Confirmar horario antes de salir"]
+        : ["Refresh recommendations", "Find a nearby option", "Confirm hours before leaving"],
+      action_payload: {
+        ...card.action_payload,
+        location_hint: card.location_hint,
+      },
+    };
+  }
+
+  const rating = placeRatingText(place, locale);
+  const area = [context.city, context.region].filter(Boolean).join(", ");
+  const price = priceLevelLabel(place.priceLevel, locale);
+  const opening = firstOpeningLine(place, locale);
+  const titlePrefix = card.category === "event" || card.category === "activity" ? "" : card.title;
+  const nextSteps = es
+    ? ["Revisar horario de hoy", "Abrir mapa o pedir taxi", "Confirmar precio si hace falta"]
+    : ["Check today's hours", "Open the map or ask for a taxi", "Confirm price if needed"];
+
+  return {
+    ...card,
+    title: titlePrefix ? `${titlePrefix}: ${place.name}` : place.name,
+    description: es
+      ? `${place.address ?? area}${rating ? `. Valoracion ${rating}` : ""}.`
+      : `${place.address ?? area}${rating ? `. Rated ${rating}` : ""}.`,
+    why: es
+      ? `Encaja con tu perfil y esta cerca de ${area || "tu zona"}.`
+      : `It fits your profile and is near ${area || "your area"}.`,
+    details: [opening, price, place.phone ? (es ? `Telefono: ${place.phone}.` : `Phone: ${place.phone}.`) : ""]
+      .filter(Boolean)
+      .join(" "),
+    steps: nextSteps,
+    action_label: es ? "Ver guia" : "View guide",
+    freshness: es ? "Lugar cercano verificado" : "Nearby place found",
+    personal_signals: uniqueStrings([
+      ...(card.personal_signals ?? []),
+      area ? (es ? `cerca de ${area}` : `near ${area}`) : "",
+      es ? "datos de mapa" : "map data",
+    ]).slice(0, 4),
+    action_payload: {
+      ...card.action_payload,
+      resolved_place: place,
+      location_hint: place.address ?? card.location_hint,
+    },
+    location_hint: place.address ?? card.location_hint,
+  };
+}
+
+async function cardsFromRankedCandidates(
   ranked: RankedRecommendationCandidate[],
   locale: string,
   context: UserProfileContext,
-): RecommendationCard[] {
+): Promise<RecommendationCard[]> {
   const cards = ranked.map((item) => candidateToCard(item, locale, context)).slice(0, 4);
-  return cards.length > 0 ? cards : FALLBACK_RECOMMENDATIONS;
+  if (!cards.length) return FALLBACK_RECOMMENDATIONS;
+  return Promise.all(cards.map((card) => enrichLocalCardWithResolvedPlace(card, context, locale)));
 }
 
 function buildRecommendationsPrompt(
@@ -1436,7 +1537,7 @@ async function buildRecommendationActionPlan(
   locale: string,
 ): Promise<RecommendationActionPlan> {
   const es = locale === "es";
-  const place = await searchActionPlace(card, context, locale).catch(() => null);
+  const place = card.action_payload?.resolved_place ?? await searchActionPlace(card, context, locale).catch(() => null);
   const placeName = place?.name;
   const hasPlace = Boolean(placeName);
   const ratingText = place?.rating
@@ -1447,18 +1548,18 @@ async function buildRecommendationActionPlan(
   const title = es ? `Plan para: ${card.title}` : `Plan for: ${card.title}`;
   const summary = hasPlace
     ? es
-      ? `He encontrado una opcion concreta para revisar: ${placeName}.${ratingText}`
+      ? `He encontrado una opcion concreta cerca de ti: ${placeName}.${ratingText}`
       : `I found a concrete option to check: ${placeName}.${ratingText}`
     : es
-      ? `Puedo ayudarte a convertir esta idea en un plan concreto y seguro.`
-      : `I can help turn this idea into a concrete, safe plan.`;
+      ? `No he podido verificar una opcion cercana en vivo para esta tarjeta. Actualiza recomendaciones o pide a VYVA que busque de nuevo.`
+      : `I could not verify a nearby live option for this card. Refresh recommendations or ask VYVA to search again.`;
   const travelInfo = hasPlace
     ? es
       ? "Usa el mapa para ver ruta y tiempo real. Si hace falta, VYVA puede preparar un taxi antes de confirmar."
       : "Use the map for live route and travel time. If needed, VYVA can prepare a taxi before confirming."
     : es
-      ? "Primero necesito concretar lugar o preferencia. Despues puedo revisar ruta, distancia y transporte."
-      : "First we need to choose a place or preference. Then I can check route, distance, and transport.";
+      ? "Sin un lugar verificado no conviene planificar ruta. Actualiza la recomendacion para buscar una opcion cercana concreta."
+      : "Without a verified place, it is not useful to plan a route. Refresh the recommendation to find a concrete nearby option.";
   const accessibilityNote = card.effort === "none" || card.effort === "low"
     ? es
       ? "Mantenerlo corto, con asiento disponible y evitando escaleras si es posible."
@@ -1471,8 +1572,8 @@ async function buildRecommendationActionPlan(
       ? ["Revisar horario de hoy", "Confirmar precio o entrada", "Elegir transporte o pedir a VYVA que llame"]
       : ["Check today's hours", "Confirm price or entry", "Choose transport or ask VYVA to call"]
     : es
-      ? ["Elegir una categoria o lugar", "VYVA revisa datos utiles", "Confirmar si quieres reservar o llamar"]
-      : ["Choose a category or place", "VYVA checks useful details", "Confirm if you want to book or call"];
+      ? ["Actualizar recomendaciones", "Buscar una opcion cercana verificada", "Confirmar horario, precio y acceso"]
+      : ["Refresh recommendations", "Find a verified nearby option", "Confirm hours, price, and access"];
   const caveat = es
     ? "Los horarios, precios y disponibilidad pueden cambiar. Conviene confirmar antes de salir."
     : "Hours, prices, and availability can change. Confirm before leaving.";
@@ -1709,7 +1810,7 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
   const rankedCandidates = rankRecommendationCandidates(context, { refresh });
-  const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale, context);
+  const deterministicCards = await cardsFromRankedCandidates(rankedCandidates, normalizedLocale, context);
 
   return res.json({ recommendations: deterministicCards });
 }

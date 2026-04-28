@@ -63,6 +63,17 @@ interface RecommendationCard {
     personal_signals?: string[];
     location_hint?: string;
     safety_note?: string;
+    resolved_place?: {
+      name?: string;
+      address?: string;
+      phone?: string;
+      website?: string;
+      mapsUrl?: string;
+      openingHours?: string[];
+      priceLevel?: number;
+      rating?: number;
+      reviewCount?: number;
+    };
   };
   location_hint?: string;
   score?: number;
@@ -112,8 +123,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs_v5";
-const RECS_DATE_BASE = "vyva_concierge_recs_date_v5";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v6";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v6";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -195,20 +206,20 @@ function buildFallbackPlan(card: RecommendationCard, isSpanish: boolean): Recomm
   return {
     title,
     summary: isSpanish
-      ? "Puedo ayudarte a convertir esta idea en un plan concreto, pero necesito confirmar datos actuales."
-      : "I can help turn this idea into a concrete plan, but current details need confirmation.",
+      ? "No he podido verificar un lugar cercano en vivo para esta tarjeta. Actualiza recomendaciones o pide a VYVA que busque de nuevo."
+      : "I could not verify a nearby live place for this card. Refresh recommendations or ask VYVA to search again.",
     price_info: isSpanish
-      ? "Precio pendiente de confirmar en la web o por telefono."
-      : "Price needs confirming online or by phone.",
+      ? "Sin lugar verificado, no conviene estimar precio."
+      : "Without a verified place, it is not useful to estimate price.",
     travel_info: isSpanish
-      ? "Cuando elijas el lugar exacto, VYVA puede revisar ruta, distancia y si conviene taxi."
-      : "Once you choose the exact place, VYVA can check route, distance, and whether a taxi makes sense.",
+      ? "Actualiza la recomendacion para encontrar una opcion cercana concreta con ruta y mapa."
+      : "Refresh the recommendation to find a concrete nearby option with route and map.",
     accessibility_note: card.safety_note || (isSpanish
       ? "Comprobar acceso, asientos, escaleras y distancia antes de ir."
       : "Check access, seating, stairs, and distance before going."),
     next_steps: isSpanish
-      ? ["Elegir el lugar exacto", "Confirmar horario y precio", "Preparar transporte o llamada"]
-      : ["Choose the exact place", "Confirm hours and price", "Prepare transport or a call"],
+      ? ["Actualizar recomendaciones", "Buscar una opcion cercana verificada", "Confirmar horario, precio y acceso"]
+      : ["Refresh recommendations", "Find a verified nearby option", "Confirm hours, price, and access"],
     caveat,
     share_text: [
       title,
