@@ -72,8 +72,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs";
-const RECS_DATE_BASE = "vyva_concierge_recs_date";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v3";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v3";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -704,90 +704,99 @@ const ConciergeScreen = () => {
 
         {selectedRec && (
           <div
-            className="fixed inset-0 z-50 flex items-end bg-black/30 px-[14px] pb-[14px]"
+            className="fixed inset-0 z-[1000] flex items-end bg-black/35 px-[10px] sm:items-center sm:justify-center sm:px-4"
+            style={{ paddingBottom: "calc(88px + env(safe-area-inset-bottom))", paddingTop: 16 }}
             role="dialog"
             aria-modal="true"
             data-testid="dialog-concierge-rec-detail"
             onClick={() => setSelectedRec(null)}
           >
             <div
-              className="w-full rounded-[28px] border border-vyva-border bg-white p-[20px]"
-              style={{ boxShadow: "0 18px 50px rgba(0,0,0,0.22)" }}
+              className="w-full max-w-[560px] overflow-hidden rounded-[28px] border border-vyva-border bg-white"
+              style={{
+                boxShadow: "0 18px 50px rgba(0,0,0,0.22)",
+                maxHeight: "calc(100dvh - 128px)",
+              }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start gap-4">
-                <div
-                  className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[18px] text-[26px]"
-                  style={{ background: getCategoryColors(selectedRec.category).bg }}
-                >
-                  {selectedRec.emoji}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
-                    {selectedRec.title}
-                  </p>
-                  <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
-                    {selectedRec.why || selectedRec.description}
-                  </p>
-                </div>
-                <button
-                  data-testid="button-close-rec-detail"
-                  onClick={() => setSelectedRec(null)}
-                  className="rounded-full bg-[#F5F1EC] px-3 py-1 font-body text-[15px] text-vyva-text-2"
-                >
-                  x
-                </button>
-              </div>
+              <div className="max-h-[inherit] overflow-y-auto p-[18px] pb-0">
+                <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E7DDD4]" />
 
-              {selectedRec.details && (
-                <p className="mt-5 font-body text-[14px] leading-relaxed text-vyva-text-1">
-                  {selectedRec.details}
-                </p>
-              )}
-
-              {selectedRec.steps && selectedRec.steps.length > 0 && (
-                <div className="mt-5 space-y-2">
-                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
-                    {isSpanish ? "Como disfrutarlo" : "How to enjoy it"}
-                  </p>
-                  {selectedRec.steps.map((step, index) => (
-                    <div key={`${step}-${index}`} className="flex gap-3 rounded-[16px] bg-[#FBF8F4] p-3">
-                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-semibold text-white">
-                        {index + 1}
-                      </span>
-                      <p className="font-body text-[13px] leading-relaxed text-vyva-text-1">{step}</p>
-                    </div>
-                  ))}
+                <div className="flex items-start gap-3">
+                  <div
+                    className="flex h-[48px] w-[48px] flex-shrink-0 items-center justify-center rounded-[17px] text-[24px]"
+                    style={{ background: getCategoryColors(selectedRec.category).bg }}
+                  >
+                    {selectedRec.emoji}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
+                      {selectedRec.title}
+                    </p>
+                    <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                      {selectedRec.why || selectedRec.description}
+                    </p>
+                  </div>
+                  <button
+                    data-testid="button-close-rec-detail"
+                    onClick={() => setSelectedRec(null)}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F5F1EC] font-body text-[16px] text-vyva-text-2"
+                    aria-label={isSpanish ? "Cerrar" : "Close"}
+                  >
+                    x
+                  </button>
                 </div>
-              )}
 
-              {selectedRec.safety_note && (
-                <div className="mt-4 rounded-[16px] border border-[#FCD34D] bg-[#FFFBEB] p-3">
-                  <p className="font-body text-[12px] font-semibold text-[#92400E]">
-                    {isSpanish ? "Nota de cuidado" : "Care note"}
+                {selectedRec.details && (
+                  <p className="mt-5 font-body text-[14px] leading-relaxed text-vyva-text-1">
+                    {selectedRec.details}
                   </p>
-                  <p className="mt-1 font-body text-[13px] leading-relaxed text-[#78350F]">
-                    {selectedRec.safety_note}
-                  </p>
+                )}
+
+                {selectedRec.steps && selectedRec.steps.length > 0 && (
+                  <div className="mt-5 space-y-2">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                      {isSpanish ? "Como disfrutarlo" : "How to enjoy it"}
+                    </p>
+                    {selectedRec.steps.map((step, index) => (
+                      <div key={`${step}-${index}`} className="flex gap-3 rounded-[16px] bg-[#FBF8F4] p-3">
+                        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <p className="font-body text-[13px] leading-relaxed text-vyva-text-1">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedRec.safety_note && (
+                  <div className="mt-4 rounded-[16px] border border-[#FCD34D] bg-[#FFFBEB] p-3">
+                    <p className="font-body text-[12px] font-semibold text-[#92400E]">
+                      {isSpanish ? "Nota de cuidado" : "Care note"}
+                    </p>
+                    <p className="mt-1 font-body text-[13px] leading-relaxed text-[#78350F]">
+                      {selectedRec.safety_note}
+                    </p>
+                  </div>
+                )}
+
+                <div className="sticky bottom-0 -mx-[18px] mt-5 flex gap-2 border-t border-vyva-border bg-white p-[14px_18px]">
+                  <Button
+                    data-testid="button-rec-action"
+                    onClick={() => handleRecommendationAction(selectedRec)}
+                    className="h-[46px] flex-1 rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
+                  >
+                    {selectedRec.action_label || (isSpanish ? "Ayudame" : "Help me")}
+                  </Button>
+                  <Button
+                    data-testid="button-rec-dismiss"
+                    onClick={() => setSelectedRec(null)}
+                    variant="outline"
+                    className="h-[46px] rounded-full px-5 font-body text-[14px]"
+                  >
+                    {isSpanish ? "Cerrar" : "Close"}
+                  </Button>
                 </div>
-              )}
-
-              <div className="mt-5 flex gap-2">
-                <Button
-                  data-testid="button-rec-action"
-                  onClick={() => handleRecommendationAction(selectedRec)}
-                  className="h-[46px] flex-1 rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
-                >
-                  {selectedRec.action_label || (isSpanish ? "Ayudame" : "Help me")}
-                </Button>
-                <Button
-                  data-testid="button-rec-dismiss"
-                  onClick={() => setSelectedRec(null)}
-                  variant="outline"
-                  className="h-[46px] rounded-full px-5 font-body text-[14px]"
-                >
-                  {isSpanish ? "Cerrar" : "Close"}
-                </Button>
               </div>
             </div>
           </div>
