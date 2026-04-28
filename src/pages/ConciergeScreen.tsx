@@ -139,7 +139,7 @@ async function fetchRecommendations(locale: string): Promise<RecommendationCard[
 
 async function sendRecommendationFeedback(
   card: RecommendationCard,
-  action: "opened" | "liked" | "dismissed" | "completed"
+  action: "shown" | "opened" | "liked" | "dismissed" | "completed"
 ) {
   if (!card.id) return;
   await apiFetch("/api/concierge/recommendations/feedback", {
@@ -263,6 +263,7 @@ const ConciergeScreen = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentLocaleRef = useRef(i18n.language);
   const saveReadyRef = useRef(false);
+  const shownRecIdsRef = useRef<Set<string>>(new Set());
 
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
@@ -361,6 +362,14 @@ const ConciergeScreen = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, chatLoading]);
+
+  useEffect(() => {
+    recs.forEach((card) => {
+      if (!card.id || shownRecIdsRef.current.has(card.id)) return;
+      shownRecIdsRef.current.add(card.id);
+      sendRecommendationFeedback(card, "shown").catch(() => undefined);
+    });
+  }, [recs]);
 
   async function loadRecommendations() {
     setRecsLoading(true);

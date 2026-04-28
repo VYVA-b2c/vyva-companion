@@ -40,6 +40,7 @@ interface UserProfileContext {
   socialActivityLevel: string;
   preferredTimes: string[];
   recommendationFeedback: RecommendationFeedbackSummary;
+  weather: WeatherContext | null;
 }
 
 interface HistoryTurn {
@@ -59,16 +60,25 @@ interface RecommendationsRequestBody {
 
 interface RecommendationFeedbackRequestBody {
   recommendation_id?: string;
-  action?: "opened" | "liked" | "dismissed" | "completed";
+  action?: "shown" | "opened" | "liked" | "dismissed" | "completed";
   category?: string;
   title?: string;
   reasons?: string[];
 }
 
 interface RecommendationFeedbackSummary {
+  shownIds: string[];
+  openedIds: string[];
   likedIds: string[];
   dismissedIds: string[];
   completedIds: string[];
+}
+
+interface WeatherContext {
+  city: string;
+  temperatureC: number;
+  condition: string;
+  outdoorSuitability: "good" | "caution" | "poor";
 }
 
 interface RecommendationCandidate {
@@ -85,6 +95,7 @@ interface RecommendationCandidate {
   safetyNote: Record<"en" | "es", string>;
   tags: string[];
   physicalDemand: "none" | "low" | "moderate";
+  outdoorExposure?: "none" | "some" | "mostly";
   requiresLocation?: boolean;
   requiresMedicationContext?: boolean;
   requiresHealthContext?: boolean;
@@ -146,15 +157,18 @@ function emptyProfileContext(): UserProfileContext {
     socialActivityLevel: "moderate",
     preferredTimes: [],
     recommendationFeedback: {
+      shownIds: [],
+      openedIds: [],
       likedIds: [],
       dismissedIds: [],
       completedIds: [],
     },
+    weather: null,
   };
 }
 
 async function getRecommendationFeedbackSummary(userId: string): Promise<RecommendationFeedbackSummary> {
-  const empty: RecommendationFeedbackSummary = { likedIds: [], dismissedIds: [], completedIds: [] };
+  const empty: RecommendationFeedbackSummary = { shownIds: [], openedIds: [], likedIds: [], dismissedIds: [], completedIds: [] };
 
   try {
     const result = await pool.query(
@@ -172,15 +186,21 @@ async function getRecommendationFeedbackSummary(userId: string): Promise<Recomme
     const liked = new Set<string>();
     const dismissed = new Set<string>();
     const completed = new Set<string>();
+    const shown = new Set<string>();
+    const opened = new Set<string>();
 
     for (const row of result.rows as Array<{ recommendation_id?: string; action?: string }>) {
       if (!row.recommendation_id) continue;
+      if (row.action === "shown") shown.add(row.recommendation_id);
+      if (row.action === "opened") opened.add(row.recommendation_id);
       if (row.action === "liked") liked.add(row.recommendation_id);
       if (row.action === "dismissed") dismissed.add(row.recommendation_id);
       if (row.action === "completed") completed.add(row.recommendation_id);
     }
 
     return {
+      shownIds: Array.from(shown),
+      openedIds: Array.from(opened),
       likedIds: Array.from(liked),
       dismissedIds: Array.from(dismissed),
       completedIds: Array.from(completed),
@@ -207,6 +227,77 @@ async function ensureRecommendationFeedbackTable(): Promise<void> {
     create index if not exists concierge_recommendation_feedback_user_created_idx
     on concierge_recommendation_feedback (user_id, created_at desc)
   `);
+}
+
+function wmoCodeToWeatherCondition(code: number): string {
+  if (code === 0) return "clear";
+  if (code <= 2) return "partly_cloudy";
+  if (code === 3) return "overcast";
+  if (code === 45 || code === 48) return "fog";
+  if (code >= 51 && code <= 55) return "drizzle";
+  if (code >= 61 && code <= 65) return "rain";
+  if (code >= 71 && code <= 77) return "snow";
+  if (code >= 80 && code <= 82) return "showers";
+  if (code >= 95) return "thunderstorm";
+  return "cloudy";
+}
+
+function outdoorSuitability(temperatureC: number, condition: string): WeatherContext["outdoorSuitability"] {
+  if (temperatureC >= 34 || temperatureC <= 4) return "poor";
+  if (["rain", "showers", "snow", "thunderstorm", "fog"].includes(condition)) return "poor";
+  if (temperatureC >= 29 || temperatureC <= 8 || ["drizzle", "overcast"].includes(condition)) return "caution";
+  return "good";
+}
+
+async function getWeatherContext(context: UserProfileContext): Promise<WeatherContext | null> {
+  if (!context.city) return null;
+
+  try {
+    const geoParams = new URLSearchParams({
+      name: context.city,
+      count: "1",
+      language: "en",
+      format: "json",
+    });
+    if (context.countryCode) geoParams.set("country_code", context.countryCode);
+
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${geoParams}`, {
+      signal: AbortSignal.timeout(4500),
+    });
+    if (!geoRes.ok) return null;
+    const geoData = await geoRes.json() as {
+      results?: Array<{ latitude: number; longitude: number; name?: string }>;
+    };
+    const geo = geoData.results?.[0];
+    if (!geo) return null;
+
+    const weatherParams = new URLSearchParams({
+      latitude: String(geo.latitude),
+      longitude: String(geo.longitude),
+      current: "temperature_2m,weather_code",
+      temperature_unit: "celsius",
+      timezone: "auto",
+    });
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?${weatherParams}`, {
+      signal: AbortSignal.timeout(4500),
+    });
+    if (!weatherRes.ok) return null;
+    const weatherData = await weatherRes.json() as {
+      current?: { temperature_2m?: number; weather_code?: number };
+    };
+
+    const temperatureC = Math.round(weatherData.current?.temperature_2m ?? 0);
+    const condition = wmoCodeToWeatherCondition(weatherData.current?.weather_code ?? 0);
+
+    return {
+      city: geo.name || context.city,
+      temperatureC,
+      condition,
+      outdoorSuitability: outdoorSuitability(temperatureC, condition),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function getUserProfile(userId: string): Promise<UserProfileContext> {
@@ -307,6 +398,7 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
     context.countryCode = profile.country_code?.trim() || "ES";
     context.address = profile.address_line_1?.trim() || "";
     context.knownAllergies = profile.known_allergies ?? [];
+    context.weather = await getWeatherContext(context);
     return context;
   } catch (err) {
     console.warn("[concierge/profile-context] Falling back to empty context", err);
@@ -395,6 +487,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     },
     tags: ["culture", "museum", "events", "social", "local", "art", "music", "historia", "arte", "musica"],
     physicalDemand: "low",
+    outdoorExposure: "some",
     requiresLocation: true,
     preferredWhen: (context) => context.socialActivityLevel !== "low" || context.interests.length > 0,
   },
@@ -430,6 +523,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     },
     tags: ["medication", "pharmacy", "medicine", "prescription", "medicacion", "farmacia"],
     physicalDemand: "none",
+    outdoorExposure: "none",
     requiresMedicationContext: true,
   },
   {
@@ -461,6 +555,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     safetyNote: { en: "", es: "" },
     tags: ["book_ride", "book_appointment", "order_medicine", "routine", "taxi", "appointment"],
     physicalDemand: "none",
+    outdoorExposure: "none",
     preferredWhen: (context) => context.recentConciergeUseCases.length > 0,
   },
   {
@@ -492,6 +587,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     safetyNote: { en: "", es: "" },
     tags: ["deal", "discount", "shopping", "pharmacy", "supermarket", "ahorro", "oferta", "farmacia"],
     physicalDemand: "low",
+    outdoorExposure: "some",
     requiresLocation: true,
   },
   {
@@ -523,6 +619,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     safetyNote: { en: "", es: "" },
     tags: ["home", "hobby", "music", "reading", "cooking", "family", "casa", "lectura", "musica"],
     physicalDemand: "none",
+    outdoorExposure: "none",
     requiresInterests: true,
   },
   {
@@ -557,6 +654,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     },
     tags: ["health", "appointment", "doctor", "gp", "medico", "cita", "salud"],
     physicalDemand: "none",
+    outdoorExposure: "none",
     requiresHealthContext: true,
   },
   {
@@ -591,6 +689,7 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     },
     tags: ["scam", "safety", "paperwork", "sms", "email", "estafa", "seguridad"],
     physicalDemand: "none",
+    outdoorExposure: "none",
   },
 ];
 
@@ -646,9 +745,31 @@ function scoreCandidate(candidate: RecommendationCandidate, context: UserProfile
     score += 10;
     reasons.push("previously_completed");
   }
+  if (context.recommendationFeedback.openedIds.includes(candidate.id)) {
+    score += 6;
+    reasons.push("previously_opened");
+  }
+  if (context.recommendationFeedback.shownIds.includes(candidate.id)) {
+    score -= 12;
+    reasons.push("recently_shown");
+  }
   if (context.recommendationFeedback.dismissedIds.includes(candidate.id)) {
     score -= 30;
     reasons.push("previously_dismissed");
+  }
+  if (context.weather?.outdoorSuitability === "poor") {
+    if (candidate.outdoorExposure === "none") {
+      score += 14;
+      reasons.push("weather_safe");
+    }
+    if (candidate.outdoorExposure === "some" || candidate.outdoorExposure === "mostly") {
+      score -= 14;
+      reasons.push("weather_caution");
+    }
+  }
+  if (context.weather?.outdoorSuitability === "caution" && candidate.outdoorExposure === "none") {
+    score += 6;
+    reasons.push("weather_comfort");
   }
   if (score < 20) return null;
 
@@ -725,6 +846,7 @@ User context:
 - Recent concierge patterns: ${context.recentConciergeUseCases.join(", ") || "none known"}
 - Social activity level: ${context.socialActivityLevel}
 - Preferred times: ${context.preferredTimes.join(", ") || "unknown"}
+- Weather today: ${context.weather ? `${context.weather.temperatureC}C, ${context.weather.condition}, outdoor suitability ${context.weather.outdoorSuitability}` : "unknown"}
 
 VYVA has already scored and safety-filtered candidate opportunities. You MUST choose from these candidates only. You may improve wording, make the local framing warmer, and tailor the details, but do not invent unrelated card types:
 ${JSON.stringify(candidateSummary, null, 2)}
@@ -747,6 +869,7 @@ Rules:
 - Choose only from the candidate list above.
 - Keep the core intent of each selected candidate.
 - Never recommend something that conflicts with mobility limitations or known health context.
+- If weather suitability is poor, prefer indoor/home/admin ideas unless the candidate is explicitly safe and accessible.
 - Do not diagnose, treat, or give clinical advice.
 - If mentioning a local place or event, phrase it as something VYVA can check, not as guaranteed.
 - Make the cards feel specific to ${location || "the user's area"}.
@@ -901,7 +1024,7 @@ export async function conciergeRecommendationFeedbackHandler(req: Request, res: 
   if (!recommendation_id || typeof recommendation_id !== "string") {
     return res.status(400).json({ error: "recommendation_id is required" });
   }
-  if (!action || !["opened", "liked", "dismissed", "completed"].includes(action)) {
+  if (!action || !["shown", "opened", "liked", "dismissed", "completed"].includes(action)) {
     return res.status(400).json({ error: "valid action is required" });
   }
 
