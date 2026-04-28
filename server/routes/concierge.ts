@@ -1457,24 +1457,93 @@ interface LocalEventItem {
 interface LocalEventSource {
   id: string;
   name: string;
-  cityMatcher: RegExp;
+  countryCodes: string[];
+  cityMatcher?: RegExp;
+  regionMatcher?: RegExp;
   url: string;
   sourceType: "official_tourism" | "municipal_culture" | "regional_culture" | "curated_directory";
+  parser: "tarifa_wordpress" | "json_ld" | "generic_cards";
+  defaultLocation: string;
 }
 
 const LOCAL_EVENT_SOURCES: LocalEventSource[] = [
   {
     id: "tarifa-tourism-agenda",
     name: "Agenda de eventos - Turismo de Tarifa",
+    countryCodes: ["ES"],
     cityMatcher: /tarifa/i,
     url: "https://turismodetarifa.com/agenda-eventos/",
     sourceType: "official_tourism",
+    parser: "tarifa_wordpress",
+    defaultLocation: "Tarifa, Cadiz",
+  },
+  {
+    id: "andalucia-cadiz-cultural-agenda",
+    name: "Agenda Cultural de Andalucia - Cadiz",
+    countryCodes: ["ES"],
+    regionMatcher: /(cadiz|cádiz|andalucia|andalucía)/i,
+    url: "https://www.juntadeandalucia.es/cultura/agendaculturaldeandalucia/cadiz",
+    sourceType: "regional_culture",
+    parser: "generic_cards",
+    defaultLocation: "Provincia de Cadiz",
+  },
+  {
+    id: "agenda-cultural-cadiz-directory",
+    name: "AgendaCultural.es - Cadiz",
+    countryCodes: ["ES"],
+    regionMatcher: /(cadiz|cádiz|andalucia|andalucía)/i,
+    url: "https://agendacultural.es/lugar/andalucia/cadiz/",
+    sourceType: "curated_directory",
+    parser: "generic_cards",
+    defaultLocation: "Provincia de Cadiz",
   },
 ];
 
+const COUNTRY_SOURCE_GUIDANCE: Record<string, string[]> = {
+  ES: [
+    "official tourism agenda",
+    "municipal culture agenda",
+    "regional culture agenda",
+    "curated cultural directory",
+    "library and civic-centre programmes",
+  ],
+  GB: [
+    "council events calendar",
+    "NHS or Age UK local wellbeing activities",
+    "library events",
+    "community centre programmes",
+    "curated ticketing/event directories",
+  ],
+  DE: [
+    "Stadt/Kommune Veranstaltungskalender",
+    "Volkshochschule courses",
+    "library and museum calendars",
+    "senior-friendly community programmes",
+  ],
+  FR: [
+    "agenda municipal",
+    "office de tourisme",
+    "mediatheque and museum calendars",
+    "local association programmes",
+  ],
+  PT: [
+    "agenda municipal",
+    "turismo local",
+    "biblioteca and centro cultural calendars",
+    "local association programmes",
+  ],
+};
+
 function localEventSourcesFor(context: UserProfileContext): LocalEventSource[] {
-  const location = [context.city, context.region, context.countryCode].filter(Boolean).join(" ");
-  return LOCAL_EVENT_SOURCES.filter((source) => source.cityMatcher.test(location));
+  const countryCode = (context.countryCode || "").toUpperCase();
+  const city = context.city || "";
+  const region = context.region || "";
+  return LOCAL_EVENT_SOURCES.filter((source) => {
+    const countryMatches = source.countryCodes.length === 0 || source.countryCodes.includes(countryCode);
+    const cityMatches = source.cityMatcher ? source.cityMatcher.test(city) : false;
+    const regionMatches = source.regionMatcher ? source.regionMatcher.test(region) : false;
+    return countryMatches && (cityMatches || regionMatches);
+  });
 }
 
 const SPANISH_MONTHS: Record<string, number> = {
@@ -1507,6 +1576,15 @@ function stripHtml(value: string): string {
 }
 
 function parseSpanishDate(dateText: string): Date | null {
+  const numeric = dateText.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (numeric) {
+    const day = Number(numeric[1]);
+    const month = Number(numeric[2]) - 1;
+    const year = Number(numeric[3].length === 2 ? `20${numeric[3]}` : numeric[3]);
+    if (day && month >= 0 && year) return new Date(year, month, day);
+  }
+  const iso = dateText.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   const match = dateText.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
   if (!match) return null;
   const day = Number(match[1]);
@@ -1516,12 +1594,97 @@ function parseSpanishDate(dateText: string): Date | null {
   return new Date(year, month, day);
 }
 
-function eventMapUrl(event: LocalEventItem): string {
-  const query = encodeURIComponent(`${event.location || event.title} Tarifa Cadiz`);
+function eventMapUrl(event: LocalEventItem, source: LocalEventSource): string {
+  const query = encodeURIComponent(`${event.location || event.title} ${source.defaultLocation}`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
-function extractTarifaEvents(html: string): LocalEventItem[] {
+function absoluteUrl(url: string, baseUrl: string): string {
+  try {
+    return new URL(url, baseUrl).toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+function extractJsonLdEvents(html: string, source: LocalEventSource): LocalEventItem[] {
+  const events: LocalEventItem[] = [];
+  const scripts = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi) ?? [];
+
+  function collect(value: unknown) {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    const item = value as Record<string, any>;
+    if (Array.isArray(item["@graph"])) item["@graph"].forEach(collect);
+    const type = Array.isArray(item["@type"]) ? item["@type"].join(" ") : item["@type"];
+    if (typeof type !== "string" || !/event/i.test(type)) return;
+    const location = typeof item.location === "object"
+      ? [item.location.name, item.location.address?.streetAddress, item.location.address?.addressLocality].filter(Boolean).join(", ")
+      : typeof item.location === "string" ? item.location : source.defaultLocation;
+    const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+    events.push({
+      title: stripHtml(String(item.name ?? "")),
+      dateText: stripHtml(String(item.startDate ?? "")),
+      summary: stripHtml(String(item.description ?? "")),
+      location: location || source.defaultLocation,
+      sourceUrl: absoluteUrl(String(item.url ?? source.url), source.url),
+      priceInfo: offer?.price ? `${offer.price}${offer.priceCurrency ? ` ${offer.priceCurrency}` : ""}` : undefined,
+      timeInfo: typeof item.startDate === "string" ? item.startDate : undefined,
+    });
+  }
+
+  for (const script of scripts) {
+    const json = script.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "").trim();
+    try {
+      collect(JSON.parse(json));
+    } catch {
+      continue;
+    }
+  }
+
+  return events.filter((event) => event.title && event.summary);
+}
+
+function extractGenericCardEvents(html: string, source: LocalEventSource): LocalEventItem[] {
+  const events: LocalEventItem[] = [];
+  const anchorRegex = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]{12,220}?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorRegex.exec(html)) && events.length < 24) {
+    const href = match[1];
+    const title = stripHtml(match[2]);
+    if (!title || title.length < 8 || /cookie|privacidad|contacto|leer mas|read more|inicio|agenda/i.test(title)) continue;
+    const lower = title.toLowerCase();
+    if (!/(teatro|cine|concierto|exposicion|exposición|festival|flamenco|visita|charla|taller|cultura|musica|música|club|lectura|presentacion|presentación)/i.test(lower)) continue;
+    const surrounding = stripHtml(html.slice(Math.max(0, match.index - 500), Math.min(html.length, match.index + 900))).slice(0, 700);
+    const dateMatch = surrounding.match(/(\d{1,2}\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/);
+    const priceMatch = surrounding.match(/(Gratuito|\d+\s*€|entrada libre|libre hasta completar aforo)/i);
+    const timeMatch = surrounding.match(/(\d{1,2}:\d{2}\s*h|\d{1,2}h\d{0,2})/i);
+    events.push({
+      title,
+      dateText: dateMatch?.[1] ?? "",
+      summary: surrounding,
+      location: source.defaultLocation,
+      sourceUrl: absoluteUrl(href, source.url),
+      priceInfo: priceMatch?.[1],
+      timeInfo: timeMatch?.[1],
+    });
+  }
+
+  return events;
+}
+
+function extractEventsFromSource(html: string, source: LocalEventSource): LocalEventItem[] {
+  const jsonLdEvents = extractJsonLdEvents(html, source);
+  if (jsonLdEvents.length) return jsonLdEvents;
+  if (source.parser === "tarifa_wordpress") return extractTarifaEvents(html, source);
+  return extractGenericCardEvents(html, source);
+}
+
+function extractTarifaEvents(html: string, source: LocalEventSource): LocalEventItem[] {
   const events: LocalEventItem[] = [];
   const eventRegex = /(\d{1,2}\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+\d{4})[\s\S]{0,1200}?<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*<\/h2>([\s\S]*?)(?=\d{1,2}\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+\d{4}|Copyright|Gestionar consentimiento)/gi;
   let match: RegExpExecArray | null;
@@ -1541,8 +1704,8 @@ function extractTarifaEvents(html: string): LocalEventItem[] {
       title,
       dateText,
       summary: body,
-      location: locationMatch?.[1] ?? "Tarifa, Cadiz",
-      sourceUrl,
+      location: locationMatch?.[1] ?? source.defaultLocation,
+      sourceUrl: absoluteUrl(sourceUrl, source.url),
       priceInfo: priceMatch?.[1],
       timeInfo: timeMatch?.[1],
     });
@@ -1587,7 +1750,18 @@ async function findLocalEventForCard(
 ): Promise<RecommendationResolvedPlace | null> {
   if (!isLocalRecommendationCard(card)) return null;
   const sources = localEventSourcesFor(context);
-  if (!sources.length) return null;
+  if (!sources.length) {
+    const guidance = COUNTRY_SOURCE_GUIDANCE[(context.countryCode || "").toUpperCase()] ?? [
+      "official city event calendar",
+      "local tourism agenda",
+      "library or community-centre programme",
+      "curated event directory",
+    ];
+    console.warn(
+      `[concierge/recs] no local event sources configured for ${context.city || "unknown city"}, ${context.region || "unknown region"}, ${context.countryCode || "unknown country"}. Suggested source classes: ${guidance.join("; ")}`,
+    );
+    return null;
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1599,7 +1773,7 @@ async function findLocalEventForCard(
       if (!response.ok) continue;
       const html = await response.text();
       sourceEvents.push(
-        ...extractTarifaEvents(html)
+        ...extractEventsFromSource(html, source)
           .filter((event) => {
             const date = parseSpanishDate(event.dateText);
             return !date || date >= today;
@@ -1619,7 +1793,7 @@ async function findLocalEventForCard(
     name: event.title,
     address: event.location,
     website: event.sourceUrl,
-    mapsUrl: eventMapUrl(event),
+    mapsUrl: eventMapUrl(event, source),
     openingHours: [event.timeInfo ? `${event.dateText}, ${event.timeInfo}` : event.dateText],
     priceInfo: event.priceInfo,
     sourceName: source.name,

@@ -129,8 +129,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs_v7";
-const RECS_DATE_BASE = "vyva_concierge_recs_date_v7";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v8";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v8";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
