@@ -155,6 +155,102 @@ interface OffersSearchResponse {
   no_results_message?: string;
 }
 
+const OFFER_CATEGORY_CHIPS = [
+  {
+    es: "Hogar y servicios",
+    en: "Home services",
+    queryEs: "servicios para el hogar cerca de mi",
+    queryEn: "home services near me",
+  },
+  {
+    es: "Alimentacion",
+    en: "Food",
+    queryEs: "comida barata y supermercados cerca de mi",
+    queryEn: "affordable food and groceries near me",
+  },
+  {
+    es: "Salud y bienestar",
+    en: "Health",
+    queryEs: "farmacia y bienestar cerca de mi",
+    queryEn: "pharmacy and wellness near me",
+  },
+  {
+    es: "Transporte",
+    en: "Transport",
+    queryEs: "taxi y transporte para mayores cerca de mi",
+    queryEn: "taxi and senior transport near me",
+  },
+  {
+    es: "Viajes y ocio",
+    en: "Leisure",
+    queryEs: "actividades y descuentos para mayores cerca de mi",
+    queryEn: "senior leisure discounts near me",
+  },
+  {
+    es: "Vivienda",
+    en: "Housing",
+    queryEs: "servicios de vivienda para mayores cerca de mi",
+    queryEn: "senior housing services near me",
+  },
+  {
+    es: "Compras generales",
+    en: "Shopping",
+    queryEs: "descuentos en tiendas cerca de mi",
+    queryEn: "shopping discounts near me",
+  },
+] as const;
+
+const OFFER_IDEA_CHIPS = [
+  {
+    es: "Entrega de supermercado hoy",
+    en: "Grocery delivery today",
+    queryEs: "entrega de supermercado hoy cerca de mi",
+    queryEn: "grocery delivery today near me",
+  },
+  {
+    es: "Farmacia con descuentos",
+    en: "Pharmacy savings",
+    queryEs: "farmacia con descuentos cerca de mi",
+    queryEn: "pharmacy savings near me",
+  },
+  {
+    es: "Taxi fiable",
+    en: "Reliable taxi",
+    queryEs: "taxi fiable cerca de mi",
+    queryEn: "reliable taxi near me",
+  },
+  {
+    es: "Menu del dia economico",
+    en: "Affordable set menu",
+    queryEs: "menu del dia economico cerca de mi",
+    queryEn: "affordable set menu near me",
+  },
+  {
+    es: "Cine o museo con descuento",
+    en: "Cinema or museum deal",
+    queryEs: "cine museo descuentos mayores cerca de mi",
+    queryEn: "cinema museum senior discounts near me",
+  },
+  {
+    es: "Optica cerca de mi",
+    en: "Nearby optician",
+    queryEs: "optica promociones cerca de mi",
+    queryEn: "optician offers near me",
+  },
+  {
+    es: "Ayuda en casa",
+    en: "Help at home",
+    queryEs: "ayuda en casa para mayores cerca de mi",
+    queryEn: "help at home for seniors near me",
+  },
+  {
+    es: "Mercado local",
+    en: "Local market",
+    queryEs: "mercado local buen precio cerca de mi",
+    queryEn: "good value local market near me",
+  },
+] as const;
+
 const RECS_CACHE_BASE = "vyva_concierge_recs_v8";
 const RECS_DATE_BASE = "vyva_concierge_recs_date_v8";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
@@ -456,6 +552,7 @@ const ConciergeScreen = () => {
   const [offersLoading, setOffersLoading] = useState(false);
   const [offersResult, setOffersResult] = useState<OffersSearchResponse | null>(null);
   const [offersError, setOffersError] = useState<string | null>(null);
+  const [offersIdeaPage, setOffersIdeaPage] = useState(0);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -559,6 +656,14 @@ const ConciergeScreen = () => {
     });
   }, [recs]);
 
+  useEffect(() => {
+    if (!offersOpen) return;
+    const interval = window.setInterval(() => {
+      setOffersIdeaPage((page) => (page + 1) % Math.ceil(OFFER_IDEA_CHIPS.length / 4));
+    }, 4200);
+    return () => window.clearInterval(interval);
+  }, [offersOpen]);
+
   async function loadRecommendations(refresh = false) {
     setRecsLoading(true);
     try {
@@ -655,6 +760,12 @@ const ConciergeScreen = () => {
     }
   }
 
+  function handleOfferChipSearch(query: string) {
+    setOffersQuery(query);
+    setOffersResult(null);
+    handleSearchOffers(query);
+  }
+
   function handleOfferAction(option: OfferOption) {
     if (option.phone) {
       setInput(isSpanish
@@ -717,6 +828,7 @@ const ConciergeScreen = () => {
 
   const activeAction = pendingActions[0];
   const queuedActionCount = Math.max(0, pendingActions.length - 1);
+  const visibleOfferIdeas = OFFER_IDEA_CHIPS.slice(offersIdeaPage * 4, offersIdeaPage * 4 + 4);
 
   return (
     <div className="vyva-page">
@@ -894,6 +1006,55 @@ const ConciergeScreen = () => {
               >
                 x
               </button>
+            </div>
+
+            <div className="mt-4 rounded-[20px] bg-white/75 p-3">
+              <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#C9890A]">
+                {isSpanish ? "Categorias" : "Categories"}
+              </p>
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {OFFER_CATEGORY_CHIPS.map((chip) => {
+                  const label = isSpanish ? chip.es : chip.en;
+                  const query = isSpanish ? chip.queryEs : chip.queryEn;
+                  return (
+                    <button
+                      key={chip.es}
+                      type="button"
+                      onClick={() => handleOfferChipSearch(query)}
+                      className="vyva-tap flex-shrink-0 rounded-full border border-[#FCD34D] bg-white px-3 py-2 font-body text-[12px] font-semibold text-vyva-text-1"
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-[20px] bg-white/75 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                  {isSpanish ? "Ideas para probar" : "Ideas to try"}
+                </p>
+                <span className="font-body text-[11px] text-vyva-text-2">
+                  {isSpanish ? "Cambian solas" : "Rotates"}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {visibleOfferIdeas.map((idea) => {
+                  const label = isSpanish ? idea.es : idea.en;
+                  const query = isSpanish ? idea.queryEs : idea.queryEn;
+                  return (
+                    <button
+                      key={idea.es}
+                      type="button"
+                      onClick={() => handleOfferChipSearch(query)}
+                      className="vyva-tap rounded-[16px] border border-vyva-border bg-white px-3 py-3 text-left font-body text-[13px] font-semibold leading-tight text-vyva-text-1"
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="mt-4 flex gap-2">
