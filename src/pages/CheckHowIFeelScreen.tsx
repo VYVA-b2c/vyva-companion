@@ -61,6 +61,7 @@ type SingleOption = {
 };
 
 type GrammaticalGender = "female" | "male" | "neutral";
+type WizardLocale = "es" | "en";
 
 const STEPS: StepId[] = ["welcome", "energy", "mood", "body", "sleep", "symptoms", "social", "analyzing", "result"];
 const QUESTION_STEPS: StepId[] = ["energy", "mood", "body", "sleep", "symptoms", "social"];
@@ -113,6 +114,134 @@ const socialOptionsBase: SingleOption[] = [
   { id: "mucho", icon: "🤝", label: "Sí, bastante", helper: "He hablado o estaré con gente" },
   { id: "algo", icon: "💬", label: "Un poco", helper: "Algún mensaje o llamada" },
 ];
+
+const CHECKIN_TEXT = {
+  es: {
+    back: "Atrás",
+    stepHint: "Vamos paso a paso",
+    stepOf: "de",
+    next: "Siguiente",
+    hello: "Hola",
+    welcomeTitle: "Revisemos cómo te sientes hoy.",
+    welcomeIntro: "Seis preguntas sencillas. VYVA las convierte en una lectura útil para tu día.",
+    cards: [
+      { title: "Privado", text: "Tus respuestas se tratan con cuidado." },
+      { title: "Personal", text: "Usa tu perfil para adaptar las ideas." },
+      { title: "Suave", text: "No es un diagnóstico, es una guía de bienestar." },
+    ],
+    start: "Empezar ahora",
+    skip: "Ahora no",
+    qEnergy: ["¿Cuánta energía tienes hoy?", "Elige la frase que más se parece a tu mañana."],
+    qMood: ["¿Cómo está tu ánimo?", "No hay respuesta buena o mala. Solo queremos escucharte."],
+    qBody: ["¿Notas algo en el cuerpo?", "Puedes marcar más de una opción."],
+    qSleep: ["¿Cómo dormiste?", "El descanso cambia mucho cómo se siente el día."],
+    qSymptoms: ["¿Hay algo que quieras mencionar?", "Marca lo que notes hoy, aunque sea suave."],
+    qSocial: ["¿Has tenido contacto con alguien hoy?", "La compañía también cuenta para el bienestar."],
+    energy: {
+      none: ["Sin energía", "Me cuesta empezar el día"],
+      tired: ["Algo cansada", "Algo cansado", "Algo de cansancio", "Voy más lenta de lo normal", "Voy más lento de lo normal", "Voy más despacio de lo normal"],
+      normal: ["Normal", "Como un día corriente"],
+      well: ["Bastante bien", "Tengo ganas de hacer cosas"],
+      high: ["Con mucha energía", "Me siento activa y despierta", "Me siento activo y despierto", "Me siento con energía y claridad"],
+    },
+    mood: [["Alegre", "Con buen ánimo"], ["Tranquila", "Serena y estable"], ["Triste", "Un poco apagada"], ["Inquieta", "Con preocupación o nervios"], ["Irritable", "Con poca paciencia"]],
+    body: ["Cabeza", "Pecho", "Estómago", "Espalda", "Articulaciones", "Piernas", "Nada especial"],
+    sleep: [["Muy bien", "Dormí seguido y descansé"], ["Bien", "Dormí lo suficiente"], ["Regular", "Me desperté varias veces"], ["Mal", "Dormí poco"], ["Muy mal", "Casi no descansé"]],
+    symptoms: ["Dolor de cabeza", "Mareo", "Náuseas", "Sensación de fiebre", "Me falta el aire", ["Me siento confundida", "Me siento confundido", "Siento confusión"], "Ninguno de estos"],
+    social: [["Sí, bastante", "He hablado o estaré con gente"], ["Un poco", "Algún mensaje o llamada"], ["No mucho", "Hoy estoy más sola", "Hoy estoy más solo", "Hoy tengo poca compañía"]],
+    analyzingTitle: "Un momento",
+    loading: ["Leyendo tus respuestas con calma...", "Revisando tu contexto personal...", "Preparando ideas útiles para hoy..."],
+    resultKicker: "Tu lectura de hoy",
+    important: "Lo importante",
+    rightNow: "Ahora mismo",
+    today: "Para hoy",
+    appHelpTitle: "VYVA puede ayudarte ahora",
+    appHelpText: "Elige el siguiente paso dentro de la app, sin tener que buscarlo tú.",
+    readResult: "Ver mi lectura",
+    thanks: "Gracias por hacerlo. Este pequeño hábito ayuda a VYVA a cuidarte mejor cada día.",
+    share: "Compartir resultado",
+    done: "Gracias, VYVA",
+    repeat: "Repetir check-in",
+    shareTitle: "Mi lectura VYVA de hoy",
+    copied: "Resultado copiado para compartir.",
+    shareFailed: "No he podido compartir el resultado ahora mismo.",
+    fallbackToast: "He preparado una lectura local porque la conexión no respondió a tiempo.",
+    shareFor: "Lectura VYVA de hoy para",
+    me: "mí",
+    note: "Ten en cuenta",
+    appActions: {
+      care: ["Buscar atención médica", "Si empeora, hay dolor en el pecho, falta de aire o confusión, no esperes."],
+      symptom: ["Hacer chequeo de síntomas", "VYVA te guía con preguntas claras y te ayuda a decidir el siguiente paso."],
+      vitals: ["Tomar signos vitales", "Haz un escaneo rápido para registrar pulso y respiración antes de decidir."],
+      concierge: ["Ver Para ti hoy", "Encuentra una salida o idea cercana, adaptada a tu energía y movilidad."],
+    },
+  },
+  en: {
+    back: "Back",
+    stepHint: "One step at a time",
+    stepOf: "of",
+    next: "Next",
+    hello: "Hello",
+    welcomeTitle: "Let’s check how you feel today.",
+    welcomeIntro: "Six simple questions. VYVA turns them into a useful reading for your day.",
+    cards: [
+      { title: "Private", text: "Your answers are handled with care." },
+      { title: "Personal", text: "Uses your profile to adapt suggestions." },
+      { title: "Gentle", text: "Not a diagnosis, just wellbeing guidance." },
+    ],
+    start: "Start now",
+    skip: "Not now",
+    qEnergy: ["How much energy do you have today?", "Choose the phrase that feels closest to your morning."],
+    qMood: ["How is your mood?", "There is no right or wrong answer. VYVA is just listening."],
+    qBody: ["Do you notice anything in your body?", "You can choose more than one option."],
+    qSleep: ["How did you sleep?", "Sleep changes how the day feels."],
+    qSymptoms: ["Anything else you want to mention?", "Choose anything you notice today, even if it feels mild."],
+    qSocial: ["Have you had contact with anyone today?", "Company also matters for wellbeing."],
+    energy: {
+      none: ["No energy", "Hard to get started"],
+      tired: ["A bit tired", "A bit tired", "Some tiredness", "I’m slower than usual", "I’m slower than usual", "I’m moving more slowly than usual"],
+      normal: ["Normal", "Like an ordinary day"],
+      well: ["Quite well", "I feel like doing things"],
+      high: ["Lots of energy", "I feel active and alert", "I feel active and alert", "I feel energetic and clear"],
+    },
+    mood: [["Happy", "In good spirits"], ["Calm", "Steady and peaceful"], ["Sad", "A little low"], ["Uneasy", "Worried or nervous"], ["Irritable", "Less patient than usual"]],
+    body: ["Head", "Chest", "Stomach", "Back", "Joints", "Legs", "Nothing special"],
+    sleep: [["Very well", "I slept through and rested"], ["Well", "I slept enough"], ["So-so", "I woke up several times"], ["Badly", "I slept little"], ["Very badly", "I hardly rested"]],
+    symptoms: ["Headache", "Dizziness", "Nausea", "Feeling feverish", "Short of breath", ["I feel confused", "I feel confused", "I feel confused"], "None of these"],
+    social: [["Yes, quite a bit", "I have spoken or will be with people"], ["A little", "A message or call"], ["Not much", "I feel more alone today", "I feel more alone today", "I have little company today"]],
+    analyzingTitle: "One moment",
+    loading: ["Reading your answers calmly...", "Checking your personal context...", "Preparing useful ideas for today..."],
+    resultKicker: "Today’s reading",
+    important: "Important",
+    rightNow: "Right now",
+    today: "For today",
+    appHelpTitle: "VYVA can help now",
+    appHelpText: "Choose the next step in the app without having to search for it.",
+    readResult: "See my reading",
+    thanks: "Thank you for doing this. This small habit helps VYVA care for you better each day.",
+    share: "Share result",
+    done: "Thanks, VYVA",
+    repeat: "Repeat check-in",
+    shareTitle: "My VYVA reading today",
+    copied: "Result copied to share.",
+    shareFailed: "I couldn’t share the result right now.",
+    fallbackToast: "I prepared a local reading because the connection did not respond in time.",
+    shareFor: "Today’s VYVA reading for",
+    me: "me",
+    note: "Keep in mind",
+    appActions: {
+      care: ["Seek medical attention", "If things worsen, or there is chest pain, breathlessness, or confusion, do not wait."],
+      symptom: ["Do a symptom check", "VYVA guides you with clear questions and helps decide the next step."],
+      vitals: ["Take vital signs", "Do a quick scan to record pulse and breathing before deciding."],
+      concierge: ["See For you today", "Find a nearby idea adapted to your energy and mobility."],
+    },
+  },
+} as const;
+
+function copyFor(language?: string) {
+  const base = (language ?? "es").split("-")[0].toLowerCase() as WizardLocale;
+  return base === "en" ? CHECKIN_TEXT.en : CHECKIN_TEXT.es;
+}
 
 function inferGender(profile: { gender?: string } | null, firstName: string): GrammaticalGender {
   const raw = profile?.gender?.toLowerCase().trim();
@@ -169,6 +298,71 @@ function socialOptionsFor(gender: GrammaticalGender): SingleOption[] {
   return [
     ...socialOptionsBase,
     { id: "no", icon: "🕯️", label: "No mucho", helper: gendered(gender, "Hoy estoy más sola", "Hoy estoy más solo", "Hoy tengo poca compañía") },
+  ];
+}
+
+function localizedEnergyOptionsFor(gender: GrammaticalGender, copy: ReturnType<typeof copyFor>): SingleOption[] {
+  const c = copy.energy;
+  return [
+    { id: "1", value: 1, icon: "🌙", label: c.none[0], helper: c.none[1] },
+    { id: "2", value: 2, icon: "☁️", label: gendered(gender, c.tired[0], c.tired[1], c.tired[2]), helper: gendered(gender, c.tired[3], c.tired[4], c.tired[5]) },
+    { id: "3", value: 3, icon: "🌤️", label: c.normal[0], helper: c.normal[1] },
+    { id: "4", value: 4, icon: "☀️", label: c.well[0], helper: c.well[1] },
+    { id: "5", value: 5, icon: "✨", label: c.high[0], helper: gendered(gender, c.high[1], c.high[2], c.high[3]) },
+  ];
+}
+
+function localizedMoodOptionsFor(copy: ReturnType<typeof copyFor>): SingleOption[] {
+  return [
+    { id: "alegre", icon: "😊", label: copy.mood[0][0], helper: copy.mood[0][1] },
+    { id: "tranquila", icon: "🌿", label: copy.mood[1][0], helper: copy.mood[1][1] },
+    { id: "triste", icon: "💧", label: copy.mood[2][0], helper: copy.mood[2][1] },
+    { id: "ansiosa", icon: "🌀", label: copy.mood[3][0], helper: copy.mood[3][1] },
+    { id: "irritable", icon: "⚡", label: copy.mood[4][0], helper: copy.mood[4][1] },
+  ];
+}
+
+function localizedBodyOptionsFor(copy: ReturnType<typeof copyFor>): SingleOption[] {
+  return [
+    { id: "cabeza", icon: "🧠", label: copy.body[0] },
+    { id: "pecho", icon: "💛", label: copy.body[1] },
+    { id: "estomago", icon: "🍵", label: copy.body[2] },
+    { id: "espalda", icon: "🪑", label: copy.body[3] },
+    { id: "articulaciones", icon: "🦴", label: copy.body[4] },
+    { id: "piernas", icon: "🦵", label: copy.body[5] },
+    { id: "ninguno", icon: "👌", label: copy.body[6] },
+  ];
+}
+
+function localizedSleepOptionsFor(copy: ReturnType<typeof copyFor>): SingleOption[] {
+  return [
+    { id: "muy_bien", icon: "🌅", label: copy.sleep[0][0], helper: copy.sleep[0][1] },
+    { id: "bien", icon: "🌙", label: copy.sleep[1][0], helper: copy.sleep[1][1] },
+    { id: "regular", icon: "☕", label: copy.sleep[2][0], helper: copy.sleep[2][1] },
+    { id: "mal", icon: "🌧️", label: copy.sleep[3][0], helper: copy.sleep[3][1] },
+    { id: "muy_mal", icon: "🛌", label: copy.sleep[4][0], helper: copy.sleep[4][1] },
+  ];
+}
+
+function localizedSymptomOptionsFor(gender: GrammaticalGender, copy: ReturnType<typeof copyFor>): SingleOption[] {
+  const confusion = copy.symptoms[5];
+  const confusionText = Array.isArray(confusion) ? confusion : ["Me siento confundida", "Me siento confundido", "Siento confusión"];
+  return [
+    { id: "dolor_cabeza", icon: "🤕", label: copy.symptoms[0] as string },
+    { id: "mareo", icon: "🌀", label: copy.symptoms[1] as string },
+    { id: "nauseas", icon: "🍵", label: copy.symptoms[2] as string },
+    { id: "fiebre", icon: "🌡️", label: copy.symptoms[3] as string },
+    { id: "falta_aire", icon: "🫁", label: copy.symptoms[4] as string },
+    { id: "confusion", icon: "❔", label: gendered(gender, confusionText[0], confusionText[1], confusionText[2]) },
+    { id: "ninguno", icon: "👌", label: copy.symptoms[6] as string },
+  ];
+}
+
+function localizedSocialOptionsFor(gender: GrammaticalGender, copy: ReturnType<typeof copyFor>): SingleOption[] {
+  return [
+    { id: "mucho", icon: "🤝", label: copy.social[0][0], helper: copy.social[0][1] },
+    { id: "algo", icon: "💬", label: copy.social[1][0], helper: copy.social[1][1] },
+    { id: "no", icon: "🕯️", label: copy.social[2][0], helper: gendered(gender, copy.social[2][1], copy.social[2][2], copy.social[2][3]) },
   ];
 }
 
@@ -364,6 +558,57 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
   };
 }
 
+function localizedLocalResult(name: string, answers: Answers, gender: GrammaticalGender, copy: ReturnType<typeof copyFor>): CheckinResult {
+  if (copy === CHECKIN_TEXT.es) return localResult(name, answers, gender);
+
+  const has = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
+  const safetySignal = has("falta_aire") || has("pecho") || has("confusion");
+  const lowEnergy = (answers.energy_level ?? 3) <= 2;
+  const lowMood = answers.mood === "triste" || answers.mood === "ansiosa";
+  const poorSleep = answers.sleep_quality === "mal" || answers.sleep_quality === "muy_mal";
+  const hasSymptoms = answers.symptoms.some((item) => item !== "ninguno") || answers.body_areas.some((item) => item !== "ninguno");
+
+  if (safetySignal) {
+    return {
+      feeling_label: "A day to stay supported",
+      overall_state: "low",
+      vyva_reading: `${name || "Dear"}, thank you for telling me. Some of your answers deserve attention, so today it is better not to wait in silence.`,
+      right_now: [
+        "Sit somewhere comfortable and avoid walking without company for now.",
+        "Tell someone nearby so they can keep an eye on you.",
+        "If chest discomfort, confusion, or breathlessness continues, seek urgent help.",
+      ],
+      today_actions: [
+        "Stay near your phone and avoid effort.",
+        "Note when the symptom started.",
+        "Use the symptom check or seek medical attention if it worsens.",
+      ],
+      highlight: "The priority today is safety, company, and watching whether this improves soon.",
+      flag_caregiver: true,
+      watch_for: "If breathlessness, chest pain, strong confusion, or rapid worsening appears, seek urgent help. VYVA can also open the symptom check.",
+    };
+  }
+
+  return {
+    feeling_label: lowEnergy || poorSleep ? "A gentler day" : "A steady day",
+    overall_state: lowEnergy || poorSleep || lowMood || hasSymptoms ? "moderate" : "good",
+    vyva_reading: `${name || "Dear"}, thank you for sharing this. Today looks like a day to listen to your body and choose a clear, gentle pace.`,
+    right_now: [
+      "Drink a glass of water slowly.",
+      "Choose one small and easy thing to begin with.",
+      "Pause briefly before moving to the next thing.",
+    ],
+    today_actions: [
+      "Look at For you today in Concierge for a nearby adapted idea.",
+      "Keep plans simple and leave room to rest.",
+      "Speak to someone close if you would like company.",
+    ],
+    highlight: "Your body will appreciate a kind, well-chosen rhythm today.",
+    flag_caregiver: lowEnergy && lowMood,
+    watch_for: hasSymptoms ? "If something worsens or worries you, use the symptom check, take vital signs if you can, and seek medical attention if it feels urgent." : null,
+  };
+}
+
 function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
   const hasSymptom = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
   const safetySignal = hasSymptom("falta_aire") || hasSymptom("pecho") || hasSymptom("confusion");
@@ -421,6 +666,17 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
   return actions.slice(0, 3);
 }
 
+function localizeAppActions(actions: AppAction[], copy: ReturnType<typeof copyFor>): AppAction[] {
+  return actions.map((action) => {
+    const localized = copy.appActions[action.key];
+    return {
+      ...action,
+      title: localized[0],
+      description: localized[1],
+    };
+  });
+}
+
 function resultVisualFor(state: CheckinResult["overall_state"]) {
   switch (state) {
     case "excellent":
@@ -436,23 +692,23 @@ function resultVisualFor(state: CheckinResult["overall_state"]) {
   }
 }
 
-function shareTextFor(name: string, result: CheckinResult) {
+function shareTextFor(name: string, result: CheckinResult, copy: ReturnType<typeof copyFor>) {
   const rightNow = result.right_now.slice(0, 3).map((item) => `- ${item}`).join("\n");
   const today = result.today_actions.slice(0, 3).map((item) => `- ${item}`).join("\n");
   return [
-    `Lectura VYVA de hoy para ${name || "mí"}`,
+    `${copy.shareFor} ${name || copy.me}`,
     "",
     result.feeling_label,
     result.vyva_reading,
     "",
-    `Lo importante: ${result.highlight}`,
+    `${copy.important}: ${result.highlight}`,
     "",
-    "Ahora mismo:",
+    `${copy.rightNow}:`,
     rightNow,
     "",
-    "Para hoy:",
+    `${copy.today}:`,
     today,
-    result.watch_for ? `\nTen en cuenta: ${result.watch_for}` : "",
+    result.watch_for ? `\n${copy.note}: ${result.watch_for}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -466,23 +722,23 @@ const CheckHowIFeelScreen = () => {
   const [result, setResult] = useState<CheckinResult | null>(null);
 
   const name = firstName || "Carlos";
+  const copy = copyFor(profile?.language);
   const stepIndex = STEPS.indexOf(step);
   const canGoBack = stepIndex > 0 && step !== "analyzing" && step !== "result";
-  const appActions = result ? appActionsFor(answers, result) : [];
+  const appActions = result ? localizeAppActions(appActionsFor(answers, result), copy) : [];
   const resultVisual = result ? resultVisualFor(result.overall_state) : null;
   const gender = inferGender(profile, name);
-  const energyOptions = energyOptionsFor(gender);
-  const symptomOptions = symptomOptionsFor(gender);
-  const socialOptions = socialOptionsFor(gender);
+  const energyOptions = localizedEnergyOptionsFor(gender, copy);
+  const moodOptionsLocalized = localizedMoodOptionsFor(copy);
+  const bodyOptionsLocalized = localizedBodyOptionsFor(copy);
+  const sleepOptionsLocalized = localizedSleepOptionsFor(copy);
+  const symptomOptions = localizedSymptomOptionsFor(gender, copy);
+  const socialOptions = localizedSocialOptionsFor(gender, copy);
 
   const loadingMessage = useMemo(() => {
-    const messages = [
-      "Leyendo tus respuestas con calma...",
-      "Revisando tu contexto personal...",
-      "Preparando ideas útiles para hoy...",
-    ];
+    const messages = copy.loading;
     return messages[Math.min(Math.floor((Date.now() - startedAtRef.current) / 1800), messages.length - 1)];
-  }, [step]);
+  }, [copy.loading, step]);
 
   const goBack = () => {
     if (canGoBack) {
@@ -545,8 +801,8 @@ const CheckHowIFeelScreen = () => {
       setResult(data.result);
     } catch (err) {
       console.warn("[check-in] falling back locally", err);
-      setResult(localResult(name, answers, gender));
-      toast({ description: "He preparado una lectura local porque la conexión no respondió a tiempo." });
+      setResult(localizedLocalResult(name, answers, gender, copy));
+      toast({ description: copy.fallbackToast });
     } finally {
       setStep("result");
     }
@@ -561,20 +817,20 @@ const CheckHowIFeelScreen = () => {
 
   const shareResult = async () => {
     if (!result) return;
-    const text = shareTextFor(name, result);
+    const text = shareTextFor(name, result, copy);
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Mi lectura VYVA de hoy", text });
+        await navigator.share({ title: copy.shareTitle, text });
       } else {
         await navigator.clipboard.writeText(text);
-        toast({ description: "Resultado copiado para compartir." });
+        toast({ description: copy.copied });
       }
     } catch {
       try {
         await navigator.clipboard.writeText(text);
-        toast({ description: "Resultado copiado para compartir." });
+        toast({ description: copy.copied });
       } catch {
-        toast({ description: "No he podido compartir el resultado ahora mismo." });
+        toast({ description: copy.shareFailed });
       }
     }
   };
@@ -589,10 +845,10 @@ const CheckHowIFeelScreen = () => {
               className="vyva-tap flex min-h-[50px] items-center gap-2 rounded-full bg-[#F5EFE7] px-4 font-body text-[16px] font-semibold text-vyva-text-1"
             >
               <ArrowLeft size={19} />
-              Atrás
+              {copy.back}
             </button>
             <span className="rounded-full bg-vyva-purple-light px-4 py-2 font-body text-[14px] font-bold text-vyva-purple shadow-sm">
-              {QUESTION_STEPS.indexOf(step) + 1} de {QUESTION_STEPS.length}
+              {QUESTION_STEPS.indexOf(step) + 1} {copy.stepOf} {QUESTION_STEPS.length}
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-[#EDE4DA]">
@@ -602,7 +858,7 @@ const CheckHowIFeelScreen = () => {
             />
           </div>
           <p className="mt-2 text-right font-body text-[13px] font-semibold text-vyva-text-2">
-            Vamos paso a paso
+            {copy.stepHint}
           </p>
         </div>
       )}
@@ -615,19 +871,19 @@ const CheckHowIFeelScreen = () => {
             <div className="relative mb-5 flex h-[76px] w-[76px] items-center justify-center rounded-[28px] bg-white text-[36px] shadow-[0_12px_30px_rgba(107,33,168,0.14)]">
               💜
             </div>
-            <p className="relative mb-2 font-body text-[18px] font-semibold text-vyva-text-2">Hola, {name}</p>
+            <p className="relative mb-2 font-body text-[18px] font-semibold text-vyva-text-2">{copy.hello}, {name}</p>
             <h1 className="relative mb-4 font-display text-[38px] leading-tight text-vyva-text-1">
-              Revisemos cómo te sientes hoy.
+              {copy.welcomeTitle}
             </h1>
             <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">
-              Seis preguntas sencillas. VYVA las convierte en una lectura útil para tu día.
+              {copy.welcomeIntro}
             </p>
           </div>
           <div className="grid gap-3 p-6">
             {[
-              { Icon: ShieldCheck, title: "Privado", text: "Tus respuestas se tratan con cuidado." },
-              { Icon: Sparkles, title: "Personal", text: "Usa tu perfil para adaptar las ideas." },
-              { Icon: Sun, title: "Suave", text: "No es un diagnóstico, es una guía de bienestar." },
+              { Icon: ShieldCheck, ...copy.cards[0] },
+              { Icon: Sparkles, ...copy.cards[1] },
+              { Icon: Sun, ...copy.cards[2] },
             ].map(({ Icon, title, text }) => (
               <div key={text} className="flex min-h-[82px] items-center gap-4 rounded-[24px] bg-[#FAF9F6] px-4">
                 <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-vyva-purple-light">
@@ -646,77 +902,77 @@ const CheckHowIFeelScreen = () => {
               className="vyva-primary-action min-h-[74px] w-full text-[21px]"
               data-testid="button-checkin-start"
             >
-              Empezar ahora
+              {copy.start}
             </button>
             <button
               onClick={abandonAndExit}
               className="vyva-tap mt-3 min-h-[60px] w-full rounded-full font-body text-[18px] font-semibold text-vyva-text-2"
             >
-              Ahora no
+              {copy.skip}
             </button>
           </div>
         </section>
       )}
 
       {step === "energy" && (
-        <QuestionCard icon={<Battery />} title="¿Cuánta energía tienes hoy?" subtitle="Elige la frase que más se parece a tu mañana.">
+        <QuestionCard icon={<Battery />} title={copy.qEnergy[0]} subtitle={copy.qEnergy[1]}>
           <OptionList
             options={energyOptions}
             selected={answers.energy_level?.toString()}
             onSelect={(option) => setSingle("energy_level", option.value ?? 3)}
           />
-          <NextButton disabled={!answers.energy_level} onClick={() => setStep("mood")} />
+          <NextButton disabled={!answers.energy_level} onClick={() => setStep("mood")} label={copy.next} />
         </QuestionCard>
       )}
 
       {step === "mood" && (
-        <QuestionCard icon={<Heart />} title="¿Cómo está tu ánimo?" subtitle="No hay respuesta buena o mala. Solo queremos escucharte.">
+        <QuestionCard icon={<Heart />} title={copy.qMood[0]} subtitle={copy.qMood[1]}>
           <OptionList
-            options={moodOptions}
+            options={moodOptionsLocalized}
             selected={answers.mood ?? undefined}
             onSelect={(option) => setSingle("mood", option.id)}
           />
-          <NextButton disabled={!answers.mood} onClick={() => setStep("body")} />
+          <NextButton disabled={!answers.mood} onClick={() => setStep("body")} label={copy.next} />
         </QuestionCard>
       )}
 
       {step === "body" && (
-        <QuestionCard icon={<UserRound />} title="¿Notas algo en el cuerpo?" subtitle="Puedes marcar más de una opción.">
+        <QuestionCard icon={<UserRound />} title={copy.qBody[0]} subtitle={copy.qBody[1]}>
           <OptionList
-            options={bodyOptions}
+            options={bodyOptionsLocalized}
             selectedValues={answers.body_areas}
             onSelect={(option) => toggleMulti("body_areas", option.id)}
             multi
           />
-          <NextButton disabled={answers.body_areas.length === 0} onClick={() => setStep("sleep")} />
+          <NextButton disabled={answers.body_areas.length === 0} onClick={() => setStep("sleep")} label={copy.next} />
         </QuestionCard>
       )}
 
       {step === "sleep" && (
-        <QuestionCard icon={<BedDouble />} title="¿Cómo dormiste?" subtitle="El descanso cambia mucho cómo se siente el día.">
+        <QuestionCard icon={<BedDouble />} title={copy.qSleep[0]} subtitle={copy.qSleep[1]}>
           <OptionList
-            options={sleepOptions}
+            options={sleepOptionsLocalized}
             selected={answers.sleep_quality ?? undefined}
             onSelect={(option) => setSingle("sleep_quality", option.id)}
           />
-          <NextButton disabled={!answers.sleep_quality} onClick={() => setStep("symptoms")} />
+          <NextButton disabled={!answers.sleep_quality} onClick={() => setStep("symptoms")} label={copy.next} />
         </QuestionCard>
       )}
 
       {step === "symptoms" && (
-        <QuestionCard icon={<Sparkles />} title="¿Hay algo que quieras mencionar?" subtitle="Marca lo que notes hoy, aunque sea suave.">
+        <QuestionCard icon={<Sparkles />} title={copy.qSymptoms[0]} subtitle={copy.qSymptoms[1]}>
           <OptionList
             options={symptomOptions}
             selectedValues={answers.symptoms}
             onSelect={(option) => toggleMulti("symptoms", option.id)}
             multi
           />
-          <NextButton disabled={answers.symptoms.length === 0} onClick={() => setStep("social")} />
+          <NextButton disabled={answers.symptoms.length === 0} onClick={() => setStep("social")} label={copy.next} />
         </QuestionCard>
       )}
 
       {step === "social" && (
-        <QuestionCard icon={<MessageCircle />} title="¿Has tenido contacto con alguien hoy?" subtitle="La compañía también cuenta para el bienestar.">
+        <QuestionCard icon={<MessageCircle />} title={copy.qSocial[0]} subtitle={copy.qSocial[1]}>
           <OptionList
             options={socialOptions}
             selected={answers.social_contact ?? undefined}
@@ -727,7 +983,7 @@ const CheckHowIFeelScreen = () => {
             disabled={!answers.social_contact}
             className="vyva-primary-action mt-4 min-h-[74px] w-full text-[21px] disabled:bg-vyva-text-3"
           >
-            Ver mi lectura
+            {copy.readResult}
           </button>
         </QuestionCard>
       )}
@@ -737,7 +993,7 @@ const CheckHowIFeelScreen = () => {
           <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-[34px] bg-white shadow-[0_12px_30px_rgba(107,33,168,0.14)]">
             <Loader2 size={54} className="animate-spin text-vyva-purple" />
           </div>
-          <h1 className="mb-3 font-display text-[32px] text-vyva-text-1">Un momento, {name}</h1>
+          <h1 className="mb-3 font-display text-[32px] text-vyva-text-1">{copy.analyzingTitle}, {name}</h1>
           <p className="font-body text-[21px] leading-relaxed text-vyva-text-2">{loadingMessage}</p>
         </section>
       )}
@@ -751,7 +1007,7 @@ const CheckHowIFeelScreen = () => {
               {resultVisual.icon}
             </div>
             <p className="relative mb-3 inline-flex rounded-full px-4 py-2 font-body text-[14px] font-bold uppercase tracking-[0.14em]" style={{ background: resultVisual.labelBg, color: resultVisual.labelText }}>
-              Tu lectura de hoy
+              {copy.resultKicker}
             </p>
             <h1 className="relative mb-4 font-display text-[38px] leading-tight text-vyva-text-1">{result.feeling_label}</h1>
             <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">{result.vyva_reading}</p>
@@ -760,12 +1016,12 @@ const CheckHowIFeelScreen = () => {
           <div className="mb-5 flex gap-4 rounded-[26px] bg-vyva-purple-light p-5">
             <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-[24px]">💡</span>
             <span>
-              <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">Lo importante</span>
+              <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">{copy.important}</span>
               <span className="block font-body text-[20px] font-semibold leading-relaxed text-vyva-text-1">{result.highlight}</span>
             </span>
           </div>
-          <ResultList title="Ahora mismo" icon="⚡" items={result.right_now} />
-          <ResultList title="Para hoy" icon="☀️" items={result.today_actions} />
+          <ResultList title={copy.rightNow} icon="⚡" items={result.right_now} />
+          <ResultList title={copy.today} icon="☀️" items={result.today_actions} />
           {result.watch_for && (
             <div className="mt-4 flex gap-3 rounded-[24px] border border-[#F59E0B]/30 bg-[#FFFBEB] p-5">
               <span className="text-[24px]">🔎</span>
@@ -775,10 +1031,10 @@ const CheckHowIFeelScreen = () => {
           {appActions.length > 0 && (
             <div className="mt-5 rounded-[26px] border border-vyva-border bg-white p-5 shadow-[0_8px_24px_rgba(107,33,168,0.08)]">
               <p className="mb-2 font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">
-                VYVA puede ayudarte ahora
+                {copy.appHelpTitle}
               </p>
               <p className="mb-4 font-body text-[18px] leading-relaxed text-vyva-text-2">
-                Elige el siguiente paso dentro de la app, sin tener que buscarlo tú.
+                {copy.appHelpText}
               </p>
               <div className="grid gap-3">
                 {appActions.map((action) => (
@@ -788,18 +1044,18 @@ const CheckHowIFeelScreen = () => {
             </div>
           )}
           <p className="mt-6 font-body text-[21px] leading-relaxed text-vyva-text-1">
-            Gracias por hacerlo. Este pequeño hábito ayuda a VYVA a cuidarte mejor cada día.
+            {copy.thanks}
           </p>
           <div className="mt-6 grid gap-3">
             <button onClick={shareResult} className="vyva-secondary-action min-h-[68px] w-full text-[19px]">
               <Share2 size={19} className="mr-2" />
-              Compartir resultado
+              {copy.share}
             </button>
             <button onClick={() => navigate("/health")} className="vyva-primary-action min-h-[72px] w-full text-[20px]">
-              Gracias, VYVA
+              {copy.done}
             </button>
             <button onClick={reset} className="vyva-secondary-action min-h-[68px] w-full text-[19px]">
-              Repetir check-in
+              {copy.repeat}
             </button>
           </div>
           </div>
@@ -893,14 +1149,14 @@ function OptionList({
   );
 }
 
-function NextButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+function NextButton({ disabled, onClick, label }: { disabled: boolean; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       className="vyva-primary-action mt-4 min-h-[72px] w-full text-[20px] disabled:bg-vyva-text-3"
     >
-      Siguiente
+      {label}
     </button>
   );
 }
