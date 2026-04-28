@@ -37,6 +37,9 @@ type CheckinResult = {
   feeling_label: string;
   overall_state: "excellent" | "good" | "moderate" | "tired" | "low";
   vyva_reading: string;
+  why_today?: string | null;
+  personal_plan?: string | null;
+  app_suggestion?: string | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -153,6 +156,9 @@ const CHECKIN_TEXT = {
     loading: ["Leyendo tus respuestas con calma...", "Revisando tu contexto personal...", "Preparando ideas útiles para hoy..."],
     resultKicker: "Tu lectura de hoy",
     important: "Lo importante",
+    whyTitle: "Por qué hoy",
+    planTitle: "Plan adaptado",
+    suggestionTitle: "Siguiente paso",
     rightNow: "Ahora mismo",
     today: "Para hoy",
     appHelpTitle: "VYVA puede ayudarte ahora",
@@ -213,6 +219,9 @@ const CHECKIN_TEXT = {
     loading: ["Reading your answers calmly...", "Checking your personal context...", "Preparing useful ideas for today..."],
     resultKicker: "Today’s reading",
     important: "Important",
+    whyTitle: "Why today",
+    planTitle: "Personal plan",
+    suggestionTitle: "Next step",
     rightNow: "Right now",
     today: "For today",
     appHelpTitle: "VYVA can help now",
@@ -278,6 +287,9 @@ const CHECKIN_LAUNCH_TEXT = {
     loading: ["Ich lese deine Antworten in Ruhe...", "Ich prüfe deinen persönlichen Kontext...", "Ich bereite nützliche Ideen für heute vor..."],
     resultKicker: "Deine heutige Einschätzung",
     important: "Wichtig",
+    whyTitle: "Warum heute",
+    planTitle: "Persönlicher Plan",
+    suggestionTitle: "Nächster Schritt",
     rightNow: "Jetzt gerade",
     today: "Für heute",
     appHelpTitle: "VYVA kann jetzt helfen",
@@ -339,6 +351,9 @@ const CHECKIN_LAUNCH_TEXT = {
     loading: ["Lecture calme de tes réponses...", "Vérification de ton contexte personnel...", "Préparation d’idées utiles pour aujourd’hui..."],
     resultKicker: "Ta lecture du jour",
     important: "Important",
+    whyTitle: "Pourquoi aujourd’hui",
+    planTitle: "Plan adapté",
+    suggestionTitle: "Prochaine étape",
     rightNow: "Maintenant",
     today: "Pour aujourd’hui",
     appHelpTitle: "VYVA peut aider maintenant",
@@ -400,6 +415,9 @@ const CHECKIN_LAUNCH_TEXT = {
     loading: ["Leggo le tue risposte con calma...", "Controllo il tuo contesto personale...", "Preparo idee utili per oggi..."],
     resultKicker: "La lettura di oggi",
     important: "Importante",
+    whyTitle: "Perché oggi",
+    planTitle: "Piano personale",
+    suggestionTitle: "Prossimo passo",
     rightNow: "Adesso",
     today: "Per oggi",
     appHelpTitle: "VYVA può aiutarti ora",
@@ -461,6 +479,9 @@ const CHECKIN_LAUNCH_TEXT = {
     loading: ["A ler as tuas respostas com calma...", "A rever o teu contexto pessoal...", "A preparar ideias úteis para hoje..."],
     resultKicker: "A leitura de hoje",
     important: "Importante",
+    whyTitle: "Porque hoje",
+    planTitle: "Plano adaptado",
+    suggestionTitle: "Próximo passo",
     rightNow: "Agora mesmo",
     today: "Para hoje",
     appHelpTitle: "A VYVA pode ajudar agora",
@@ -806,8 +827,45 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
   };
 }
 
+function enrichLocalResult(result: CheckinResult, answers: Answers, copy: ReturnType<typeof copyFor>): CheckinResult {
+  const hasSymptoms = answers.symptoms.some((item) => item !== "ninguno") || answers.body_areas.some((item) => item !== "ninguno");
+  const lowEnergy = (answers.energy_level ?? 3) <= 2;
+  const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality ?? "");
+
+  return {
+    ...result,
+    why_today: result.why_today ?? (
+      copy === CHECKIN_TEXT.es
+        ? [
+            lowEnergy ? "La energía baja cambia qué planes convienen hoy." : null,
+            poorSleep ? "El descanso flojo puede hacer que el cuerpo necesite un ritmo más amable." : null,
+            hasSymptoms ? "También he tenido en cuenta las señales físicas que has marcado." : null,
+          ].filter(Boolean).join(" ") || "La lectura combina tus respuestas con tu estado general de hoy."
+        : [
+            lowEnergy ? "Lower energy changes which plans make sense today." : null,
+            poorSleep ? "Poor sleep can make the body need a kinder pace." : null,
+            hasSymptoms ? "I also considered the body signals you selected." : null,
+          ].filter(Boolean).join(" ") || "This reading combines your answers with how today appears overall."
+    ),
+    personal_plan: result.personal_plan ?? (
+      copy === CHECKIN_TEXT.es
+        ? "Elige una acción pequeña ahora y, si te apetece salir, usa Para ti hoy para encontrar algo cercano, real y adaptado."
+        : "Choose one small action now, and if you feel like going out, use For you today to find something nearby, real, and adapted."
+    ),
+    app_suggestion: result.app_suggestion ?? (
+      hasSymptoms
+        ? (copy === CHECKIN_TEXT.es
+            ? "El siguiente paso más útil es abrir el chequeo de síntomas o tomar signos vitales en VYVA."
+            : "The most useful next step is to open the symptom check or take vital signs in VYVA.")
+        : (copy === CHECKIN_TEXT.es
+            ? "El siguiente paso más útil es mirar Para ti hoy en Concierge."
+            : "The most useful next step is to look at For you today in Concierge.")
+    ),
+  };
+}
+
 function localizedLocalResult(name: string, answers: Answers, gender: GrammaticalGender, copy: ReturnType<typeof copyFor>): CheckinResult {
-  if (copy === CHECKIN_TEXT.es) return localResult(name, answers, gender);
+  if (copy === CHECKIN_TEXT.es) return enrichLocalResult(localResult(name, answers, gender), answers, copy);
 
   const has = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
   const safetySignal = has("falta_aire") || has("pecho") || has("confusion");
@@ -817,7 +875,7 @@ function localizedLocalResult(name: string, answers: Answers, gender: Grammatica
   const hasSymptoms = answers.symptoms.some((item) => item !== "ninguno") || answers.body_areas.some((item) => item !== "ninguno");
 
   if (safetySignal) {
-    return {
+    return enrichLocalResult({
       feeling_label: "A day to stay supported",
       overall_state: "low",
       vyva_reading: `${name || "Dear"}, thank you for telling me. Some of your answers deserve attention, so today it is better not to wait in silence.`,
@@ -834,10 +892,10 @@ function localizedLocalResult(name: string, answers: Answers, gender: Grammatica
       highlight: "The priority today is safety, company, and watching whether this improves soon.",
       flag_caregiver: true,
       watch_for: "If breathlessness, chest pain, strong confusion, or rapid worsening appears, seek urgent help. VYVA can also open the symptom check.",
-    };
+    }, answers, copy);
   }
 
-  return {
+  return enrichLocalResult({
     feeling_label: lowEnergy || poorSleep ? "A gentler day" : "A steady day",
     overall_state: lowEnergy || poorSleep || lowMood || hasSymptoms ? "moderate" : "good",
     vyva_reading: `${name || "Dear"}, thank you for sharing this. Today looks like a day to listen to your body and choose a clear, gentle pace.`,
@@ -854,7 +912,7 @@ function localizedLocalResult(name: string, answers: Answers, gender: Grammatica
     highlight: "Your body will appreciate a kind, well-chosen rhythm today.",
     flag_caregiver: lowEnergy && lowMood,
     watch_for: hasSymptoms ? "If something worsens or worries you, use the symptom check, take vital signs if you can, and seek medical attention if it feels urgent." : null,
-  };
+  }, answers, copy);
 }
 
 function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
@@ -950,6 +1008,9 @@ function shareTextFor(name: string, result: CheckinResult, copy: ReturnType<type
     result.vyva_reading,
     "",
     `${copy.important}: ${result.highlight}`,
+    result.why_today ? `${copy.whyTitle}: ${result.why_today}` : "",
+    result.personal_plan ? `${copy.planTitle}: ${result.personal_plan}` : "",
+    result.app_suggestion ? `${copy.suggestionTitle}: ${result.app_suggestion}` : "",
     "",
     `${copy.rightNow}:`,
     rightNow,
@@ -1268,6 +1329,19 @@ const CheckHowIFeelScreen = () => {
               <span className="block font-body text-[20px] font-semibold leading-relaxed text-vyva-text-1">{result.highlight}</span>
             </span>
           </div>
+          {(result.why_today || result.personal_plan || result.app_suggestion) && (
+            <div className="mb-5 grid gap-3">
+              {result.why_today && (
+                <InsightCard title={copy.whyTitle} icon="🔍" text={result.why_today} tone="lavender" />
+              )}
+              {result.personal_plan && (
+                <InsightCard title={copy.planTitle} icon="🧭" text={result.personal_plan} tone="mint" />
+              )}
+              {result.app_suggestion && (
+                <InsightCard title={copy.suggestionTitle} icon="✨" text={result.app_suggestion} tone="cream" />
+              )}
+            </div>
+          )}
           <ResultList title={copy.rightNow} icon="⚡" items={result.right_now} />
           <ResultList title={copy.today} icon="☀️" items={result.today_actions} />
           {result.watch_for && (
@@ -1426,6 +1500,41 @@ function ResultList({ title, icon, items }: { title: string; icon: string; items
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function InsightCard({
+  title,
+  icon,
+  text,
+  tone,
+}: {
+  title: string;
+  icon: string;
+  text: string;
+  tone: "lavender" | "mint" | "cream";
+}) {
+  const toneClass =
+    tone === "mint"
+      ? "border-[#BBF7D0] bg-[#ECFDF5]"
+      : tone === "cream"
+        ? "border-[#FED7AA] bg-[#FFF7ED]"
+        : "border-[#DDD6FE] bg-[#F5F3FF]";
+
+  return (
+    <div className={`flex gap-4 rounded-[24px] border p-4 ${toneClass}`}>
+      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-[24px] shadow-sm">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="mb-1 block font-body text-[14px] font-bold uppercase tracking-[0.14em] text-vyva-purple">
+          {title}
+        </span>
+        <span className="block font-body text-[18px] leading-relaxed text-vyva-text-1">
+          {text}
+        </span>
+      </span>
     </div>
   );
 }

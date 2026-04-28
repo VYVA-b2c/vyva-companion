@@ -37,6 +37,9 @@ type AiCheckinResult = {
   feeling_label: string;
   overall_state: "excellent" | "good" | "moderate" | "tired" | "low";
   vyva_reading: string;
+  why_today?: string | null;
+  personal_plan?: string | null;
+  app_suggestion?: string | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -401,6 +404,18 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
     feeling_label,
     overall_state,
     vyva_reading: `${profile.name}, hoy conviene ir con calma y escucharte un poco. No hace falta hacer mucho: con dos o tres gestos sencillos puedes sentirte ${gendered(gender, "más acompañada", "más acompañado", "con más apoyo")} y estable.`,
+    why_today: [
+      lowEnergy ? "Tu nivel de energía está bajo, así que hoy pesa más proteger el ritmo." : null,
+      poorSleep ? "Dormiste peor de lo habitual, y eso puede hacer que todo cueste un poco más." : null,
+      lowMood ? "El ánimo también pide compañía suave y planes sencillos." : null,
+      profile.recent_checkins.length ? "También he tenido en cuenta tus últimos check-ins." : null,
+    ].filter(Boolean).join(" ") || "La lectura combina tus respuestas de hoy con tu perfil personal.",
+    personal_plan: limitedMobility
+      ? `Hoy te conviene algo cómodo, sentado o de baja movilidad; si te apetece, dedica un rato a ${favouriteQuietActivity}.`
+      : "Si te apetece salir, mira Para ti hoy en Concierge para elegir una idea cercana, concreta y fácil de adaptar.",
+    app_suggestion: hasSymptoms
+      ? "El mejor siguiente paso es usar el chequeo de síntomas o tomar signos vitales antes de decidir qué hacer."
+      : "El mejor siguiente paso es mirar Para ti hoy para convertir esta lectura en un plan concreto.",
     right_now: [
       "Bebe un vaso de agua despacio.",
       gendered(gender, "Siéntate cómoda y respira profundo durante un minuto.", "Siéntate cómodo y respira profundo durante un minuto.", "Siéntate en una postura cómoda y respira profundo durante un minuto."),
@@ -443,6 +458,9 @@ Safety and personalization rules:
 - Whenever an outing, cultural plan, social idea, or gentle activity would help, mention VYVA Concierge / "Para ti hoy" as the place to find a nearby adapted plan.
 - Whenever symptoms, dizziness, breathlessness, chest discomfort, fever, nausea, or worrying changes appear, route the user to app actions: symptom check, vitals scan, and medical attention when appropriate.
 - Do not only say "see a doctor". Prefer: "haz el chequeo de síntomas", "toma signos vitales", and "busca atención médica si empeora o parece urgente".
+- Make the result feel like a small personalized report, not a generic wellness paragraph.
+- Explain why this reading fits today, using the user's answers and relevant profile signals.
+- Include one concrete plan that fits the user's health profile, location, mobility, interests, and app capabilities.
 
 User profile:
 ${JSON.stringify(profile, null, 2)}
@@ -455,6 +473,9 @@ Return ONLY valid JSON with this shape:
   "feeling_label": "short warm label, max 5 words",
   "overall_state": "excellent|good|moderate|tired|low",
   "vyva_reading": "2 short warm sentences",
+  "why_today": "why this reading fits today's answers and profile, max 2 sentences",
+  "personal_plan": "a concrete mini-plan adapted to profile, location, mobility and interests, max 2 sentences",
+  "app_suggestion": "the best next step inside VYVA, such as Concierge Para ti hoy, symptom check, vitals scan, or medical attention, max 1 sentence",
   "right_now": ["one simple action", "one simple action", "one simple action"],
   "today_actions": ["one useful action for today", "one useful action for today", "one useful action for today"],
   "highlight": "one insight, max 20 words",
@@ -471,6 +492,9 @@ function normalizeAiResult(value: unknown, fallback: AiCheckinResult): AiCheckin
     feeling_label: typeof raw.feeling_label === "string" ? raw.feeling_label.slice(0, 80) : fallback.feeling_label,
     overall_state: states.includes(raw.overall_state ?? "") ? raw.overall_state! : fallback.overall_state,
     vyva_reading: typeof raw.vyva_reading === "string" ? raw.vyva_reading.slice(0, 700) : fallback.vyva_reading,
+    why_today: typeof raw.why_today === "string" ? raw.why_today.slice(0, 360) : fallback.why_today ?? null,
+    personal_plan: typeof raw.personal_plan === "string" ? raw.personal_plan.slice(0, 420) : fallback.personal_plan ?? null,
+    app_suggestion: typeof raw.app_suggestion === "string" ? raw.app_suggestion.slice(0, 320) : fallback.app_suggestion ?? null,
     right_now: Array.isArray(raw.right_now) ? raw.right_now.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.right_now,
     today_actions: Array.isArray(raw.today_actions) ? raw.today_actions.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.today_actions,
     highlight: typeof raw.highlight === "string" ? raw.highlight.slice(0, 160) : fallback.highlight,
