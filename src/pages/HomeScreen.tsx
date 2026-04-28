@@ -63,8 +63,6 @@ function todayDateString() {
 const HomeScreen = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [chatMessage, setChatMessage] = useState("");
-  const [chatFocused, setChatFocused] = useState(false);
   const [todayKey, setTodayKey] = useState(todayDateString);
 
   useEffect(() => {
@@ -96,7 +94,6 @@ const HomeScreen = () => {
     };
     return personaliseCardOrder(dateSorted, pData);
   }, [todayKey, personalisationData]);
-  const chatRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -261,28 +258,6 @@ const HomeScreen = () => {
     return t(`home.greeting.${period}.withoutName.${variant}`);
   }, [firstName, timeGreetingKey, t]);
 
-  const chatExamples = t("home.chatExamples", { returnObjects: true }) as string[];
-  const [placeholderIdx, setPlaceholderIdx] = useState(0);
-  const [placeholderFade, setPlaceholderFade] = useState(true);
-  const placeholderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (placeholderTimerRef.current) clearTimeout(placeholderTimerRef.current);
-    if (chatFocused || chatMessage) return;
-    const timer = setInterval(() => {
-      setPlaceholderFade(false);
-      placeholderTimerRef.current = setTimeout(() => {
-        setPlaceholderIdx((prev) => (prev + 1) % chatExamples.length);
-        setPlaceholderFade(true);
-        placeholderTimerRef.current = null;
-      }, 180);
-    }, 3500);
-    return () => {
-      clearInterval(timer);
-      if (placeholderTimerRef.current) clearTimeout(placeholderTimerRef.current);
-    };
-  }, [chatFocused, chatMessage, chatExamples.length]);
-
   const QUICK_TILES = [
     { icon: Heart,         iconBg: "#FFF1EF", iconColor: "#E05B4B", label: t("home.quickTiles.health.label"),    hint: t("home.quickTiles.health.hint"),    path: "/health" },
     { icon: Brain,         iconBg: "#F4F0FF", iconColor: "#7C3AED", label: t("home.quickTiles.cognitive.label"), hint: t("home.quickTiles.cognitive.hint"), path: "/activities" },
@@ -295,13 +270,6 @@ const HomeScreen = () => {
     navigate(path);
   };
 
-  const handleChatSend = () => {
-    if (!chatMessage.trim()) return;
-    incrementChatNavigationCount();
-    navigate(`/chat?q=${encodeURIComponent(chatMessage.trim())}`);
-    setChatMessage("");
-  };
-
   return (
     <div className="vyva-page">
       <VoiceHero
@@ -310,10 +278,10 @@ const HomeScreen = () => {
         }
         weatherData={weatherData}
         contextHint="companion"
-        onChatClick={() => chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onChatClick={() => handleNavigate("/chat")}
       />
 
-      <div ref={chatRef} className="mt-[22px]">
+      <div className="mt-[22px]">
         <p className="font-body text-[16px] font-semibold text-vyva-text-2 mb-4">¿Qué hacemos ahora?</p>
         <div className="grid grid-cols-2 gap-3">
           {QUICK_TILES.map((tile) => (
@@ -392,50 +360,6 @@ const HomeScreen = () => {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className="mt-[18px]">
-        <div
-          className="rounded-[26px] px-[18px] pt-[18px] pb-[14px] flex flex-col gap-3"
-          style={{ background: "linear-gradient(145deg, #3D0D82 0%, #6B21A8 58%, #8B3FC8 100%)" }}
-          data-testid="card-chat-input"
-        >
-          <div
-            className="font-body text-[13px] font-medium mb-[-4px]"
-            style={{
-              color: "rgba(255,255,255,0.45)",
-              opacity: (!chatMessage && !chatFocused) ? (placeholderFade ? 1 : 0) : 0,
-              transition: "opacity 0.18s ease",
-              minHeight: "18px",
-              pointerEvents: "none",
-            }}
-            aria-hidden="true"
-          >
-            {chatExamples[placeholderIdx]}
-          </div>
-
-          <textarea
-            data-testid="input-chat-message"
-            value={chatMessage}
-            onChange={(e) => {
-              setChatMessage(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = `${e.target.scrollHeight}px`;
-            }}
-            onFocus={() => setChatFocused(true)}
-            onBlur={() => setChatFocused(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleChatSend();
-              }
-            }}
-            placeholder={chatFocused ? t("home.chatPlaceholder") : ""}
-            rows={3}
-            className="w-full bg-transparent resize-none outline-none font-body text-[18px] text-white placeholder:text-white/40 leading-[1.6] overflow-hidden"
-            style={{ minHeight: "72px", maxHeight: "180px" }}
-          />
         </div>
       </div>
 
