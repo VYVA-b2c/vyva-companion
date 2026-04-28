@@ -662,6 +662,99 @@ function needsSafetyFollowup(answers: Answers) {
   );
 }
 
+function hasUrgentSafetyFlag(answers: Answers) {
+  return answers.safety_flags.some((flag) =>
+    ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)
+  );
+}
+
+function hasHealthPrioritySignal(answers: Answers) {
+  return (
+    hasUrgentSafetyFlag(answers) ||
+    answers.symptoms.includes("falta_aire") ||
+    answers.symptoms.includes("confusion") ||
+    answers.body_areas.includes("pecho")
+  );
+}
+
+function forceHealthPriorityResult(
+  result: CheckinResult,
+  answers: Answers,
+  name: string,
+  gender: GrammaticalGender,
+  copy: ReturnType<typeof copyFor>,
+): CheckinResult {
+  if (!hasHealthPrioritySignal(answers)) return result;
+
+  const urgent = hasUrgentSafetyFlag(answers);
+  const isSpanish = copy === CHECKIN_TEXT.es;
+  const addressedName = name || (isSpanish ? "cariño" : "dear");
+
+  if (isSpanish) {
+    return {
+      ...result,
+      feeling_label: urgent ? "Prioridad de salud" : "Señal para revisar",
+      overall_state: urgent ? "low" : "moderate",
+      vyva_reading: `${addressedName}, gracias por contarmelo. La falta de aire, el pecho o la confusion no son señales para tapar con distracciones.`,
+      highlight: urgent
+        ? "Busca ayuda medica si sigue, empeora o aparece dolor, confusion o debilidad."
+        : "Primero conviene revisar la señal; despues pensamos en planes agradables.",
+      why_today: "Has marcado una señal que puede ser importante. VYVA la prioriza por seguridad antes de sugerir musica, ocio o actividades.",
+      trend_note: result.trend_note ?? null,
+      personal_plan: urgent
+        ? "Quedate acompañado, evita esfuerzo y busca atencion medica si la sensacion continua o aumenta."
+        : "Haz primero el chequeo de sintomas y, si puedes, toma signos vitales. Si mejora y no te preocupa, despues puedes elegir un plan tranquilo.",
+      app_suggestion: urgent
+        ? "El siguiente paso es buscar atencion medica si la falta de aire continua, empeora o viene con dolor, confusion o debilidad."
+        : "El siguiente paso es abrir el chequeo de sintomas y tomar signos vitales antes de decidir que hacer.",
+      suggested_app_action: urgent ? "care" : "symptom",
+      right_now: [
+        gendered(gender, "Sientate y evita caminar sola ahora.", "Sientate y evita caminar solo ahora.", "Sientate y evita caminar sin compañia ahora."),
+        "Avisa a alguien cercano para que este pendiente.",
+        urgent ? "Si cuesta respirar o hay dolor en el pecho, busca ayuda urgente." : "Abre el chequeo de sintomas o toma signos vitales.",
+      ],
+      today_actions: [
+        "No hagas planes de ocio hasta revisar esta señal.",
+        "Anota cuando empezo y si mejora o empeora.",
+        "Si vuelve, aumenta o te asusta, busca atencion medica.",
+      ],
+      flag_caregiver: true,
+      watch_for: "Si hay falta de aire que no cede, dolor o presion en el pecho, confusion, debilidad repentina o empeoramiento rapido, busca ayuda urgente.",
+    };
+  }
+
+  return {
+    ...result,
+    feeling_label: urgent ? "Health priority" : "Signal to check",
+    overall_state: urgent ? "low" : "moderate",
+    vyva_reading: `${addressedName}, thank you for telling me. Breathlessness, chest symptoms, or confusion should not be covered with distractions.`,
+    highlight: urgent
+      ? "Seek medical help if it continues, worsens, or comes with pain, confusion, or weakness."
+      : "First check the signal; pleasant plans can wait until it feels safe.",
+    why_today: "You selected a signal that can matter. VYVA prioritizes safety before suggesting music, leisure, or activities.",
+    trend_note: result.trend_note ?? null,
+    personal_plan: urgent
+      ? "Stay with someone, avoid effort, and seek medical attention if the sensation continues or grows."
+      : "Do the symptom check first and, if you can, take vital signs. If it improves and does not worry you, choose a quiet plan later.",
+    app_suggestion: urgent
+      ? "The next step is medical attention if breathlessness continues, worsens, or comes with pain, confusion, or weakness."
+      : "The next step is the symptom check and vital signs before deciding what to do.",
+    suggested_app_action: urgent ? "care" : "symptom",
+    right_now: [
+      "Sit down and avoid walking alone for now.",
+      "Tell someone nearby so they can keep an eye on you.",
+      urgent ? "If breathing is difficult or there is chest pain, seek urgent help." : "Open the symptom check or take vital signs.",
+    ],
+    today_actions: [
+      "Do not make leisure plans until this signal is checked.",
+      "Note when it started and whether it improves or worsens.",
+      "If it returns, increases, or worries you, seek medical attention.",
+    ],
+    flag_caregiver: true,
+    watch_for: "If breathlessness does not settle, or there is chest pressure, confusion, sudden weakness, or rapid worsening, seek urgent help.",
+  };
+}
+
 function activeQuestionSteps(includeSafety: boolean) {
   return QUESTION_STEPS.filter((item) => includeSafety || item !== "safety");
 }
@@ -1078,6 +1171,13 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
     }
   };
 
+  if (hasHealthPrioritySignal(answers)) {
+    return [
+      defaultAction(hasUrgentSafetyFlag(answers) ? "care" : "symptom", true),
+      defaultAction("vitals"),
+    ];
+  }
+
   if (safetySignal) {
     actions.push(defaultAction("care", true));
   }
@@ -1188,6 +1288,8 @@ const CheckHowIFeelScreen = () => {
     ? appActions.find((action) => action.key === result.suggested_app_action) ?? appActions[0]
     : undefined;
   const resultVisual = result ? resultVisualFor(result.overall_state) : null;
+  const healthPriority = hasHealthPrioritySignal(answers);
+  const urgentHealthPriority = hasUrgentSafetyFlag(answers);
   const gender = inferGender(profile, name);
   const energyOptions = localizedEnergyOptionsFor(gender, copy);
   const moodOptionsLocalized = localizedMoodOptionsFor(copy);
@@ -1271,10 +1373,10 @@ const CheckHowIFeelScreen = () => {
         throw new Error(`${res.status}${detail ? ` ${detail.slice(0, 180)}` : ""}`);
       }
       const data = await res.json() as { result: CheckinResult };
-      setResult(data.result);
+      setResult(forceHealthPriorityResult(data.result, answers, name, gender, copy));
     } catch (err) {
       console.warn("[check-in] falling back locally", err);
-      setResult(localizedLocalResult(name, answers, gender, copy));
+      setResult(forceHealthPriorityResult(localizedLocalResult(name, answers, gender, copy), answers, name, gender, copy));
       toast({ description: copy.fallbackToast });
     } finally {
       setStep("result");
@@ -1498,7 +1600,20 @@ const CheckHowIFeelScreen = () => {
             <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">{result.vyva_reading}</p>
           </div>
           <div className="p-6">
-          <div className="mb-5 flex gap-4 rounded-[26px] bg-vyva-purple-light p-5">
+          {healthPriority && (
+            <div className="mb-5 flex gap-4 rounded-[26px] border-2 border-[#DC2626] bg-[#FEF2F2] p-5 shadow-[0_14px_34px_rgba(220,38,38,0.14)]">
+              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-[24px] font-bold text-[#B91C1C]">!</span>
+              <span>
+                <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-[#B91C1C]">
+                  {urgentHealthPriority ? "Prioridad medica" : "Revisar primero"}
+                </span>
+                <span className="block font-body text-[20px] font-semibold leading-relaxed text-[#7F1D1D]">
+                  {result.watch_for ?? result.highlight}
+                </span>
+              </span>
+            </div>
+          )}
+          <div className={`mb-5 flex gap-4 rounded-[26px] p-5 ${healthPriority ? "bg-[#FFF7ED]" : "bg-vyva-purple-light"}`}>
             <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-[24px]">💡</span>
             <span>
               <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">{copy.important}</span>
