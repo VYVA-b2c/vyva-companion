@@ -10,19 +10,22 @@ import {
   ClipboardList,
   Compass,
   Heart,
+  Headphones,
   Loader2,
   MessageCircle,
+  Music,
   ShieldCheck,
   Share2,
   Sparkles,
   Sun,
+  Users,
   UserRound,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/contexts/ProfileContext";
 import { apiFetch } from "@/lib/queryClient";
 
-type StepId = "welcome" | "energy" | "mood" | "body" | "sleep" | "symptoms" | "social" | "analyzing" | "result";
+type StepId = "welcome" | "energy" | "mood" | "body" | "sleep" | "symptoms" | "safety" | "social" | "analyzing" | "result";
 
 type Answers = {
   energy_level: number | null;
@@ -30,6 +33,7 @@ type Answers = {
   body_areas: string[];
   sleep_quality: string | null;
   symptoms: string[];
+  safety_flags: string[];
   social_contact: string | null;
 };
 
@@ -50,7 +54,7 @@ type CheckinResult = {
 };
 
 type AppAction = {
-  key: "concierge" | "symptom" | "vitals" | "care";
+  key: "concierge" | "symptom" | "vitals" | "care" | "meditation" | "social" | "music";
   title: string;
   description: string;
   to: string;
@@ -68,8 +72,8 @@ type SingleOption = {
 type GrammaticalGender = "female" | "male" | "neutral";
 type WizardLocale = "es" | "en" | "de" | "fr" | "it" | "pt";
 
-const STEPS: StepId[] = ["welcome", "energy", "mood", "body", "sleep", "symptoms", "social", "analyzing", "result"];
-const QUESTION_STEPS: StepId[] = ["energy", "mood", "body", "sleep", "symptoms", "social"];
+const STEPS: StepId[] = ["welcome", "energy", "mood", "body", "sleep", "symptoms", "safety", "social", "analyzing", "result"];
+const QUESTION_STEPS: StepId[] = ["energy", "mood", "body", "sleep", "symptoms", "safety", "social"];
 
 const initialAnswers: Answers = {
   energy_level: null,
@@ -77,6 +81,7 @@ const initialAnswers: Answers = {
   body_areas: [],
   sleep_quality: null,
   symptoms: [],
+  safety_flags: [],
   social_contact: null,
 };
 
@@ -648,6 +653,55 @@ function progressFor(step: StepId) {
   return index === -1 ? 0 : ((index + 1) / QUESTION_STEPS.length) * 100;
 }
 
+function needsSafetyFollowup(answers: Answers) {
+  return (
+    answers.symptoms.includes("falta_aire") ||
+    answers.symptoms.includes("confusion") ||
+    answers.symptoms.includes("mareo") ||
+    answers.body_areas.includes("pecho")
+  );
+}
+
+function activeQuestionSteps(includeSafety: boolean) {
+  return QUESTION_STEPS.filter((item) => includeSafety || item !== "safety");
+}
+
+function progressForActive(step: StepId, includeSafety: boolean) {
+  const steps = activeQuestionSteps(includeSafety);
+  const index = steps.indexOf(step);
+  return index === -1 ? 0 : ((index + 1) / steps.length) * 100;
+}
+
+function safetyCopyFor(copy: ReturnType<typeof copyFor>) {
+  if (copy === CHECKIN_TEXT.es) {
+    return {
+      title: "Antes de seguir, ¿cómo es esa señal?",
+      subtitle: "Solo para valorar si conviene actuar ya o si podemos leerlo con calma.",
+      options: [
+        { id: "severe_now", icon: "🚨", label: "Es fuerte o está empeorando", helper: "Me cuesta respirar, hablar o moverme con normalidad" },
+        { id: "chest_pressure", icon: "❤️", label: "Hay presión o dolor en el pecho", helper: "Aunque sea intermitente o incómodo" },
+        { id: "confusion_now", icon: "❔", label: "Me noto confuso o desorientado", helper: "Me cuesta pensar claro o expresarme" },
+        { id: "sudden_weakness", icon: "⚠️", label: "Hay debilidad repentina", helper: "En cara, brazo, pierna o al hablar" },
+        { id: "mild_stable", icon: "🌿", label: "Es leve y estable", helper: "Lo noto, pero no va a más ahora mismo" },
+        { id: "resolved", icon: "👌", label: "Ya se ha pasado", helper: "Lo marco para que VYVA lo tenga en cuenta" },
+      ],
+    };
+  }
+
+  return {
+    title: "Before we continue, what is it like?",
+    subtitle: "This helps VYVA tell whether to act now or read it calmly.",
+    options: [
+      { id: "severe_now", icon: "🚨", label: "It is strong or getting worse", helper: "Breathing, speaking, or moving feels difficult" },
+      { id: "chest_pressure", icon: "❤️", label: "There is chest pressure or pain", helper: "Even if it comes and goes" },
+      { id: "confusion_now", icon: "❔", label: "I feel confused or disoriented", helper: "It is hard to think clearly or speak" },
+      { id: "sudden_weakness", icon: "⚠️", label: "There is sudden weakness", helper: "Face, arm, leg, or speech feels affected" },
+      { id: "mild_stable", icon: "🌿", label: "It is mild and stable", helper: "I notice it, but it is not getting worse now" },
+      { id: "resolved", icon: "👌", label: "It has passed", helper: "VYVA should still take it into account" },
+    ],
+  };
+}
+
 function localResult(name: string, answers: Answers, gender: GrammaticalGender): CheckinResult {
   const energy = answers.energy_level ?? 3;
   const lowEnergy = energy <= 2;
@@ -660,7 +714,12 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
   const noBodyNotes = answers.body_areas.includes("ninguno") || answers.body_areas.length === 0;
   const noSymptoms = answers.symptoms.includes("ninguno") || answers.symptoms.length === 0;
   const has = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
-  const safetySignal = has("falta_aire") || has("pecho") || has("confusion");
+  const urgentSafetyFlag = answers.safety_flags.some((flag) =>
+    ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)
+  );
+  const mildSafetySignal = answers.safety_flags.includes("mild_stable") || answers.safety_flags.includes("resolved");
+  const seriousSymptom = has("falta_aire") || has("pecho") || has("confusion");
+  const safetySignal = urgentSafetyFlag || (seriousSymptom && !mildSafetySignal);
   const dizzy = has("mareo");
   const feverish = has("fiebre");
   const stomach = has("estomago") || has("nauseas");
@@ -684,6 +743,7 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
         "Si empeora o te asusta, usa el chequeo de síntomas o busca atención médica.",
       ],
       highlight: "Lo importante hoy es seguridad, compañía y observar si mejora pronto.",
+      suggested_app_action: "care",
       flag_caregiver: true,
       watch_for: "Si notas falta de aire, dolor en el pecho, confusión intensa o empeoramiento rápido, busca ayuda urgente. VYVA también puede abrir el chequeo de síntomas.",
     };
@@ -726,6 +786,7 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
         alone ? "Haz una llamada breve a alguien de confianza." : "Elige una idea tranquila en Para ti hoy si te apetece algo suave.",
       ],
       highlight: "Tu cuerpo está pidiendo recuperar energía, no demostrar fuerza.",
+      suggested_app_action: dizzy ? "vitals" : "meditation",
       flag_caregiver: lowEnergy && lowMood,
       watch_for: dizzy ? "Si el mareo se repite, aumenta o viene con debilidad fuerte, avisa a alguien y consulta." : null,
     };
@@ -810,6 +871,7 @@ function localResult(name: string, answers: Answers, gender: GrammaticalGender):
         "Si te apetece, pide a VYVA que te ayude a llamar a alguien.",
       ],
       highlight: "Hoy la compañía y la calma pueden ayudar más que hacer muchas cosas.",
+      suggested_app_action: alone ? "social" : "meditation",
       flag_caregiver: lowEnergy && alone,
       watch_for: answers.mood === "triste" && alone ? "Si esta tristeza se mantiene varios días o se vuelve muy pesada, conviene contárselo a alguien de confianza." : null,
     };
@@ -839,7 +901,10 @@ function enrichLocalResult(result: CheckinResult, answers: Answers, copy: Return
   const hasSymptoms = answers.symptoms.some((item) => item !== "ninguno") || answers.body_areas.some((item) => item !== "ninguno");
   const lowEnergy = (answers.energy_level ?? 3) <= 2;
   const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality ?? "");
+  const lowMood = answers.mood === "triste" || answers.mood === "ansiosa";
+  const alone = answers.social_contact === "no";
   const safetySignal =
+    answers.safety_flags.some((flag) => ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)) ||
     answers.symptoms.includes("falta_aire") ||
     answers.symptoms.includes("confusion") ||
     answers.body_areas.includes("pecho");
@@ -878,7 +943,7 @@ function enrichLocalResult(result: CheckinResult, answers: Answers, copy: Return
             : "The most useful next step is to look at For you today in Concierge.")
     ),
     suggested_app_action: result.suggested_app_action ?? (
-      safetySignal ? "care" : hasSymptoms ? "symptom" : lowEnergy || poorSleep ? "vitals" : "concierge"
+      safetySignal ? "care" : hasSymptoms ? "symptom" : alone ? "social" : lowMood ? "meditation" : lowEnergy || poorSleep ? "vitals" : "concierge"
     ),
   };
 }
@@ -936,7 +1001,11 @@ function localizedLocalResult(name: string, answers: Answers, gender: Grammatica
 
 function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
   const hasSymptom = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
-  const safetySignal = hasSymptom("falta_aire") || hasSymptom("pecho") || hasSymptom("confusion");
+  const urgentSafetyFlag = answers.safety_flags.some((flag) =>
+    ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)
+  );
+  const mildSafetySignal = answers.safety_flags.includes("mild_stable") || answers.safety_flags.includes("resolved");
+  const safetySignal = urgentSafetyFlag || ((hasSymptom("falta_aire") || hasSymptom("pecho") || hasSymptom("confusion")) && !mildSafetySignal);
   const symptomSignal =
     safetySignal ||
     ["mareo", "nauseas", "fiebre", "dolor_cabeza"].some(hasSymptom) ||
@@ -974,6 +1043,30 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
           to: "/health/vitals",
           primary,
         };
+      case "meditation":
+        return {
+          key,
+          title: "Hacer una pausa guiada",
+          description: "Abre respiración o meditación para bajar estímulos sin quedarte solo con la idea.",
+          to: "/activities",
+          primary,
+        };
+      case "social":
+        return {
+          key,
+          title: "Entrar en Social Spaces",
+          description: "Encuentra una sala o una conexión tranquila para sentir compañía real.",
+          to: "/social-rooms",
+          primary,
+        };
+      case "music":
+        return {
+          key,
+          title: "Explorar música con VYVA",
+          description: "VYVA puede recomendar artistas, historias y piezas adaptadas a tu ánimo.",
+          to: "/chat?q=Recomiendame%20musica%20clasica%20suave%20para%20hoy%20y%20cuentame%20algo%20interesante%20sobre%20los%20compositores",
+          primary,
+        };
       default:
         return {
           key: "concierge",
@@ -997,6 +1090,14 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
     actions.push(defaultAction("vitals"));
   }
 
+  if (!safetySignal && (answers.mood === "ansiosa" || answers.sleep_quality === "mal" || answers.sleep_quality === "muy_mal")) {
+    actions.push(defaultAction("meditation", actions.length === 0));
+  }
+
+  if (!safetySignal && (answers.social_contact === "no" || answers.mood === "triste")) {
+    actions.push(defaultAction("social", actions.length === 0));
+  }
+
   if (outingFriendly || actions.length === 0) {
     actions.push(defaultAction("concierge", actions.length === 0));
   }
@@ -1018,11 +1119,11 @@ function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
 
 function localizeAppActions(actions: AppAction[], copy: ReturnType<typeof copyFor>): AppAction[] {
   return actions.map((action) => {
-    const localized = copy.appActions[action.key];
+    const localized = (copy.appActions as Record<string, readonly string[]>)[action.key];
     return {
       ...action,
-      title: localized[0],
-      description: localized[1],
+      title: localized?.[0] ?? action.title,
+      description: localized?.[1] ?? action.description,
     };
   });
 }
@@ -1078,8 +1179,14 @@ const CheckHowIFeelScreen = () => {
   const name = firstName || "Carlos";
   const copy = copyFor(profile?.language);
   const stepIndex = STEPS.indexOf(step);
+  const includeSafety = needsSafetyFollowup(answers);
+  const questionSteps = activeQuestionSteps(includeSafety);
+  const safetyCopy = safetyCopyFor(copy);
   const canGoBack = stepIndex > 0 && step !== "analyzing" && step !== "result";
   const appActions = result ? localizeAppActions(appActionsFor(answers, result), copy) : [];
+  const suggestedAction = result
+    ? appActions.find((action) => action.key === result.suggested_app_action) ?? appActions[0]
+    : undefined;
   const resultVisual = result ? resultVisualFor(result.overall_state) : null;
   const gender = inferGender(profile, name);
   const energyOptions = localizedEnergyOptionsFor(gender, copy);
@@ -1096,6 +1203,10 @@ const CheckHowIFeelScreen = () => {
 
   const goBack = () => {
     if (canGoBack) {
+      if (step === "social" && !includeSafety) {
+        setStep("symptoms");
+        return;
+      }
       setStep(STEPS[stepIndex - 1]);
       return;
     }
@@ -1121,7 +1232,7 @@ const CheckHowIFeelScreen = () => {
     setAnswers((current) => ({ ...current, [key]: value }));
   };
 
-  const toggleMulti = (key: "body_areas" | "symptoms", id: string) => {
+  const toggleMulti = (key: "body_areas" | "symptoms" | "safety_flags", id: string) => {
     setAnswers((current) => {
       const currentValues = current[key];
       if (id === "ninguno") {
@@ -1137,8 +1248,13 @@ const CheckHowIFeelScreen = () => {
     });
   };
 
+  const continueAfterSymptoms = () => {
+    setStep(needsSafetyFollowup(answers) ? "safety" : "social");
+  };
+
   const analyze = async () => {
     if (!answers.energy_level || !answers.mood || !answers.sleep_quality || !answers.social_contact) return;
+    if (needsSafetyFollowup(answers) && answers.safety_flags.length === 0) return;
 
     setStep("analyzing");
     try {
@@ -1194,7 +1310,7 @@ const CheckHowIFeelScreen = () => {
 
   return (
     <div className="vyva-page bg-[radial-gradient(circle_at_top_left,#FFF7ED_0%,transparent_34%),linear-gradient(180deg,#FAF7F2_0%,#F6EFE7_100%)]">
-      {QUESTION_STEPS.includes(step) && (
+      {questionSteps.includes(step) && (
         <div className="mb-4 rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-[0_10px_30px_rgba(63,45,35,0.06)] backdrop-blur">
           <div className="mb-3 flex items-center justify-between">
             <button
@@ -1205,13 +1321,13 @@ const CheckHowIFeelScreen = () => {
               {copy.back}
             </button>
             <span className="rounded-full bg-vyva-purple-light px-4 py-2 font-body text-[14px] font-bold text-vyva-purple shadow-sm">
-              {QUESTION_STEPS.indexOf(step) + 1} {copy.stepOf} {QUESTION_STEPS.length}
+              {questionSteps.indexOf(step) + 1} {copy.stepOf} {questionSteps.length}
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-[#EDE4DA]">
             <div
               className="h-full rounded-full bg-gradient-to-r from-vyva-purple to-[#8B5CF6] transition-all duration-300"
-              style={{ width: `${progressFor(step)}%` }}
+              style={{ width: `${progressForActive(step, includeSafety)}%` }}
             />
           </div>
           <p className="mt-2 text-right font-body text-[13px] font-semibold text-vyva-text-2">
@@ -1324,7 +1440,19 @@ const CheckHowIFeelScreen = () => {
             onSelect={(option) => toggleMulti("symptoms", option.id)}
             multi
           />
-          <NextButton disabled={answers.symptoms.length === 0} onClick={() => setStep("social")} label={copy.next} />
+          <NextButton disabled={answers.symptoms.length === 0} onClick={continueAfterSymptoms} label={copy.next} />
+        </QuestionCard>
+      )}
+
+      {step === "safety" && (
+        <QuestionCard icon={<ShieldCheck />} title={safetyCopy.title} subtitle={safetyCopy.subtitle}>
+          <OptionList
+            options={safetyCopy.options}
+            selectedValues={answers.safety_flags}
+            onSelect={(option) => toggleMulti("safety_flags", option.id)}
+            multi
+          />
+          <NextButton disabled={answers.safety_flags.length === 0} onClick={() => setStep("social")} label={copy.next} />
         </QuestionCard>
       )}
 
@@ -1389,7 +1517,14 @@ const CheckHowIFeelScreen = () => {
                 <InsightCard title={copy.planTitle} icon="🧭" text={result.personal_plan} tone="mint" />
               )}
               {result.app_suggestion && (
-                <InsightCard title={copy.suggestionTitle} icon="✨" text={result.app_suggestion} tone="cream" />
+                <InsightCard
+                  title={copy.suggestionTitle}
+                  icon="✨"
+                  text={result.app_suggestion}
+                  tone="cream"
+                  actionLabel={suggestedAction?.title}
+                  onAction={suggestedAction ? () => navigate(suggestedAction.to) : undefined}
+                />
               )}
             </div>
           )}
@@ -1535,6 +1670,7 @@ function NextButton({ disabled, onClick, label }: { disabled: boolean; onClick: 
 }
 
 function ResultList({ title, icon, items }: { title: string; icon: string; items: string[] }) {
+  const uniqueItems = uniqueByIntent(items).slice(0, 3);
   return (
     <div className="mt-4 rounded-[26px] border border-vyva-border bg-[#FAF9F6] p-5 shadow-[0_4px_16px_rgba(63,45,35,0.04)]">
       <div className="mb-4 flex items-center gap-3">
@@ -1542,7 +1678,7 @@ function ResultList({ title, icon, items }: { title: string; icon: string; items
         <p className="font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-text-2">{title}</p>
       </div>
       <div className="grid gap-3">
-        {items.slice(0, 3).map((item) => (
+        {uniqueItems.map((item) => (
           <div key={item} className="flex gap-3 rounded-[18px] bg-white p-3">
             <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple text-[14px] font-bold text-white">
               <Check size={16} />
@@ -1560,11 +1696,15 @@ function InsightCard({
   icon,
   text,
   tone,
+  actionLabel,
+  onAction,
 }: {
   title: string;
   icon: string;
   text: string;
   tone: "lavender" | "mint" | "cream" | "sky";
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   const toneClass =
     tone === "mint"
@@ -1587,9 +1727,39 @@ function InsightCard({
         <span className="block font-body text-[18px] leading-relaxed text-vyva-text-1">
           {text}
         </span>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="vyva-tap mt-4 inline-flex min-h-[52px] items-center justify-center rounded-full bg-vyva-purple px-5 font-body text-[16px] font-bold text-white shadow-[0_10px_22px_rgba(107,33,168,0.18)]"
+          >
+            {actionLabel}
+          </button>
+        )}
       </span>
     </div>
   );
+}
+
+function uniqueByIntent(items: string[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const normalized = item
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const key =
+      normalized.includes("respir") || normalized.includes("medita") ? "calm" :
+      normalized.includes("musica") || normalized.includes("cancion") ? "music" :
+      normalized.includes("agua") || normalized.includes("hidrata") ? "hydrate" :
+      normalized.includes("social") || normalized.includes("llamada") || normalized.includes("alguien") || normalized.includes("compania") ? "social" :
+      normalized.includes("sintoma") || normalized.includes("signos") || normalized.includes("medica") ? "health" :
+      normalized.includes("concierge") || normalized.includes("para ti hoy") || normalized.includes("salir") ? "plan" :
+      normalized.slice(0, 28);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function AppActionButton({ action, onClick }: { action: AppAction; onClick: () => void }) {
@@ -1597,6 +1767,9 @@ function AppActionButton({ action, onClick }: { action: AppAction; onClick: () =
     action.key === "concierge" ? Compass :
     action.key === "symptom" ? ClipboardList :
     action.key === "vitals" ? Activity :
+    action.key === "meditation" ? Headphones :
+    action.key === "social" ? Users :
+    action.key === "music" ? Music :
     ShieldCheck;
   return (
     <button

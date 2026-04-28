@@ -22,6 +22,7 @@ const checkinBodySchema = z.object({
     body_areas: z.array(z.string().max(60)).max(7).default([]),
     sleep_quality: z.string().min(1).max(40),
     symptoms: z.array(z.string().max(80)).max(7).default([]),
+    safety_flags: z.array(z.string().max(80)).max(8).default([]),
     social_contact: z.string().min(1).max(40),
   }),
 });
@@ -41,7 +42,7 @@ type AiCheckinResult = {
   trend_note?: string | null;
   personal_plan?: string | null;
   app_suggestion?: string | null;
-  suggested_app_action?: "concierge" | "symptom" | "vitals" | "care" | null;
+  suggested_app_action?: "concierge" | "symptom" | "vitals" | "care" | "meditation" | "social" | "music" | null;
   right_now: string[];
   today_actions: string[];
   highlight: string;
@@ -506,15 +507,28 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
   const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality);
   const lowMood = ["triste", "ansiosa"].includes(answers.mood);
   const hasSymptoms = answers.symptoms.some((s) => s !== "ninguno");
-  const safetySignal =
+  const urgentSafetyFlag = answers.safety_flags.some((flag) =>
+    ["severe_now", "chest_pressure", "confusion_now", "sudden_weakness"].includes(flag)
+  );
+  const mildSafetySignal = answers.safety_flags.includes("mild_stable") || answers.safety_flags.includes("resolved");
+  const seriousSymptom =
     answers.symptoms.includes("falta_aire") ||
     answers.symptoms.includes("confusion") ||
     answers.body_areas.includes("pecho");
+  const safetySignal =
+    urgentSafetyFlag ||
+    (seriousSymptom && !mildSafetySignal);
   const limitedMobility = ["stick_or_frame", "wheelchair_part_time", "wheelchair_full_time", "housebound"]
     .includes(profile.mobility_level ?? "");
+  const locationLabel = profile.location.city || profile.city || "tu zona";
   const favouriteQuietActivity =
     profile.interests.hobbies.find((hobby) => !["Walking", "Cycling", "Golf", "Tennis", "Dancing"].includes(hobby)) ??
     "algo tranquilo que te guste";
+  const knownContext = [
+    profile.conditions.length ? `tus condiciones registradas (${profile.conditions.slice(0, 2).join(", ")})` : null,
+    profile.medications.length ? "tu medicacion habitual" : null,
+    profile.medication_adherence.missed_14d > 0 ? "algunas tomas pendientes recientes" : null,
+  ].filter(Boolean);
   const overall_state: AiCheckinResult["overall_state"] =
     lowEnergy || poorSleep || lowMood || hasSymptoms ? "moderate" : answers.energy_level >= 4 ? "good" : "tired";
   const gender = profile.grammatical_gender;
@@ -553,12 +567,18 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
       lowEnergy ? "Tu nivel de energía está bajo, así que hoy pesa más proteger el ritmo." : null,
       poorSleep ? "Dormiste peor de lo habitual, y eso puede hacer que todo cueste un poco más." : null,
       lowMood ? "El ánimo también pide compañía suave y planes sencillos." : null,
+      knownContext.length ? `He cruzado esto con ${knownContext.join(", ")} para no proponerte algo fuera de lugar.` : null,
+      mildSafetySignal ? "La señal parece leve o ya pasada, pero merece quedar registrada y vigilada." : null,
       profile.trend_summary.total_recent ? "También he tenido en cuenta tus últimos check-ins." : null,
     ].filter(Boolean).join(" ") || "La lectura combina tus respuestas de hoy con tu perfil personal.",
     trend_note: trendSignals.join(" ") || null,
-    personal_plan: limitedMobility
-      ? `Hoy te conviene algo cómodo, sentado o de baja movilidad; si te apetece, dedica un rato a ${favouriteQuietActivity}.`
-      : "Si te apetece salir, mira Para ti hoy en Concierge para elegir una idea cercana, concreta y fácil de adaptar.",
+    personal_plan: urgentSafetyFlag
+      ? "Hoy el plan no es hacer mas: es estar acompañado, evitar esfuerzo y buscar ayuda si la señal sigue o empeora."
+      : limitedMobility
+        ? `Hoy te conviene algo comodo y de baja movilidad en ${locationLabel}; si te apetece, combina un rato de ${favouriteQuietActivity} con una llamada breve a alguien cercano.`
+        : lowEnergy || poorSleep || mildSafetySignal
+          ? `Elige un plan corto y cercano en ${locationLabel}: algo con asiento, poca distancia y salida facil si te cansas.`
+          : `Convierte la buena señal de hoy en un plan real en ${locationLabel}: una actividad cercana, con horario claro y sin prisa.`,
     app_suggestion: safetySignal
       ? "El mejor siguiente paso es buscar atención médica si esto continúa o empeora, y avisar a alguien cercano."
       : hasSymptoms
@@ -567,23 +587,35 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
         ? "El mejor siguiente paso es tomar signos vitales si tienes dudas, y después elegir un plan muy suave."
         : "El mejor siguiente paso es mirar Para ti hoy para convertir esta lectura en un plan concreto.",
     suggested_app_action: suggestedAppAction,
-    right_now: [
-      "Bebe un vaso de agua despacio.",
-      gendered(gender, "Siéntate cómoda y respira profundo durante un minuto.", "Siéntate cómodo y respira profundo durante un minuto.", "Siéntate en una postura cómoda y respira profundo durante un minuto."),
-      "Elige una cosa pequeña que te apetezca hacer ahora.",
-    ],
+    right_now: urgentSafetyFlag
+      ? [
+          "Sientate o quedate acompañado y evita caminar por ahora.",
+          "Avisale a alguien cercano de lo que notas.",
+          "Si cuesta respirar, hay presion en el pecho, confusion o debilidad, busca ayuda urgente.",
+        ]
+      : [
+          "Bebe un vaso de agua despacio.",
+          gendered(gender, "Sientate comoda y respira profundo durante un minuto.", "Sientate comodo y respira profundo durante un minuto.", "Sientate en una postura comoda y respira profundo durante un minuto."),
+          mildSafetySignal ? "Observa si la señal vuelve o aumenta antes de hacer planes." : "Elige una cosa pequeña que te apetezca hacer ahora.",
+        ],
     today_actions: [
       poorSleep
-        ? "Haz una pausa tranquila después de comer y evita planes largos."
+        ? "Haz una pausa tranquila despues de comer y evita planes largos o con mucho desplazamiento."
         : limitedMobility
-          ? `Mira Para ti hoy en Concierge para elegir un plan sentado o dedica un rato a ${favouriteQuietActivity}.`
-          : "Mira Para ti hoy en Concierge para escoger una salida cercana y adaptada.",
+          ? `Mira Para ti hoy en Concierge para elegir un plan sentado en ${locationLabel}, o dedica un rato a ${favouriteQuietActivity}.`
+          : urgentSafetyFlag
+            ? "Prioriza el chequeo de sintomas y signos vitales antes de cualquier plan."
+            : `Mira Para ti hoy en Concierge para escoger una salida cercana en ${locationLabel}, con horarios y forma de llegar.`,
       lowMood ? "Habla con alguien cercano aunque sea unos minutos." : "Busca un momento agradable fuera de pantallas.",
       hasSymptoms ? "Si algo no mejora, abre el chequeo de síntomas o toma signos vitales en VYVA." : "Guarda energía para una cosa que te haga ilusión.",
     ],
     highlight: lowEnergy ? "Tu energía pide un ritmo más suave hoy." : "Hoy tienes margen para cuidarte sin prisa.",
     flag_caregiver: answers.energy_level <= 1 || (lowMood && answers.social_contact === "no"),
-    watch_for: hasSymptoms ? "Si notas que algo empeora o te preocupa, usa el chequeo de síntomas de VYVA, toma signos vitales si puedes y busca atención médica si es urgente." : null,
+    watch_for: urgentSafetyFlag
+      ? "Si la falta de aire, presion en el pecho, confusion o debilidad continua o empeora, busca ayuda urgente ahora."
+      : hasSymptoms
+        ? "Si notas que algo empeora o te preocupa, usa el chequeo de sintomas de VYVA, toma signos vitales si puedes y busca atencion medica si es urgente."
+        : null,
   };
 }
 
@@ -613,7 +645,9 @@ Safety and personalization rules:
 - Explain why this reading fits today, using the user's answers and relevant profile signals.
 - Use trend_summary to mention repeated patterns when they matter. Do not exaggerate one-off signals.
 - Include one concrete plan that fits the user's health profile, location, mobility, interests, and app capabilities.
-- Set suggested_app_action to the single best primary next action: care for urgent warning signs, symptom for symptoms, vitals for dizziness/low energy/breathlessness, concierge for outings/social/helpful plans.
+- Avoid repeating the same type of advice in the same section. If one action is calming, make the others hydration, connection, safety, planning, or app navigation.
+- If you suggest meditation, breathing, calming music, social contact, or an outing, connect it to the relevant VYVA feature: activities for meditation/breathing, social spaces for connection, Concierge Para ti hoy for outings, chat/music journey for learning about music.
+- Set suggested_app_action to the single best primary next action: care for urgent warning signs, symptom for symptoms, vitals for dizziness/low energy/breathlessness, meditation for anxiety/restlessness/sleep recovery, social for loneliness/low mood, music for music-based engagement, concierge for outings/helpful plans.
 
 User profile:
 ${JSON.stringify(profile, null, 2)}
@@ -630,7 +664,7 @@ Return ONLY valid JSON with this shape:
   "trend_note": "brief pattern from recent check-ins, or null if there is no useful trend",
   "personal_plan": "a concrete mini-plan adapted to profile, location, mobility and interests, max 2 sentences",
   "app_suggestion": "the best next step inside VYVA, such as Concierge Para ti hoy, symptom check, vitals scan, or medical attention, max 1 sentence",
-  "suggested_app_action": "concierge|symptom|vitals|care",
+  "suggested_app_action": "concierge|symptom|vitals|care|meditation|social|music",
   "right_now": ["one simple action", "one simple action", "one simple action"],
   "today_actions": ["one useful action for today", "one useful action for today", "one useful action for today"],
   "highlight": "one insight, max 20 words",
@@ -651,7 +685,7 @@ function normalizeAiResult(value: unknown, fallback: AiCheckinResult): AiCheckin
     trend_note: typeof raw.trend_note === "string" ? raw.trend_note.slice(0, 320) : fallback.trend_note ?? null,
     personal_plan: typeof raw.personal_plan === "string" ? raw.personal_plan.slice(0, 420) : fallback.personal_plan ?? null,
     app_suggestion: typeof raw.app_suggestion === "string" ? raw.app_suggestion.slice(0, 320) : fallback.app_suggestion ?? null,
-    suggested_app_action: ["concierge", "symptom", "vitals", "care"].includes(raw.suggested_app_action ?? "")
+    suggested_app_action: ["concierge", "symptom", "vitals", "care", "meditation", "social", "music"].includes(raw.suggested_app_action ?? "")
       ? raw.suggested_app_action!
       : fallback.suggested_app_action ?? null,
     right_now: Array.isArray(raw.right_now) ? raw.right_now.filter((x): x is string => typeof x === "string").slice(0, 3) : fallback.right_now,
