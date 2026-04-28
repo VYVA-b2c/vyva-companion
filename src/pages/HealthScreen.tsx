@@ -97,6 +97,28 @@ const MOCK_SPECIALISTS: Record<string, { name: string; rating: number; waitN: nu
 const SPECIALTIES = Object.keys(MOCK_SPECIALISTS);
 const SPECIALIST_EXAMPLES = ["dolor de rodilla", "problemas de memoria", "diabetes", "mancha en la piel"];
 
+const SPECIALTY_LABELS_ES: Record<string, string> = {
+  Dermatology: "Dermatologia",
+  Neurology: "Neurologia",
+  Geriatrics: "Geriatria",
+  Neuropsychology: "Neuropsicologia",
+  Endocrinology: "Endocrinologia",
+  Cardiology: "Cardiologia",
+  "Traumatology / Orthopaedics": "Traumatologia / Ortopedia",
+  Physiotherapy: "Fisioterapia",
+  Rheumatology: "Reumatologia",
+  "Internal Medicine": "Medicina interna",
+  "General Practice": "Medicina general",
+};
+
+function displaySpecialty(provider: SpecialistProvider, language: string): string {
+  if (provider.specialtyLabel) return provider.specialtyLabel;
+  if (language.split("-")[0].toLowerCase() === "es") {
+    return SPECIALTY_LABELS_ES[provider.specialty] ?? provider.specialty;
+  }
+  return provider.specialty;
+}
+
 const DAILY_TIPS = [
   { emoji: "💧", badge: "Hidratación",  tip: "Bebe un vaso de agua ahora mismo. Tu cuerpo lo agradece y tu energía mejora." },
   { emoji: "🚶", badge: "Movimiento",   tip: "10 minutos caminando después de comer regulan el azúcar en sangre y mejoran tu digestión." },
@@ -267,7 +289,7 @@ const HealthScreen = () => {
 
   const bookSpecialistMutation = useMutation({
     mutationFn: async (provider: SpecialistProvider) => {
-      const specialty = provider.specialtyLabel ?? provider.specialty;
+      const specialty = displaySpecialty(provider, i18n.language || "es");
       const res = await apiFetch("/api/concierge/actions/trigger", {
         method: "POST",
         body: JSON.stringify({
@@ -778,7 +800,7 @@ const HealthScreen = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-body text-[14px] font-semibold text-vyva-text-1">{spec.name}</p>
-                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{spec.specialtyLabel ?? spec.specialty}</p>
+                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{displaySpecialty(spec, i18n.language || "es")}</p>
                             <p className="font-body text-[12px] text-vyva-text-2 leading-snug">{spec.address ?? spec.clinicName}</p>
                             <div className="flex items-center gap-1 mt-[4px]">
                               <Star size={10} fill="#F59E0B" style={{ color: "#F59E0B" }} />

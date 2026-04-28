@@ -150,48 +150,51 @@ async function cancelPendingAction(id: string) {
   }
 }
 
-function statusLabel(status: ConciergePendingItem["status"]): string {
+function statusLabel(status: ConciergePendingItem["status"], locale = "es"): string {
+  const es = locale.startsWith("es");
   switch (status) {
     case "pending":
-      return "Awaiting confirmation";
+      return es ? "Pendiente de confirmar" : "Awaiting confirmation";
     case "calling":
-      return "Calling now";
+      return es ? "Llamando ahora" : "Calling now";
     case "completed":
-      return "Completed";
+      return es ? "Completado" : "Completed";
     case "failed":
-      return "Needs attention";
+      return es ? "Necesita revision" : "Needs attention";
     case "cancelled":
-      return "Cancelled";
+      return es ? "Cancelado" : "Cancelled";
     default:
       return status;
   }
 }
 
-function sessionOutcomeLabel(outcome: string): string {
+function sessionOutcomeLabel(outcome: string, locale = "es"): string {
+  const es = locale.startsWith("es");
   switch (outcome) {
     case "confirmed":
-      return "Confirmed";
+      return es ? "Confirmado" : "Confirmed";
     case "no_answer":
-      return "No answer";
+      return es ? "Sin respuesta" : "No answer";
     case "cant_fulfil":
-      return "Could not complete";
+      return es ? "No se pudo completar" : "Could not complete";
     case "user_cancelled":
-      return "Cancelled";
+      return es ? "Cancelado" : "Cancelled";
     case "error":
-      return "Problem";
+      return es ? "Problema" : "Problem";
     default:
       return outcome;
   }
 }
 
-function useCaseLabel(useCase: string): string {
+function useCaseLabel(useCase: string, locale = "es"): string {
+  const es = locale.startsWith("es");
   switch (useCase) {
     case "book_ride":
-      return "Ride";
+      return es ? "Taxi" : "Ride";
     case "order_medicine":
-      return "Medicine";
+      return es ? "Medicacion" : "Medicine";
     case "book_appointment":
-      return "Appointment";
+      return es ? "Cita medica" : "Appointment";
     default:
       return useCase.replace(/_/g, " ");
   }
@@ -199,6 +202,8 @@ function useCaseLabel(useCase: string): string {
 
 const ConciergeScreen = () => {
   const { t, i18n } = useTranslation();
+  const locale = i18n.language.split("-")[0].toLowerCase();
+  const isSpanish = locale === "es";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -544,14 +549,14 @@ const ConciergeScreen = () => {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
-            Concierge actions
+            {isSpanish ? "Acciones de Concierge" : "Concierge actions"}
           </h2>
         </div>
 
         {pendingLoading ? (
           <div className="flex items-center gap-2 py-2">
             <Loader2 size={16} className="animate-spin text-vyva-purple" />
-            <span className="font-body text-[13px] text-vyva-text-2">Loading your actions…</span>
+            <span className="font-body text-[13px] text-vyva-text-2">{isSpanish ? "Cargando tus acciones..." : "Loading your actions..."}</span>
           </div>
         ) : pendingActions.length === 0 ? (
           <div
@@ -559,7 +564,7 @@ const ConciergeScreen = () => {
             style={{ boxShadow: "0 2px 12px rgba(107,33,168,0.08)" }}
           >
             <p className="font-body text-[14px] text-vyva-text-1">
-              Confirmed concierge requests will appear here with the provider, what VYVA is doing, and the result.
+              {isSpanish ? "Las solicitudes confirmadas apareceran aqui con el proveedor, lo que VYVA esta haciendo y el resultado." : "Confirmed concierge requests will appear here with the provider, what VYVA is doing, and the result."}
             </p>
           </div>
         ) : (
@@ -578,10 +583,10 @@ const ConciergeScreen = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
-                        {useCaseLabel(item.use_case)}
+                        {useCaseLabel(item.use_case, locale)}
                       </p>
                       <p className="font-body text-[16px] font-semibold text-vyva-text-1">
-                        {item.provider_name || "Selected provider"}
+                        {item.provider_name || (isSpanish ? "Proveedor seleccionado" : "Selected provider")}
                       </p>
                     </div>
                     <span
@@ -591,7 +596,7 @@ const ConciergeScreen = () => {
                         color: isCalling ? "#6B21A8" : "#374151",
                       }}
                     >
-                      {statusLabel(item.status)}
+                      {statusLabel(item.status, locale)}
                     </span>
                   </div>
 
@@ -601,7 +606,7 @@ const ConciergeScreen = () => {
 
                   {item.provider_phone && (
                     <p className="mt-2 font-body text-[13px] text-vyva-text-2">
-                      Provider number: {item.provider_phone}
+                      {isSpanish ? "Telefono del proveedor" : "Provider number"}: {item.provider_phone}
                     </p>
                   )}
 
@@ -614,7 +619,7 @@ const ConciergeScreen = () => {
                         className="rounded-full bg-vyva-purple hover:bg-vyva-purple/90"
                       >
                         <PhoneCall size={15} className="mr-2" />
-                        Confirm and call
+                        {isSpanish ? "Confirmar y llamar" : "Confirm and call"}
                       </Button>
                       <Button
                         data-testid={`button-concierge-cancel-${item.id}`}
@@ -623,7 +628,7 @@ const ConciergeScreen = () => {
                         variant="outline"
                         className="rounded-full"
                       >
-                        Cancel
+                        {isSpanish ? "Cancelar" : "Cancel"}
                       </Button>
                     </div>
                   )}
@@ -638,18 +643,18 @@ const ConciergeScreen = () => {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
-            Recent concierge results
+            {isSpanish ? "Resultados recientes" : "Recent concierge results"}
           </h2>
         </div>
 
         {sessionsLoading ? (
           <div className="flex items-center gap-2 py-2">
             <Loader2 size={16} className="animate-spin text-vyva-purple" />
-            <span className="font-body text-[13px] text-vyva-text-2">Loading recent results…</span>
+            <span className="font-body text-[13px] text-vyva-text-2">{isSpanish ? "Cargando resultados..." : "Loading recent results..."}</span>
           </div>
         ) : recentSessions.length === 0 ? (
           <p className="font-body text-[13px] text-vyva-text-2">
-            Completed concierge actions will show up here once a call finishes.
+            {isSpanish ? "Las acciones completadas apareceran aqui cuando termine una llamada." : "Completed concierge actions will show up here once a call finishes."}
           </p>
         ) : (
           <div className="space-y-3">
@@ -664,10 +669,10 @@ const ConciergeScreen = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
-                        {useCaseLabel(item.use_case)}
+                        {useCaseLabel(item.use_case, locale)}
                       </p>
                       <p className="font-body text-[16px] font-semibold text-vyva-text-1">
-                        {item.provider_name || "Provider"}
+                        {item.provider_name || (isSpanish ? "Proveedor" : "Provider")}
                       </p>
                     </div>
                     <span
@@ -678,12 +683,12 @@ const ConciergeScreen = () => {
                       }}
                     >
                       {success ? <CircleCheck size={14} /> : <CircleX size={14} />}
-                      {sessionOutcomeLabel(item.outcome)}
+                      {sessionOutcomeLabel(item.outcome, locale)}
                     </span>
                   </div>
 
                   <p className="mt-3 font-body text-[14px] leading-relaxed text-vyva-text-1">
-                    {item.outcome_summary || "No summary available yet."}
+                    {item.outcome_summary || (isSpanish ? "Aun no hay resumen disponible." : "No summary available yet.")}
                   </p>
                 </div>
               );
@@ -797,3 +802,4 @@ const ConciergeScreen = () => {
 };
 
 export default ConciergeScreen;
+
