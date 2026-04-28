@@ -508,6 +508,25 @@ const HealthScreen = () => {
           </button>
         </VoiceHero>
 
+        <button
+          onClick={() => navigate("/health/check-ins")}
+          className="vyva-tap mt-4 flex w-full items-center gap-4 rounded-[28px] border border-vyva-border bg-white p-4 text-left shadow-[0_8px_24px_rgba(63,45,35,0.07)]"
+          data-testid="button-health-checkin-history"
+        >
+          <span className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px] bg-[#F5F3FF] text-vyva-purple">
+            <History size={28} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-body text-[19px] font-bold leading-tight text-vyva-text-1">
+              Historial de bienestar
+            </span>
+            <span className="mt-1 block font-body text-[15px] leading-snug text-vyva-text-2">
+              Ver tus lecturas anteriores y patrones recientes.
+            </span>
+          </span>
+          <ChevronRight size={22} className="flex-shrink-0 text-vyva-purple" />
+        </button>
+
         {/* ── 2. Acceso rápido (2×2 grid) ── */}
         <div className="mt-[22px]">
           <p className="vyva-section-title mb-3">

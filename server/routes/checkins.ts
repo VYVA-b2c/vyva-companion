@@ -758,6 +758,50 @@ router.post("/analyze", requireUser, async (req: Request, res: Response) => {
   }
 });
 
+router.get("/history", requireUser, async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+
+  try {
+    const result = await pool.query(
+      `select
+         id, completed_at, energy_level, mood, body_areas, sleep_quality, symptoms, social_contact,
+         feeling_label, overall_state, vyva_reading, right_now, today_actions, highlight,
+         flag_caregiver, watch_for, language, duration_seconds
+       from checkin_sessions
+       where user_id = $1 and completed = true
+       order by completed_at desc
+       limit 30`,
+      [userId],
+    );
+
+    return res.json({
+      reports: result.rows.map((row) => ({
+        id: row.id,
+        completed_at: row.completed_at,
+        energy_level: row.energy_level,
+        mood: row.mood,
+        body_areas: row.body_areas ?? [],
+        sleep_quality: row.sleep_quality,
+        symptoms: row.symptoms ?? [],
+        social_contact: row.social_contact,
+        feeling_label: row.feeling_label,
+        overall_state: row.overall_state,
+        vyva_reading: row.vyva_reading,
+        right_now: Array.isArray(row.right_now) ? row.right_now : [],
+        today_actions: Array.isArray(row.today_actions) ? row.today_actions : [],
+        highlight: row.highlight,
+        flag_caregiver: row.flag_caregiver,
+        watch_for: row.watch_for,
+        language: row.language,
+        duration_seconds: row.duration_seconds,
+      })),
+    });
+  } catch (err) {
+    console.error("[checkins] history failed:", err);
+    return res.status(500).json({ error: "Failed to load check-in history" });
+  }
+});
+
 router.post("/abandon", requireUser, async (req: Request, res: Response) => {
   const parsed = abandonBodySchema.safeParse(req.body);
   if (!parsed.success) {
