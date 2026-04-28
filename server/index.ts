@@ -11,7 +11,11 @@ import { authRouter } from "./routes/auth.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { medsVoiceParseHandler } from "./routes/medsVoiceParse.js";
 import { medsAssistantHandler } from "./routes/medsAssistant.js";
-import { conciergeHandler, conciergeRecommendationsHandler } from "./routes/concierge.js";
+import {
+  conciergeHandler,
+  conciergeRecommendationFeedbackHandler,
+  conciergeRecommendationsHandler,
+} from "./routes/concierge.js";
 import conciergeActionsRouter from "./routes/conciergeActions.js";
 import { woundScanHandler, woundScanHistoryHandler, woundScanDeleteHandler } from "./routes/woundScan.js";
 import { homeScanHandler, homeScanHistoryHandler, homeScanDeleteHandler } from "./routes/homeScan.js";
@@ -65,6 +69,7 @@ app.post("/api/meds-voice-parse", medsVoiceParseHandler);
 app.post("/api/meds-assistant", medsAssistantHandler);
 app.post("/api/concierge", authMiddleware, conciergeHandler);
 app.post("/api/concierge/recommendations", authMiddleware, conciergeRecommendationsHandler);
+app.post("/api/concierge/recommendations/feedback", authMiddleware, conciergeRecommendationFeedbackHandler);
 app.use("/api/concierge/actions", conciergeActionsRouter);
 app.post("/api/allergies-voice-parse", allergiesVoiceParseHandler);
 app.post("/api/address-voice-parse", addressVoiceParseHandler);

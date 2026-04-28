@@ -39,6 +39,7 @@ interface UserProfileContext {
   recentConciergeUseCases: string[];
   socialActivityLevel: string;
   preferredTimes: string[];
+  recommendationFeedback: RecommendationFeedbackSummary;
 }
 
 interface HistoryTurn {
@@ -54,6 +55,20 @@ interface ChatRequestBody {
 
 interface RecommendationsRequestBody {
   locale?: string;
+}
+
+interface RecommendationFeedbackRequestBody {
+  recommendation_id?: string;
+  action?: "opened" | "liked" | "dismissed" | "completed";
+  category?: string;
+  title?: string;
+  reasons?: string[];
+}
+
+interface RecommendationFeedbackSummary {
+  likedIds: string[];
+  dismissedIds: string[];
+  completedIds: string[];
 }
 
 interface RecommendationCandidate {
@@ -84,6 +99,7 @@ interface RankedRecommendationCandidate {
 }
 
 export interface RecommendationCard {
+  id?: string;
   title: string;
   description: string;
   category: "deal" | "event" | "tip" | "activity";
@@ -94,6 +110,8 @@ export interface RecommendationCard {
   action_label?: string;
   action_prompt?: string;
   safety_note?: string;
+  score?: number;
+  reason_codes?: string[];
 }
 
 function asStringArray(value: unknown): string[] {
@@ -127,13 +145,74 @@ function emptyProfileContext(): UserProfileContext {
     recentConciergeUseCases: [],
     socialActivityLevel: "moderate",
     preferredTimes: [],
+    recommendationFeedback: {
+      likedIds: [],
+      dismissedIds: [],
+      completedIds: [],
+    },
   };
+}
+
+async function getRecommendationFeedbackSummary(userId: string): Promise<RecommendationFeedbackSummary> {
+  const empty: RecommendationFeedbackSummary = { likedIds: [], dismissedIds: [], completedIds: [] };
+
+  try {
+    const result = await pool.query(
+      `
+        select recommendation_id, action
+        from concierge_recommendation_feedback
+        where user_id = $1
+          and created_at >= now() - interval '90 days'
+        order by created_at desc
+        limit 200
+      `,
+      [userId],
+    );
+
+    const liked = new Set<string>();
+    const dismissed = new Set<string>();
+    const completed = new Set<string>();
+
+    for (const row of result.rows as Array<{ recommendation_id?: string; action?: string }>) {
+      if (!row.recommendation_id) continue;
+      if (row.action === "liked") liked.add(row.recommendation_id);
+      if (row.action === "dismissed") dismissed.add(row.recommendation_id);
+      if (row.action === "completed") completed.add(row.recommendation_id);
+    }
+
+    return {
+      likedIds: Array.from(liked),
+      dismissedIds: Array.from(dismissed),
+      completedIds: Array.from(completed),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+async function ensureRecommendationFeedbackTable(): Promise<void> {
+  await pool.query(`
+    create table if not exists concierge_recommendation_feedback (
+      id uuid primary key default gen_random_uuid(),
+      user_id text not null,
+      recommendation_id text not null,
+      action text not null,
+      category text,
+      title text,
+      reasons jsonb not null default '[]'::jsonb,
+      created_at timestamptz not null default now()
+    )
+  `);
+  await pool.query(`
+    create index if not exists concierge_recommendation_feedback_user_created_idx
+    on concierge_recommendation_feedback (user_id, created_at desc)
+  `);
 }
 
 async function getUserProfile(userId: string): Promise<UserProfileContext> {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [profileRows, companionRows, socialRows, medicationRows, activityRows, conciergeRows] = await Promise.all([
+    const [profileRows, companionRows, socialRows, medicationRows, activityRows, conciergeRows, feedbackSummary] = await Promise.all([
       db
         .select({
           full_name: profiles.full_name,
@@ -190,6 +269,7 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
         )
         .then((result) => result.rows as Array<{ use_case?: string }>)
         .catch(() => []),
+      getRecommendationFeedbackSummary(userId),
     ]);
 
     const profile = profileRows[0];
@@ -207,6 +287,7 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
     context.recentConciergeUseCases = conciergeRows.map((r) => r.use_case ?? "").filter(Boolean);
     context.socialActivityLevel = social?.activity_level ?? "moderate";
     context.preferredTimes = social?.preferred_times ?? [];
+    context.recommendationFeedback = feedbackSummary;
     context.interests = uniqueStrings([
       ...(companion?.interests ?? []),
       ...(companion?.hobbies ?? []),
@@ -557,6 +638,19 @@ function scoreCandidate(candidate: RecommendationCandidate, context: UserProfile
     score += 10;
     reasons.push("low_social_pressure");
   }
+  if (context.recommendationFeedback.likedIds.includes(candidate.id)) {
+    score += 18;
+    reasons.push("previously_liked");
+  }
+  if (context.recommendationFeedback.completedIds.includes(candidate.id)) {
+    score += 10;
+    reasons.push("previously_completed");
+  }
+  if (context.recommendationFeedback.dismissedIds.includes(candidate.id)) {
+    score -= 30;
+    reasons.push("previously_dismissed");
+  }
+  if (score < 20) return null;
 
   return { candidate, score, reasons };
 }
@@ -573,6 +667,7 @@ function candidateToCard(ranked: RankedRecommendationCandidate, locale: string):
   const lang: "en" | "es" = locale === "es" ? "es" : "en";
   const candidate = ranked.candidate;
   return {
+    id: candidate.id,
     title: candidate.title[lang],
     description: candidate.description[lang],
     category: candidate.category,
@@ -583,6 +678,8 @@ function candidateToCard(ranked: RankedRecommendationCandidate, locale: string):
     action_label: candidate.actionLabel[lang],
     action_prompt: candidate.actionPrompt[lang],
     safety_note: candidate.safetyNote[lang],
+    score: ranked.score,
+    reason_codes: ranked.reasons,
   };
 }
 
@@ -729,6 +826,7 @@ function sanitiseRecommendation(item: unknown): RecommendationCard | null {
     : "tip";
 
   return {
+    id: typeof raw.id === "string" ? raw.id : undefined,
     title: raw.title,
     description: raw.description,
     category,
@@ -739,6 +837,8 @@ function sanitiseRecommendation(item: unknown): RecommendationCard | null {
     action_label: typeof raw.action_label === "string" ? raw.action_label : "",
     action_prompt: typeof raw.action_prompt === "string" ? raw.action_prompt : "",
     safety_note: typeof raw.safety_note === "string" ? raw.safety_note : "",
+    score: typeof raw.score === "number" ? raw.score : undefined,
+    reason_codes: asStringArray(raw.reason_codes),
   };
 }
 
@@ -791,6 +891,42 @@ export async function conciergeHandler(req: Request, res: Response) {
   } catch (err) {
     console.error("[concierge] OpenAI error:", err);
     return res.json({ response: fallbackChatResponse(context.name) });
+  }
+}
+
+export async function conciergeRecommendationFeedbackHandler(req: Request, res: Response) {
+  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const { recommendation_id, action, category, title, reasons = [] } = req.body as RecommendationFeedbackRequestBody;
+
+  if (!recommendation_id || typeof recommendation_id !== "string") {
+    return res.status(400).json({ error: "recommendation_id is required" });
+  }
+  if (!action || !["opened", "liked", "dismissed", "completed"].includes(action)) {
+    return res.status(400).json({ error: "valid action is required" });
+  }
+
+  try {
+    await ensureRecommendationFeedbackTable();
+    await pool.query(
+      `
+        insert into concierge_recommendation_feedback
+          (user_id, recommendation_id, action, category, title, reasons)
+        values ($1, $2, $3, $4, $5, $6::jsonb)
+      `,
+      [
+        userId,
+        recommendation_id,
+        action,
+        typeof category === "string" ? category : null,
+        typeof title === "string" ? title : null,
+        JSON.stringify(asStringArray(reasons)),
+      ],
+    );
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[concierge/recs/feedback]", err);
+    return res.status(500).json({ error: "Failed to save feedback" });
   }
 }
 

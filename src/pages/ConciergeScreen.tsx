@@ -34,6 +34,7 @@ interface StoredChatHistory {
 }
 
 interface RecommendationCard {
+  id?: string;
   title: string;
   description: string;
   category: "deal" | "event" | "tip" | "activity";
@@ -44,6 +45,8 @@ interface RecommendationCard {
   action_label?: string;
   action_prompt?: string;
   safety_note?: string;
+  score?: number;
+  reason_codes?: string[];
 }
 
 interface ConciergePendingItem {
@@ -132,6 +135,23 @@ async function fetchRecommendations(locale: string): Promise<RecommendationCard[
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   const data = (await res.json()) as { recommendations?: RecommendationCard[] };
   return data.recommendations ?? [];
+}
+
+async function sendRecommendationFeedback(
+  card: RecommendationCard,
+  action: "opened" | "liked" | "dismissed" | "completed"
+) {
+  if (!card.id) return;
+  await apiFetch("/api/concierge/recommendations/feedback", {
+    method: "POST",
+    body: JSON.stringify({
+      recommendation_id: card.id,
+      action,
+      category: card.category,
+      title: card.title,
+      reasons: card.reason_codes ?? [],
+    }),
+  });
 }
 
 async function fetchPendingActions(): Promise<ConciergePendingItem[]> {
@@ -414,8 +434,28 @@ const ConciergeScreen = () => {
 
   function handleRecommendationAction(card: RecommendationCard) {
     const prompt = card.action_prompt || card.description;
+    sendRecommendationFeedback(card, "liked").catch(() => undefined);
     setInput(prompt);
     setSelectedRec(null);
+  }
+
+  function handleOpenRecommendation(card: RecommendationCard) {
+    setSelectedRec(card);
+    sendRecommendationFeedback(card, "opened").catch(() => undefined);
+  }
+
+  function handleRecommendationFeedback(
+    card: RecommendationCard,
+    action: "liked" | "dismissed" | "completed"
+  ) {
+    sendRecommendationFeedback(card, action).catch(() => undefined);
+    if (action === "dismissed") {
+      setRecs((prev) => prev.filter((item) => item !== card));
+      setSelectedRec(null);
+    }
+    if (action === "completed") {
+      setSelectedRec(null);
+    }
   }
 
   const activeAction = pendingActions[0];
@@ -670,7 +710,7 @@ const ConciergeScreen = () => {
                 <button
                   key={i}
                   data-testid={`card-concierge-rec-${i}`}
-                  onClick={() => setSelectedRec(card)}
+                  onClick={() => handleOpenRecommendation(card)}
                   className="w-full rounded-[20px] border bg-white p-[16px] text-left transition-transform active:scale-[0.99]"
                   style={{
                     borderColor: colors.border,
@@ -779,6 +819,32 @@ const ConciergeScreen = () => {
                     </p>
                   </div>
                 )}
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    data-testid="button-rec-like"
+                    onClick={() => handleRecommendationFeedback(selectedRec, "liked")}
+                    className="rounded-full bg-[#F5F3FF] px-2 py-2 font-body text-[12px] font-semibold"
+                    style={{ color: "#6B21A8" }}
+                  >
+                    {isSpanish ? "Me interesa" : "Interested"}
+                  </button>
+                  <button
+                    data-testid="button-rec-done"
+                    onClick={() => handleRecommendationFeedback(selectedRec, "completed")}
+                    className="rounded-full bg-[#ECFDF5] px-2 py-2 font-body text-[12px] font-semibold"
+                    style={{ color: "#0A7C4E" }}
+                  >
+                    {isSpanish ? "Hecho" : "Done"}
+                  </button>
+                  <button
+                    data-testid="button-rec-not-for-me"
+                    onClick={() => handleRecommendationFeedback(selectedRec, "dismissed")}
+                    className="rounded-full bg-[#F5F1EC] px-2 py-2 font-body text-[12px] font-semibold text-vyva-text-2"
+                  >
+                    {isSpanish ? "No es para mi" : "Not for me"}
+                  </button>
+                </div>
 
                 <div className="sticky bottom-0 -mx-[18px] mt-5 flex gap-2 border-t border-vyva-border bg-white p-[14px_18px]">
                   <Button
