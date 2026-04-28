@@ -645,27 +645,41 @@ const ConciergeScreen = () => {
             </span>
           </div>
         ) : recs.length === 0 ? (
-          <p className="font-body text-[13px] text-vyva-text-2 py-2">
-            {t("concierge.noRecs")}
-          </p>
+          <div className="rounded-[20px] border border-vyva-border bg-white p-[16px]">
+            <p className="font-body text-[13px] text-vyva-text-2">
+              {t("concierge.noRecs")}
+            </p>
+          </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-[22px] px-[22px] scrollbar-hide">
-            {recs.map((card, i) => {
+          <div className="space-y-3">
+            {recs.slice(0, 3).map((card, i) => {
               const colors = getCategoryColors(card.category);
               return (
                 <div
                   key={i}
                   data-testid={`card-concierge-rec-${i}`}
-                  className="flex-shrink-0 w-[210px] rounded-[18px] p-[14px] border"
-                  style={{ background: colors.bg, borderColor: colors.border }}
+                  className="rounded-[20px] border bg-white p-[16px]"
+                  style={{
+                    borderColor: colors.border,
+                    boxShadow: "0 2px 12px rgba(107,33,168,0.07)",
+                  }}
                 >
-                  <div className="text-[26px] mb-[6px]">{card.emoji}</div>
-                  <p className="font-body text-[13px] font-semibold text-vyva-text-1 leading-tight mb-[4px]">
-                    {card.title}
-                  </p>
-                  <p className="font-body text-[12px] text-vyva-text-2 leading-relaxed">
-                    {card.description}
-                  </p>
+                  <div className="flex gap-4">
+                    <div
+                      className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-[16px] text-[24px]"
+                      style={{ background: colors.bg }}
+                    >
+                      {card.emoji}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-body text-[15px] font-semibold text-vyva-text-1 leading-tight">
+                        {card.title}
+                      </p>
+                      <p className="mt-1 font-body text-[13px] text-vyva-text-2 leading-relaxed">
+                        {card.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -681,18 +695,22 @@ const ConciergeScreen = () => {
         </div>
 
         {sessionsLoading ? (
-          <div className="flex items-center gap-2 py-2">
-            <Loader2 size={16} className="animate-spin text-vyva-purple" />
-            <span className="font-body text-[13px] text-vyva-text-2">
-              {isSpanish ? "Cargando resultados..." : "Loading recent results..."}
-            </span>
+          <div className="rounded-[20px] border border-vyva-border bg-white p-[16px]">
+            <div className="flex items-center gap-2">
+              <Loader2 size={16} className="animate-spin text-vyva-purple" />
+              <span className="font-body text-[13px] text-vyva-text-2">
+                {isSpanish ? "Cargando resultados..." : "Loading recent results..."}
+              </span>
+            </div>
           </div>
         ) : recentSessions.length === 0 ? (
-          <p className="font-body text-[13px] text-vyva-text-2">
-            {isSpanish
-              ? "Las acciones completadas apareceran aqui cuando termine una llamada o reserva."
-              : "Completed concierge actions will show up here once a call or booking finishes."}
-          </p>
+          <div className="rounded-[20px] border border-vyva-border bg-white p-[16px]">
+            <p className="font-body text-[13px] leading-relaxed text-vyva-text-2">
+              {isSpanish
+                ? "Cuando una llamada o reserva termine, el resultado aparecera aqui en una tarjeta simple."
+                : "When a call or booking finishes, the result will appear here in a simple card."}
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {recentSessions.slice(0, 4).map((item) => {
@@ -755,12 +773,16 @@ const ConciergeScreen = () => {
         <div
           ref={scrollRef}
           className="rounded-[22px] border border-vyva-border bg-white overflow-y-auto p-3 space-y-3 mb-3"
-          style={{ minHeight: 140, maxHeight: 320 }}
+          style={{ minHeight: messages.length === 0 ? 96 : 140, maxHeight: 320 }}
         >
           {messages.length === 0 && !chatLoading && (
-            <p className="font-body text-[13px] text-vyva-text-2 text-center pt-4">
-              {t("concierge.chatEmptyHint")}
-            </p>
+            <div className="flex h-full min-h-[70px] items-center justify-center rounded-[18px] bg-[#FBF8F4] px-4 text-center">
+              <p className="font-body text-[13px] leading-relaxed text-vyva-text-2">
+                {isSpanish
+                  ? "Si prefieres no hablar, escribe aqui y VYVA te ayuda igual."
+                  : "If you prefer not to speak, type here and VYVA will help the same way."}
+              </p>
+            </div>
           )}
 
           {messages.map((msg, i) => (
