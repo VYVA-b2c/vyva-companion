@@ -725,11 +725,11 @@ function forceHealthPriorityResult(
       ...result,
       feeling_label: urgent ? "Prioridad de salud" : "Señal para revisar",
       overall_state: urgent ? "low" : "moderate",
-      vyva_reading: `${addressedName}, gracias por contarmelo. La falta de aire, el pecho o la confusion no son señales para tapar con distracciones.`,
+      vyva_reading: `${addressedName}, gracias por contarmelo. La falta de aire, el pecho o la confusion merecen atencion y calma.`,
       highlight: urgent
         ? "Busca ayuda medica si sigue, empeora o aparece dolor, confusion o debilidad."
         : "Primero conviene revisar la señal; despues pensamos en planes agradables.",
-      why_today: "Has marcado una señal que puede ser importante. VYVA la prioriza por seguridad antes de sugerir musica, ocio o actividades.",
+      why_today: "Has marcado una señal que puede ser importante. Lo mas prudente es revisar como evoluciona y actuar si continua o empeora.",
       trend_note: result.trend_note ?? null,
       personal_plan: urgent
         ? "Quedate acompañado, evita esfuerzo y busca atencion medica si la sensacion continua o aumenta."
@@ -757,11 +757,11 @@ function forceHealthPriorityResult(
     ...result,
     feeling_label: urgent ? "Health priority" : "Signal to check",
     overall_state: urgent ? "low" : "moderate",
-    vyva_reading: `${addressedName}, thank you for telling me. Breathlessness, chest symptoms, or confusion should not be covered with distractions.`,
+      vyva_reading: `${addressedName}, thank you for telling me. Breathlessness, chest symptoms, or confusion deserve attention and calm.`,
     highlight: urgent
       ? "Seek medical help if it continues, worsens, or comes with pain, confusion, or weakness."
       : "First check the signal; pleasant plans can wait until it feels safe.",
-    why_today: "You selected a signal that can matter. VYVA prioritizes safety before suggesting music, leisure, or activities.",
+    why_today: "You selected a signal that can matter. The sensible next step is to check how it develops and act if it continues or worsens.",
     trend_note: result.trend_note ?? null,
     personal_plan: urgent
       ? "Stay with someone, avoid effort, and seek medical attention if the sensation continues or grows."
