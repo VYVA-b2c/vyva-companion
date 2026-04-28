@@ -112,8 +112,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs_v4";
-const RECS_DATE_BASE = "vyva_concierge_recs_date_v4";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v5";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v5";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -184,6 +184,39 @@ function buildRecommendationActionPrompt(card: RecommendationCard, isSpanish: bo
     "Start with one clear sentence about what you can do and ask only for the next needed detail or confirmation.",
     "If it requires a call, booking, or confirmation, prepare a clear summary and ask me to confirm first.",
   ].filter(Boolean).join("\n");
+}
+
+function buildFallbackPlan(card: RecommendationCard, isSpanish: boolean): RecommendationActionPlan {
+  const title = isSpanish ? `Plan para: ${card.title}` : `Plan for: ${card.title}`;
+  const caveat = isSpanish
+    ? "No he podido comprobar datos en vivo ahora mismo. Antes de salir, confirma horarios, precio y disponibilidad."
+    : "I could not check live details right now. Before leaving, confirm hours, price, and availability.";
+
+  return {
+    title,
+    summary: isSpanish
+      ? "Puedo ayudarte a convertir esta idea en un plan concreto, pero necesito confirmar datos actuales."
+      : "I can help turn this idea into a concrete plan, but current details need confirmation.",
+    price_info: isSpanish
+      ? "Precio pendiente de confirmar en la web o por telefono."
+      : "Price needs confirming online or by phone.",
+    travel_info: isSpanish
+      ? "Cuando elijas el lugar exacto, VYVA puede revisar ruta, distancia y si conviene taxi."
+      : "Once you choose the exact place, VYVA can check route, distance, and whether a taxi makes sense.",
+    accessibility_note: card.safety_note || (isSpanish
+      ? "Comprobar acceso, asientos, escaleras y distancia antes de ir."
+      : "Check access, seating, stairs, and distance before going."),
+    next_steps: isSpanish
+      ? ["Elegir el lugar exacto", "Confirmar horario y precio", "Preparar transporte o llamada"]
+      : ["Choose the exact place", "Confirm hours and price", "Prepare transport or a call"],
+    caveat,
+    share_text: [
+      title,
+      card.description,
+      isSpanish ? "Pendiente: confirmar horario, precio, acceso y ruta." : "Pending: confirm hours, price, access, and route.",
+      caveat,
+    ].join("\n"),
+  };
 }
 
 const QUICK_ACTIONS = [
@@ -546,19 +579,8 @@ const ConciergeScreen = () => {
       setSelectedPlan(plan);
       setSelectedRec(null);
     } catch {
-      const prompt = buildRecommendationActionPrompt(card, isSpanish) || card.action_prompt || card.description;
-      const visibleText = isSpanish
-        ? `Ayudame con "${card.title}".`
-        : `Help me with "${card.title}".`;
-      const userMsg: ChatMessage = { role: "user", content: visibleText };
-      const nextHistory = [...messages, userMsg];
-      setMessages(nextHistory);
-      setInput("");
+      setSelectedPlan(buildFallbackPlan(card, isSpanish));
       setSelectedRec(null);
-      window.setTimeout(() => {
-        chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-      sendMessage(prompt, nextHistory);
     } finally {
       setPlanLoading(false);
     }

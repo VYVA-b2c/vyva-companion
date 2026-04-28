@@ -914,6 +914,7 @@ function scoreCandidate(
   context: UserProfileContext,
   options: { refresh?: boolean } = {},
 ): RankedRecommendationCandidate | null {
+  if (candidate.id === "local_savings_check") return null;
   if (hasMobilityLimit(context) && candidate.physicalDemand === "moderate") return null;
   if (candidate.requiresLocation && !context.city && !context.region) return null;
   if (candidate.requiresMedicationContext && context.activeMedications.length === 0) return null;
