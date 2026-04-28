@@ -129,6 +129,32 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
+interface OfferOption {
+  label: "Opcion recomendada" | "Alternativa 1" | "Alternativa 2";
+  name: string;
+  category: string;
+  what_it_offers: string;
+  price_or_advantage: string;
+  why_good_option: string;
+  distance_or_availability: string;
+  contact_method: string;
+  phone?: string;
+  website?: string;
+  maps_url?: string;
+  trust_note: string;
+  score: number;
+}
+
+interface OffersSearchResponse {
+  category: string;
+  options: OfferOption[];
+  decision_explanation: string;
+  neutrality_note: string;
+  source_guidance: string[];
+  next_step: string;
+  no_results_message?: string;
+}
+
 const RECS_CACHE_BASE = "vyva_concierge_recs_v8";
 const RECS_DATE_BASE = "vyva_concierge_recs_date_v8";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
@@ -310,6 +336,18 @@ async function fetchRecentSessions(): Promise<ConciergeSessionItem[]> {
   return data.items ?? [];
 }
 
+async function searchOffers(query: string, locale: string): Promise<OffersSearchResponse> {
+  const res = await apiFetch("/api/offers/search", {
+    method: "POST",
+    body: JSON.stringify({ query, locale }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `Request failed: ${res.status}`);
+  }
+  return await res.json() as OffersSearchResponse;
+}
+
 async function confirmPendingAction(item: ConciergePendingItem) {
   const bookingUrl = getBookingUrl(item);
 
@@ -413,6 +451,11 @@ const ConciergeScreen = () => {
   const [selectedRec, setSelectedRec] = useState<RecommendationCard | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<RecommendationActionPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [offersOpen, setOffersOpen] = useState(false);
+  const [offersQuery, setOffersQuery] = useState("");
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [offersResult, setOffersResult] = useState<OffersSearchResponse | null>(null);
+  const [offersError, setOffersError] = useState<string | null>(null);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -582,9 +625,47 @@ const ConciergeScreen = () => {
   }
 
   function handleQuickAction(key: string) {
+    if (key === "findDeals") {
+      setOffersOpen(true);
+      setOffersError(null);
+      if (!offersQuery) {
+        setOffersQuery(isSpanish ? "comida barata cerca de mi" : "affordable food near me");
+      }
+      return;
+    }
     const prompt = t(`concierge.prompts.${key}`);
     if (!prompt) return;
     setInput(prompt);
+  }
+
+  async function handleSearchOffers(nextQuery = offersQuery) {
+    const query = nextQuery.trim();
+    if (!query || offersLoading) return;
+    setOffersLoading(true);
+    setOffersError(null);
+    try {
+      const result = await searchOffers(query, i18n.language);
+      setOffersResult(result);
+    } catch {
+      setOffersError(isSpanish
+        ? "No he podido buscar ofertas verificadas ahora mismo."
+        : "I could not search verified offers right now.");
+    } finally {
+      setOffersLoading(false);
+    }
+  }
+
+  function handleOfferAction(option: OfferOption) {
+    if (option.phone) {
+      setInput(isSpanish
+        ? `Ayudame a llamar a ${option.name} para confirmar esta oferta o servicio.`
+        : `Help me call ${option.name} to confirm this offer or service.`);
+      setOffersOpen(false);
+      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const url = option.website || option.maps_url;
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function handleRecommendationAction(card: RecommendationCard) {
@@ -784,6 +865,142 @@ const ConciergeScreen = () => {
             </button>
           ))}
         </div>
+
+        {offersOpen && (
+          <div
+            className="mt-4 rounded-[26px] border border-[#FCD34D] bg-[#FFFBEB] p-4"
+            style={{ boxShadow: "0 12px 32px rgba(201,137,10,0.12)" }}
+            data-testid="panel-offers-search"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[16px] bg-white">
+                <Tag size={21} style={{ color: "#C9890A" }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
+                  {isSpanish ? "Buscar ofertas utiles" : "Find useful offers"}
+                </p>
+                <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                  {isSpanish
+                    ? "VYVA compara cercania, precio, confianza y facilidad. Solo muestra opciones verificables."
+                    : "VYVA compares proximity, value, trust, and ease. It only shows verifiable options."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOffersOpen(false)}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white font-body text-[15px] text-vyva-text-2"
+                aria-label={isSpanish ? "Cerrar" : "Close"}
+              >
+                x
+              </button>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <Input
+                data-testid="input-offers-query"
+                value={offersQuery}
+                onChange={(event) => setOffersQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleSearchOffers();
+                  }
+                }}
+                placeholder={isSpanish ? "Ej: comida barata, farmacia, taxi..." : "E.g. cheap food, pharmacy, taxi..."}
+                className="h-[46px] flex-1 rounded-full border-[#FCD34D] bg-white font-body text-[14px]"
+              />
+              <Button
+                data-testid="button-offers-search"
+                onClick={() => handleSearchOffers()}
+                disabled={offersLoading || !offersQuery.trim()}
+                className="h-[46px] rounded-full bg-vyva-purple px-4 font-body text-[14px] hover:bg-vyva-purple/90"
+              >
+                {offersLoading ? <Loader2 size={16} className="animate-spin text-white" /> : (isSpanish ? "Buscar" : "Search")}
+              </Button>
+            </div>
+
+            {offersError && (
+              <p className="mt-3 rounded-[16px] bg-white px-3 py-2 font-body text-[13px] text-[#B91C1C]">
+                {offersError}
+              </p>
+            )}
+
+            {offersResult && (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-[18px] bg-white p-3">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#C9890A]">
+                    {offersResult.category}
+                  </p>
+                  <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                    {offersResult.decision_explanation}
+                  </p>
+                </div>
+
+                {offersResult.options.length === 0 ? (
+                  <div className="rounded-[18px] bg-white p-4">
+                    <p className="font-body text-[14px] leading-relaxed text-vyva-text-1">
+                      {offersResult.no_results_message || (isSpanish
+                        ? "No hay suficientes opciones verificadas ahora mismo."
+                        : "There are not enough verified options right now.")}
+                    </p>
+                  </div>
+                ) : (
+                  offersResult.options.map((option) => (
+                    <div key={`${option.label}-${option.name}`} className="rounded-[20px] border border-vyva-border bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                            {option.label}
+                          </p>
+                          <p className="mt-1 font-body text-[17px] font-semibold leading-tight text-vyva-text-1">
+                            {option.name}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-[#ECFDF5] px-2.5 py-1 font-body text-[12px] font-semibold text-[#0A7C4E]">
+                          {option.score}/100
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-2">
+                        <p className="font-body text-[13px] leading-relaxed text-vyva-text-1">{option.what_it_offers}</p>
+                        <p className="rounded-[14px] bg-[#F5F3FF] p-3 font-body text-[13px] leading-relaxed text-vyva-text-1">
+                          {option.price_or_advantage}
+                        </p>
+                        <p className="font-body text-[13px] leading-relaxed text-vyva-text-2">{option.why_good_option}</p>
+                        <p className="font-body text-[13px] leading-relaxed text-vyva-text-2">{option.distance_or_availability}</p>
+                        <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{option.trust_note}</p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => handleOfferAction(option)}
+                          className="h-[40px] rounded-full bg-vyva-purple px-4 font-body text-[13px] hover:bg-vyva-purple/90"
+                        >
+                          {option.phone ? (isSpanish ? "Preparar llamada" : "Prepare call") : option.website || option.maps_url ? (isSpanish ? "Abrir" : "Open") : (isSpanish ? "Ver contacto" : "View contact")}
+                        </Button>
+                        <span className="inline-flex items-center rounded-full bg-[#FBF8F4] px-3 py-2 font-body text-[12px] text-vyva-text-2">
+                          {option.contact_method}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <div className="rounded-[18px] border border-vyva-border bg-white p-3">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                    {isSpanish ? "Neutralidad" : "Neutrality"}
+                  </p>
+                  <p className="mt-1 font-body text-[12px] leading-relaxed text-vyva-text-2">
+                    {offersResult.neutrality_note}
+                  </p>
+                  <p className="mt-2 font-body text-[12px] leading-relaxed text-vyva-text-2">
+                    {offersResult.next_step}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="mt-6">
