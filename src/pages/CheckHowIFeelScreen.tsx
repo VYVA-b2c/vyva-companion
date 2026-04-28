@@ -1159,7 +1159,7 @@ const CheckHowIFeelScreen = () => {
     } catch (err) {
       console.warn("[check-in] falling back locally", err);
       setResult(localizedLocalResult(name, answers, gender, copy));
-      toast({ description: `${copy.fallbackToast} ${err instanceof Error ? `(${err.message})` : ""}`.trim() });
+      toast({ description: copy.fallbackToast });
     } finally {
       setStep("result");
     }
