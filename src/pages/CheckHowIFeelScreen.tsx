@@ -184,9 +184,8 @@ const CheckHowIFeelScreen = () => {
     navigate("/health");
   };
 
-  const setSingle = <K extends keyof Answers>(key: K, value: Answers[K], nextStep: StepId) => {
+  const setSingle = <K extends keyof Answers>(key: K, value: Answers[K]) => {
     setAnswers((current) => ({ ...current, [key]: value }));
-    setStep(nextStep);
   };
 
   const toggleMulti = (key: "body_areas" | "symptoms", id: string) => {
@@ -308,8 +307,9 @@ const CheckHowIFeelScreen = () => {
           <OptionList
             options={energyOptions}
             selected={answers.energy_level?.toString()}
-            onSelect={(option) => setSingle("energy_level", option.value ?? 3, "mood")}
+            onSelect={(option) => setSingle("energy_level", option.value ?? 3)}
           />
+          <NextButton disabled={!answers.energy_level} onClick={() => setStep("mood")} />
         </QuestionCard>
       )}
 
@@ -318,8 +318,9 @@ const CheckHowIFeelScreen = () => {
           <OptionList
             options={moodOptions}
             selected={answers.mood ?? undefined}
-            onSelect={(option) => setSingle("mood", option.id, "body")}
+            onSelect={(option) => setSingle("mood", option.id)}
           />
+          <NextButton disabled={!answers.mood} onClick={() => setStep("body")} />
         </QuestionCard>
       )}
 
@@ -340,8 +341,9 @@ const CheckHowIFeelScreen = () => {
           <OptionList
             options={sleepOptions}
             selected={answers.sleep_quality ?? undefined}
-            onSelect={(option) => setSingle("sleep_quality", option.id, "symptoms")}
+            onSelect={(option) => setSingle("sleep_quality", option.id)}
           />
+          <NextButton disabled={!answers.sleep_quality} onClick={() => setStep("symptoms")} />
         </QuestionCard>
       )}
 
@@ -362,7 +364,7 @@ const CheckHowIFeelScreen = () => {
           <OptionList
             options={socialOptions}
             selected={answers.social_contact ?? undefined}
-            onSelect={(option) => setSingle("social_contact", option.id, "social")}
+            onSelect={(option) => setSingle("social_contact", option.id)}
           />
           <button
             onClick={analyze}
