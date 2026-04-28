@@ -2,10 +2,13 @@ import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   ArrowLeft,
   Battery,
   BedDouble,
   Check,
+  ClipboardList,
+  Compass,
   Heart,
   Loader2,
   MessageCircle,
@@ -38,6 +41,14 @@ type CheckinResult = {
   highlight: string;
   flag_caregiver: boolean;
   watch_for: string | null;
+};
+
+type AppAction = {
+  key: "concierge" | "symptom" | "vitals" | "care";
+  title: string;
+  description: string;
+  to: string;
+  primary?: boolean;
 };
 
 type SingleOption = {
@@ -147,11 +158,11 @@ function localResult(name: string, answers: Answers): CheckinResult {
       today_actions: [
         "Mantente cerca del teléfono y no hagas esfuerzos.",
         "Anota a qué hora empezó lo que notas.",
-        "Si empeora o te asusta, llama a emergencias o a tu medico.",
+        "Si empeora o te asusta, usa el chequeo de síntomas o busca atención médica.",
       ],
       highlight: "Lo importante hoy es seguridad, compañía y observar si mejora pronto.",
       flag_caregiver: true,
-      watch_for: "Si notas falta de aire, dolor en el pecho, confusión intensa o empeoramiento rápido, busca ayuda urgente.",
+      watch_for: "Si notas falta de aire, dolor en el pecho, confusión intensa o empeoramiento rápido, busca ayuda urgente. VYVA también puede abrir el chequeo de síntomas.",
     };
   }
 
@@ -166,8 +177,8 @@ function localResult(name: string, answers: Answers): CheckinResult {
         "Reserva un momento tranquilo para después.",
       ],
       today_actions: [
-        "Haz una salida corta o una llamada que te ilusione.",
-        "Aprovecha la energía para una tarea pendiente pequeña.",
+        "Mira Para ti hoy en Concierge para elegir un plan cercano y adaptado.",
+        "Pide a VYVA que prepare transporte si decides salir.",
         "Para antes de cansarte, aunque te sientas bien.",
       ],
       highlight: "Tienes margen para disfrutar, manteniendo un ritmo amable.",
@@ -189,7 +200,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
       today_actions: [
         "Busca luz natural suave durante un rato.",
         "Evita una siesta larga; mejor un descanso corto.",
-        alone ? "Haz una llamada breve a alguien de confianza." : "Mantente con planes sencillos y conocidos.",
+        alone ? "Haz una llamada breve a alguien de confianza." : "Elige una idea tranquila en Para ti hoy si te apetece algo suave.",
       ],
       highlight: "Tu cuerpo está pidiendo recuperar energía, no demostrar fuerza.",
       flag_caregiver: lowEnergy && lowMood,
@@ -210,11 +221,11 @@ function localResult(name: string, answers: Answers): CheckinResult {
       today_actions: [
         "Observa si las náuseas mejoran después de hidratarte.",
         "Evita comidas muy grasas o abundantes hoy.",
-        alone ? "Avisa a alguien si te notas más débil." : "Comenta cómo te sientes si estás con alguien.",
+        "Si no mejora, usa el chequeo de síntomas para decidir el siguiente paso.",
       ],
       highlight: "Hoy ayuda más la suavidad que intentar seguir como siempre.",
       flag_caregiver: lowEnergy && alone,
-      watch_for: feverish ? "Si hay fiebre, vómitos persistentes o dolor fuerte, conviene consultar." : null,
+      watch_for: feverish ? "Si hay fiebre, vómitos persistentes o dolor fuerte, usa el chequeo de síntomas y considera atención médica." : null,
     };
   }
 
@@ -229,13 +240,13 @@ function localResult(name: string, answers: Answers): CheckinResult {
         "Busca un sitio tranquilo con poca luz si puedes.",
       ],
       today_actions: [
-        "Haz solo desplazamientos necesarios.",
+        "Haz solo desplazamientos necesarios y evita salir sola si te notas inestable.",
         "Pide ayuda con tareas que requieran esfuerzo.",
-        alone ? "Llama a alguien para que sepa cómo estás." : "Comenta el mareo o dolor si no mejora.",
+        "Si no mejora, revisa tus signos vitales o inicia el chequeo de síntomas.",
       ],
       highlight: "Ir despacio hoy es una decisión inteligente.",
       flag_caregiver: dizzy && lowEnergy,
-      watch_for: dizzy ? "Si el mareo continúa, aparece debilidad o te cuesta hablar, pide ayuda enseguida." : null,
+      watch_for: dizzy ? "Si el mareo continúa, aparece debilidad o te cuesta hablar, busca ayuda enseguida y usa el chequeo de síntomas si puedes hacerlo con calma." : null,
     };
   }
 
@@ -250,9 +261,9 @@ function localResult(name: string, answers: Answers): CheckinResult {
         "Prepara lo que necesites cerca para moverte menos.",
       ],
       today_actions: [
-        "Elige una actividad sentada o con descansos frecuentes.",
+        "Busca en Para ti hoy una actividad sentada o con descansos frecuentes.",
         "Usa calzado cómodo si sales.",
-        "Pide ayuda si una tarea implica esfuerzo físico.",
+        "Pide a Concierge que organice transporte si el plan merece la pena.",
       ],
       highlight: "Cuidar articulaciones y espalda hoy te ayuda a llegar mejor a la tarde.",
       flag_caregiver: false,
@@ -272,7 +283,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
       ],
       today_actions: [
         "Evita quedarte con preocupaciones dando vueltas sola.",
-        "Escoge una actividad conocida y tranquila.",
+        "Mira Para ti hoy para encontrar algo cercano, tranquilo y acompañado.",
         "Si te apetece, pide a VYVA que te ayude a llamar a alguien.",
       ],
       highlight: "Hoy la compañía y la calma pueden ayudar más que hacer muchas cosas.",
@@ -291,7 +302,7 @@ function localResult(name: string, answers: Answers): CheckinResult {
       "Haz una pausa breve antes de pasar a lo siguiente.",
     ],
     today_actions: [
-      "Busca un momento de luz natural o aire fresco si te apetece.",
+      "Mira Para ti hoy en Concierge para una idea local y adaptada.",
       "Mantén planes sencillos y deja margen para descansar.",
       "Habla con alguien cercano si te apetece compañía.",
     ],
@@ -299,6 +310,63 @@ function localResult(name: string, answers: Answers): CheckinResult {
     flag_caregiver: lowEnergy && lowMood,
     watch_for: null,
   };
+}
+
+function appActionsFor(answers: Answers, result: CheckinResult): AppAction[] {
+  const hasSymptom = (id: string) => answers.symptoms.includes(id) || answers.body_areas.includes(id);
+  const safetySignal = hasSymptom("falta_aire") || hasSymptom("pecho") || hasSymptom("confusion");
+  const symptomSignal =
+    safetySignal ||
+    ["mareo", "nauseas", "fiebre", "dolor_cabeza"].some(hasSymptom) ||
+    answers.symptoms.some((item) => item !== "ninguno");
+  const outingFriendly =
+    !safetySignal &&
+    (answers.energy_level ?? 3) >= 3 &&
+    !["mal", "muy_mal"].includes(answers.sleep_quality ?? "") &&
+    !["pecho", "falta_aire", "mareo", "confusion"].some(hasSymptom);
+
+  const actions: AppAction[] = [];
+
+  if (safetySignal) {
+    actions.push({
+      key: "care",
+      title: "Buscar atención médica",
+      description: "Si empeora, hay dolor en el pecho, falta de aire o confusión, no esperes.",
+      to: "/health",
+      primary: true,
+    });
+  }
+
+  if (symptomSignal || result.watch_for) {
+    actions.push({
+      key: "symptom",
+      title: "Hacer chequeo de síntomas",
+      description: "VYVA te guía con preguntas claras y te ayuda a decidir el siguiente paso.",
+      to: "/health/symptom-check",
+      primary: !safetySignal,
+    });
+  }
+
+  if (hasSymptom("mareo") || hasSymptom("falta_aire") || hasSymptom("pecho") || (answers.energy_level ?? 3) <= 2) {
+    actions.push({
+      key: "vitals",
+      title: "Tomar signos vitales",
+      description: "Haz un escaneo rápido para registrar pulso y respiración antes de decidir.",
+      to: "/health/vitals",
+    });
+  }
+
+  if (outingFriendly || actions.length === 0) {
+    actions.push({
+      key: "concierge",
+      title: "Ver Para ti hoy",
+      description: "Encuentra una salida o idea cercana, adaptada a tu energía y movilidad.",
+      to: "/concierge",
+      primary: actions.length === 0,
+    });
+  }
+
+  return actions.slice(0, 3);
 }
 
 const CheckHowIFeelScreen = () => {
@@ -313,6 +381,7 @@ const CheckHowIFeelScreen = () => {
   const name = firstName || "Carlos";
   const stepIndex = STEPS.indexOf(step);
   const canGoBack = stepIndex > 0 && step !== "analyzing" && step !== "result";
+  const appActions = result ? appActionsFor(answers, result) : [];
 
   const loadingMessage = useMemo(() => {
     const messages = [
@@ -567,6 +636,21 @@ const CheckHowIFeelScreen = () => {
               <p className="font-body text-[18px] leading-relaxed text-[#78350F]">{result.watch_for}</p>
             </div>
           )}
+          {appActions.length > 0 && (
+            <div className="mt-5 rounded-[26px] border border-vyva-border bg-white p-5 shadow-[0_8px_24px_rgba(107,33,168,0.08)]">
+              <p className="mb-2 font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">
+                VYVA puede ayudarte ahora
+              </p>
+              <p className="mb-4 font-body text-[18px] leading-relaxed text-vyva-text-2">
+                Elige el siguiente paso dentro de la app, sin tener que buscarlo tú.
+              </p>
+              <div className="grid gap-3">
+                {appActions.map((action) => (
+                  <AppActionButton key={action.key} action={action} onClick={() => navigate(action.to)} />
+                ))}
+              </div>
+            </div>
+          )}
           <p className="mt-6 font-body text-[21px] leading-relaxed text-vyva-text-1">
             Gracias por hacerlo. Este pequeño hábito ayuda a VYVA a cuidarte mejor cada día.
           </p>
@@ -681,6 +765,39 @@ function ResultList({ title, items }: { title: string; items: string[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function AppActionButton({ action, onClick }: { action: AppAction; onClick: () => void }) {
+  const Icon =
+    action.key === "concierge" ? Compass :
+    action.key === "symptom" ? ClipboardList :
+    action.key === "vitals" ? Activity :
+    ShieldCheck;
+  return (
+    <button
+      onClick={onClick}
+      className={`vyva-tap flex min-h-[86px] items-center gap-4 rounded-[22px] border p-4 text-left ${
+        action.primary
+          ? "border-vyva-purple bg-vyva-purple text-white"
+          : "border-vyva-border bg-[#FAF9F6] text-vyva-text-1"
+      }`}
+      data-testid={`button-checkin-app-action-${action.key}`}
+    >
+      <span
+        className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] ${
+          action.primary ? "bg-white/18" : "bg-vyva-purple-light"
+        }`}
+      >
+        <Icon size={24} className={action.primary ? "text-white" : "text-vyva-purple"} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-body text-[18px] font-bold leading-tight">{action.title}</span>
+        <span className={`mt-1 block font-body text-[15px] leading-snug ${action.primary ? "text-white/85" : "text-vyva-text-2"}`}>
+          {action.description}
+        </span>
+      </span>
+    </button>
   );
 }
 

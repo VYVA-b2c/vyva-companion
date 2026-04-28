@@ -399,16 +399,16 @@ function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiChe
     ],
     today_actions: [
       poorSleep
-        ? "Haz una pausa tranquila después de comer."
+        ? "Haz una pausa tranquila después de comer y evita planes largos."
         : limitedMobility
-          ? `Dedica un rato a ${favouriteQuietActivity} sin forzarte.`
-          : "Mantén una actividad suave que te guste.",
+          ? `Mira Para ti hoy en Concierge para elegir un plan sentado o dedica un rato a ${favouriteQuietActivity}.`
+          : "Mira Para ti hoy en Concierge para escoger una salida cercana y adaptada.",
       lowMood ? "Habla con alguien cercano aunque sea unos minutos." : "Busca un momento agradable fuera de pantallas.",
-      "Anota si algo cambia durante el día.",
+      hasSymptoms ? "Si algo no mejora, abre el chequeo de síntomas o toma signos vitales en VYVA." : "Guarda energía para una cosa que te haga ilusión.",
     ],
     highlight: lowEnergy ? "Tu energía pide un ritmo más suave hoy." : "Hoy tienes margen para cuidarte sin prisa.",
     flag_caregiver: answers.energy_level <= 1 || (lowMood && answers.social_contact === "no"),
-    watch_for: hasSymptoms ? "Si notas que algo empeora o te preocupa, pide ayuda a una persona de confianza." : null,
+    watch_for: hasSymptoms ? "Si notas que algo empeora o te preocupa, usa el chequeo de síntomas de VYVA, toma signos vitales si puedes y busca atención médica si es urgente." : null,
   };
 }
 
@@ -429,6 +429,10 @@ Safety and personalization rules:
 - If symptoms include chest discomfort, breathlessness, confusion, severe dizziness, or a worrying pattern, include a calm watch_for note.
 - If the user has low mood, low social contact, or repeated low energy, suggest one small connection step.
 - Keep every action concrete and doable today.
+- Make recommendations creative, specific, and useful. Avoid generic advice like "try a hobby" unless it connects to a known hobby, location, routine, or profile signal.
+- Whenever an outing, cultural plan, social idea, or gentle activity would help, mention VYVA Concierge / "Para ti hoy" as the place to find a nearby adapted plan.
+- Whenever symptoms, dizziness, breathlessness, chest discomfort, fever, nausea, or worrying changes appear, route the user to app actions: symptom check, vitals scan, and medical attention when appropriate.
+- Do not only say "see a doctor". Prefer: "haz el chequeo de síntomas", "toma signos vitales", and "busca atención médica si empeora o parece urgente".
 
 User profile:
 ${JSON.stringify(profile, null, 2)}
