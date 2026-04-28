@@ -15,7 +15,7 @@ import {
 } from "@/lib/personaliseCards";
 
 const SectionHeader = ({ title }: { title: string }) => (
-  <p className="mb-3 font-display text-[24px] text-vyva-text-1">
+  <p className="vyva-section-title mb-3">
     {title}
   </p>
 );
@@ -303,7 +303,7 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="px-[22px] pb-4">
+    <div className="vyva-page">
       <VoiceHero
         headline={
           <span className="block">{greetingText}</span>
@@ -315,13 +315,13 @@ const HomeScreen = () => {
 
       <div ref={chatRef} className="mt-[22px]">
         <p className="font-body text-[16px] font-semibold text-vyva-text-2 mb-4">¿Qué hacemos ahora?</p>
-        <div className="grid grid-cols-2 gap-[10px]">
+        <div className="grid grid-cols-2 gap-3">
           {QUICK_TILES.map((tile) => (
             <button
               key={tile.path}
               data-testid={`button-home-quick-${tile.path.replace("/", "")}`}
               onClick={() => tile.path && handleNavigate(tile.path)}
-              className="min-w-0 flex flex-col items-start gap-3 rounded-[24px] px-4 py-4 border transition-all active:scale-[0.975] active:shadow-[0_3px_14px_rgba(0,0,0,0.08)]"
+              className="vyva-tap min-w-0 flex flex-col items-start gap-3 rounded-[26px] border px-4 py-4 text-left transition-all active:shadow-[0_3px_14px_rgba(0,0,0,0.08)]"
               style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.05)", background: "#FFFCF8", borderColor: "#EDE2D1" }}
             >
               <div
@@ -330,10 +330,10 @@ const HomeScreen = () => {
               >
                 <tile.icon size={26} style={{ color: tile.iconColor }} />
               </div>
-              <span className="font-body text-[15px] font-semibold text-vyva-text-1 leading-tight text-left">
+              <span className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
                 {tile.label}
               </span>
-              <span className="font-body text-[12px] text-vyva-text-2 leading-tight text-left">
+              <span className="font-body text-[13px] leading-snug text-vyva-text-2">
                 {tile.hint}
               </span>
             </button>
@@ -345,19 +345,18 @@ const HomeScreen = () => {
         <SectionHeader title={t("home.todayForYou.sectionTitle")} />
         <div
           ref={carouselRef}
-          className="flex gap-3 overflow-x-auto pb-2 -mx-[22px] px-[22px]"
+          className="grid grid-cols-1 gap-3"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           data-testid="carousel-today-for-you"
           onMouseDown={pauseAndResume}
           onTouchStart={pauseAndResume}
         >
-          {orderedCards.map((card) => (
+          {orderedCards.slice(0, 3).map((card) => (
             <div
               key={card.id}
               data-testid={`card-today-for-you-${card.id}`}
-              className="flex-shrink-0 flex flex-col rounded-[24px] overflow-hidden"
+              className="flex flex-col overflow-hidden rounded-[26px]"
               style={{
-                width: "220px",
                 background: card.bg,
                 border: "1px solid #EDE2D1",
                 boxShadow: "0 2px 10px rgba(0,0,0,0.05)",

@@ -76,9 +76,64 @@
     @apply bg-background text-foreground;
     font-family: 'DM Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Lora', serif;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 3px solid rgba(107, 33, 168, 0.32);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .vyva-page {
+    @apply px-[22px] pb-8;
+  }
+
+  .vyva-section-title {
+    @apply font-display italic font-normal text-[22px] leading-tight text-vyva-text-1;
+  }
+
+  .vyva-card {
+    @apply rounded-[26px] border border-vyva-border bg-white shadow-vyva-card;
+  }
+
+  .vyva-tap {
+    @apply min-h-[56px] transition-all active:scale-[0.975] disabled:opacity-60;
+  }
+
+  .vyva-primary-action {
+    @apply vyva-tap inline-flex items-center justify-center gap-2 rounded-full bg-vyva-purple px-5 py-3 font-body text-[16px] font-semibold text-white;
+  }
+
+  .vyva-secondary-action {
+    @apply vyva-tap inline-flex items-center justify-center gap-2 rounded-full border border-vyva-border bg-white px-5 py-3 font-body text-[16px] font-semibold text-vyva-text-1;
+  }
+
+  .vyva-readable {
+    @apply font-body text-[16px] leading-[1.65] text-vyva-text-2;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

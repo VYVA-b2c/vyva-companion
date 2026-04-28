@@ -18,10 +18,10 @@ const BottomNav = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-vyva-border z-50"
-      style={{ height: 72 }}
+      className="fixed bottom-0 left-1/2 z-50 w-full max-w-[520px] -translate-x-1/2 border-t border-vyva-border bg-white/95 shadow-[0_-8px_28px_rgba(63,45,35,0.08)] backdrop-blur"
+      style={{ height: 88 }}
     >
-      <div className="flex items-center justify-around h-full px-1">
+      <div className="flex h-full items-center justify-around px-1.5">
         {tabs.map((tab) => {
           const active = location.pathname === tab.path;
           const Icon = tab.icon;
@@ -32,21 +32,21 @@ const BottomNav = () => {
               key={tab.path}
               data-testid={`nav-tab-${tab.labelKey.replace("nav.", "")}`}
               onClick={() => navigate(tab.path)}
-              className="flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[56px] relative"
+              className="relative flex min-h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-[18px]"
             >
               <div
-                className={`flex items-center justify-center w-14 h-8 rounded-full transition-all ${
-                  active ? "bg-vyva-purple-light" : ""
+                className={`flex h-9 w-14 items-center justify-center rounded-full transition-all ${
+                  active ? "bg-vyva-purple-light shadow-sm" : ""
                 }`}
               >
                 <Icon
-                  size={22}
+                  size={23}
                   className={active ? "text-vyva-purple" : "text-vyva-text-3"}
                   strokeWidth={active ? 2.2 : 1.8}
                 />
               </div>
               <span
-                className={`font-body text-[9px] font-medium transition-colors leading-tight text-center ${
+                className={`max-w-[62px] text-center font-body text-[10.5px] font-semibold leading-tight transition-colors ${
                   active ? "text-vyva-purple" : "text-vyva-text-3"
                 }`}
               >
@@ -54,7 +54,7 @@ const BottomNav = () => {
               </span>
               {subtitle && (
                 <span
-                  className={`font-body text-[7px] leading-none text-center -mt-0.5 ${
+                  className={`hidden font-body text-[7px] leading-none text-center -mt-0.5 ${
                     active ? "text-vyva-purple opacity-80" : "text-vyva-text-3 opacity-60"
                   }`}
                   data-testid={`nav-tab-subtitle-${tab.labelKey.replace("nav.", "")}`}

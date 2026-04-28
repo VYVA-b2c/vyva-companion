@@ -474,7 +474,7 @@ const HealthScreen = () => {
 
   return (
     <>
-      <div className="px-[22px] pb-8">
+      <div className="vyva-page">
 
         {/* ── 1. Hero ── */}
         <VoiceHero
@@ -501,7 +501,7 @@ const HealthScreen = () => {
           <button
             data-testid="button-hero-revisar"
             onClick={() => navigate("/health/symptom-check")}
-            className="mt-[14px] w-full py-[11px] rounded-full font-body text-[14px] font-semibold transition-all active:scale-95"
+            className="mt-[14px] min-h-[56px] w-full rounded-full py-[13px] font-body text-[16px] font-semibold transition-all active:scale-95"
             style={{ background: "rgba(255,255,255,0.18)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.28)" }}
           >
             Revisar cómo me siento
@@ -510,16 +510,16 @@ const HealthScreen = () => {
 
         {/* ── 2. Acceso rápido (2×2 grid) ── */}
         <div className="mt-[22px]">
-          <p className="font-body text-[15px] font-semibold tracking-wider text-vyva-text-2 mb-3">
+          <p className="vyva-section-title mb-3">
             Acceso rápido
           </p>
-          <div className="grid grid-cols-2 gap-[10px]">
+          <div className="grid grid-cols-2 gap-3">
             {QUICK_TILES.map((tile) => (
               <button
                 key={tile.id}
                 data-testid={`button-health-quick-${tile.id}`}
                 onClick={tile.action}
-                className="min-w-0 flex flex-col items-center gap-2 bg-white rounded-[22px] px-4 py-3.5 border border-vyva-border transition-all active:scale-[0.975]"
+                className="vyva-tap min-w-0 flex flex-col items-center gap-2 rounded-[24px] border border-vyva-border bg-white px-4 py-4 transition-all"
                 style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
               >
                 <div
@@ -528,10 +528,10 @@ const HealthScreen = () => {
                 >
                   <tile.Icon size={26} style={{ color: tile.iconColor }} />
                 </div>
-                <span className="font-body text-[15px] font-semibold text-vyva-text-1 leading-tight text-center">
+                <span className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1 text-center">
                   {tile.label}
                 </span>
-                <span className="font-body text-[12px] text-vyva-text-2 leading-tight text-center">
+                <span className="font-body text-[13px] leading-snug text-vyva-text-2 text-center">
                   {tile.hint}
                 </span>
               </button>
@@ -542,7 +542,7 @@ const HealthScreen = () => {
 
         {/* ── 3. Acciones rápidas ── */}
         <div className="mt-[24px]">
-          <p className="font-body text-[15px] font-semibold tracking-wider text-vyva-text-2 mb-3">
+          <p className="vyva-section-title mb-3">
             Acciones rápidas
           </p>
 
@@ -550,7 +550,7 @@ const HealthScreen = () => {
 
             {/* Ver a un médico */}
             <div
-              className="rounded-[20px] overflow-hidden"
+              className="vyva-card overflow-hidden"
               style={{ background: "#FFFFFF", border: "1px solid #EDE5DB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
             >
               <div className="flex items-center gap-3 px-[18px] py-[16px]">
@@ -564,7 +564,7 @@ const HealthScreen = () => {
                 <button
                   data-testid="button-see-doctor"
                   onClick={() => setSeeDoctorOpen((v) => !v)}
-                  className="flex-shrink-0 px-[16px] py-[8px] rounded-full font-body text-[13px] font-semibold transition-all active:scale-95"
+                  className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all"
                   style={{ background: "#F0FDF4", color: "#0A7C4E", border: "1px solid #BBF7D0" }}
                 >
                   Reservar
@@ -593,7 +593,7 @@ const HealthScreen = () => {
 
             {/* Escanear herida */}
             <div
-              className="rounded-[20px] overflow-hidden"
+              className="vyva-card overflow-hidden"
               style={{ background: "#FFFFFF", border: "1px solid #EDE5DB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
             >
               <div className="flex items-center gap-3 px-[18px] py-[16px]">
@@ -608,7 +608,7 @@ const HealthScreen = () => {
                   data-testid="button-scan-wound"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={woundAnalyzing}
-                  className="flex-shrink-0 px-[16px] py-[8px] rounded-full font-body text-[13px] font-semibold transition-all active:scale-95"
+                  className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all"
                   style={{ background: "#FFFBEB", color: "#C9890A", border: "1px solid #FDE68A" }}
                 >
                   {woundAnalyzing ? "Analizando…" : "Empezar"}
@@ -783,7 +783,7 @@ const HealthScreen = () => {
 
             {/* Encontrar especialista */}
             <div
-              className="rounded-[20px] overflow-hidden"
+              className="vyva-card overflow-hidden"
               style={{ background: "#FFFFFF", border: "1px solid #EDE5DB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
             >
               <div className="flex items-center gap-3 px-[18px] py-[16px]">
@@ -797,7 +797,7 @@ const HealthScreen = () => {
                 <button
                   data-testid="button-find-specialist"
                   onClick={() => { setSpecialistOpen((v) => !v); setSpecialistResult(null); }}
-                  className="flex-shrink-0 px-[16px] py-[8px] rounded-full font-body text-[13px] font-semibold transition-all active:scale-95"
+                  className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all"
                   style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
                 >
                   Ver opciones
@@ -806,7 +806,7 @@ const HealthScreen = () => {
 
               {specialistOpen && (
                 <div className="px-[18px] pb-[16px]" style={{ borderTop: "1px solid #F5F3FF" }}>
-                  <p className="font-body text-[13px] text-vyva-text-2 leading-snug pt-[14px]">
+                  <p className="pt-[14px] font-body text-[15px] leading-relaxed text-vyva-text-2">
                     Describe la condicion o preocupacion. VYVA buscara el tipo de especialista adecuado y opciones cercanas.
                   </p>
                   <div className="flex flex-wrap gap-2 pt-[12px] pb-[10px]">
@@ -815,7 +815,7 @@ const HealthScreen = () => {
                         key={example}
                         data-testid={`chip-specialist-example-${example}`}
                         onClick={() => setSpecialistCondition(example)}
-                        className="px-[12px] py-[6px] rounded-full font-body text-[13px] font-medium transition-colors"
+                        className="vyva-tap rounded-full px-[14px] py-[8px] font-body text-[14px] font-medium transition-colors"
                         style={{ background: "#EDE9FE", color: "#7C3AED" }}
                       >
                         {example}
@@ -827,7 +827,7 @@ const HealthScreen = () => {
                       data-testid="button-specialist-voice-search"
                       onClick={specialistVoiceListening ? stopSpecialistVoice : startSpecialistVoice}
                       disabled={specialistMutation.isPending}
-                      className={`w-full flex items-center justify-center gap-2 rounded-[16px] px-[14px] py-[12px] font-body text-[14px] font-semibold transition-all active:scale-95 ${specialistVoiceListening ? "mic-pulse-listening" : ""}`}
+                      className={`vyva-tap flex w-full items-center justify-center gap-2 rounded-[18px] px-[14px] py-[13px] font-body text-[15px] font-semibold transition-all ${specialistVoiceListening ? "mic-pulse-listening" : ""}`}
                       style={{
                         background: specialistVoiceListening ? "#ECFDF5" : "#F5F3FF",
                         color: specialistVoiceListening ? "#0A7C4E" : "#7C3AED",
@@ -842,7 +842,7 @@ const HealthScreen = () => {
                       value={specialistCondition}
                       onChange={(e) => setSpecialistCondition(e.target.value)}
                       placeholder="Ej. dolor de rodilla, diabetes, memoria..."
-                      className="w-full rounded-[14px] px-[14px] py-[11px] font-body text-[14px] outline-none"
+                      className="w-full rounded-[16px] px-[16px] py-[13px] font-body text-[16px] outline-none"
                       style={{ border: "1px solid #DDD6FE", background: "#FFFFFF", color: "#2F2925" }}
                     />
                     <input
@@ -850,14 +850,14 @@ const HealthScreen = () => {
                       value={specialistLocation}
                       onChange={(e) => setSpecialistLocation(e.target.value)}
                       placeholder="Ciudad o zona"
-                      className="w-full rounded-[14px] px-[14px] py-[11px] font-body text-[14px] outline-none"
+                      className="w-full rounded-[16px] px-[16px] py-[13px] font-body text-[16px] outline-none"
                       style={{ border: "1px solid #EDE5DB", background: "#FFFFFF", color: "#2F2925" }}
                     />
                     <button
                       data-testid="button-run-specialist-search"
                       onClick={runSpecialistSearch}
                       disabled={specialistMutation.isPending}
-                      className="w-full px-[14px] py-[11px] rounded-full font-body text-[14px] font-semibold transition-all active:scale-95 disabled:opacity-60"
+                      className="vyva-primary-action w-full"
                       style={{ background: "#7C3AED", color: "#FFFFFF" }}
                     >
                       {specialistMutation.isPending ? "Buscando especialistas..." : "Buscar especialistas"}

@@ -638,7 +638,7 @@ const ConciergeScreen = () => {
   const queuedActionCount = Math.max(0, pendingActions.length - 1);
 
   return (
-    <div className="px-[22px] pb-6">
+    <div className="vyva-page">
       <VoiceHero
         sourceText={t("concierge.voiceSource")}
         headline={t("concierge.headline")}
@@ -648,7 +648,7 @@ const ConciergeScreen = () => {
 
       <section className="mt-5" data-testid="section-concierge-active-task">
         <div className="flex items-center justify-between mb-[10px]">
-          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
+          <h2 className="vyva-section-title">
             {isSpanish ? "Ahora mismo" : "Right now"}
           </h2>
           {queuedActionCount > 0 && (
@@ -667,7 +667,7 @@ const ConciergeScreen = () => {
           </div>
         ) : !activeAction ? (
           <div
-            className="rounded-[24px] border border-vyva-border bg-white p-[18px]"
+            className="vyva-card p-[18px]"
             style={{ boxShadow: "0 10px 30px rgba(107,33,168,0.08)" }}
           >
             <div className="flex items-start gap-4">
@@ -688,7 +688,7 @@ const ConciergeScreen = () => {
           </div>
         ) : (
           <div
-            className="rounded-[26px] border border-vyva-border bg-white p-[18px]"
+            className="vyva-card p-[18px]"
             style={{ boxShadow: "0 14px 38px rgba(107,33,168,0.12)" }}
           >
             <div className="flex items-start justify-between gap-3">
@@ -736,7 +736,7 @@ const ConciergeScreen = () => {
                   data-testid={`button-concierge-confirm-${activeAction.id}`}
                   onClick={() => confirmMutation.mutate(activeAction)}
                   disabled={confirmMutation.isPending || cancelMutation.isPending}
-                  className="h-[48px] rounded-full bg-vyva-purple px-5 font-body text-[15px] hover:bg-vyva-purple/90"
+                  className="vyva-primary-action h-auto hover:bg-vyva-purple/90"
                 >
                   <PhoneCall size={16} className="mr-2" />
                   {!activeAction.provider_phone && getBookingUrl(activeAction)
@@ -748,7 +748,7 @@ const ConciergeScreen = () => {
                   onClick={() => cancelMutation.mutate(activeAction.id)}
                   disabled={confirmMutation.isPending || cancelMutation.isPending}
                   variant="outline"
-                  className="h-[48px] rounded-full px-5 font-body text-[15px]"
+                  className="vyva-secondary-action h-auto"
                 >
                   {isSpanish ? "Cancelar" : "Cancel"}
                 </Button>
@@ -759,7 +759,7 @@ const ConciergeScreen = () => {
       </section>
 
       <section className="mt-6">
-        <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mb-[10px]">
+        <h2 className="vyva-section-title mb-[10px]">
           {t("concierge.quickActions")}
         </h2>
         <div className="grid grid-cols-2 gap-3">
@@ -769,7 +769,7 @@ const ConciergeScreen = () => {
               data-testid={`button-concierge-action-${key}`}
               onClick={() => handleQuickAction(key)}
               disabled={chatLoading}
-              className="flex min-h-[108px] flex-col items-start justify-between rounded-[22px] border border-vyva-border bg-white p-[15px] text-left disabled:opacity-50"
+              className="vyva-tap flex min-h-[118px] flex-col items-start justify-between rounded-[24px] border border-vyva-border bg-white p-[16px] text-left disabled:opacity-50"
               style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
             >
               <div
@@ -778,7 +778,7 @@ const ConciergeScreen = () => {
               >
                 <Icon size={19} style={{ color }} />
               </div>
-              <span className="font-body text-[14px] font-semibold leading-tight text-vyva-text-1">
+              <span className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
                 {t(`concierge.actions.${key}`)}
               </span>
             </button>
@@ -787,7 +787,7 @@ const ConciergeScreen = () => {
       </section>
 
       <section className="mt-6">
-        <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1 mb-[10px]">
+        <h2 className="vyva-section-title mb-[10px]">
           {isSpanish ? "Herramientas de ayuda" : "Help tools"}
         </h2>
         <div className="space-y-3">
@@ -850,7 +850,7 @@ const ConciergeScreen = () => {
 
       <section className="mt-6">
         <div className="flex items-center justify-between mb-[10px]">
-          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
+          <h2 className="vyva-section-title">
             {t("concierge.forYouToday")}
           </h2>
           <button
