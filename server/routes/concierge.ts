@@ -697,35 +697,39 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     requiresLocation: true,
   },
   {
-    id: "home_based_hobby",
-    category: "activity",
-    emoji: "☕",
-    title: { en: "A hobby at home", es: "Un plan en casa" },
+    id: "interest_based_local_plan",
+    category: "event",
+    emoji: "🎟️",
+    title: { en: "A real plan from your interests", es: "Un plan real segun tus gustos" },
     description: {
-      en: "VYVA can shape one saved interest into an easy activity at home.",
-      es: "VYVA puede convertir un interes guardado en una actividad sencilla en casa.",
+      en: "VYVA can turn one saved interest into a nearby place or event to check.",
+      es: "VYVA puede convertir un gusto guardado en un sitio o evento cercano para revisar.",
     },
     why: {
-      en: "It uses saved interests without needing travel or effort.",
-      es: "Usa tus intereses guardados sin exigir desplazamiento ni esfuerzo.",
+      en: "It starts from the user's interests, but must become a real option with practical details.",
+      es: "Parte de tus gustos, pero debe terminar en una opcion real con datos utiles.",
     },
     details: {
-      en: "This works well for reading, music, cooking ideas, family calls, puzzles, or learning something new.",
-      es: "Puede servir para lectura, musica, cocina sencilla, llamadas familiares, pasatiempos o aprender algo nuevo.",
+      en: "The plan should include where it is, how to get there, likely cost, timings, accessibility, and whether VYVA should call or book.",
+      es: "El plan debe incluir donde es, como llegar, coste aproximado, horarios, accesibilidad y si VYVA debe llamar o reservar.",
     },
     steps: {
-      en: ["Pick one interest", "Choose a short version", "Let VYVA guide it"],
-      es: ["Elegir un interes", "Hacer una version corta", "Dejar que VYVA guie"],
+      en: ["Pick the interest", "Find a nearby real option", "Check timing, cost, and access"],
+      es: ["Elegir el gusto", "Encontrar una opcion cercana", "Revisar horario, coste y acceso"],
     },
-    actionLabel: { en: "Guide me", es: "Guiame" },
+    actionLabel: { en: "Build plan", es: "Crear plan" },
     actionPrompt: {
-      en: "Suggest an easy home activity based on my interests.",
-      es: "Sugiere una actividad sencilla en casa basada en mis intereses.",
+      en: "Build a practical local plan based on one of my saved interests.",
+      es: "Crea un plan local practico basado en uno de mis gustos guardados.",
     },
-    safetyNote: { en: "", es: "" },
-    tags: ["home", "hobby", "music", "reading", "cooking", "family", "casa", "lectura", "musica"],
-    physicalDemand: "none",
-    outdoorExposure: "none",
+    safetyNote: {
+      en: "Avoid generic home activities. Use a real place, route, time, or booking next step.",
+      es: "Evita actividades genericas en casa. Usa un sitio, ruta, horario o siguiente paso real.",
+    },
+    tags: ["museum", "music", "reading", "culture", "class", "club", "event", "arte", "musica", "lectura", "cultura"],
+    physicalDemand: "low",
+    outdoorExposure: "some",
+    requiresLocation: true,
     requiresInterests: true,
   },
   {
@@ -816,12 +820,12 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
       es: "Evita proponer el plan equivocado cuando el tiempo o la movilidad piden prudencia.",
     },
     details: {
-      en: "If outdoors is not ideal, VYVA can suggest a home activity, a phone call, or a short errand with transport.",
-      es: "Si salir no conviene, VYVA puede sugerir algo en casa, una llamada o un recado breve con transporte.",
+      en: "If outdoors is not ideal, VYVA can find a specific indoor place, nearby errand, or transport-friendly option.",
+      es: "Si salir no conviene, VYVA puede encontrar un sitio interior concreto, un recado cercano o una opcion facil con transporte.",
     },
     steps: {
-      en: ["Check today's weather", "Choose indoor or easy nearby", "Let VYVA guide it"],
-      es: ["Mirar el tiempo", "Elegir casa o algo cercano", "Dejar que VYVA guie"],
+      en: ["Check today's weather", "Find a specific nearby option", "Review route, hours, and access"],
+      es: ["Mirar el tiempo", "Encontrar una opcion cercana", "Revisar ruta, horario y acceso"],
     },
     actionLabel: { en: "Make a plan", es: "Crear plan" },
     actionPrompt: {
@@ -961,9 +965,9 @@ function scoreCandidate(
     score += 10;
     reasons.push("mobility_safe");
   }
-  if (context.socialActivityLevel === "low" && candidate.id === "home_based_hobby") {
-    score += 10;
-    reasons.push("low_social_pressure");
+  if (candidate.id === "interest_based_local_plan" && context.interests.length > 0 && (context.city || context.region)) {
+    score += 16;
+    reasons.push("real_world_plan");
   }
   if (context.recommendationFeedback.likedIds.includes(candidate.id)) {
     score += 18;
@@ -1091,6 +1095,7 @@ function signalLabelsFor(ranked: RankedRecommendationCandidate, context: UserPro
     mobility_safe: es ? "bajo esfuerzo" : "low effort",
     low_social_pressure: es ? "sin presion social" : "low social pressure",
     social_nudge: es ? "contacto social" : "social connection",
+    real_world_plan: es ? "plan ejecutable" : "executable plan",
     weather_safe: es ? "tiempo poco favorable" : "weather-safe",
     weather_comfort: es ? "comodidad segun clima" : "weather comfort",
     previously_liked: es ? "te intereso antes" : "liked before",
@@ -1150,9 +1155,10 @@ function actionPayloadFor(
       flow: "repeat_concierge_task",
       needs: ["recent_task", "saved_provider", "missing_details", "confirmation_summary"],
     },
-    home_based_hobby: {
-      flow: "guided_home_activity",
-      needs: ["saved_interests", "materials_needed", "short_guided_steps", "low_effort_variant"],
+    interest_based_local_plan: {
+      flow: "interest_based_local_plan",
+      needs: ["nearby_place_or_event", "opening_hours", "price_or_entry_cost", "route_or_transport", "accessibility", "booking_or_call_next_step"],
+      search_terms: [context.interests[0], "accessible activity", "event", context.city].filter(Boolean),
     },
     health_admin_next_step: {
       flow: "health_admin_planning",
@@ -1165,7 +1171,8 @@ function actionPayloadFor(
     },
     weather_comfort_plan: {
       flow: "weather_comfort_plan",
-      needs: ["weather", "mobility_fit", "indoor_or_nearby_options", "simple_instructions"],
+      needs: ["weather", "mobility_fit", "specific_place_or_errand", "opening_hours_if_relevant", "route_or_transport", "accessibility"],
+      search_terms: ["accessible indoor activity", "community centre", context.city].filter(Boolean),
     },
     family_check_in: {
       flow: "social_check_in",
@@ -1493,39 +1500,39 @@ async function buildRecommendationActionPlan(
 
 const FALLBACK_RECOMMENDATIONS: RecommendationCard[] = [
   {
-    title: "Plan a gentle outing",
-    description: "VYVA can suggest a nearby, low-effort activity that fits your day.",
+    title: "Check a nearby visit",
+    description: "VYVA can find one concrete nearby place and check hours, access, route, and cost.",
     category: "activity",
     emoji: "✨",
-    why: "It can be adapted to your mobility, location, and preferences.",
-    details: "Choose something short, nearby, and easy to pause. VYVA can help check access, timing, and transport before you go.",
-    steps: ["Choose a type of outing", "Check access and timing", "Arrange transport if needed"],
-    action_label: "Plan it",
-    action_prompt: "Help me plan a gentle nearby activity for today.",
-    safety_note: "Keep it low effort and stop if you feel unwell.",
+    why: "A useful suggestion needs practical details before it is worth doing.",
+    details: "VYVA should turn this into a real place with address, opening hours, price information, transport, and accessibility notes.",
+    steps: ["Choose the place type", "Check real details", "Confirm transport or booking"],
+    action_label: "Build plan",
+    action_prompt: "Find one nearby place and build a practical plan with hours, price, route, and accessibility.",
+    safety_note: "Confirm times and access before leaving.",
   },
   {
-    title: "Check local savings",
-    description: "VYVA can look for useful local discounts before your next errand.",
+    title: "Compare a real errand",
+    description: "VYVA can compare one useful local errand before you go.",
     category: "deal",
     emoji: "🛒",
-    why: "Small savings are most useful when they match shops nearby.",
-    details: "Ask VYVA to check supermarkets, pharmacies, or community offers in your area. Keep only the offers that are practical to reach.",
-    steps: ["Pick a shop type", "Check nearby offers", "Save the useful ones"],
-    action_label: "Find offers",
-    action_prompt: "Find practical local offers near me today.",
+    why: "The value is in real opening times, distance, price, and whether it is worth the trip.",
+    details: "No generic promotions. VYVA should check a concrete local option and present only useful facts.",
+    steps: ["Pick the errand", "Check nearby options", "Choose the practical one"],
+    action_label: "Compare",
+    action_prompt: "Compare one practical local errand with route, opening hours, and price guidance.",
     safety_note: "",
   },
   {
-    title: "Make today easier",
-    description: "VYVA can turn one small chore into a simple step-by-step plan.",
+    title: "Prepare one useful call",
+    description: "VYVA can prepare a practical call, booking, or confirmation you may need.",
     category: "tip",
     emoji: "📝",
-    why: "Practical help is often better than generic advice.",
-    details: "Pick one thing that feels mildly annoying today. VYVA can break it into steps or make a call if needed.",
-    steps: ["Name the task", "Break it down", "Ask VYVA to help"],
-    action_label: "Guide me",
-    action_prompt: "Help me turn one task today into simple steps.",
+    why: "A call or booking is more useful than a vague suggestion.",
+    details: "VYVA can gather the phone number, what to ask, what to confirm, and the exact summary before calling.",
+    steps: ["Choose the task", "Prepare details", "Confirm before calling"],
+    action_label: "Prepare",
+    action_prompt: "Prepare one useful call or booking with the details needed before confirmation.",
     safety_note: "",
   },
   {
