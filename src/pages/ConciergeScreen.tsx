@@ -317,6 +317,7 @@ const ConciergeScreen = () => {
   const [chatError, setChatError] = useState<string | null>(null);
   const reqIdRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const chatSectionRef = useRef<HTMLElement>(null);
   const currentLocaleRef = useRef(i18n.language);
   const saveReadyRef = useRef(false);
   const shownRecIdsRef = useRef<Set<string>>(new Set());
@@ -499,6 +500,7 @@ const ConciergeScreen = () => {
   }
 
   function handleRecommendationAction(card: RecommendationCard) {
+    if (chatLoading) return;
     const prompt = buildRecommendationActionPrompt(card, isSpanish) || card.action_prompt || card.description;
     const visibleText = isSpanish
       ? `Ayudame con "${card.title}".`
@@ -509,6 +511,9 @@ const ConciergeScreen = () => {
     setMessages(nextHistory);
     setInput("");
     setSelectedRec(null);
+    window.setTimeout(() => {
+      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
     sendMessage(prompt, nextHistory);
   }
 
@@ -1088,7 +1093,7 @@ const ConciergeScreen = () => {
         )}
       </section>
 
-      <section className="mt-6 mb-4">
+      <section ref={chatSectionRef} className="mt-6 mb-4">
         <div className="flex items-center justify-between mb-[10px]">
           <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
             {isSpanish ? "Tambien puedes escribir" : "You can also type"}
