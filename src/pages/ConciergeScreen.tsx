@@ -38,6 +38,12 @@ interface RecommendationCard {
   description: string;
   category: "deal" | "event" | "tip" | "activity";
   emoji: string;
+  why?: string;
+  details?: string;
+  steps?: string[];
+  action_label?: string;
+  action_prompt?: string;
+  safety_note?: string;
 }
 
 interface ConciergePendingItem {
@@ -119,9 +125,8 @@ async function callConcierge(
 }
 
 async function fetchRecommendations(locale: string): Promise<RecommendationCard[]> {
-  const res = await fetch("/api/concierge/recommendations", {
+  const res = await apiFetch("/api/concierge/recommendations", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ locale }),
   });
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -241,6 +246,7 @@ const ConciergeScreen = () => {
 
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
+  const [selectedRec, setSelectedRec] = useState<RecommendationCard | null>(null);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -404,6 +410,12 @@ const ConciergeScreen = () => {
     const prompt = t(`concierge.prompts.${key}`);
     if (!prompt) return;
     setInput(prompt);
+  }
+
+  function handleRecommendationAction(card: RecommendationCard) {
+    const prompt = card.action_prompt || card.description;
+    setInput(prompt);
+    setSelectedRec(null);
   }
 
   const activeAction = pendingActions[0];
@@ -655,10 +667,11 @@ const ConciergeScreen = () => {
             {recs.slice(0, 3).map((card, i) => {
               const colors = getCategoryColors(card.category);
               return (
-                <div
+                <button
                   key={i}
                   data-testid={`card-concierge-rec-${i}`}
-                  className="rounded-[20px] border bg-white p-[16px]"
+                  onClick={() => setSelectedRec(card)}
+                  className="w-full rounded-[20px] border bg-white p-[16px] text-left transition-transform active:scale-[0.99]"
                   style={{
                     borderColor: colors.border,
                     boxShadow: "0 2px 12px rgba(107,33,168,0.07)",
@@ -678,11 +691,105 @@ const ConciergeScreen = () => {
                       <p className="mt-1 font-body text-[13px] text-vyva-text-2 leading-relaxed">
                         {card.description}
                       </p>
+                      <p className="mt-2 font-body text-[12px] font-semibold" style={{ color: "#6B21A8" }}>
+                        {isSpanish ? "Ver guia" : "View guide"}
+                      </p>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
+          </div>
+        )}
+
+        {selectedRec && (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-black/30 px-[14px] pb-[14px]"
+            role="dialog"
+            aria-modal="true"
+            data-testid="dialog-concierge-rec-detail"
+            onClick={() => setSelectedRec(null)}
+          >
+            <div
+              className="w-full rounded-[28px] border border-vyva-border bg-white p-[20px]"
+              style={{ boxShadow: "0 18px 50px rgba(0,0,0,0.22)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[18px] text-[26px]"
+                  style={{ background: getCategoryColors(selectedRec.category).bg }}
+                >
+                  {selectedRec.emoji}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
+                    {selectedRec.title}
+                  </p>
+                  <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                    {selectedRec.why || selectedRec.description}
+                  </p>
+                </div>
+                <button
+                  data-testid="button-close-rec-detail"
+                  onClick={() => setSelectedRec(null)}
+                  className="rounded-full bg-[#F5F1EC] px-3 py-1 font-body text-[15px] text-vyva-text-2"
+                >
+                  x
+                </button>
+              </div>
+
+              {selectedRec.details && (
+                <p className="mt-5 font-body text-[14px] leading-relaxed text-vyva-text-1">
+                  {selectedRec.details}
+                </p>
+              )}
+
+              {selectedRec.steps && selectedRec.steps.length > 0 && (
+                <div className="mt-5 space-y-2">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                    {isSpanish ? "Como disfrutarlo" : "How to enjoy it"}
+                  </p>
+                  {selectedRec.steps.map((step, index) => (
+                    <div key={`${step}-${index}`} className="flex gap-3 rounded-[16px] bg-[#FBF8F4] p-3">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <p className="font-body text-[13px] leading-relaxed text-vyva-text-1">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedRec.safety_note && (
+                <div className="mt-4 rounded-[16px] border border-[#FCD34D] bg-[#FFFBEB] p-3">
+                  <p className="font-body text-[12px] font-semibold text-[#92400E]">
+                    {isSpanish ? "Nota de cuidado" : "Care note"}
+                  </p>
+                  <p className="mt-1 font-body text-[13px] leading-relaxed text-[#78350F]">
+                    {selectedRec.safety_note}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 flex gap-2">
+                <Button
+                  data-testid="button-rec-action"
+                  onClick={() => handleRecommendationAction(selectedRec)}
+                  className="h-[46px] flex-1 rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
+                >
+                  {selectedRec.action_label || (isSpanish ? "Ayudame" : "Help me")}
+                </Button>
+                <Button
+                  data-testid="button-rec-dismiss"
+                  onClick={() => setSelectedRec(null)}
+                  variant="outline"
+                  className="h-[46px] rounded-full px-5 font-body text-[14px]"
+                >
+                  {isSpanish ? "Cerrar" : "Close"}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </section>
