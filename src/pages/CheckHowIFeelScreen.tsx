@@ -13,6 +13,7 @@ import {
   Loader2,
   MessageCircle,
   ShieldCheck,
+  Share2,
   Sparkles,
   Sun,
   UserRound,
@@ -385,6 +386,26 @@ function resultVisualFor(state: CheckinResult["overall_state"]) {
   }
 }
 
+function shareTextFor(name: string, result: CheckinResult) {
+  const rightNow = result.right_now.slice(0, 3).map((item) => `- ${item}`).join("\n");
+  const today = result.today_actions.slice(0, 3).map((item) => `- ${item}`).join("\n");
+  return [
+    `Lectura VYVA de hoy para ${name || "mí"}`,
+    "",
+    result.feeling_label,
+    result.vyva_reading,
+    "",
+    `Lo importante: ${result.highlight}`,
+    "",
+    "Ahora mismo:",
+    rightNow,
+    "",
+    "Para hoy:",
+    today,
+    result.watch_for ? `\nTen en cuenta: ${result.watch_for}` : "",
+  ].filter(Boolean).join("\n");
+}
+
 const CheckHowIFeelScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -482,6 +503,26 @@ const CheckHowIFeelScreen = () => {
     setAnswers(initialAnswers);
     setResult(null);
     setStep("welcome");
+  };
+
+  const shareResult = async () => {
+    if (!result) return;
+    const text = shareTextFor(name, result);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Mi lectura VYVA de hoy", text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        toast({ description: "Resultado copiado para compartir." });
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({ description: "Resultado copiado para compartir." });
+      } catch {
+        toast({ description: "No he podido compartir el resultado ahora mismo." });
+      }
+    }
   };
 
   return (
@@ -696,6 +737,10 @@ const CheckHowIFeelScreen = () => {
             Gracias por hacerlo. Este pequeño hábito ayuda a VYVA a cuidarte mejor cada día.
           </p>
           <div className="mt-6 grid gap-3">
+            <button onClick={shareResult} className="vyva-secondary-action min-h-[68px] w-full text-[19px]">
+              <Share2 size={19} className="mr-2" />
+              Compartir resultado
+            </button>
             <button onClick={() => navigate("/health")} className="vyva-primary-action min-h-[72px] w-full text-[20px]">
               Gracias, VYVA
             </button>
