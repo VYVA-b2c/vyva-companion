@@ -37,6 +37,13 @@ interface UserProfileContext {
   activeMedications: string[];
   recentActivityTypes: string[];
   recentConciergeUseCases: string[];
+  pendingConciergeUseCases: string[];
+  upcomingReminders: Array<{
+    reminder_type?: string;
+    title?: string;
+    reminder_date?: string;
+    source_use_case?: string;
+  }>;
   socialActivityLevel: string;
   preferredTimes: string[];
   recommendationFeedback: RecommendationFeedbackSummary;
@@ -122,6 +129,12 @@ export interface RecommendationCard {
   action_label?: string;
   action_prompt?: string;
   safety_note?: string;
+  best_time?: string;
+  effort?: "none" | "low" | "medium";
+  freshness?: string;
+  personal_signals?: string[];
+  action_kind?: "chat" | "call" | "booking" | "check" | "plan";
+  location_hint?: string;
   score?: number;
   reason_codes?: string[];
 }
@@ -155,6 +168,8 @@ function emptyProfileContext(): UserProfileContext {
     activeMedications: [],
     recentActivityTypes: [],
     recentConciergeUseCases: [],
+    pendingConciergeUseCases: [],
+    upcomingReminders: [],
     socialActivityLevel: "moderate",
     preferredTimes: [],
     recommendationFeedback: {
@@ -304,7 +319,17 @@ async function getWeatherContext(context: UserProfileContext): Promise<WeatherCo
 async function getUserProfile(userId: string): Promise<UserProfileContext> {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [profileRows, companionRows, socialRows, medicationRows, activityRows, conciergeRows, feedbackSummary] = await Promise.all([
+    const [
+      profileRows,
+      companionRows,
+      socialRows,
+      medicationRows,
+      activityRows,
+      conciergeRows,
+      pendingRows,
+      reminderRows,
+      feedbackSummary,
+    ] = await Promise.all([
       db
         .select({
           full_name: profiles.full_name,
@@ -361,6 +386,40 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
         )
         .then((result) => result.rows as Array<{ use_case?: string }>)
         .catch(() => []),
+      pool
+        .query(
+          `
+            select use_case
+            from concierge_pending
+            where user_id = $1
+              and status in ('pending', 'calling')
+            order by confirmed_at desc nulls last
+            limit 10
+          `,
+          [userId],
+        )
+        .then((result) => result.rows as Array<{ use_case?: string }>)
+        .catch(() => []),
+      pool
+        .query(
+          `
+            select reminder_type, title, reminder_date::text, source_use_case
+            from concierge_reminders
+            where user_id = $1
+              and is_active = true
+              and reminder_date between current_date and current_date + interval '7 days'
+            order by reminder_date asc
+            limit 8
+          `,
+          [userId],
+        )
+        .then((result) => result.rows as Array<{
+          reminder_type?: string;
+          title?: string;
+          reminder_date?: string;
+          source_use_case?: string;
+        }>)
+        .catch(() => []),
       getRecommendationFeedbackSummary(userId),
     ]);
 
@@ -377,6 +436,8 @@ async function getUserProfile(userId: string): Promise<UserProfileContext> {
     context.activeMedications = medicationRows.map((m) => m.medication_name);
     context.recentActivityTypes = activityRows.map((a) => a.activity_type);
     context.recentConciergeUseCases = conciergeRows.map((r) => r.use_case ?? "").filter(Boolean);
+    context.pendingConciergeUseCases = pendingRows.map((r) => r.use_case ?? "").filter(Boolean);
+    context.upcomingReminders = reminderRows;
     context.socialActivityLevel = social?.activity_level ?? "moderate";
     context.preferredTimes = social?.preferred_times ?? [];
     context.recommendationFeedback = feedbackSummary;
@@ -659,6 +720,112 @@ const RECOMMENDATION_CANDIDATES: RecommendationCandidate[] = [
     requiresHealthContext: true,
   },
   {
+    id: "appointment_transport_prep",
+    category: "tip",
+    emoji: "🚕",
+    title: { en: "Prepare appointment transport", es: "Preparar transporte para cita" },
+    description: {
+      en: "VYVA can check whether an upcoming appointment needs a taxi or timing plan.",
+      es: "VYVA puede revisar si una cita proxima necesita taxi o plan de horarios.",
+    },
+    why: {
+      en: "It uses upcoming reminders and recent concierge patterns to remove last-minute stress.",
+      es: "Usa recordatorios proximos y patrones recientes para evitar prisas de ultimo momento.",
+    },
+    details: {
+      en: "VYVA can check the appointment time, travel buffer, mobility needs, and whether a trusted taxi provider is saved.",
+      es: "VYVA puede revisar la hora de la cita, margen de viaje, movilidad y si hay un taxi de confianza guardado.",
+    },
+    steps: {
+      en: ["Review the appointment", "Estimate travel time", "Prepare taxi confirmation"],
+      es: ["Revisar la cita", "Calcular margen de viaje", "Preparar confirmacion del taxi"],
+    },
+    actionLabel: { en: "Prepare ride", es: "Preparar taxi" },
+    actionPrompt: {
+      en: "Help me prepare transport for my next appointment.",
+      es: "Ayudame a preparar transporte para mi proxima cita.",
+    },
+    safetyNote: {
+      en: "Leave extra time if mobility, weather, or parking could slow the journey.",
+      es: "Deja margen extra si la movilidad, el clima o el aparcamiento pueden retrasar el trayecto.",
+    },
+    tags: ["appointment", "taxi", "transport", "doctor", "cita", "transporte", "medico"],
+    physicalDemand: "none",
+    outdoorExposure: "some",
+    requiresLocation: true,
+    preferredWhen: (context) =>
+      context.upcomingReminders.length > 0 ||
+      context.recentConciergeUseCases.includes("book_appointment") ||
+      context.pendingConciergeUseCases.includes("book_appointment"),
+  },
+  {
+    id: "weather_comfort_plan",
+    category: "activity",
+    emoji: "🏠",
+    title: { en: "A weather-smart plan", es: "Un plan segun el tiempo" },
+    description: {
+      en: "VYVA can shape a comfortable plan around today's weather and your energy.",
+      es: "VYVA puede adaptar un plan comodo al tiempo de hoy y a tu energia.",
+    },
+    why: {
+      en: "It avoids pushing the wrong kind of activity when the weather or mobility context suggests caution.",
+      es: "Evita proponer el plan equivocado cuando el tiempo o la movilidad piden prudencia.",
+    },
+    details: {
+      en: "If outdoors is not ideal, VYVA can suggest a home activity, a phone call, or a short errand with transport.",
+      es: "Si salir no conviene, VYVA puede sugerir algo en casa, una llamada o un recado breve con transporte.",
+    },
+    steps: {
+      en: ["Check today's weather", "Choose indoor or easy nearby", "Let VYVA guide it"],
+      es: ["Mirar el tiempo", "Elegir casa o algo cercano", "Dejar que VYVA guie"],
+    },
+    actionLabel: { en: "Make a plan", es: "Crear plan" },
+    actionPrompt: {
+      en: "Suggest a comfortable plan for today based on the weather and my profile.",
+      es: "Sugiere un plan comodo para hoy segun el tiempo y mi perfil.",
+    },
+    safetyNote: {
+      en: "Avoid heat, rain, stairs, or long standing if they make the day harder.",
+      es: "Evita calor, lluvia, escaleras o estar mucho tiempo de pie si complica el dia.",
+    },
+    tags: ["weather", "home", "comfort", "mobility", "tiempo", "casa", "comodidad"],
+    physicalDemand: "none",
+    outdoorExposure: "none",
+    preferredWhen: (context) => Boolean(context.weather) || hasMobilityLimit(context),
+  },
+  {
+    id: "family_check_in",
+    category: "activity",
+    emoji: "📞",
+    title: { en: "A gentle check-in", es: "Un contacto tranquilo" },
+    description: {
+      en: "VYVA can help plan a short call or message with someone important.",
+      es: "VYVA puede preparar una llamada o mensaje corto con alguien importante.",
+    },
+    why: {
+      en: "It is low effort, social, and easy to do from home.",
+      es: "Es social, sencillo y se puede hacer desde casa.",
+    },
+    details: {
+      en: "This can be as simple as a two-minute call, a voice note, or asking VYVA to draft a warm message.",
+      es: "Puede ser una llamada de dos minutos, una nota de voz o pedir a VYVA un mensaje carinoso.",
+    },
+    steps: {
+      en: ["Pick one person", "Choose call or message", "Keep it short and warm"],
+      es: ["Elegir una persona", "Llamada o mensaje", "Hacerlo corto y cercano"],
+    },
+    actionLabel: { en: "Draft message", es: "Preparar mensaje" },
+    actionPrompt: {
+      en: "Help me prepare a short warm message or call idea.",
+      es: "Ayudame a preparar un mensaje breve o una llamada sencilla.",
+    },
+    safetyNote: { en: "", es: "" },
+    tags: ["family", "social", "call", "message", "familia", "llamada", "mensaje"],
+    physicalDemand: "none",
+    outdoorExposure: "none",
+    preferredWhen: (context) => context.socialActivityLevel === "low" || context.interests.length > 0,
+  },
+  {
     id: "scam_guard_check",
     category: "tip",
     emoji: "🛡️",
@@ -734,6 +901,18 @@ function scoreCandidate(
     score += 20;
     reasons.push("recent_pattern");
   }
+  if (candidate.id === "appointment_transport_prep" && context.upcomingReminders.length > 0) {
+    score += 24;
+    reasons.push("upcoming_reminder");
+  }
+  if (candidate.id === "appointment_transport_prep" && context.pendingConciergeUseCases.length > 0) {
+    score += 12;
+    reasons.push("pending_action");
+  }
+  if (candidate.id === "family_check_in" && context.socialActivityLevel === "low") {
+    score += 14;
+    reasons.push("social_nudge");
+  }
   if (hasMobilityLimit(context) && candidate.physicalDemand === "none") {
     score += 10;
     reasons.push("mobility_safe");
@@ -806,7 +985,104 @@ function rankRecommendationCandidates(
   return [...ranked, ...filler];
 }
 
-function candidateToCard(ranked: RankedRecommendationCandidate, locale: string): RecommendationCard {
+function effortFor(candidate: RecommendationCandidate): RecommendationCard["effort"] {
+  if (candidate.physicalDemand === "none") return "none";
+  if (candidate.physicalDemand === "low") return "low";
+  return "medium";
+}
+
+function actionKindFor(candidate: RecommendationCandidate): RecommendationCard["action_kind"] {
+  if (candidate.id.includes("provider") || candidate.id.includes("transport")) return "call";
+  if (candidate.id.includes("admin") || candidate.id.includes("medication") || candidate.id.includes("scam")) return "check";
+  if (candidate.id.includes("outing") || candidate.id.includes("weather")) return "plan";
+  if (candidate.id.includes("savings")) return "booking";
+  return "chat";
+}
+
+function bestTimeFor(ranked: RankedRecommendationCandidate, context: UserProfileContext, locale: string): string {
+  const es = locale === "es";
+  const preferred = context.preferredTimes[0];
+  if (preferred) return es ? `Mejor: ${preferred}` : `Best: ${preferred}`;
+  if (ranked.reasons.includes("upcoming_reminder")) {
+    return es ? "Antes de la cita" : "Before the appointment";
+  }
+  if (ranked.candidate.outdoorExposure === "some" || ranked.candidate.outdoorExposure === "mostly") {
+    return es ? "Mejor de dia" : "Best in daylight";
+  }
+  if (ranked.candidate.id === "medication_admin_check") return es ? "Hoy, cuando estes tranquilo" : "Today, when calm";
+  return es ? "Cuando te venga bien" : "Whenever suits you";
+}
+
+function freshnessFor(ranked: RankedRecommendationCandidate, context: UserProfileContext, locale: string): string {
+  const es = locale === "es";
+  if (ranked.reasons.includes("weather_safe") || ranked.reasons.includes("weather_comfort")) {
+    return context.weather
+      ? es
+        ? `Actualizado con el tiempo de ${context.weather.city}`
+        : `Updated with ${context.weather.city} weather`
+      : es
+        ? "Actualizado segun el tiempo"
+        : "Weather-aware today";
+  }
+  if (ranked.reasons.includes("recently_shown")) {
+    return es ? "Repetido porque encaja bien" : "Repeated because it fits";
+  }
+  if (ranked.reasons.includes("variety_fallback")) {
+    return es ? "Idea nueva para variar" : "Fresh idea for variety";
+  }
+  return es ? "Elegido para hoy" : "Picked for today";
+}
+
+function signalLabelsFor(ranked: RankedRecommendationCandidate, context: UserProfileContext, locale: string): string[] {
+  const es = locale === "es";
+  const labels: Record<string, string> = {
+    location_match: es ? "cerca de tu zona" : "near your area",
+    medication_context: es ? "medicacion guardada" : "saved medication",
+    health_context: es ? "contexto de salud" : "health context",
+    interest_context: es ? "tus intereses" : "your interests",
+    profile_tags: es ? "tu perfil" : "your profile",
+    recent_pattern: es ? "patrones recientes" : "recent patterns",
+    upcoming_reminder: es ? "recordatorio proximo" : "upcoming reminder",
+    pending_action: es ? "accion pendiente" : "pending action",
+    mobility_safe: es ? "bajo esfuerzo" : "low effort",
+    low_social_pressure: es ? "sin presion social" : "low social pressure",
+    social_nudge: es ? "contacto social" : "social connection",
+    weather_safe: es ? "tiempo poco favorable" : "weather-safe",
+    weather_comfort: es ? "comodidad segun clima" : "weather comfort",
+    previously_liked: es ? "te intereso antes" : "liked before",
+    previously_completed: es ? "te funciono antes" : "worked before",
+    previously_opened: es ? "lo abriste antes" : "opened before",
+    variety_fallback: es ? "variedad" : "variety",
+  };
+
+  const signals = ranked.reasons.map((reason) => labels[reason]).filter(Boolean);
+  if (context.city && ranked.candidate.requiresLocation) {
+    signals.unshift(es ? context.city : context.city);
+  }
+  if (context.activeMedications.length && ranked.candidate.requiresMedicationContext) {
+    signals.unshift(context.activeMedications[0]);
+  }
+  if (context.interests.length && ranked.candidate.requiresInterests) {
+    signals.unshift(context.interests[0]);
+  }
+  return uniqueStrings(signals).slice(0, 4);
+}
+
+function locationHintFor(ranked: RankedRecommendationCandidate, context: UserProfileContext, locale: string): string {
+  if (!context.city && !context.region) return "";
+  const es = locale === "es";
+  const place = [context.city, context.region].filter(Boolean).join(", ");
+  if (!ranked.candidate.requiresLocation && ranked.candidate.outdoorExposure === "none") {
+    return es ? `Pensado para hacerlo desde casa o cerca de ${place}.` : `Designed for home or near ${place}.`;
+  }
+  return es ? `Pensado para ${place}.` : `Designed around ${place}.`;
+}
+
+function candidateToCard(
+  ranked: RankedRecommendationCandidate,
+  locale: string,
+  context: UserProfileContext,
+): RecommendationCard {
   const lang: "en" | "es" = locale === "es" ? "es" : "en";
   const candidate = ranked.candidate;
   return {
@@ -821,13 +1097,23 @@ function candidateToCard(ranked: RankedRecommendationCandidate, locale: string):
     action_label: candidate.actionLabel[lang],
     action_prompt: candidate.actionPrompt[lang],
     safety_note: candidate.safetyNote[lang],
+    best_time: bestTimeFor(ranked, context, locale),
+    effort: effortFor(candidate),
+    freshness: freshnessFor(ranked, context, locale),
+    personal_signals: signalLabelsFor(ranked, context, locale),
+    action_kind: actionKindFor(candidate),
+    location_hint: locationHintFor(ranked, context, locale),
     score: ranked.score,
     reason_codes: ranked.reasons,
   };
 }
 
-function cardsFromRankedCandidates(ranked: RankedRecommendationCandidate[], locale: string): RecommendationCard[] {
-  const cards = ranked.map((item) => candidateToCard(item, locale)).slice(0, 4);
+function cardsFromRankedCandidates(
+  ranked: RankedRecommendationCandidate[],
+  locale: string,
+  context: UserProfileContext,
+): RecommendationCard[] {
+  const cards = ranked.map((item) => candidateToCard(item, locale, context)).slice(0, 4);
   return cards.length > 0 ? cards : FALLBACK_RECOMMENDATIONS;
 }
 
@@ -845,7 +1131,7 @@ function buildRecommendationsPrompt(
     score: item.score,
     reasons: item.reasons,
     category: item.candidate.category,
-    baseline: candidateToCard(item, locale),
+    baseline: candidateToCard(item, locale, context),
   }));
   const interestClause = context.interests.length
     ? `Interests and hobbies: ${context.interests.slice(0, 10).join(", ")}.`
@@ -867,6 +1153,8 @@ User context:
 - Active medication records: ${context.activeMedications.join(", ") || "none known"}
 - Recent activity patterns: ${context.recentActivityTypes.join(", ") || "none known"}
 - Recent concierge patterns: ${context.recentConciergeUseCases.join(", ") || "none known"}
+- Pending concierge actions: ${context.pendingConciergeUseCases.join(", ") || "none"}
+- Upcoming reminders: ${context.upcomingReminders.map((r) => `${r.title || r.reminder_type || "reminder"} on ${r.reminder_date || "soon"}`).join("; ") || "none"}
 - Social activity level: ${context.socialActivityLevel}
 - Preferred times: ${context.preferredTimes.join(", ") || "unknown"}
 - Weather today: ${context.weather ? `${context.weather.temperatureC}C, ${context.weather.condition}, outdoor suitability ${context.weather.outdoorSuitability}` : "unknown"}
@@ -878,6 +1166,7 @@ Generate exactly 4 useful, safe, personalised recommendation cards for today fro
 ${options.refresh ? "This is an explicit refresh request. Prioritise variety and avoid repeating the same titles, angles, or first-card idea from earlier today." : ""}
 
 Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have:
+- "id": the exact candidate id selected
 - "title": a short catchy title, 4-7 words
 - "description": one friendly sentence, max 22 words
 - "category": one of "deal", "event", "tip", "activity"
@@ -888,6 +1177,12 @@ Respond ONLY with a valid JSON array of exactly 4 objects. Each object must have
 - "action_label": a 2-4 word button label
 - "action_prompt": a sentence the app can send to VYVA if the user wants help doing it
 - "safety_note": one brief note if relevant, otherwise an empty string
+- "best_time": a short timing cue
+- "effort": one of "none", "low", "medium"
+- "freshness": a short phrase explaining why it feels timely today
+- "personal_signals": an array of 2-4 short labels showing what context this used
+- "action_kind": one of "chat", "call", "booking", "check", "plan"
+- "location_hint": a short local or home-based hint
 
 Rules:
 - Choose only from the candidate list above.
@@ -984,6 +1279,16 @@ function sanitiseRecommendation(item: unknown): RecommendationCard | null {
     action_label: typeof raw.action_label === "string" ? raw.action_label : "",
     action_prompt: typeof raw.action_prompt === "string" ? raw.action_prompt : "",
     safety_note: typeof raw.safety_note === "string" ? raw.safety_note : "",
+    best_time: typeof raw.best_time === "string" ? raw.best_time : "",
+    effort: ["none", "low", "medium"].includes(String(raw.effort))
+      ? raw.effort as RecommendationCard["effort"]
+      : undefined,
+    freshness: typeof raw.freshness === "string" ? raw.freshness : "",
+    personal_signals: asStringArray(raw.personal_signals).slice(0, 4),
+    action_kind: ["chat", "call", "booking", "check", "plan"].includes(String(raw.action_kind))
+      ? raw.action_kind as RecommendationCard["action_kind"]
+      : undefined,
+    location_hint: typeof raw.location_hint === "string" ? raw.location_hint : "",
     score: typeof raw.score === "number" ? raw.score : undefined,
     reason_codes: asStringArray(raw.reason_codes),
   };
@@ -1085,7 +1390,7 @@ export async function conciergeRecommendationsHandler(req: Request, res: Respons
   const context = await getUserProfile(userId);
   const dayOfWeek = DAYS_OF_WEEK[new Date().getDay()];
   const rankedCandidates = rankRecommendationCandidates(context, { refresh });
-  const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale);
+  const deterministicCards = cardsFromRankedCandidates(rankedCandidates, normalizedLocale, context);
 
   if (!apiKey) {
     console.warn("[concierge/recs] OPENAI_API_KEY not set, returning ranked deterministic cards");

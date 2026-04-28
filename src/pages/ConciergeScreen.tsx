@@ -45,6 +45,12 @@ interface RecommendationCard {
   action_label?: string;
   action_prompt?: string;
   safety_note?: string;
+  best_time?: string;
+  effort?: "none" | "low" | "medium";
+  freshness?: string;
+  personal_signals?: string[];
+  action_kind?: "chat" | "call" | "booking" | "check" | "plan";
+  location_hint?: string;
   score?: number;
   reason_codes?: string[];
 }
@@ -75,8 +81,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs_v3";
-const RECS_DATE_BASE = "vyva_concierge_recs_date_v3";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v4";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v4";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -103,6 +109,13 @@ function getCategoryColors(category: RecommendationCard["category"]) {
     activity: { bg: "#F5F3FF", border: "#DDD6FE" },
   };
   return map[category] ?? map.tip;
+}
+
+function effortLabel(effort: RecommendationCard["effort"], isSpanish: boolean) {
+  if (effort === "none") return isSpanish ? "Sin esfuerzo" : "No effort";
+  if (effort === "low") return isSpanish ? "Suave" : "Gentle";
+  if (effort === "medium") return isSpanish ? "Moderado" : "Moderate";
+  return "";
 }
 
 const QUICK_ACTIONS = [
@@ -741,6 +754,29 @@ const ConciergeScreen = () => {
                       <p className="mt-1 font-body text-[13px] text-vyva-text-2 leading-relaxed">
                         {card.description}
                       </p>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {card.best_time && (
+                          <span className="rounded-full bg-[#F5F1EC] px-2 py-1 font-body text-[11px] font-semibold text-vyva-text-2">
+                            {card.best_time}
+                          </span>
+                        )}
+                        {card.effort && (
+                          <span className="rounded-full bg-[#F5F3FF] px-2 py-1 font-body text-[11px] font-semibold text-[#6B21A8]">
+                            {effortLabel(card.effort, isSpanish)}
+                          </span>
+                        )}
+                        {card.freshness && (
+                          <span className="rounded-full bg-[#ECFDF5] px-2 py-1 font-body text-[11px] font-semibold text-[#0A7C4E]">
+                            {card.freshness}
+                          </span>
+                        )}
+                      </div>
+                      {card.personal_signals && card.personal_signals.length > 0 && (
+                        <p className="mt-2 font-body text-[12px] text-vyva-text-2 leading-relaxed">
+                          {isSpanish ? "Basado en " : "Based on "}
+                          {card.personal_signals.slice(0, 2).join(" + ")}
+                        </p>
+                      )}
                       <p className="mt-2 font-body text-[12px] font-semibold" style={{ color: "#6B21A8" }}>
                         {isSpanish ? "Ver guia" : "View guide"}
                       </p>
@@ -796,6 +832,64 @@ const ConciergeScreen = () => {
                     x
                   </button>
                 </div>
+
+                {(selectedRec.best_time || selectedRec.effort || selectedRec.freshness) && (
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {selectedRec.best_time && (
+                      <div className="rounded-[16px] bg-[#FBF8F4] p-3">
+                        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-vyva-text-2">
+                          {isSpanish ? "Momento" : "Timing"}
+                        </p>
+                        <p className="mt-1 font-body text-[13px] font-semibold text-vyva-text-1">
+                          {selectedRec.best_time}
+                        </p>
+                      </div>
+                    )}
+                    {selectedRec.effort && (
+                      <div className="rounded-[16px] bg-[#F5F3FF] p-3">
+                        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6B21A8]">
+                          {isSpanish ? "Esfuerzo" : "Effort"}
+                        </p>
+                        <p className="mt-1 font-body text-[13px] font-semibold text-vyva-text-1">
+                          {effortLabel(selectedRec.effort, isSpanish)}
+                        </p>
+                      </div>
+                    )}
+                    {selectedRec.freshness && (
+                      <div className="rounded-[16px] bg-[#ECFDF5] p-3">
+                        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0A7C4E]">
+                          {isSpanish ? "Hoy" : "Today"}
+                        </p>
+                        <p className="mt-1 font-body text-[13px] font-semibold text-vyva-text-1">
+                          {selectedRec.freshness}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedRec.personal_signals && selectedRec.personal_signals.length > 0 && (
+                  <div className="mt-4 rounded-[18px] border border-vyva-border bg-white p-3">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                      {isSpanish ? "Por que aparece" : "Why this appears"}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedRec.personal_signals.map((signal) => (
+                        <span
+                          key={signal}
+                          className="rounded-full bg-[#F5F1EC] px-3 py-1.5 font-body text-[12px] font-semibold text-vyva-text-2"
+                        >
+                          {signal}
+                        </span>
+                      ))}
+                    </div>
+                    {selectedRec.location_hint && (
+                      <p className="mt-3 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                        {selectedRec.location_hint}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {selectedRec.details && (
                   <p className="mt-5 font-body text-[14px] leading-relaxed text-vyva-text-1">
