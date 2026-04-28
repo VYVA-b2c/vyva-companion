@@ -70,6 +70,12 @@ interface RecommendationCard {
       website?: string;
       mapsUrl?: string;
       openingHours?: string[];
+      priceInfo?: string;
+      sourceName?: string;
+      sourceUrl?: string;
+      dateText?: string;
+      timeInfo?: string;
+      matchReason?: string;
       priceLevel?: number;
       rating?: number;
       reviewCount?: number;
@@ -123,8 +129,8 @@ interface ConciergeSessionItem {
 
 type ConciergeActionListResponse<T> = { items?: T[] };
 
-const RECS_CACHE_BASE = "vyva_concierge_recs_v6";
-const RECS_DATE_BASE = "vyva_concierge_recs_date_v6";
+const RECS_CACHE_BASE = "vyva_concierge_recs_v7";
+const RECS_DATE_BASE = "vyva_concierge_recs_date_v7";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
 const CHAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 

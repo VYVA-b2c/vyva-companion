@@ -103,6 +103,12 @@ interface RecommendationResolvedPlace {
   website?: string;
   mapsUrl?: string;
   openingHours?: string[];
+  priceInfo?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  dateText?: string;
+  timeInfo?: string;
+  matchReason?: string;
   priceLevel?: number;
   rating?: number;
   reviewCount?: number;
@@ -1277,7 +1283,9 @@ async function enrichLocalCardWithResolvedPlace(
   if (!isLocalRecommendationCard(card)) return card;
 
   const es = locale === "es";
-  const place = await searchActionPlace(card, context, locale).catch(() => null);
+  const place =
+    await findLocalEventForCard(card, context).catch(() => null) ??
+    await searchActionPlace(card, context, locale).catch(() => null);
   if (!place?.name) {
     return {
       ...card,
@@ -1297,7 +1305,9 @@ async function enrichLocalCardWithResolvedPlace(
 
   const rating = placeRatingText(place, locale);
   const area = [context.city, context.region].filter(Boolean).join(", ");
-  const price = priceLevelLabel(place.priceLevel, locale);
+  const price = place.priceInfo
+    ? es ? `Precio publicado: ${place.priceInfo}. Confirmar antes de ir.` : `Published price: ${place.priceInfo}. Confirm before going.`
+    : priceLevelLabel(place.priceLevel, locale);
   const opening = firstOpeningLine(place, locale);
   const titlePrefix = card.category === "event" || card.category === "activity" ? "" : card.title;
   const nextSteps = es
@@ -1308,12 +1318,12 @@ async function enrichLocalCardWithResolvedPlace(
     ...card,
     title: titlePrefix ? `${titlePrefix}: ${place.name}` : place.name,
     description: es
-      ? `${place.address ?? area}${rating ? `. Valoracion ${rating}` : ""}.`
+      ? `${place.dateText ? `${place.dateText}. ` : ""}${place.address ?? area}${rating ? `. Valoracion ${rating}` : ""}.`
       : `${place.address ?? area}${rating ? `. Rated ${rating}` : ""}.`,
     why: es
-      ? `Encaja con tu perfil y esta cerca de ${area || "tu zona"}.`
-      : `It fits your profile and is near ${area || "your area"}.`,
-    details: [opening, price, place.phone ? (es ? `Telefono: ${place.phone}.` : `Phone: ${place.phone}.`) : ""]
+      ? `${place.sourceName ? `Encontrado en ${place.sourceName}. ` : ""}Encaja con tu perfil y esta cerca de ${area || "tu zona"}.`
+      : `${place.sourceName ? `Found via ${place.sourceName}. ` : ""}It fits your profile and is near ${area || "your area"}.`,
+    details: [opening, price, place.matchReason ? `${place.matchReason}.` : "", place.phone ? (es ? `Telefono: ${place.phone}.` : `Phone: ${place.phone}.`) : ""]
       .filter(Boolean)
       .join(" "),
     steps: nextSteps,
@@ -1434,21 +1444,197 @@ function priceLevelLabel(level: number | undefined, locale: string): string {
   return es ? `Nivel de precio aproximado: ${symbols}. Confirmar antes de ir.` : `Approximate price level: ${symbols}. Confirm before going.`;
 }
 
+interface LocalEventItem {
+  title: string;
+  dateText: string;
+  summary: string;
+  location: string;
+  sourceUrl: string;
+  priceInfo?: string;
+  timeInfo?: string;
+}
+
+interface LocalEventSource {
+  id: string;
+  name: string;
+  cityMatcher: RegExp;
+  url: string;
+  sourceType: "official_tourism" | "municipal_culture" | "regional_culture" | "curated_directory";
+}
+
+const LOCAL_EVENT_SOURCES: LocalEventSource[] = [
+  {
+    id: "tarifa-tourism-agenda",
+    name: "Agenda de eventos - Turismo de Tarifa",
+    cityMatcher: /tarifa/i,
+    url: "https://turismodetarifa.com/agenda-eventos/",
+    sourceType: "official_tourism",
+  },
+];
+
+function localEventSourcesFor(context: UserProfileContext): LocalEventSource[] {
+  const location = [context.city, context.region, context.countryCode].filter(Boolean).join(" ");
+  return LOCAL_EVENT_SOURCES.filter((source) => source.cityMatcher.test(location));
+}
+
+const SPANISH_MONTHS: Record<string, number> = {
+  enero: 0,
+  febrero: 1,
+  marzo: 2,
+  abril: 3,
+  mayo: 4,
+  junio: 5,
+  julio: 6,
+  agosto: 7,
+  septiembre: 8,
+  octubre: 9,
+  noviembre: 10,
+  diciembre: 11,
+};
+
+function stripHtml(value: string): string {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&#8211;/g, "-")
+    .replace(/&#8217;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseSpanishDate(dateText: string): Date | null {
+  const match = dateText.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = SPANISH_MONTHS[match[2]];
+  const year = Number(match[3]);
+  if (!day || month === undefined || !year) return null;
+  return new Date(year, month, day);
+}
+
+function eventMapUrl(event: LocalEventItem): string {
+  const query = encodeURIComponent(`${event.location || event.title} Tarifa Cadiz`);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
+
+function extractTarifaEvents(html: string): LocalEventItem[] {
+  const events: LocalEventItem[] = [];
+  const eventRegex = /(\d{1,2}\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+\d{4})[\s\S]{0,1200}?<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*<\/h2>([\s\S]*?)(?=\d{1,2}\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\s+\d{4}|Copyright|Gestionar consentimiento)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = eventRegex.exec(html)) && events.length < 30) {
+    const dateText = stripHtml(match[1]);
+    const sourceUrl = match[2];
+    const title = stripHtml(match[3]);
+    const body = stripHtml(match[4]).slice(0, 900);
+    if (!title || !dateText || !body) continue;
+
+    const priceMatch = body.match(/(Gratuito|\d+\s*€|entrada libre|libre hasta completar aforo)/i);
+    const timeMatch = body.match(/(\d{1,2}:\d{2}\s*h|\d{1,2}\s*a\s*\d{1,2}\s*h|\d{1,2}h\d{0,2})/i);
+    const locationMatch = body.match(/(Teatro Municipal Alameda[^.]*|Castillo de Guzm[aá]n[^.]*|C\/Batalla del Salado[^.]*|Oficina de Turismo[^.]*|Iglesia Santa Mar[ií]a[^.]*)/i);
+
+    events.push({
+      title,
+      dateText,
+      summary: body,
+      location: locationMatch?.[1] ?? "Tarifa, Cadiz",
+      sourceUrl,
+      priceInfo: priceMatch?.[1],
+      timeInfo: timeMatch?.[1],
+    });
+  }
+
+  return events;
+}
+
+function scoreLocalEvent(event: LocalEventItem, card: RecommendationCard, context: UserProfileContext): number {
+  const text = [
+    event.title,
+    event.summary,
+    event.location,
+    card.title,
+    card.description,
+    ...(card.action_payload?.search_terms ?? []),
+    ...context.interests,
+  ].join(" ").toLowerCase();
+  let score = 20;
+
+  for (const term of ["teatro", "exposicion", "exhibition", "cine", "concierto", "guitarra", "cultura", "musica", "film", "visita cultural"]) {
+    if (text.includes(term)) score += 12;
+  }
+  for (const interest of context.interests) {
+    if (interest && text.includes(interest.toLowerCase())) score += 15;
+  }
+  if (hasMobilityLimit(context)) {
+    for (const good of ["teatro", "exposicion", "cine", "concierto", "sala"]) {
+      if (text.includes(good)) score += 10;
+    }
+    for (const bad of ["trail", "bici", "cicloturista", "ruta", "romeria", "yoga", "playa"]) {
+      if (text.includes(bad)) score -= 25;
+    }
+  }
+  if (/gratuito|entrada libre|libre hasta completar aforo/i.test(event.priceInfo ?? event.summary)) score += 8;
+  return score;
+}
+
+async function findLocalEventForCard(
+  card: RecommendationCard,
+  context: UserProfileContext,
+): Promise<RecommendationResolvedPlace | null> {
+  if (!isLocalRecommendationCard(card)) return null;
+  const sources = localEventSourcesFor(context);
+  if (!sources.length) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sourceEvents: Array<{ event: LocalEventItem; score: number; source: LocalEventSource }> = [];
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source.url, { signal: AbortSignal.timeout(7000) });
+      if (!response.ok) continue;
+      const html = await response.text();
+      sourceEvents.push(
+        ...extractTarifaEvents(html)
+          .filter((event) => {
+            const date = parseSpanishDate(event.dateText);
+            return !date || date >= today;
+          })
+          .map((event) => ({ event, score: scoreLocalEvent(event, card, context), source })),
+      );
+    } catch {
+      continue;
+    }
+  }
+
+  const selected = sourceEvents.sort((a, b) => b.score - a.score)[0];
+  if (!selected) return null;
+  const { event, source } = selected;
+
+  return {
+    name: event.title,
+    address: event.location,
+    website: event.sourceUrl,
+    mapsUrl: eventMapUrl(event),
+    openingHours: [event.timeInfo ? `${event.dateText}, ${event.timeInfo}` : event.dateText],
+    priceInfo: event.priceInfo,
+    sourceName: source.name,
+    sourceUrl: event.sourceUrl,
+    dateText: event.dateText,
+    timeInfo: event.timeInfo,
+    matchReason: event.summary.slice(0, 240),
+  };
+}
+
 async function searchActionPlace(
   card: RecommendationCard,
   context: UserProfileContext,
   locale: string,
-): Promise<{
-  name?: string;
-  address?: string;
-  phone?: string;
-  website?: string;
-  mapsUrl?: string;
-  openingHours?: string[];
-  priceLevel?: number;
-  rating?: number;
-  reviewCount?: number;
-} | null> {
+): Promise<RecommendationResolvedPlace | null> {
   const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
   const terms = card.action_payload?.search_terms?.filter(Boolean) ?? [];
   const place = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
@@ -1548,8 +1734,8 @@ async function buildRecommendationActionPlan(
   const title = es ? `Plan para: ${card.title}` : `Plan for: ${card.title}`;
   const summary = hasPlace
     ? es
-      ? `He encontrado una opcion concreta cerca de ti: ${placeName}.${ratingText}`
-      : `I found a concrete option to check: ${placeName}.${ratingText}`
+      ? `He encontrado una opcion concreta cerca de ti: ${placeName}.${place?.sourceName ? ` Fuente: ${place.sourceName}.` : ""}${ratingText}`
+      : `I found a concrete nearby option: ${placeName}.${place?.sourceName ? ` Source: ${place.sourceName}.` : ""}${ratingText}`
     : es
       ? `No he podido verificar una opcion cercana en vivo para esta tarjeta. Actualiza recomendaciones o pide a VYVA que busque de nuevo.`
       : `I could not verify a nearby live option for this card. Refresh recommendations or ask VYVA to search again.`;
@@ -1587,7 +1773,9 @@ async function buildRecommendationActionPlan(
     website: place?.website,
     maps_url: place?.mapsUrl,
     opening_hours: place?.openingHours?.slice(0, 7),
-    price_info: priceLevelLabel(place?.priceLevel, locale),
+    price_info: place?.priceInfo
+      ? es ? `Precio publicado: ${place.priceInfo}. Confirmar antes de ir.` : `Published price: ${place.priceInfo}. Confirm before going.`
+      : priceLevelLabel(place?.priceLevel, locale),
     travel_info: travelInfo,
     accessibility_note: accessibilityNote,
     next_steps: nextSteps,
