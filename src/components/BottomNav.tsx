@@ -1,19 +1,15 @@
-import { House, Activity, Pill, BrainCircuit, FileText, ClipboardList } from "lucide-react";
+import { AlertCircle, ClipboardList, House } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-const BottomNav = () => {
+const BottomNav = ({ onSosClick }: { onSosClick: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   const tabs = [
-    { path: "/",          labelKey: "nav.home",             icon: House },
-    { path: "/settings",  labelKey: "nav.symptoms",          icon: FileText },
-    { path: "/health",    labelKey: "nav.vitalSigns",        icon: Activity },
-    { path: "/meds",      labelKey: "nav.medications",       icon: Pill },
-    { path: "/activities",labelKey: "nav.cognitiveActivity", icon: BrainCircuit },
-    { path: "/history",   labelKey: "nav.history",           icon: ClipboardList, subtitleKey: "history.subtitle" },
+    { path: "/", label: t("nav.home"), icon: House },
+    { path: "/informes", label: t("informes.title", "Reports"), icon: ClipboardList },
   ] as const;
 
   return (
@@ -21,18 +17,16 @@ const BottomNav = () => {
       className="fixed bottom-0 left-1/2 z-50 w-full max-w-[520px] -translate-x-1/2 border-t border-vyva-border bg-white/95 shadow-[0_-8px_28px_rgba(63,45,35,0.08)] backdrop-blur"
       style={{ height: 88 }}
     >
-      <div className="flex h-full items-center justify-around px-1.5">
-        {tabs.map((tab) => {
+      <div className="grid h-full grid-cols-3 items-center gap-2 px-4">
+        {tabs.slice(0, 1).map((tab) => {
           const active = location.pathname === tab.path;
           const Icon = tab.icon;
-          const label = t(tab.labelKey);
-          const subtitle = "subtitleKey" in tab ? t(tab.subtitleKey) : null;
           return (
             <button
               key={tab.path}
-              data-testid={`nav-tab-${tab.labelKey.replace("nav.", "")}`}
+              data-testid="nav-tab-home"
               onClick={() => navigate(tab.path)}
-              className="relative flex min-h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-[18px]"
+              className="relative flex min-h-[70px] flex-col items-center justify-center gap-1 rounded-[18px]"
             >
               <div
                 className={`flex h-9 w-14 items-center justify-center rounded-full transition-all ${
@@ -46,22 +40,54 @@ const BottomNav = () => {
                 />
               </div>
               <span
-                className={`max-w-[62px] text-center font-body text-[10.5px] font-semibold leading-tight transition-colors ${
+                className={`max-w-[72px] text-center font-body text-[12px] font-semibold leading-tight transition-colors ${
                   active ? "text-vyva-purple" : "text-vyva-text-3"
                 }`}
               >
-                {label}
+                {tab.label}
               </span>
-              {subtitle && (
-                <span
-                  className={`hidden font-body text-[7px] leading-none text-center -mt-0.5 ${
-                    active ? "text-vyva-purple opacity-80" : "text-vyva-text-3 opacity-60"
-                  }`}
-                  data-testid={`nav-tab-subtitle-${tab.labelKey.replace("nav.", "")}`}
-                >
-                  {subtitle}
-                </span>
-              )}
+            </button>
+          );
+        })}
+        <button
+          data-testid="nav-tab-sos"
+          onClick={onSosClick}
+          className="relative -mt-5 flex min-h-[86px] flex-col items-center justify-center gap-1 rounded-[22px]"
+          aria-label="SOS"
+        >
+          <div className="sos-btn flex h-[62px] w-[62px] items-center justify-center rounded-full bg-[#B91C1C] shadow-[0_8px_22px_rgba(185,28,28,0.36)]">
+            <AlertCircle size={29} className="text-white" />
+          </div>
+          <span className="font-body text-[12px] font-bold leading-tight text-[#B91C1C]">SOS</span>
+        </button>
+        {tabs.slice(1).map((tab) => {
+          const active = location.pathname.startsWith(tab.path);
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.path}
+              data-testid="nav-tab-reports"
+              onClick={() => navigate(tab.path)}
+              className="relative flex min-h-[70px] flex-col items-center justify-center gap-1 rounded-[18px]"
+            >
+              <div
+                className={`flex h-9 w-14 items-center justify-center rounded-full transition-all ${
+                  active ? "bg-vyva-purple-light shadow-sm" : ""
+                }`}
+              >
+                <Icon
+                  size={23}
+                  className={active ? "text-vyva-purple" : "text-vyva-text-3"}
+                  strokeWidth={active ? 2.2 : 1.8}
+                />
+              </div>
+              <span
+                className={`max-w-[72px] text-center font-body text-[12px] font-semibold leading-tight transition-colors ${
+                  active ? "text-vyva-purple" : "text-vyva-text-3"
+                }`}
+              >
+                {tab.label}
+              </span>
             </button>
           );
         })}
