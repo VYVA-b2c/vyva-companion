@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   ArrowLeft,
@@ -9,17 +10,22 @@ import {
   Check,
   ClipboardList,
   Compass,
+  Copy,
   Heart,
   Headphones,
   Loader2,
   MessageCircle,
   Music,
+  Send,
   ShieldCheck,
   Share2,
   Sparkles,
+  Stethoscope,
   Sun,
   Users,
   UserRound,
+  UserPlus,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -59,6 +65,30 @@ type AppAction = {
   description: string;
   to: string;
   primary?: boolean;
+};
+
+type CareTeamMember = {
+  id: string;
+  invitee_name: string;
+  invitee_phone: string | null;
+  invitee_email: string | null;
+  role: string;
+  relationship: string | null;
+  status: string;
+};
+
+type GpContact = {
+  gp_name?: string | null;
+  gp_phone?: string | null;
+};
+
+type ShareTarget = {
+  id: string;
+  kind: "caregiver" | "doctor" | "new";
+  title: string;
+  detail: string;
+  value?: string;
+  channel: "sms" | "email" | "native";
 };
 
 type SingleOption = {
@@ -1267,6 +1297,138 @@ function shareTextFor(name: string, result: CheckinResult, copy: ReturnType<type
   ].filter(Boolean).join("\n");
 }
 
+function shareLabelsFor(copy: ReturnType<typeof copyFor>) {
+  const isSpanish = copy === CHECKIN_TEXT.es;
+  return isSpanish
+    ? {
+        title: "Compartir la lectura completa",
+        subtitle: "Envía el informe como texto, sin mandar un enlace a la app.",
+        caregiver: "Enviar al cuidador",
+        doctor: "Enviar al médico",
+        newContact: "Enviar a otro contacto",
+        copy: "Copiar informe",
+        preview: "Vista previa",
+        noSaved: "No hay contacto guardado",
+        sms: "Mensaje",
+        email: "Email",
+        native: "Elegir app",
+        copied: "Informe copiado para compartir.",
+        failed: "No he podido preparar el envío ahora mismo.",
+        medicalNote: "Orientativo. No sustituye una valoración médica.",
+        close: "Cerrar",
+      }
+    : {
+        title: "Share the full reading",
+        subtitle: "Send the report as text, not as a link back to the app.",
+        caregiver: "Send to caregiver",
+        doctor: "Send to doctor",
+        newContact: "Send to another contact",
+        copy: "Copy report",
+        preview: "Preview",
+        noSaved: "No saved contact",
+        sms: "Message",
+        email: "Email",
+        native: "Choose app",
+        copied: "Report copied to share.",
+        failed: "I could not prepare sharing right now.",
+        medicalNote: "For guidance only. Not a medical assessment.",
+        close: "Close",
+      };
+}
+
+function contactChannel(value: string): ShareTarget["channel"] {
+  return value.includes("@") ? "email" : "sms";
+}
+
+function contactDetail(value: string, labels: ReturnType<typeof shareLabelsFor>) {
+  return `${contactChannel(value) === "email" ? labels.email : labels.sms} · ${value}`;
+}
+
+function buildShareTargets(
+  profile: { caregiverName?: string; caregiverContact?: string } | null,
+  members: CareTeamMember[],
+  gpContact: GpContact | null | undefined,
+  labels: ReturnType<typeof shareLabelsFor>,
+): ShareTarget[] {
+  const targets: ShareTarget[] = [];
+  const seen = new Set<string>();
+  const addTarget = (target: ShareTarget) => {
+    const key = `${target.kind}:${target.value ?? target.title}`.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    targets.push(target);
+  };
+
+  if (profile?.caregiverContact?.trim()) {
+    const value = profile.caregiverContact.trim();
+    addTarget({
+      id: "profile-caregiver",
+      kind: "caregiver",
+      title: profile.caregiverName?.trim() || labels.caregiver,
+      detail: contactDetail(value, labels),
+      value,
+      channel: contactChannel(value),
+    });
+  }
+
+  if (gpContact?.gp_phone?.trim()) {
+    const value = gpContact.gp_phone.trim();
+    addTarget({
+      id: "profile-gp",
+      kind: "doctor",
+      title: gpContact.gp_name?.trim() || labels.doctor,
+      detail: contactDetail(value, labels),
+      value,
+      channel: contactChannel(value),
+    });
+  }
+
+  members
+    .filter((member) => !["revoked", "declined", "expired"].includes(member.status))
+    .forEach((member) => {
+      const value = member.invitee_email || member.invitee_phone || "";
+      if (!value) return;
+      const isDoctor = member.role === "doctor" || member.relationship === "gp" || member.relationship === "specialist_doctor";
+      const isCaregiver = member.role === "caregiver" || member.role === "carer" || member.relationship === "professional_carer";
+      if (!isDoctor && !isCaregiver) return;
+      addTarget({
+        id: member.id,
+        kind: isDoctor ? "doctor" : "caregiver",
+        title: member.invitee_name || (isDoctor ? labels.doctor : labels.caregiver),
+        detail: contactDetail(value, labels),
+        value,
+        channel: contactChannel(value),
+      });
+    });
+
+  return targets;
+}
+
+async function copyReport(text: string, toast: ReturnType<typeof useToast>["toast"], labels: ReturnType<typeof shareLabelsFor>) {
+  await navigator.clipboard.writeText(text);
+  toast({ description: labels.copied });
+}
+
+async function shareViaNative(title: string, text: string, toast: ReturnType<typeof useToast>["toast"], labels: ReturnType<typeof shareLabelsFor>) {
+  if (navigator.share) {
+    await navigator.share({ title, text });
+    return;
+  }
+  await copyReport(text, toast, labels);
+}
+
+function sendReportToTarget(target: ShareTarget, subject: string, text: string) {
+  if (target.channel === "email" && target.value) {
+    window.location.href = `mailto:${encodeURIComponent(target.value)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    return;
+  }
+
+  if (target.channel === "sms" && target.value) {
+    const separator = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?";
+    window.location.href = `sms:${target.value}${separator}body=${encodeURIComponent(text)}`;
+  }
+}
+
 const CheckHowIFeelScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -1275,9 +1437,21 @@ const CheckHowIFeelScreen = () => {
   const [step, setStep] = useState<StepId>("welcome");
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
   const [result, setResult] = useState<CheckinResult | null>(null);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const { data: careTeamData } = useQuery<{ members: CareTeamMember[] }>({
+    queryKey: ["/api/onboarding/careteam"],
+    enabled: step === "result",
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: onboardingState } = useQuery<{ profile: GpContact | null }>({
+    queryKey: ["/api/onboarding/state"],
+    enabled: step === "result",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const name = firstName || "Carlos";
   const copy = copyFor(profile?.language);
+  const shareLabels = shareLabelsFor(copy);
   const stepIndex = STEPS.indexOf(step);
   const includeSafety = needsSafetyFollowup(answers);
   const questionSteps = activeQuestionSteps(includeSafety);
@@ -1297,6 +1471,7 @@ const CheckHowIFeelScreen = () => {
   const sleepOptionsLocalized = localizedSleepOptionsFor(copy);
   const symptomOptions = localizedSymptomOptionsFor(gender, copy);
   const socialOptions = localizedSocialOptionsFor(gender, copy);
+  const shareTargets = buildShareTargets(profile, careTeamData?.members ?? [], onboardingState?.profile, shareLabels);
 
   const loadingMessage = useMemo(() => {
     const messages = copy.loading;
@@ -1387,28 +1562,15 @@ const CheckHowIFeelScreen = () => {
     startedAtRef.current = Date.now();
     setAnswers(initialAnswers);
     setResult(null);
+    setShareSheetOpen(false);
     setStep("welcome");
   };
 
-  const shareResult = async () => {
-    if (!result) return;
-    const text = shareTextFor(name, result, copy);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: copy.shareTitle, text });
-      } else {
-        await navigator.clipboard.writeText(text);
-        toast({ description: copy.copied });
-      }
-    } catch {
-      try {
-        await navigator.clipboard.writeText(text);
-        toast({ description: copy.copied });
-      } catch {
-        toast({ description: copy.shareFailed });
-      }
-    }
-  };
+  const openShareSheet = () => setShareSheetOpen(true);
+
+  const shareReportText = result
+    ? `${shareTextFor(name, result, copy)}\n\n${shareLabels.medicalNote}`
+    : "";
 
   return (
     <div className="vyva-page bg-[radial-gradient(circle_at_top_left,#FFF7ED_0%,transparent_34%),linear-gradient(180deg,#FAF7F2_0%,#F6EFE7_100%)]">
@@ -1670,7 +1832,7 @@ const CheckHowIFeelScreen = () => {
             {copy.thanks}
           </p>
           <div className="mt-6 grid gap-3">
-            <button onClick={shareResult} className="vyva-secondary-action min-h-[68px] w-full text-[19px]">
+            <button onClick={openShareSheet} className="vyva-secondary-action min-h-[68px] w-full text-[19px]">
               <Share2 size={19} className="mr-2" />
               {copy.share}
             </button>
@@ -1684,9 +1846,188 @@ const CheckHowIFeelScreen = () => {
           </div>
         </section>
       )}
+      {shareSheetOpen && result && (
+        <ReportShareSheet
+          title={copy.shareTitle}
+          text={shareReportText}
+          labels={shareLabels}
+          targets={shareTargets}
+          onClose={() => setShareSheetOpen(false)}
+          onCopy={async () => {
+            try {
+              await copyReport(shareReportText, toast, shareLabels);
+            } catch {
+              toast({ description: shareLabels.failed });
+            }
+          }}
+          onNativeShare={async () => {
+            try {
+              await shareViaNative(copy.shareTitle, shareReportText, toast, shareLabels);
+            } catch {
+              try {
+                await copyReport(shareReportText, toast, shareLabels);
+              } catch {
+                toast({ description: shareLabels.failed });
+              }
+            }
+          }}
+          onSend={(target) => {
+            try {
+              if (target.channel === "native") {
+                void shareViaNative(copy.shareTitle, shareReportText, toast, shareLabels);
+              } else {
+                sendReportToTarget(target, copy.shareTitle, shareReportText);
+              }
+              setShareSheetOpen(false);
+            } catch {
+              toast({ description: shareLabels.failed });
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
+
+function ReportShareSheet({
+  title,
+  text,
+  labels,
+  targets,
+  onClose,
+  onCopy,
+  onNativeShare,
+  onSend,
+}: {
+  title: string;
+  text: string;
+  labels: ReturnType<typeof shareLabelsFor>;
+  targets: ShareTarget[];
+  onClose: () => void;
+  onCopy: () => void;
+  onNativeShare: () => void;
+  onSend: (target: ShareTarget) => void;
+}) {
+  const caregiverTargets = targets.filter((target) => target.kind === "caregiver");
+  const doctorTargets = targets.filter((target) => target.kind === "doctor");
+  const newContactTarget: ShareTarget = {
+    id: "new-contact",
+    kind: "new",
+    title: labels.newContact,
+    detail: labels.native,
+    channel: "native",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 backdrop-blur-sm sm:items-center sm:justify-center">
+      <div className="max-h-[88vh] w-full max-w-[620px] overflow-hidden rounded-t-[34px] bg-white shadow-[0_-16px_50px_rgba(63,45,35,0.22)] sm:rounded-[34px]">
+        <div className="flex items-start justify-between gap-4 border-b border-vyva-border bg-gradient-to-br from-[#F5F3FF] to-white p-5">
+          <div>
+            <p className="font-body text-[14px] font-bold uppercase tracking-[0.16em] text-vyva-purple">
+              {labels.preview}
+            </p>
+            <h2 className="mt-1 font-display text-[31px] leading-tight text-vyva-text-1">{labels.title}</h2>
+            <p className="mt-2 font-body text-[17px] leading-relaxed text-vyva-text-2">{labels.subtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={labels.close}
+            className="vyva-tap flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#F5EFE7] text-vyva-text-2"
+          >
+            <X size={22} />
+          </button>
+        </div>
+
+        <div className="max-h-[64vh] overflow-y-auto p-5 pb-6">
+          <div className="mb-4 rounded-[24px] border border-vyva-border bg-[#FAF9F6] p-4">
+            <p className="mb-2 font-body text-[15px] font-bold text-vyva-text-1">{title}</p>
+            <pre className="max-h-[220px] whitespace-pre-wrap font-body text-[15px] leading-relaxed text-vyva-text-2">
+              {text}
+            </pre>
+          </div>
+
+          <div className="grid gap-3">
+            {caregiverTargets.length > 0 ? (
+              caregiverTargets.map((target) => (
+                <ShareTargetButton key={target.id} target={target} label={labels.caregiver} onClick={() => onSend(target)} />
+              ))
+            ) : (
+              <DisabledShareTarget icon={<Users size={24} />} title={labels.caregiver} detail={labels.noSaved} />
+            )}
+
+            {doctorTargets.length > 0 ? (
+              doctorTargets.map((target) => (
+                <ShareTargetButton key={target.id} target={target} label={labels.doctor} onClick={() => onSend(target)} />
+              ))
+            ) : (
+              <DisabledShareTarget icon={<Stethoscope size={24} />} title={labels.doctor} detail={labels.noSaved} />
+            )}
+
+            <ShareTargetButton target={newContactTarget} label={labels.newContact} onClick={onNativeShare} />
+
+            <button
+              type="button"
+              onClick={onCopy}
+              className="vyva-tap flex min-h-[74px] items-center gap-4 rounded-[22px] border border-vyva-border bg-white p-4 text-left shadow-[0_8px_20px_rgba(63,45,35,0.06)]"
+            >
+              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-vyva-purple-light text-vyva-purple">
+                <Copy size={24} />
+              </span>
+              <span>
+                <span className="block font-body text-[18px] font-bold text-vyva-text-1">{labels.copy}</span>
+                <span className="block font-body text-[15px] text-vyva-text-2">{labels.native}</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareTargetButton({
+  target,
+  label,
+  onClick,
+}: {
+  target: ShareTarget;
+  label: string;
+  onClick: () => void;
+}) {
+  const Icon = target.kind === "doctor" ? Stethoscope : target.kind === "caregiver" ? Users : UserPlus;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="vyva-tap flex min-h-[78px] items-center gap-4 rounded-[22px] border border-vyva-border bg-white p-4 text-left shadow-[0_8px_20px_rgba(63,45,35,0.06)]"
+    >
+      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-vyva-purple-light text-vyva-purple">
+        <Icon size={24} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-body text-[14px] font-bold uppercase tracking-[0.12em] text-vyva-purple">{label}</span>
+        <span className="block truncate font-body text-[18px] font-bold text-vyva-text-1">{target.title}</span>
+        <span className="block truncate font-body text-[15px] text-vyva-text-2">{target.detail}</span>
+      </span>
+      <Send size={22} className="flex-shrink-0 text-vyva-purple" />
+    </button>
+  );
+}
+
+function DisabledShareTarget({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
+  return (
+    <div className="flex min-h-[74px] items-center gap-4 rounded-[22px] border border-dashed border-vyva-border bg-[#FAF9F6] p-4 opacity-80">
+      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-vyva-text-3">
+        {icon}
+      </span>
+      <span>
+        <span className="block font-body text-[18px] font-bold text-vyva-text-1">{title}</span>
+        <span className="block font-body text-[15px] text-vyva-text-2">{detail}</span>
+      </span>
+    </div>
+  );
+}
 
 function QuestionCard({
   icon,
