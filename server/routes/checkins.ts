@@ -239,6 +239,57 @@ function ageFromDate(dateOfBirth: string | null): number | null {
   return age > 0 && age < 130 ? age : null;
 }
 
+function minimalProfileContext(language = "es"): ProfileContext {
+  return {
+    name: "amiga",
+    grammatical_gender: "neutral",
+    age: null,
+    language,
+    location: {
+      city: null,
+      region: null,
+      country_code: null,
+      address_available: false,
+    },
+    city: null,
+    mobility_level: null,
+    living_situation: null,
+    gp: {
+      name: null,
+      phone_available: false,
+      address_available: false,
+    },
+    caregiver: {
+      name: null,
+      contact_available: false,
+    },
+    conditions: [],
+    medications: [],
+    allergies: [],
+    diet: {
+      preferences: [],
+      notes: null,
+    },
+    interests: {
+      hobbies: [],
+      preferred_activities: [],
+      personality: {},
+    },
+    recent_vitals: [],
+    recent_activity: {
+      last_7_days_minutes: 0,
+      common_activities: [],
+    },
+    recent_triage: [],
+    recent_checkins: [],
+    trend_summary: buildTrendSummary([]),
+    medication_adherence: {
+      taken_14d: 0,
+      missed_14d: 0,
+    },
+  };
+}
+
 function getProfileString(profile: Record<string, unknown> | undefined, ...keys: string[]): string | null {
   if (!profile) return null;
   for (const key of keys) {
@@ -745,12 +796,20 @@ router.post("/analyze", requireUser, async (req: Request, res: Response) => {
   const { answers, language, duration_seconds } = parsed.data;
 
   try {
-    const profile = await fetchProfileContext(userId);
+    let usedMinimalProfile = false;
+    let profile: ProfileContext;
+    try {
+      profile = await fetchProfileContext(userId);
+    } catch (err) {
+      usedMinimalProfile = true;
+      console.error("[checkins] profile context failed; using minimal profile:", err);
+      profile = minimalProfileContext(language);
+    }
     const result = await generateResult(profile, answers, language || profile.language);
     const sessionId = await saveSession(userId, language || profile.language, answers, result, duration_seconds ?? null);
     await updateTrend(userId, answers, result);
 
-    return res.json({ result, session_id: sessionId ?? null });
+    return res.json({ result, session_id: sessionId ?? null, meta: { used_minimal_profile: usedMinimalProfile } });
   } catch (err) {
     console.error("[checkins] analyze failed:", err);
     return res.status(500).json({ error: "Failed to analyze check-in" });

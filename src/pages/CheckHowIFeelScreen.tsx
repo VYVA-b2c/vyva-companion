@@ -1150,13 +1150,16 @@ const CheckHowIFeelScreen = () => {
           answers,
         }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`${res.status}${detail ? ` ${detail.slice(0, 180)}` : ""}`);
+      }
       const data = await res.json() as { result: CheckinResult };
       setResult(data.result);
     } catch (err) {
       console.warn("[check-in] falling back locally", err);
       setResult(localizedLocalResult(name, answers, gender, copy));
-      toast({ description: copy.fallbackToast });
+      toast({ description: `${copy.fallbackToast} ${err instanceof Error ? `(${err.message})` : ""}`.trim() });
     } finally {
       setStep("result");
     }
