@@ -239,41 +239,40 @@ function ageFromDate(dateOfBirth: string | null): number | null {
   return age > 0 && age < 130 ? age : null;
 }
 
+function getProfileString(profile: Record<string, unknown> | undefined, ...keys: string[]): string | null {
+  if (!profile) return null;
+  for (const key of keys) {
+    const value = profile[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getProfileArray(profile: Record<string, unknown> | undefined, ...keys: string[]): string[] {
+  if (!profile) return [];
+  for (const key of keys) {
+    const value = profile[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    }
+    if (typeof value === "string" && value.trim()) {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 async function fetchProfileContext(userId: string): Promise<ProfileContext> {
   const profileResult = await pool.query(
-    `select
-       full_name, preferred_name, date_of_birth, language,
-       address_line_1, city, region, postcode, country_code,
-       gp_name, gp_phone, gp_address,
-       caregiver_name, caregiver_contact,
-       known_allergies, data_sharing_consent
+    `select *
      from profiles
      where id = $1
      limit 1`,
     [userId],
   );
-  const profile = profileResult.rows[0] as
-    | {
-        full_name: string | null;
-        preferred_name: string | null;
-        date_of_birth: string | null;
-        language: string | null;
-        address_line_1: string | null;
-        city: string | null;
-        region: string | null;
-        postcode: string | null;
-        country_code: string | null;
-        gp_name: string | null;
-        gp_phone: string | null;
-        gp_address: string | null;
-        caregiver_name: string | null;
-        caregiver_contact: string | null;
-        known_allergies: string[] | null;
-        data_sharing_consent: unknown;
-      }
-    | undefined;
+  const profile = profileResult.rows[0] as Record<string, unknown> | undefined;
 
-  const medsResult = await pool.query(
+  const medsRows = await optionalRows<{ medication_name: string | null; dosage: string | null; frequency: string | null }>(
     `select medication_name, dosage, frequency
      from user_medications
      where user_id = $1 and active = true
@@ -352,11 +351,11 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
   );
 
   const name =
-    profile?.preferred_name ||
-    profile?.full_name?.split(/\s+/).filter(Boolean)[0] ||
+    getProfileString(profile, "preferred_name", "first_name") ||
+    getProfileString(profile, "full_name", "name")?.split(/\s+/).filter(Boolean)[0] ||
     "amiga";
 
-  const consent = profile?.data_sharing_consent;
+  const consent = profile?.data_sharing_consent ?? profile?.consent ?? profile?.profile_data;
   const companion = companionRows[0];
   const hobbies = [
     ...(companion?.hobbies ?? []),
@@ -391,31 +390,31 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
   return {
     name,
     grammatical_gender: inferProfileGender(consent, name),
-    age: ageFromDate(profile?.date_of_birth ?? null),
-    language: profile?.language ?? "es",
+    age: ageFromDate(getProfileString(profile, "date_of_birth", "dob", "birth_date")),
+    language: getProfileString(profile, "language", "language_preference", "preferred_language") ?? "es",
     location: {
-      city: profile?.city ?? null,
-      region: profile?.region ?? null,
-      country_code: profile?.country_code ?? null,
-      address_available: Boolean(profile?.address_line_1 || profile?.postcode),
+      city: getProfileString(profile, "city", "town") ?? null,
+      region: getProfileString(profile, "region", "province", "state") ?? null,
+      country_code: getProfileString(profile, "country_code", "country") ?? null,
+      address_available: Boolean(getProfileString(profile, "address_line_1", "address", "home_address", "postcode", "postal_code")),
     },
-    city: profile?.city ?? null,
+    city: getProfileString(profile, "city", "town") ?? null,
     mobility_level: parseConsentString(consent, "conditions", "mobility_level"),
     living_situation: parseConsentString(consent, "conditions", "living_situation"),
     gp: {
-      name: profile?.gp_name ?? null,
-      phone_available: Boolean(profile?.gp_phone),
-      address_available: Boolean(profile?.gp_address),
+      name: getProfileString(profile, "gp_name", "doctor_name", "primary_doctor") ?? null,
+      phone_available: Boolean(getProfileString(profile, "gp_phone", "doctor_phone")),
+      address_available: Boolean(getProfileString(profile, "gp_address", "doctor_address")),
     },
     caregiver: {
-      name: profile?.caregiver_name ?? null,
-      contact_available: Boolean(profile?.caregiver_contact),
+      name: getProfileString(profile, "caregiver_name", "emergency_contact_name") ?? null,
+      contact_available: Boolean(getProfileString(profile, "caregiver_contact", "caregiver_phone", "emergency_contact_phone")),
     },
     conditions: parseConditionList(consent),
-    medications: medsResult.rows.map((row) =>
+    medications: medsRows.map((row) =>
       [row.medication_name, row.dosage, row.frequency].filter(Boolean).join(" "),
     ),
-    allergies: profile?.known_allergies ?? [],
+    allergies: getProfileArray(profile, "known_allergies", "allergies"),
     diet: {
       preferences: [
         ...parseConsentArray(consent, "diet", "dietary_preferences"),
