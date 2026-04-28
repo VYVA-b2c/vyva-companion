@@ -54,6 +54,7 @@ import MedicationsSection from "./pages/onboarding/sections/MedicationsSection";
 
 import PrivacySettings from "./pages/settings/PrivacySettings";
 import SymptomCheckScreen from "./pages/SymptomCheckScreen";
+import CheckHowIFeelScreen from "./pages/CheckHowIFeelScreen";
 import SignosScreen from "./pages/SignosScreen";
 import InformesScreen from "./pages/InformesScreen";
 import CompanionsScreen from "./pages/CompanionsScreen";
@@ -140,6 +141,7 @@ const App = () => (
                   <Route path="/" element={<AppShell><HomeScreen /></AppShell>} />
                   <Route path="/chat" element={<AppShell><ChatScreen /></AppShell>} />
                   <Route path="/health" element={<AppShell><HealthScreen /></AppShell>} />
+                  <Route path="/health/check-in" element={<AppShell><CheckHowIFeelScreen /></AppShell>} />
                   <Route path="/health/symptom-check" element={<AppShell><SymptomCheckScreen /></AppShell>} />
                   <Route path="/health/vitals" element={<AppShell><SignosScreen /></AppShell>} />
                   <Route path="/informes" element={<AppShell><InformesScreen /></AppShell>} />

@@ -35,6 +35,7 @@ import { requireUser } from "./middleware/auth.js";
 import reportsRouter from "./routes/reports.js";
 import vitalsRouter from "./routes/vitals.js";
 import specialistsRouter from "./routes/specialists.js";
+import checkinsRouter from "./routes/checkins.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
@@ -94,6 +95,7 @@ app.get("/api/history/scans", authMiddleware, requireUser, scanHistoryHandler);
 app.use("/api/reports", authMiddleware, reportsRouter);
 app.use("/api/vitals", authMiddleware, vitalsRouter);
 app.use("/api/specialists", authMiddleware, specialistsRouter);
+app.use("/api/checkins", authMiddleware, checkinsRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });

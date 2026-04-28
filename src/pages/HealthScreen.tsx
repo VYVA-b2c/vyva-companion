@@ -500,7 +500,7 @@ const HealthScreen = () => {
 
           <button
             data-testid="button-hero-revisar"
-            onClick={() => navigate("/health/symptom-check")}
+            onClick={() => navigate("/health/check-in")}
             className="mt-[14px] min-h-[56px] w-full rounded-full py-[13px] font-body text-[16px] font-semibold transition-all active:scale-95"
             style={{ background: "rgba(255,255,255,0.18)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.28)" }}
           >
