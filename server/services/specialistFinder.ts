@@ -19,6 +19,7 @@ export interface SpecialistSource {
 export interface SpecialistProvider {
   name: string;
   specialty: string;
+  specialtyLabel?: string;
   clinicName?: string;
   phone?: string | null;
   address?: string;
@@ -97,6 +98,36 @@ const CONDITION_SPECIALTY_MAP: Array<{
   },
 ];
 
+const SPECIALTY_LABELS_ES: Record<string, string> = {
+  "Traumatology / Orthopaedics": "Traumatologia / Ortopedia",
+  Physiotherapy: "Fisioterapia",
+  Rheumatology: "Reumatologia",
+  Neurology: "Neurologia",
+  Geriatrics: "Geriatria",
+  Neuropsychology: "Neuropsicologia",
+  Endocrinology: "Endocrinologia",
+  "Internal Medicine": "Medicina interna",
+  "Diabetes Education": "Educacion diabetologica",
+  Dermatology: "Dermatologia",
+  "Wound Care Nursing": "Enfermeria de heridas",
+  Cardiology: "Cardiologia",
+  Pulmonology: "Neumologia",
+  Gastroenterology: "Digestivo",
+  Ophthalmology: "Oftalmologia",
+  "ENT / Otolaryngology": "Otorrinolaringologia",
+  Audiology: "Audiologia",
+  "Sleep Medicine": "Medicina del sueno",
+  Psychology: "Psicologia",
+  Psychiatry: "Psiquiatria",
+  GP: "Medico de cabecera",
+  "General Practice": "Medicina general",
+};
+
+function specialtyLabel(specialty: string, language: string): string {
+  if (language.startsWith("es")) return SPECIALTY_LABELS_ES[specialty] ?? specialty;
+  return specialty;
+}
+
 export const SPECIALIST_SOURCES: SpecialistSource[] = [
   {
     name: "QuironSalud",
@@ -168,13 +199,14 @@ function resolveSearchLocation(location?: string): string {
   return trimmed || "Marbella, Malaga, Spain";
 }
 
-function buildFallbackProviders(specialties: string[], location: string): SpecialistProvider[] {
+function buildFallbackProviders(specialties: string[], location: string, language: string): SpecialistProvider[] {
   const primary = specialties[0] ?? "General Practice";
   const secondary = specialties[1] ?? "Internal Medicine";
   return [
     {
       name: `${primary} team at QuironSalud Marbella`,
       specialty: primary,
+      specialtyLabel: specialtyLabel(primary, language),
       clinicName: "Hospital QuironSalud Marbella",
       address: "Marbella, Malaga",
       bookingUrl: "https://www.quironsalud.com/marbella",
@@ -190,6 +222,7 @@ function buildFallbackProviders(specialties: string[], location: string): Specia
     {
       name: `${secondary} options on Doctoralia`,
       specialty: secondary,
+      specialtyLabel: specialtyLabel(secondary, language),
       clinicName: "Doctoralia verified marketplace results",
       address: location,
       bookingUrl: "https://www.doctoralia.es/",
@@ -237,6 +270,7 @@ async function searchGooglePlaces(
   return (data.results ?? []).slice(0, 3).map((place, index) => ({
     name: place.name ?? "Specialist clinic",
     specialty: specialties[0] ?? "General Practice",
+    specialtyLabel: specialtyLabel(specialties[0] ?? "General Practice", language),
     clinicName: place.name ?? undefined,
     address: place.formatted_address ?? location,
     bookingUrl: place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : null,
@@ -260,12 +294,12 @@ export async function recommendSpecialists(input: SpecialistSearchInput): Promis
   const language = input.language?.trim() || "es";
 
   const liveProviders = await searchGooglePlaces(specialties, location, language).catch(() => []);
-  const providers = liveProviders.length ? liveProviders : buildFallbackProviders(specialties, location);
+  const providers = liveProviders.length ? liveProviders : buildFallbackProviders(specialties, location, language);
   const ranked = providers.sort((a, b) => b.score - a.score).slice(0, 3);
 
   return {
     condition,
-    matchedSpecialties: specialties,
+    matchedSpecialties: specialties.map((specialty) => specialtyLabel(specialty, language)),
     safetyNote: SAFETY_NOTE,
     sourcesChecked: SPECIALIST_SOURCES,
     providers: ranked,

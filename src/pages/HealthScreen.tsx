@@ -42,6 +42,7 @@ type WoundScan = {
 type SpecialistProvider = {
   name: string;
   specialty: string;
+  specialtyLabel?: string;
   clinicName?: string;
   phone?: string | null;
   address?: string;
@@ -263,6 +264,47 @@ const HealthScreen = () => {
     }
     specialistMutation.mutate();
   };
+
+  const bookSpecialistMutation = useMutation({
+    mutationFn: async (provider: SpecialistProvider) => {
+      const specialty = provider.specialtyLabel ?? provider.specialty;
+      const res = await apiFetch("/api/concierge/actions/trigger", {
+        method: "POST",
+        body: JSON.stringify({
+          use_case: "book_appointment",
+          provider_name: provider.clinicName ?? provider.name,
+          provider_phone: provider.phone ?? null,
+          found_externally: true,
+          action_summary: `Pedir una cita de ${specialty} en ${provider.clinicName ?? provider.name}.`,
+          action_payload: {
+            doctor_name: provider.name,
+            practice_name: provider.clinicName ?? provider.name,
+            specialty,
+            reason: specialistCondition,
+            preferred_days: [],
+            preferred_time: "",
+            urgency: "routine",
+            provider_address: provider.address ?? "",
+            booking_url: provider.bookingUrl ?? "",
+            source_name: provider.sourceName,
+          },
+          language: i18n.language || "es",
+          trigger_source: "user_request",
+          auto_start: false,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not create appointment request");
+      return res.json() as Promise<{ pendingId: string; status: string }>;
+    },
+    onSuccess: () => {
+      toast({ description: "He preparado la solicitud. Te llevo a Concierge para confirmarla." });
+      queryClient.invalidateQueries({ queryKey: ["/api/concierge/actions/pending"] });
+      navigate("/concierge");
+    },
+    onError: () => {
+      toast({ description: "No he podido preparar la cita. Intentalo de nuevo en un momento." });
+    },
+  });
 
   const compressImage = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -736,7 +778,7 @@ const HealthScreen = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-body text-[14px] font-semibold text-vyva-text-1">{spec.name}</p>
-                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{spec.specialty}</p>
+                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{spec.specialtyLabel ?? spec.specialty}</p>
                             <p className="font-body text-[12px] text-vyva-text-2 leading-snug">{spec.address ?? spec.clinicName}</p>
                             <div className="flex items-center gap-1 mt-[4px]">
                               <Star size={10} fill="#F59E0B" style={{ color: "#F59E0B" }} />
@@ -748,8 +790,9 @@ const HealthScreen = () => {
                           </div>
                           <button
                             data-testid={`button-book-specialist-${i}`}
-                            onClick={() => navigate("/concierge")}
-                            className="px-[12px] py-[6px] rounded-full font-body text-[12px] font-semibold flex-shrink-0"
+                            onClick={() => bookSpecialistMutation.mutate(spec)}
+                            disabled={bookSpecialistMutation.isPending}
+                            className="px-[12px] py-[6px] rounded-full font-body text-[12px] font-semibold flex-shrink-0 disabled:opacity-60"
                             style={{ background: "#EDE9FE", color: "#7C3AED" }}
                           >
                             Reservar
