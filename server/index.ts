@@ -68,7 +68,7 @@ app.delete("/api/scam-check/:id", authMiddleware, scamCheckDeleteHandler);
 
 app.post("/api/offers/analyze-document", express.json({ limit: "20mb" }), authMiddleware, analyzeOfferDocumentHandler);
 
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 
 app.post("/api/router", routerHandler);
 app.post("/api/elevenlabs-conversation-token", conversationTokenHandler);
