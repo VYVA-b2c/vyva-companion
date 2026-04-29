@@ -644,7 +644,7 @@ function compressBillImage(file: File): Promise<string> {
 }
 
 async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
-  const res = await apiFetch("/api/offers/analyze-document", {
+  const res = await apiFetch("/api/bill-reader/analyze", {
     method: "POST",
     body: JSON.stringify({ image, locale }),
   });
