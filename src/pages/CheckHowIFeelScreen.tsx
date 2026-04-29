@@ -1633,6 +1633,20 @@ const CheckHowIFeelScreen = () => {
   const urgentHealthPriority = hasUrgentSafetyFlag(answers);
   const gender = inferGender(profile, name);
   const readoutLanguage = profile?.language ?? "es";
+  const resultReadoutText = result
+    ? [
+        result.feeling_label,
+        result.vyva_reading,
+        healthPriority ? result.watch_for ?? result.highlight : result.highlight,
+        result.why_today,
+        result.trend_note,
+        result.personal_plan,
+        result.app_suggestion,
+        result.right_now?.length ? `${copy.rightNow}. ${uniqueByIntent(result.right_now).slice(0, 3).join(". ")}` : "",
+        result.today_actions?.length ? `${copy.today}. ${uniqueByIntent(result.today_actions).slice(0, 3).join(". ")}` : "",
+        result.watch_for && !healthPriority ? result.watch_for : "",
+      ].filter(Boolean).join(". ")
+    : "";
   const energyOptions = localizedEnergyOptionsFor(gender, copy);
   const moodOptionsLocalized = localizedMoodOptionsFor(copy);
   const bodyOptionsLocalized = localizedBodyOptionsFor(copy);
@@ -1962,7 +1976,7 @@ const CheckHowIFeelScreen = () => {
             <p className="relative font-body text-[21px] leading-relaxed text-vyva-text-2">{result.vyva_reading}</p>
             <div className="relative mt-5">
               <ListenButton
-                text={`${result.feeling_label}. ${result.vyva_reading}`}
+                text={resultReadoutText}
                 language={readoutLanguage}
               />
             </div>
@@ -1978,11 +1992,6 @@ const CheckHowIFeelScreen = () => {
                 <span className="block font-body text-[20px] font-semibold leading-relaxed text-[#7F1D1D]">
                   {result.watch_for ?? result.highlight}
                 </span>
-                <ListenButton
-                  text={result.watch_for ?? result.highlight}
-                  language={readoutLanguage}
-                  className="mt-4 border-[#FECACA] text-[#B91C1C]"
-                />
               </span>
             </div>
           )}
@@ -1991,7 +2000,6 @@ const CheckHowIFeelScreen = () => {
             <span>
               <span className="mb-1 block font-body text-[15px] font-bold uppercase tracking-[0.14em] text-vyva-purple">{copy.important}</span>
               <span className="block font-body text-[20px] font-semibold leading-relaxed text-vyva-text-1">{result.highlight}</span>
-              <ListenButton text={result.highlight} language={readoutLanguage} className="mt-4" />
             </span>
           </div>
           {(result.why_today || result.trend_note || result.personal_plan || result.app_suggestion) && (
@@ -2004,7 +2012,6 @@ const CheckHowIFeelScreen = () => {
                   tone="lavender"
                   actionLabel={nowAction?.title}
                   onAction={nowAction ? () => navigate(nowAction.to) : undefined}
-                  language={readoutLanguage}
                 />
               )}
               {result.trend_note && (
@@ -2015,7 +2022,6 @@ const CheckHowIFeelScreen = () => {
                   tone="sky"
                   actionLabel={copy === CHECKIN_TEXT.es ? "Ver historial" : "See history"}
                   onAction={() => navigate("/health/check-ins")}
-                  language={readoutLanguage}
                 />
               )}
               {result.personal_plan && (
@@ -2026,7 +2032,6 @@ const CheckHowIFeelScreen = () => {
                   tone="mint"
                   actionLabel={planAction?.title}
                   onAction={planAction ? () => navigate(planAction.to) : undefined}
-                  language={readoutLanguage}
                 />
               )}
               {result.app_suggestion && (
@@ -2037,7 +2042,6 @@ const CheckHowIFeelScreen = () => {
                   tone="cream"
                   actionLabel={suggestedAction?.title}
                   onAction={suggestedAction ? () => navigate(suggestedAction.to) : undefined}
-                  language={readoutLanguage}
                 />
               )}
             </div>
@@ -2048,7 +2052,6 @@ const CheckHowIFeelScreen = () => {
             items={result.right_now}
             actionLabel={nowAction?.title}
             onAction={nowAction ? () => navigate(nowAction.to) : undefined}
-            language={readoutLanguage}
           />
           <ResultList
             title={copy.today}
@@ -2056,14 +2059,12 @@ const CheckHowIFeelScreen = () => {
             items={result.today_actions}
             actionLabel={todayAction?.title}
             onAction={todayAction ? () => navigate(todayAction.to) : undefined}
-            language={readoutLanguage}
           />
           {result.watch_for && (
             <div className="mt-4 flex gap-3 rounded-[24px] border border-[#F59E0B]/30 bg-[#FFFBEB] p-5">
               <span className="text-[24px]">🔎</span>
               <span>
                 <p className="font-body text-[18px] leading-relaxed text-[#78350F]">{result.watch_for}</p>
-                <ListenButton text={result.watch_for} language={readoutLanguage} className="mt-4 border-[#FDE68A] text-[#92400E]" />
               </span>
             </div>
           )}
@@ -2385,14 +2386,12 @@ function ResultList({
   items,
   actionLabel,
   onAction,
-  language,
 }: {
   title: string;
   icon: string;
   items: string[];
   actionLabel?: string;
   onAction?: () => void;
-  language?: string;
 }) {
   const uniqueItems = uniqueByIntent(items).slice(0, 3);
   return (
@@ -2411,11 +2410,6 @@ function ResultList({
           </div>
         ))}
       </div>
-      <ListenButton
-        text={`${title}. ${uniqueItems.join(". ")}`}
-        language={language}
-        className="mt-4"
-      />
       {actionLabel && onAction && (
         <button
           type="button"
@@ -2436,7 +2430,6 @@ function InsightCard({
   tone,
   actionLabel,
   onAction,
-  language,
 }: {
   title: string;
   icon: string;
@@ -2444,7 +2437,6 @@ function InsightCard({
   tone: "lavender" | "mint" | "cream" | "sky";
   actionLabel?: string;
   onAction?: () => void;
-  language?: string;
 }) {
   const toneClass =
     tone === "mint"
@@ -2467,7 +2459,6 @@ function InsightCard({
         <span className="block font-body text-[18px] leading-relaxed text-vyva-text-1">
           {text}
         </span>
-        <ListenButton text={`${title}. ${text}`} language={language} className="mt-4" />
         {actionLabel && onAction && (
           <button
             type="button"
