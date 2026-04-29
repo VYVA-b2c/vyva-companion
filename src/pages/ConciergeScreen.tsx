@@ -183,6 +183,7 @@ type BillDocumentAnalysis = {
   suggested_query: string;
   user_summary: string;
   isFallback?: boolean;
+  fallback_reason?: "missing_api_key" | "invalid_model_json" | "openai_error" | "unreadable";
 };
 
 type UtilityInputMethod = "upload" | "photo" | "voice" | "manual";
@@ -595,7 +596,7 @@ function compressBillImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1280;
+      const MAX = 1800;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) {
@@ -612,7 +613,7 @@ function compressBillImage(file: File): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("canvas context unavailable"));
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.78));
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);

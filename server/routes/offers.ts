@@ -30,6 +30,7 @@ type BillDocumentType =
   | "unknown";
 
 type ConfidenceLevel = "high" | "medium" | "low";
+type BillFallbackReason = "missing_api_key" | "invalid_model_json" | "openai_error" | "unreadable";
 
 interface BillDocumentAnalysis {
   document_type: BillDocumentType;
@@ -54,6 +55,7 @@ interface BillDocumentAnalysis {
   suggested_query: string;
   user_summary: string;
   isFallback?: boolean;
+  fallback_reason?: BillFallbackReason;
 }
 
 interface OfferProfileContext {
@@ -127,41 +129,58 @@ const LOCALE_TO_LANGUAGE: Record<string, string> = {
   pt: "Portuguese",
 };
 
-function fallbackDocumentAnalysis(locale = "es"): BillDocumentAnalysis {
+function fallbackDocumentAnalysis(locale = "es", reason: BillFallbackReason = "unreadable"): BillDocumentAnalysis {
   const lang = normaliseLocale(locale);
   const copy = {
     es: {
       missing: ["tipo de documento", "compania", "importe", "periodo"],
       query: "revisar una factura de servicios importantes",
+      unavailable: "Ahora mismo no puedo leer la factura automaticamente. Puede rellenar los datos a mano o intentarlo de nuevo.",
+      parse: "He visto la factura, pero no he podido convertirla en datos fiables. Puede rellenar los datos a mano.",
       summary: "No he podido leer esta factura con suficiente claridad. Prueba con una foto mas nitida y completa.",
     },
     de: {
       missing: ["Dokumenttyp", "Anbieter", "Betrag", "Zeitraum"],
       query: "wichtige Servicerechnung pruefen",
+      unavailable: "Ich kann die Rechnung im Moment nicht automatisch lesen. Sie koennen die Daten manuell eingeben oder es erneut versuchen.",
+      parse: "Ich habe die Rechnung erkannt, konnte sie aber nicht sicher in Daten umwandeln. Sie koennen die Daten manuell eingeben.",
       summary: "Ich konnte diese Rechnung nicht klar genug lesen. Bitte versuchen Sie es mit einem schaerferen, vollstaendigen Foto.",
     },
     fr: {
       missing: ["type de document", "fournisseur", "montant", "periode"],
       query: "examiner une facture de service importante",
+      unavailable: "Je ne peux pas lire automatiquement la facture pour le moment. Vous pouvez saisir les donnees manuellement ou reessayer.",
+      parse: "J'ai vu la facture, mais je n'ai pas pu la convertir en donnees fiables. Vous pouvez saisir les donnees manuellement.",
       summary: "Je n'ai pas pu lire cette facture assez clairement. Essayez avec une photo plus nette et complete.",
     },
     it: {
       missing: ["tipo di documento", "fornitore", "importo", "periodo"],
       query: "controllare una bolletta o fattura importante",
+      unavailable: "Al momento non posso leggere automaticamente la fattura. Puoi inserire i dati manualmente o riprovare.",
+      parse: "Ho visto la fattura, ma non sono riuscita a trasformarla in dati affidabili. Puoi inserire i dati manualmente.",
       summary: "Non sono riuscita a leggere bene questa fattura. Prova con una foto piu nitida e completa.",
     },
     pt: {
       missing: ["tipo de documento", "fornecedor", "valor", "periodo"],
       query: "rever uma fatura de servico importante",
+      unavailable: "Neste momento nao consigo ler a fatura automaticamente. Pode preencher os dados manualmente ou tentar novamente.",
+      parse: "Vi a fatura, mas nao consegui transforma-la em dados fiaveis. Pode preencher os dados manualmente.",
       summary: "Nao consegui ler esta fatura com clareza suficiente. Tente uma foto mais nitida e completa.",
     },
     en: {
       missing: ["document type", "provider", "amount", "period"],
       query: "review an important service bill",
+      unavailable: "I cannot read the bill automatically right now. You can enter the details manually or try again.",
+      parse: "I saw the bill, but could not turn it into reliable data. You can enter the details manually.",
       summary: "I could not read this bill clearly enough. Try a sharper, complete photo.",
     },
   } as const;
   const text = copy[lang as keyof typeof copy] ?? copy.en;
+  const userSummary = reason === "missing_api_key" || reason === "openai_error"
+    ? text.unavailable
+    : reason === "invalid_model_json"
+      ? text.parse
+      : text.summary;
   return {
     document_type: "unknown",
     category: "Gastos del hogar",
@@ -183,8 +202,9 @@ function fallbackDocumentAnalysis(locale = "es"): BillDocumentAnalysis {
     confidence: "low",
     missing_fields: [...text.missing],
     suggested_query: text.query,
-    user_summary: text.summary,
+    user_summary: userSummary,
     isFallback: true,
+    fallback_reason: reason,
   };
 }
 
@@ -850,7 +870,7 @@ export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
   const apiKey = process.env.OPENAI_API_KEY ?? "";
   if (!apiKey) {
     console.warn("[offers/analyze-document] OPENAI_API_KEY not set");
-    return res.json(fallbackDocumentAnalysis(normalizedLocale));
+    return res.json(fallbackDocumentAnalysis(normalizedLocale, "missing_api_key"));
   }
 
   const match = image.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
@@ -894,13 +914,13 @@ export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
       parsed = JSON.parse(raw) as Record<string, unknown>;
     } catch {
       console.error("[offers/analyze-document] Failed to parse model JSON");
-      return res.json(fallbackDocumentAnalysis(normalizedLocale));
+      return res.json(fallbackDocumentAnalysis(normalizedLocale, "invalid_model_json"));
     }
 
     return res.json(normaliseDocumentAnalysis(parsed, normalizedLocale));
   } catch (err) {
     console.error("[offers/analyze-document] OpenAI error:", err);
-    return res.json(fallbackDocumentAnalysis(normalizedLocale));
+    return res.json(fallbackDocumentAnalysis(normalizedLocale, "openai_error"));
   }
 }
 
