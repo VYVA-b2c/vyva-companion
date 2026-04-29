@@ -596,33 +596,44 @@ function compressBillImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1600;
-      let { width, height } = img;
-      if (width > MAX || height > MAX) {
-        if (width > height) {
-          height = Math.round((height * MAX) / width);
-          width = MAX;
-        } else {
-          width = Math.round((width * MAX) / height);
-          height = MAX;
-        }
-      }
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("canvas context unavailable"));
-      ctx.drawImage(img, 0, 0, width, height);
 
-      // Keep enough detail for OCR while staying below server/body limits.
-      const targetChars = 3_500_000;
-      const qualities = [0.86, 0.78, 0.68, 0.58, 0.48];
-      let dataUrl = canvas.toDataURL("image/jpeg", qualities[0]);
-      for (const quality of qualities.slice(1)) {
-        if (dataUrl.length <= targetChars) break;
-        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      // Keep enough detail for OCR while staying safely below API body limits.
+      const targetChars = 1_800_000;
+      const qualities = [0.78, 0.68, 0.58, 0.48, 0.38];
+      const maxSizes = [1400, 1200, 1000, 850, 700];
+      let best = "";
+
+      for (const maxSize of maxSizes) {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          if (!best || dataUrl.length < best.length) best = dataUrl;
+          if (dataUrl.length <= targetChars) {
+            resolve(dataUrl);
+            return;
+          }
+        }
       }
-      resolve(dataUrl);
+
+      resolve(best);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -640,9 +651,10 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     if (res.status === 413) {
+      const sizeMb = (image.length / 1024 / 1024).toFixed(1);
       throw new Error(locale.startsWith("es")
-        ? "La imagen pesa demasiado. He intentado comprimirla, pero pruebe con una captura algo mas pequena."
-        : "The image is too large. I tried to compress it, but please try a slightly smaller screenshot.");
+        ? `La imagen comprimida sigue siendo demasiado grande (${sizeMb} MB). Pruebe con una captura algo mas pequena.`
+        : `The compressed image is still too large (${sizeMb} MB). Please try a slightly smaller screenshot.`);
     }
     throw new Error(data?.error ?? `Request failed: ${res.status}`);
   }
