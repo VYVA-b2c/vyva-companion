@@ -128,7 +128,40 @@ const LOCALE_TO_LANGUAGE: Record<string, string> = {
 };
 
 function fallbackDocumentAnalysis(locale = "es"): BillDocumentAnalysis {
-  const es = normaliseLocale(locale) === "es";
+  const lang = normaliseLocale(locale);
+  const copy = {
+    es: {
+      missing: ["tipo de documento", "compania", "importe", "periodo"],
+      query: "revisar una factura de servicios importantes",
+      summary: "No he podido leer esta factura con suficiente claridad. Prueba con una foto mas nitida y completa.",
+    },
+    de: {
+      missing: ["Dokumenttyp", "Anbieter", "Betrag", "Zeitraum"],
+      query: "wichtige Servicerechnung pruefen",
+      summary: "Ich konnte diese Rechnung nicht klar genug lesen. Bitte versuchen Sie es mit einem schaerferen, vollstaendigen Foto.",
+    },
+    fr: {
+      missing: ["type de document", "fournisseur", "montant", "periode"],
+      query: "examiner une facture de service importante",
+      summary: "Je n'ai pas pu lire cette facture assez clairement. Essayez avec une photo plus nette et complete.",
+    },
+    it: {
+      missing: ["tipo di documento", "fornitore", "importo", "periodo"],
+      query: "controllare una bolletta o fattura importante",
+      summary: "Non sono riuscita a leggere bene questa fattura. Prova con una foto piu nitida e completa.",
+    },
+    pt: {
+      missing: ["tipo de documento", "fornecedor", "valor", "periodo"],
+      query: "rever uma fatura de servico importante",
+      summary: "Nao consegui ler esta fatura com clareza suficiente. Tente uma foto mais nitida e completa.",
+    },
+    en: {
+      missing: ["document type", "provider", "amount", "period"],
+      query: "review an important service bill",
+      summary: "I could not read this bill clearly enough. Try a sharper, complete photo.",
+    },
+  } as const;
+  const text = copy[lang as keyof typeof copy] ?? copy.en;
   return {
     document_type: "unknown",
     category: "Gastos del hogar",
@@ -148,15 +181,9 @@ function fallbackDocumentAnalysis(locale = "es"): BillDocumentAnalysis {
       standing_charge: null,
     },
     confidence: "low",
-    missing_fields: es
-      ? ["tipo de documento", "compania", "importe", "periodo"]
-      : ["document type", "provider", "amount", "period"],
-    suggested_query: es
-      ? "revisar una factura de servicios importantes"
-      : "review an important service bill",
-    user_summary: es
-      ? "No he podido leer esta factura con suficiente claridad. Prueba con una foto mas nitida y completa."
-      : "I could not read this bill clearly enough. Try a sharper, complete photo.",
+    missing_fields: [...text.missing],
+    suggested_query: text.query,
+    user_summary: text.summary,
     isFallback: true,
   };
 }
@@ -165,6 +192,7 @@ function buildDocumentPrompt(locale: string): string {
   const language = LOCALE_TO_LANGUAGE[normaliseLocale(locale)] ?? "Spanish";
   return `You are VYVA's neutral bill-reading assistant for older adults.
 Read the uploaded image of a bill, invoice, policy, or receipt. Extract only visible facts. Never invent values.
+The image may be a screenshot or cropped view of an online bill. It can still be useful even if the provider name, customer name, or billing period is not visible.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -193,7 +221,10 @@ Return ONLY valid JSON with this exact shape:
 
 Rules:
 - total_amount and unit prices must be numbers, not strings. Use null if not visible.
-- For electricity bills, prioritise kWh, total amount, tariff, period, and company.
+- For electricity bills, prioritise visible consumption in kWh, total amount, energy cost, power/standing charge, taxes, tariff, period, and company.
+- If you see Spanish labels such as "Importe a pagar", "Energia consumida", "Potencia contratada", "Tu consumo total realizado", or "kWh", classify it as "electricity_bill".
+- Missing provider_name or billing_period must NOT make the document unknown if total amount or kWh are visible.
+- If amount and kWh are clearly visible but provider/period are cropped out, use confidence "medium", not "low".
 - If the image is not a relevant bill/invoice/policy, set document_type to "unknown" and confidence to "low".
 - Do not extract account numbers, bank details, full ID numbers, or private reference numbers.
 - Write user_summary and missing_fields in ${language}.
@@ -240,8 +271,58 @@ function categoryFromDocumentType(type: BillDocumentType, rawCategory: unknown):
   return "Gastos del hogar";
 }
 
+function localizedElectricityDetected(locale: string): string {
+  switch (normaliseLocale(locale)) {
+    case "es":
+      return "He detectado una factura de luz para revisar.";
+    case "de":
+      return "Ich habe eine Stromrechnung zur Pruefung erkannt.";
+    case "fr":
+      return "J'ai detecte une facture d'electricite a examiner.";
+    case "it":
+      return "Ho rilevato una bolletta elettrica da controllare.";
+    case "pt":
+      return "Detetei uma fatura de eletricidade para rever.";
+    default:
+      return "I detected an electricity bill to review.";
+  }
+}
+
+function localizedBillDetected(locale: string, providerName: string | null): string {
+  if (providerName) {
+    switch (normaliseLocale(locale)) {
+      case "es":
+        return `He detectado una factura de ${providerName}.`;
+      case "de":
+        return `Ich habe eine Rechnung von ${providerName} erkannt.`;
+      case "fr":
+        return `J'ai detecte une facture de ${providerName}.`;
+      case "it":
+        return `Ho rilevato una fattura di ${providerName}.`;
+      case "pt":
+        return `Detetei uma fatura de ${providerName}.`;
+      default:
+        return `I detected a bill from ${providerName}.`;
+    }
+  }
+  switch (normaliseLocale(locale)) {
+    case "es":
+      return "He detectado una factura para revisar.";
+    case "de":
+      return "Ich habe eine Rechnung zur Pruefung erkannt.";
+    case "fr":
+      return "J'ai detecte une facture a examiner.";
+    case "it":
+      return "Ho rilevato una fattura da controllare.";
+    case "pt":
+      return "Detetei uma fatura para rever.";
+    default:
+      return "I detected a bill to review.";
+  }
+}
+
 function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: string): BillDocumentAnalysis {
-  const documentType = safeDocumentType(parsed.document_type);
+  let documentType = safeDocumentType(parsed.document_type);
   const category = categoryFromDocumentType(documentType, parsed.category);
   const usage = parsed.usage && typeof parsed.usage === "object"
     ? parsed.usage as Record<string, unknown>
@@ -252,24 +333,32 @@ function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: stri
   const missingFields = Array.isArray(parsed.missing_fields)
     ? parsed.missing_fields.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 6)
     : [];
-  const es = normaliseLocale(locale) === "es";
+  const lang = normaliseLocale(locale);
+  const es = lang === "es";
   const suggestedQuery = safeString(parsed.suggested_query)
     ?? (es ? "comparar factura de servicios" : "compare service bill");
   const providerName = safeString(parsed.provider_name);
+  const visibleKwh = safeNumber(usage.kwh);
+  const totalAmount = safeNumber(parsed.total_amount);
+  if (documentType === "unknown" && visibleKwh != null) {
+    documentType = "electricity_bill";
+  }
   const userSummary = safeString(parsed.user_summary)
     ?? (providerName
-      ? (es ? `He detectado una factura de ${providerName}.` : `I detected a bill from ${providerName}.`)
-      : (es ? "He detectado una factura para revisar." : "I detected a bill to review."));
+      ? localizedBillDetected(lang, providerName)
+      : documentType === "electricity_bill"
+        ? localizedElectricityDetected(lang)
+        : localizedBillDetected(lang, null));
 
   return {
     document_type: documentType,
-    category,
+    category: categoryFromDocumentType(documentType, parsed.category),
     provider_name: providerName,
     billing_period: safeString(parsed.billing_period),
-    total_amount: safeNumber(parsed.total_amount),
+    total_amount: totalAmount,
     currency: safeString(parsed.currency),
     usage: {
-      kwh: safeNumber(usage.kwh),
+      kwh: visibleKwh,
       gas_kwh: safeNumber(usage.gas_kwh),
       data_or_phone_plan: safeString(usage.data_or_phone_plan),
     },

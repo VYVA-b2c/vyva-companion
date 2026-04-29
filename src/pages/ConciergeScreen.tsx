@@ -583,6 +583,29 @@ function formatBillAmount(amount: number | null, currency: string | null, es: bo
   return `${amount.toLocaleString(es ? "es-ES" : "en-GB", { maximumFractionDigits: 2 })} ${currency ?? ""}`.trim();
 }
 
+function billClientMessage(locale: string, key: "unsupported" | "read_failed"): string {
+  const lang = locale.split("-")[0].toLowerCase();
+  const messages = {
+    unsupported: {
+      es: "Por ahora solo puedo leer fotos o imagenes de facturas.",
+      de: "Im Moment kann ich nur Fotos oder Bilder von Rechnungen lesen.",
+      fr: "Pour l'instant, je peux seulement lire des photos ou images de factures.",
+      it: "Per ora posso leggere solo foto o immagini di fatture.",
+      pt: "Por agora, so consigo ler fotos ou imagens de faturas.",
+      en: "For now I can only read photos or images of bills.",
+    },
+    read_failed: {
+      es: "No he podido leer la factura. Prueba con una foto mas clara y completa.",
+      de: "Ich konnte die Rechnung nicht lesen. Bitte versuchen Sie es mit einem klareren, vollstaendigen Foto.",
+      fr: "Je n'ai pas pu lire la facture. Essayez avec une photo plus claire et complete.",
+      it: "Non sono riuscita a leggere la fattura. Prova con una foto piu chiara e completa.",
+      pt: "Nao consegui ler a fatura. Tente uma foto mais clara e completa.",
+      en: "I could not read the bill. Try a clearer, complete photo.",
+    },
+  } as const;
+  return messages[key][lang as keyof typeof messages[typeof key]] ?? messages[key].en;
+}
+
 async function confirmPendingAction(item: ConciergePendingItem) {
   const bookingUrl = getBookingUrl(item);
 
@@ -940,9 +963,7 @@ const ConciergeScreen = () => {
     event.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setBillAnalysisError(isSpanish
-        ? "Por ahora solo puedo leer fotos o imagenes de facturas."
-        : "For now I can only read photos or images of bills.");
+      setBillAnalysisError(billClientMessage(i18n.language, "unsupported"));
       return;
     }
     setBillAnalysisLoading(true);
@@ -958,9 +979,7 @@ const ConciergeScreen = () => {
         setBillAnalysisError(analysis.user_summary);
       }
     } catch {
-      setBillAnalysisError(isSpanish
-        ? "No he podido leer la factura. Prueba con una foto mas clara y completa."
-        : "I could not read the bill. Try a clearer, complete photo.");
+      setBillAnalysisError(billClientMessage(i18n.language, "read_failed"));
     } finally {
       setBillAnalysisLoading(false);
     }
