@@ -1756,8 +1756,8 @@ const ConciergeScreen = () => {
               {(utilityMethod === "upload" || utilityMethod === "photo") && (
                 <div className="mt-3 rounded-[16px] bg-[#F5F3FF] px-3 py-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
                   {isSpanish
-                    ? "La foto se usa solo para leer la factura. No se guarda. En v1, los PDF llegaran despues."
-                    : "The photo is only used to read the bill. It is not stored. In v1, PDFs will come later."}
+                    ? "La foto se usa solo para leer la factura. No se guarda. Lector v2 activo."
+                    : "The photo is only used to read the bill. It is not stored. Reader v2 active."}
                 </div>
               )}
 
