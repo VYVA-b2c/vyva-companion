@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { randomUUID } from "crypto";
 import OpenAI from "openai";
 import { z } from "zod";
 import { pool } from "../db.js";
@@ -33,6 +34,13 @@ const abandonBodySchema = z.object({
   duration_seconds: z.number().int().min(0).max(3600).optional(),
 });
 
+const shareBodySchema = z.object({
+  language: z.string().max(12).optional().default("es"),
+  name: z.string().max(120).optional().default(""),
+  result: z.object({}).passthrough(),
+  text: z.string().max(12000).optional().default(""),
+});
+
 type CheckinAnswers = z.infer<typeof checkinBodySchema>["answers"];
 
 type AiCheckinResult = {
@@ -49,6 +57,13 @@ type AiCheckinResult = {
   highlight: string;
   flag_caregiver: boolean;
   watch_for: string | null;
+};
+
+type SharedCheckinReport = {
+  name: string;
+  language: string;
+  result: AiCheckinResult | Record<string, unknown>;
+  text?: string;
 };
 
 type ProfileContext = {
@@ -869,6 +884,34 @@ export async function analyzeCheckinHandler(req: Request, res: Response) {
   }
 }
 
+let checkinShareTablePromise: Promise<void> | null = null;
+
+async function ensureCheckinShareTable() {
+  if (!checkinShareTablePromise) {
+    checkinShareTablePromise = pool.query(`
+      create table if not exists checkin_report_shares (
+        token text primary key,
+        user_id text not null,
+        language text not null default 'es',
+        profile_name text,
+        report_payload jsonb not null,
+        created_at timestamptz not null default now(),
+        expires_at timestamptz not null default (now() + interval '30 days')
+      )
+    `).then(() => undefined);
+  }
+  return checkinShareTablePromise;
+}
+
+function publicReportPayload(name: string, language: string, result: Record<string, unknown>, text: string): SharedCheckinReport {
+  return {
+    name,
+    language,
+    result,
+    text,
+  };
+}
+
 export async function checkinHistoryHandler(req: Request, res: Response) {
   const userId = req.user!.id;
 
@@ -913,8 +956,66 @@ export async function checkinHistoryHandler(req: Request, res: Response) {
   }
 }
 
+export async function createCheckinShareHandler(req: Request, res: Response) {
+  const parsed = shareBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const token = randomUUID();
+  const userId = req.user!.id;
+  const { name, language, result, text } = parsed.data;
+
+  try {
+    await ensureCheckinShareTable();
+    const payload = publicReportPayload(name, language, result, text);
+    await pool.query(
+      `insert into checkin_report_shares (token, user_id, language, profile_name, report_payload)
+       values ($1, $2, $3, $4, $5::jsonb)`,
+      [token, userId, language, name || null, JSON.stringify(payload)],
+    );
+    return res.json({ token });
+  } catch (err) {
+    console.error("[checkins] share link creation failed:", err);
+    return res.status(500).json({ error: "Failed to create share link" });
+  }
+}
+
+export async function sharedCheckinReportHandler(req: Request, res: Response) {
+  const token = String(req.params.token ?? "");
+  if (!token || token.length > 80) {
+    return res.status(404).json({ error: "Report not found" });
+  }
+
+  try {
+    await ensureCheckinShareTable();
+    const result = await pool.query(
+      `select report_payload, created_at, expires_at
+       from checkin_report_shares
+       where token = $1 and expires_at > now()
+       limit 1`,
+      [token],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    return res.json({
+      report: row.report_payload,
+      created_at: row.created_at,
+      expires_at: row.expires_at,
+    });
+  } catch (err) {
+    console.error("[checkins] shared report failed:", err);
+    return res.status(500).json({ error: "Failed to load shared report" });
+  }
+}
+
 router.post("/analyze", requireUser, analyzeCheckinHandler);
 router.get("/history", requireUser, checkinHistoryHandler);
+router.post("/share", requireUser, createCheckinShareHandler);
 
 router.post("/abandon", requireUser, async (req: Request, res: Response) => {
   const parsed = abandonBodySchema.safeParse(req.body);

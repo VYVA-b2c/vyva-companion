@@ -56,6 +56,7 @@ import PrivacySettings from "./pages/settings/PrivacySettings";
 import SymptomCheckScreen from "./pages/SymptomCheckScreen";
 import CheckHowIFeelScreen from "./pages/CheckHowIFeelScreen";
 import CheckinHistoryScreen from "./pages/CheckinHistoryScreen";
+import SharedCheckinReport from "./pages/SharedCheckinReport";
 import SignosScreen from "./pages/SignosScreen";
 import InformesScreen from "./pages/InformesScreen";
 import CompanionsScreen from "./pages/CompanionsScreen";
@@ -119,6 +120,7 @@ const App = () => (
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/confirm/:token" element={<ElderConfirmByToken />} />
+                <Route path="/shared/check-in/:token" element={<SharedCheckinReport />} />
                 <Route path="/admin/proxy-pending" element={<ProxyPendingPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>

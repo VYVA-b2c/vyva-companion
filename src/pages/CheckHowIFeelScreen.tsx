@@ -1459,16 +1459,35 @@ function shareTextFor(name: string, result: CheckinResult, copy: ReturnType<type
   ].filter(Boolean).join("\n");
 }
 
+function shareLinkMessageFor(name: string, result: CheckinResult, shareUrl: string, labels: ReturnType<typeof shareLabelsFor>) {
+  return [
+    labels.linkMessageIntro.replace("{name}", name || labels.person),
+    result.feeling_label,
+    result.highlight ? `${labels.keyPoint}: ${result.highlight}` : "",
+    "",
+    shareUrl,
+    "",
+    labels.medicalNote,
+  ].filter(Boolean).join("\n");
+}
+
 function shareLabelsFor(copy: ReturnType<typeof copyFor>) {
   const isSpanish = copy === CHECKIN_TEXT.es;
   return isSpanish
     ? {
-        title: "Compartir la lectura completa",
-        subtitle: "Envía el informe como texto, sin mandar un enlace a la app.",
+        title: "Compartir informe VYVA",
+        subtitle: "Envia un enlace claro y privado al informe, no un bloque de texto.",
         caregiver: "Enviar al cuidador",
         doctor: "Enviar al médico",
         newContact: "Enviar a otro contacto",
-        copy: "Copiar informe",
+        copy: "Copiar texto completo",
+        copyLink: "Copiar enlace",
+        openLink: "Ver informe",
+        linkReady: "Enlace seguro preparado",
+        linkLoading: "Preparando enlace seguro...",
+        linkMessageIntro: "Te comparto la lectura VYVA de hoy para {name}.",
+        person: "esta persona",
+        keyPoint: "Punto clave",
         preview: "Vista previa",
         noSaved: "No hay contacto guardado",
         addContact: "AÃ±adir contacto",
@@ -1481,12 +1500,19 @@ function shareLabelsFor(copy: ReturnType<typeof copyFor>) {
         close: "Cerrar",
       }
     : {
-        title: "Share the full reading",
-        subtitle: "Send the report as text, not as a link back to the app.",
+        title: "Share VYVA report",
+        subtitle: "Send a clear private report link, not a wall of text.",
         caregiver: "Send to caregiver",
         doctor: "Send to doctor",
         newContact: "Send to another contact",
-        copy: "Copy report",
+        copy: "Copy full text",
+        copyLink: "Copy link",
+        openLink: "View report",
+        linkReady: "Secure link ready",
+        linkLoading: "Preparing secure link...",
+        linkMessageIntro: "I am sharing today's VYVA reading for {name}.",
+        person: "this person",
+        keyPoint: "Key point",
         preview: "Preview",
         noSaved: "No saved contact",
         addContact: "Add contact",
@@ -1581,6 +1607,16 @@ async function shareViaNative(title: string, text: string, toast: ReturnType<typ
   await copyReport(text, toast, labels);
 }
 
+async function createSharedReportLink(name: string, language: string, result: CheckinResult, text: string) {
+  const res = await apiFetch("/api/checkins/share", {
+    method: "POST",
+    body: JSON.stringify({ name, language, result, text }),
+  });
+  if (!res.ok) throw new Error("share_failed");
+  const data = await res.json() as { token: string };
+  return `${window.location.origin}/shared/check-in/${data.token}`;
+}
+
 function sendReportToTarget(target: ShareTarget, subject: string, text: string) {
   if (target.channel === "email" && target.value) {
     window.location.href = `mailto:${encodeURIComponent(target.value)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
@@ -1602,6 +1638,8 @@ const CheckHowIFeelScreen = () => {
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
   const [result, setResult] = useState<CheckinResult | null>(null);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareUrlLoading, setShareUrlLoading] = useState(false);
   const { data: careTeamData } = useQuery<{ members: CareTeamMember[] }>({
     queryKey: ["/api/onboarding/careteam"],
     enabled: step === "result",
@@ -1738,6 +1776,7 @@ const CheckHowIFeelScreen = () => {
     if (needsSafetyFollowup(answers) && answers.safety_flags.length === 0) return;
 
     setStep("analyzing");
+    setShareUrl(null);
     try {
       const res = await apiFetch("/api/checkins/analyze", {
         method: "POST",
@@ -1767,14 +1806,36 @@ const CheckHowIFeelScreen = () => {
     setAnswers(initialAnswers);
     setResult(null);
     setShareSheetOpen(false);
+    setShareUrl(null);
     setStep("welcome");
   };
-
-  const openShareSheet = () => setShareSheetOpen(true);
 
   const shareReportText = result
     ? `${shareTextFor(name, result, copy)}\n\n${shareLabels.medicalNote}`
     : "";
+  const shareReportMessage = result && shareUrl
+    ? shareLinkMessageFor(name, result, shareUrl, shareLabels)
+    : shareReportText;
+
+  const prepareShareUrl = async () => {
+    if (!result || shareUrl || shareUrlLoading) return shareUrl;
+    setShareUrlLoading(true);
+    try {
+      const url = await createSharedReportLink(name, profile?.language ?? "es", result, shareReportText);
+      setShareUrl(url);
+      return url;
+    } catch {
+      toast({ description: shareLabels.failed });
+      return null;
+    } finally {
+      setShareUrlLoading(false);
+    }
+  };
+
+  const openShareSheet = () => {
+    setShareSheetOpen(true);
+    void prepareShareUrl();
+  };
 
   return (
     <div className="vyva-page bg-[radial-gradient(circle_at_top_left,#FFF7ED_0%,transparent_34%),linear-gradient(180deg,#FAF7F2_0%,#F6EFE7_100%)]">
@@ -2107,6 +2168,9 @@ const CheckHowIFeelScreen = () => {
         <ReportShareSheet
           title={copy.shareTitle}
           text={shareReportText}
+          linkText={shareReportMessage}
+          shareUrl={shareUrl}
+          shareUrlLoading={shareUrlLoading}
           labels={shareLabels}
           targets={shareTargets}
           onClose={() => setShareSheetOpen(false)}
@@ -2121,9 +2185,20 @@ const CheckHowIFeelScreen = () => {
               toast({ description: shareLabels.failed });
             }
           }}
+          onCopyLink={async () => {
+            const url = shareUrl ?? await prepareShareUrl();
+            if (!url) return;
+            try {
+              await navigator.clipboard.writeText(url);
+              toast({ description: shareLabels.copied });
+            } catch {
+              toast({ description: shareLabels.failed });
+            }
+          }}
           onNativeShare={async () => {
             try {
-              await shareViaNative(copy.shareTitle, shareReportText, toast, shareLabels);
+              const url = shareUrl ?? await prepareShareUrl();
+              await shareViaNative(copy.shareTitle, url ? shareLinkMessageFor(name, result, url, shareLabels) : shareReportText, toast, shareLabels);
             } catch {
               try {
                 await copyReport(shareReportText, toast, shareLabels);
@@ -2132,12 +2207,14 @@ const CheckHowIFeelScreen = () => {
               }
             }
           }}
-          onSend={(target) => {
+          onSend={async (target) => {
             try {
+              const url = shareUrl ?? await prepareShareUrl();
+              const message = url ? shareLinkMessageFor(name, result, url, shareLabels) : shareReportText;
               if (target.channel === "native") {
-                void shareViaNative(copy.shareTitle, shareReportText, toast, shareLabels);
+                await shareViaNative(copy.shareTitle, message, toast, shareLabels);
               } else {
-                sendReportToTarget(target, copy.shareTitle, shareReportText);
+                sendReportToTarget(target, copy.shareTitle, message);
               }
               setShareSheetOpen(false);
             } catch {
@@ -2153,23 +2230,31 @@ const CheckHowIFeelScreen = () => {
 function ReportShareSheet({
   title,
   text,
+  linkText,
+  shareUrl,
+  shareUrlLoading,
   labels,
   targets,
   onClose,
   onAddContact,
   onCopy,
+  onCopyLink,
   onNativeShare,
   onSend,
 }: {
   title: string;
   text: string;
+  linkText: string;
+  shareUrl: string | null;
+  shareUrlLoading: boolean;
   labels: ReturnType<typeof shareLabelsFor>;
   targets: ShareTarget[];
   onClose: () => void;
   onAddContact: () => void;
   onCopy: () => void;
+  onCopyLink: () => void;
   onNativeShare: () => void;
-  onSend: (target: ShareTarget) => void;
+  onSend: (target: ShareTarget) => void | Promise<void>;
 }) {
   const caregiverTargets = targets.filter((target) => target.kind === "caregiver");
   const doctorTargets = targets.filter((target) => target.kind === "doctor");
@@ -2203,11 +2288,39 @@ function ReportShareSheet({
         </div>
 
         <div className="max-h-[64vh] overflow-y-auto p-5 pb-6">
-          <div className="mb-4 rounded-[24px] border border-vyva-border bg-[#FAF9F6] p-4">
-            <p className="mb-2 font-body text-[15px] font-bold text-vyva-text-1">{title}</p>
-            <pre className="max-h-[220px] whitespace-pre-wrap font-body text-[15px] leading-relaxed text-vyva-text-2">
-              {text}
-            </pre>
+          <div className="mb-4 rounded-[26px] border border-vyva-border bg-[#FAF9F6] p-4">
+            <p className="mb-2 font-body text-[15px] font-bold uppercase tracking-[0.12em] text-vyva-purple">
+              {shareUrlLoading ? labels.linkLoading : labels.linkReady}
+            </p>
+            <div className="rounded-[20px] bg-white p-4 shadow-[0_8px_18px_rgba(63,45,35,0.05)]">
+              <p className="font-body text-[18px] font-bold text-vyva-text-1">{title}</p>
+              <p className="mt-2 line-clamp-4 font-body text-[16px] leading-relaxed text-vyva-text-2">
+                {linkText.split("\n").filter(Boolean).slice(0, 3).join(" ")}
+              </p>
+              {shareUrl && (
+                <p className="mt-3 truncate rounded-full bg-vyva-purple-light px-4 py-2 font-body text-[14px] font-semibold text-vyva-purple">
+                  {shareUrl}
+                </p>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={onCopyLink}
+                disabled={!shareUrl && shareUrlLoading}
+                className="vyva-tap min-h-[52px] rounded-full bg-vyva-purple px-4 font-body text-[15px] font-bold text-white disabled:bg-vyva-text-3"
+              >
+                {labels.copyLink}
+              </button>
+              <button
+                type="button"
+                onClick={() => shareUrl && window.open(shareUrl, "_blank", "noopener,noreferrer")}
+                disabled={!shareUrl}
+                className="vyva-tap min-h-[52px] rounded-full border border-vyva-border bg-white px-4 font-body text-[15px] font-bold text-vyva-text-1 disabled:text-vyva-text-3"
+              >
+                {labels.openLink}
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-3">
