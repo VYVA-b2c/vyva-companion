@@ -22,6 +22,10 @@ import {
   Clock,
   ExternalLink,
   Camera,
+  FileUp,
+  Mic,
+  PencilLine,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,6 +185,57 @@ type BillDocumentAnalysis = {
   isFallback?: boolean;
 };
 
+type UtilityInputMethod = "upload" | "photo" | "voice" | "manual";
+type UtilityType = "electricity" | "gas" | "dual";
+
+interface NormalizedUtilityInput {
+  country: "ES";
+  utility_type: UtilityType;
+  postcode: string;
+  cups: string;
+  provider: string;
+  tariff_name: string;
+  power_kw: number | null;
+  consumption_kwh: number | null;
+  billing_period_days: number | null;
+  total_cost: number | null;
+  has_social_bonus: boolean | null;
+  confidence: number;
+  missing_fields: string[];
+}
+
+interface UtilityComparisonResult {
+  provider: string;
+  tariff_name: string;
+  estimated_monthly_cost: number | null;
+  estimated_annual_cost: number | null;
+  estimated_monthly_savings: number | null;
+  contract_type: string;
+  permanence: string;
+  price_stability: string;
+  green_energy: boolean | null;
+  source: "CNMC" | "Fallback";
+  confidence: "high" | "medium" | "low";
+  notes: string[];
+}
+
+interface UtilityCompareResponse {
+  normalized_input: NormalizedUtilityInput;
+  source_used: "CNMC" | "Fallback";
+  source_status: "success" | "fallback" | "failed";
+  summary: {
+    headline: string;
+    current_monthly_cost: number | null;
+    best_estimated_monthly_cost: number | null;
+    estimated_monthly_savings: number | null;
+  };
+  results: UtilityComparisonResult[];
+  calculation_note: string;
+  estimated_note: string;
+  neutrality_note: string;
+  source_note: string;
+}
+
 const OFFER_CATEGORY_CHIPS = [
   {
     es: "Gastos del hogar",
@@ -274,6 +329,30 @@ const OFFER_IDEA_CHIPS = [
     queryEn: "optimise bills electricity gas internet home maintenance",
   },
 ] as const;
+
+const UTILITY_INPUT_METHODS = [
+  { key: "upload", icon: FileUp, es: "Subir factura", en: "Upload bill" },
+  { key: "photo", icon: Camera, es: "Hacer foto", en: "Take photo" },
+  { key: "voice", icon: Mic, es: "Responder por voz", en: "Answer by voice" },
+  { key: "manual", icon: PencilLine, es: "Rellenar datos manualmente", en: "Fill manually" },
+] as const;
+
+const UTILITY_VOICE_QUESTIONS = [
+  { key: "utility_type", es: "La factura es de luz, gas o ambas?", en: "Is the bill for electricity, gas, or both?" },
+  { key: "postcode", es: "Cual es su codigo postal?", en: "What is your postcode?" },
+  { key: "monthly_cost", es: "Cuanto paga aproximadamente al mes?", en: "How much do you pay approximately each month?" },
+  { key: "consumption_kwh", es: "Sabe cuantos kWh consume? Si no lo sabe, no pasa nada.", en: "Do you know how many kWh you use? If not, that is okay." },
+  { key: "power_kw", es: "Sabe que potencia tiene contratada? Si no lo sabe, puedo estimarla.", en: "Do you know your contracted power? If not, I can estimate it." },
+] as const;
+
+const EMPTY_UTILITY_FORM = {
+  utility_type: "electricity",
+  postcode: "",
+  monthly_cost: "",
+  consumption_kwh: "",
+  power_kw: "",
+  provider: "",
+};
 
 const APPOINTMENT_TYPE_CHIPS = [
   {
@@ -555,6 +634,55 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
   return await res.json() as BillDocumentAnalysis;
 }
 
+function billAnalysisToUtilityExtracted(analysis: BillDocumentAnalysis): Record<string, unknown> {
+  return {
+    document_type: analysis.document_type,
+    provider_name: analysis.provider_name,
+    tariff_or_plan: analysis.tariff_or_plan,
+    billing_period: analysis.billing_period,
+    total_amount: analysis.total_amount,
+    usage: analysis.usage,
+    unit_prices: analysis.unit_prices,
+    confidence: analysis.confidence,
+    missing_fields: analysis.missing_fields,
+  };
+}
+
+async function normalizeUtilityReview(params: {
+  input_method: UtilityInputMethod;
+  locale: string;
+  extracted_data?: Record<string, unknown>;
+  fields?: Record<string, unknown>;
+  voice_answers?: Record<string, unknown>;
+}): Promise<{ normalized_input: NormalizedUtilityInput; can_compare: boolean; next_missing_field?: string }> {
+  const res = await apiFetch("/api/utilities/normalize", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `Request failed: ${res.status}`);
+  }
+  return await res.json();
+}
+
+async function compareUtilityReview(params: {
+  input_method: UtilityInputMethod;
+  locale: string;
+  normalized_input: NormalizedUtilityInput;
+  extracted_data?: Record<string, unknown>;
+}): Promise<UtilityCompareResponse> {
+  const res = await apiFetch("/api/utilities/compare", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `Request failed: ${res.status}`);
+  }
+  return await res.json() as UtilityCompareResponse;
+}
+
 function billDocumentLabel(type: BillDocumentAnalysis["document_type"], es: boolean): string {
   switch (type) {
     case "electricity_bill":
@@ -581,6 +709,23 @@ function billConfidenceLabel(confidence: BillDocumentAnalysis["confidence"], es:
 function formatBillAmount(amount: number | null, currency: string | null, es: boolean): string {
   if (amount == null) return es ? "No visible" : "Not visible";
   return `${amount.toLocaleString(es ? "es-ES" : "en-GB", { maximumFractionDigits: 2 })} ${currency ?? ""}`.trim();
+}
+
+function utilityTypeLabel(type: UtilityType, es: boolean): string {
+  if (type === "gas") return es ? "Gas" : "Gas";
+  if (type === "dual") return es ? "Luz + gas" : "Electricity + gas";
+  return es ? "Luz" : "Electricity";
+}
+
+function formatEuro(amount: number | null, es: boolean): string {
+  if (amount == null) return es ? "No disponible" : "Not available";
+  return `${amount.toLocaleString(es ? "es-ES" : "en-GB", { maximumFractionDigits: 2 })} €`;
+}
+
+function fieldValue(value: string | number | boolean | null | undefined, fallback: string): string {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "boolean") return value ? "Si" : "No";
+  return String(value);
 }
 
 function billClientMessage(locale: string, key: "unsupported" | "read_failed"): string {
@@ -721,6 +866,16 @@ const ConciergeScreen = () => {
   const [billAnalysis, setBillAnalysis] = useState<BillDocumentAnalysis | null>(null);
   const [billAnalysisLoading, setBillAnalysisLoading] = useState(false);
   const [billAnalysisError, setBillAnalysisError] = useState<string | null>(null);
+  const [utilityMethod, setUtilityMethod] = useState<UtilityInputMethod | null>(null);
+  const [utilityForm, setUtilityForm] = useState({ ...EMPTY_UTILITY_FORM });
+  const [utilityVoiceAnswers, setUtilityVoiceAnswers] = useState<Record<string, string>>({});
+  const [utilityVoiceStep, setUtilityVoiceStep] = useState(0);
+  const [utilityVoiceDraft, setUtilityVoiceDraft] = useState("");
+  const [utilityNormalized, setUtilityNormalized] = useState<NormalizedUtilityInput | null>(null);
+  const [utilityResult, setUtilityResult] = useState<UtilityCompareResponse | null>(null);
+  const [utilityLoading, setUtilityLoading] = useState(false);
+  const [utilityError, setUtilityError] = useState<string | null>(null);
+  const [utilityNotice, setUtilityNotice] = useState<string | null>(null);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -955,7 +1110,48 @@ const ConciergeScreen = () => {
     setOffersQuery(query);
     setOffersResult(null);
     setBillAnalysis(null);
+    setUtilityResult(null);
     handleSearchOffers(query);
+  }
+
+  function resetUtilityReview(method?: UtilityInputMethod) {
+    setUtilityMethod(method ?? null);
+    setUtilityForm({ ...EMPTY_UTILITY_FORM });
+    setUtilityVoiceAnswers({});
+    setUtilityVoiceStep(0);
+    setUtilityVoiceDraft("");
+    setUtilityNormalized(null);
+    setUtilityResult(null);
+    setUtilityError(null);
+    setUtilityNotice(null);
+    setBillAnalysis(null);
+    setBillAnalysisError(null);
+  }
+
+  async function normalizeFromBillAnalysis(analysis: BillDocumentAnalysis, inputMethod: UtilityInputMethod) {
+    setUtilityLoading(true);
+    setUtilityError(null);
+    try {
+      const extracted = billAnalysisToUtilityExtracted(analysis);
+      const normalized = await normalizeUtilityReview({
+        input_method: inputMethod,
+        locale: i18n.language,
+        extracted_data: extracted,
+      });
+      setUtilityNormalized(normalized.normalized_input);
+      setUtilityMethod(inputMethod);
+      if (!normalized.can_compare) {
+        setUtilityError(isSpanish
+          ? `Para comparar mejor, necesito un dato mas: ${normalized.next_missing_field}. Puede corregirlo abajo.`
+          : `To compare better, I need one more detail: ${normalized.next_missing_field}. You can correct it below.`);
+      }
+    } catch {
+      setUtilityError(isSpanish
+        ? "No he podido preparar los datos de la factura."
+        : "I could not prepare the bill details.");
+    } finally {
+      setUtilityLoading(false);
+    }
   }
 
   async function handleBillFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
@@ -970,11 +1166,16 @@ const ConciergeScreen = () => {
     setBillAnalysis(null);
     setBillAnalysisError(null);
     setOffersResult(null);
+    setUtilityNormalized(null);
+    setUtilityResult(null);
     try {
       const image = await compressBillImage(file);
       const analysis = await analyzeBillDocument(image, i18n.language);
       setBillAnalysis(analysis);
       setOffersQuery(analysis.suggested_query);
+      if (!analysis.isFallback && analysis.document_type !== "unknown") {
+        await normalizeFromBillAnalysis(analysis, utilityMethod === "upload" ? "upload" : "photo");
+      }
       if (analysis.isFallback) {
         setBillAnalysisError(analysis.user_summary);
       }
@@ -993,6 +1194,164 @@ const ConciergeScreen = () => {
     setOffersQuery(query);
     setOffersResult(null);
     handleSearchOffers(query, billAnalysis);
+  }
+
+  function updateUtilityNormalizedField(key: keyof NormalizedUtilityInput, value: string) {
+    setUtilityNormalized((prev) => {
+      if (!prev) return prev;
+      const numericFields = new Set(["power_kw", "consumption_kwh", "billing_period_days", "total_cost", "confidence"]);
+      const nextValue = numericFields.has(key as string)
+        ? (value.trim() ? Number(value.replace(",", ".")) : null)
+        : value;
+      return { ...prev, [key]: nextValue } as NormalizedUtilityInput;
+    });
+  }
+
+  async function handleNormalizeManualUtility() {
+    setUtilityLoading(true);
+    setUtilityError(null);
+    setUtilityResult(null);
+    try {
+      const normalized = await normalizeUtilityReview({
+        input_method: "manual",
+        locale: i18n.language,
+        fields: utilityForm,
+      });
+      setUtilityNormalized(normalized.normalized_input);
+      if (!normalized.can_compare) {
+        setUtilityError(isSpanish
+          ? `Para comparar mejor, necesito un dato mas: ${normalized.next_missing_field}.`
+          : `To compare better, I need one more detail: ${normalized.next_missing_field}.`);
+      }
+    } catch {
+      setUtilityError(isSpanish ? "No he podido preparar esos datos." : "I could not prepare those details.");
+    } finally {
+      setUtilityLoading(false);
+    }
+  }
+
+  async function handleUtilityVoiceNext() {
+    const question = UTILITY_VOICE_QUESTIONS[utilityVoiceStep];
+    if (!question) return;
+    const answer = utilityVoiceDraft.trim();
+    if (!answer) return;
+    const nextAnswers = { ...utilityVoiceAnswers, [question.key]: answer };
+    setUtilityVoiceAnswers(nextAnswers);
+    setUtilityVoiceDraft("");
+    if (utilityVoiceStep < UTILITY_VOICE_QUESTIONS.length - 1) {
+      setUtilityVoiceStep((step) => step + 1);
+      return;
+    }
+    setUtilityLoading(true);
+    setUtilityError(null);
+    try {
+      const normalized = await normalizeUtilityReview({
+        input_method: "voice",
+        locale: i18n.language,
+        voice_answers: nextAnswers,
+      });
+      setUtilityNormalized(normalized.normalized_input);
+      if (!normalized.can_compare) {
+        setUtilityError(isSpanish
+          ? `Para comparar mejor, necesito un dato mas: ${normalized.next_missing_field}.`
+          : `To compare better, I need one more detail: ${normalized.next_missing_field}.`);
+      }
+    } catch {
+      setUtilityError(isSpanish ? "No he podido preparar sus respuestas." : "I could not prepare your answers.");
+    } finally {
+      setUtilityLoading(false);
+    }
+  }
+
+  function startUtilityVoiceDictation() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setUtilityError(isSpanish
+        ? "Este navegador no permite dictado aqui. Puede escribir la respuesta en una frase corta."
+        : "This browser does not support dictation here. You can type the answer in a short sentence.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = isSpanish ? "es-ES" : i18n.language;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event: any) => {
+      const transcript = event.results?.[0]?.[0]?.transcript;
+      if (transcript) setUtilityVoiceDraft(transcript);
+    };
+    recognition.onerror = () => {
+      setUtilityError(isSpanish
+        ? "No he podido escuchar bien. Puede intentarlo otra vez o escribir la respuesta."
+        : "I could not hear clearly. You can try again or type the answer.");
+    };
+    recognition.start();
+  }
+
+  async function handleCompareUtility() {
+    if (!utilityNormalized) return;
+    setUtilityLoading(true);
+    setUtilityError(null);
+    setUtilityNotice(null);
+    setUtilityResult(null);
+    try {
+      const result = await compareUtilityReview({
+        input_method: utilityMethod ?? "manual",
+        locale: i18n.language,
+        normalized_input: utilityNormalized,
+        extracted_data: billAnalysis ? billAnalysisToUtilityExtracted(billAnalysis) : {},
+      });
+      setUtilityResult(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      setUtilityError(message || (isSpanish
+        ? "No he podido completar la comparacion oficial ahora."
+        : "I could not complete the official comparison right now."));
+    } finally {
+      setUtilityLoading(false);
+    }
+  }
+
+  function buildUtilityShareText(result: UtilityCompareResponse): string {
+    const best = result.results[0];
+    return [
+      isSpanish ? "Resumen de revision de factura VYVA" : "VYVA bill review summary",
+      `${isSpanish ? "Coste actual aproximado" : "Approx current cost"}: ${formatEuro(result.summary.current_monthly_cost, isSpanish)}/mes`,
+      best ? `${isSpanish ? "Mejor opcion estimada" : "Best estimated option"}: ${best.provider} - ${best.tariff_name}` : "",
+      `${isSpanish ? "Coste estimado" : "Estimated cost"}: ${formatEuro(result.summary.best_estimated_monthly_cost, isSpanish)}/mes`,
+      `${isSpanish ? "Ahorro estimado" : "Estimated saving"}: ${formatEuro(result.summary.estimated_monthly_savings, isSpanish)}/mes`,
+      result.estimated_note,
+      result.neutrality_note,
+    ].filter(Boolean).join("\n");
+  }
+
+  async function handleUtilityResultAction(action: "whatsapp" | "save" | "remind" | "switch" | "correct") {
+    if (!utilityResult) return;
+    if (action === "correct") {
+      setUtilityResult(null);
+      setUtilityNotice(null);
+      return;
+    }
+    if (action === "whatsapp") {
+      const text = encodeURIComponent(buildUtilityShareText(utilityResult));
+      window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (action === "save") {
+      setUtilityNotice(isSpanish
+        ? "Revision guardada. VYVA la tendra en cuenta para futuras comparaciones."
+        : "Review saved. VYVA will use it for future comparisons.");
+      return;
+    }
+    const prompt = action === "remind"
+      ? (isSpanish
+        ? "Recuerdame revisar esta factura de luz o gas de nuevo el mes que viene."
+        : "Remind me to review this electricity or gas bill again next month.")
+      : (isSpanish
+        ? "Ayudame a cambiar de tarifa paso a paso usando esta comparacion. Primero prepara un resumen y pideme confirmacion."
+        : "Help me switch tariff step by step using this comparison. First prepare a summary and ask me to confirm.");
+    setInput(prompt);
+    setOffersOpen(false);
+    chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function handleOfferAction(option: OfferOption) {
@@ -1322,36 +1681,56 @@ const ConciergeScreen = () => {
               />
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[15px] bg-[#F5F3FF]">
-                  <Camera size={20} style={{ color: "#6B21A8" }} />
+                  <Zap size={20} style={{ color: "#6B21A8" }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
-                    {isSpanish ? "Analizar factura o recibo" : "Analyse a bill or receipt"}
+                    {isSpanish ? "Revisa tus facturas y servicios" : "Review your bills and services"}
                   </p>
                   <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
                     {isSpanish
-                      ? "Haga una foto de una factura de luz, gas, internet, seguro o servicio. VYVA lee los datos utiles y no guarda la imagen."
-                      : "Take a photo of an electricity, gas, internet, insurance, or service bill. VYVA reads useful details and does not store the image."}
+                      ? "Empiece con luz y gas en España. VYVA normaliza los datos y compara opciones oficiales u orientativas."
+                      : "Start with electricity and gas in Spain. VYVA normalizes the details and compares official or fallback options."}
                   </p>
                 </div>
               </div>
 
-              <Button
-                type="button"
-                data-testid="button-offers-analyze-bill"
-                onClick={() => billInputRef.current?.click()}
-                disabled={billAnalysisLoading}
-                className="mt-3 h-[44px] w-full rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
-              >
-                {billAnalysisLoading ? (
-                  <Loader2 size={16} className="mr-2 animate-spin text-white" />
-                ) : (
-                  <Camera size={16} className="mr-2" />
-                )}
-                {billAnalysisLoading
-                  ? (isSpanish ? "Leyendo factura..." : "Reading bill...")
-                  : (isSpanish ? "Tomar o subir foto" : "Take or upload photo")}
-              </Button>
+              <p className="mt-4 font-body text-[15px] font-semibold text-vyva-text-1">
+                {isSpanish ? "Como quiere revisar su factura?" : "How would you like to review your bill?"}
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {UTILITY_INPUT_METHODS.map((method) => {
+                  const Icon = method.icon;
+                  return (
+                    <button
+                      key={method.key}
+                      type="button"
+                      onClick={() => {
+                        resetUtilityReview(method.key);
+                        if (method.key === "upload" || method.key === "photo") {
+                          window.setTimeout(() => billInputRef.current?.click(), 0);
+                        }
+                      }}
+                      className={`vyva-tap rounded-[17px] border px-3 py-3 text-left ${
+                        utilityMethod === method.key ? "border-vyva-purple bg-[#F5F3FF]" : "border-vyva-border bg-[#FFFCF7]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 font-body text-[14px] font-semibold text-vyva-text-1">
+                        <Icon size={16} className="text-vyva-purple" />
+                        {isSpanish ? method.es : method.en}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(utilityMethod === "upload" || utilityMethod === "photo") && (
+                <div className="mt-3 rounded-[16px] bg-[#F5F3FF] px-3 py-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                  {isSpanish
+                    ? "La foto se usa solo para leer la factura. No se guarda. En v1, los PDF llegaran despues."
+                    : "The photo is only used to read the bill. It is not stored. In v1, PDFs will come later."}
+                </div>
+              )}
 
               {billAnalysisError && (
                 <p className="mt-3 rounded-[16px] bg-[#FFF7ED] px-3 py-2 font-body text-[13px] leading-relaxed text-[#9A3412]">
@@ -1359,95 +1738,242 @@ const ConciergeScreen = () => {
                 </p>
               )}
 
-              {billAnalysis && !billAnalysis.isFallback && (
+              {billAnalysisLoading && (
+                <div className="mt-3 flex items-center gap-2 rounded-[16px] bg-[#FFFCF7] px-3 py-3 font-body text-[13px] text-vyva-text-2">
+                  <Loader2 size={16} className="animate-spin text-vyva-purple" />
+                  {isSpanish ? "Leyendo factura..." : "Reading bill..."}
+                </div>
+              )}
+
+              {utilityMethod === "voice" && !utilityNormalized && (
+                <div className="mt-4 rounded-[18px] border border-vyva-border bg-[#FFFCF7] p-3">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                    {isSpanish ? "Pregunta breve" : "Short question"}
+                  </p>
+                  <p className="mt-2 font-body text-[16px] font-semibold leading-snug text-vyva-text-1">
+                    {isSpanish ? UTILITY_VOICE_QUESTIONS[utilityVoiceStep].es : UTILITY_VOICE_QUESTIONS[utilityVoiceStep].en}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Input
+                      value={utilityVoiceDraft}
+                      onChange={(e) => setUtilityVoiceDraft(e.target.value)}
+                      placeholder={isSpanish ? "Responda aqui..." : "Answer here..."}
+                      className="h-[44px] rounded-full border-vyva-border bg-white font-body text-[14px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={startUtilityVoiceDictation}
+                      className="h-[44px] rounded-full border-vyva-border bg-white px-3"
+                      aria-label={isSpanish ? "Dictar respuesta" : "Dictate answer"}
+                    >
+                      <Mic size={16} />
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleUtilityVoiceNext}
+                      disabled={!utilityVoiceDraft.trim() || utilityLoading}
+                      className="h-[44px] rounded-full bg-vyva-purple px-4 font-body text-[13px]"
+                    >
+                      {utilityVoiceStep === UTILITY_VOICE_QUESTIONS.length - 1
+                        ? (isSpanish ? "Preparar" : "Prepare")
+                        : (isSpanish ? "Siguiente" : "Next")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {utilityMethod === "manual" && !utilityNormalized && (
+                <div className="mt-4 rounded-[18px] border border-vyva-border bg-[#FFFCF7] p-3">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                    {isSpanish ? "Datos sencillos" : "Simple details"}
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <select
+                      value={utilityForm.utility_type}
+                      onChange={(e) => setUtilityForm((prev) => ({ ...prev, utility_type: e.target.value }))}
+                      className="h-[46px] rounded-[16px] border border-vyva-border bg-white px-3 font-body text-[14px]"
+                    >
+                      <option value="electricity">{isSpanish ? "Luz" : "Electricity"}</option>
+                      <option value="gas">{isSpanish ? "Gas" : "Gas"}</option>
+                      <option value="dual">{isSpanish ? "Luz + gas" : "Electricity + gas"}</option>
+                    </select>
+                    <Input value={utilityForm.postcode} onChange={(e) => setUtilityForm((prev) => ({ ...prev, postcode: e.target.value }))} placeholder={isSpanish ? "Codigo postal" : "Postcode"} className="h-[46px] rounded-[16px] border-vyva-border bg-white font-body text-[14px]" />
+                    <Input value={utilityForm.monthly_cost} onChange={(e) => setUtilityForm((prev) => ({ ...prev, monthly_cost: e.target.value }))} placeholder={isSpanish ? "Importe mensual aprox." : "Approx monthly cost"} className="h-[46px] rounded-[16px] border-vyva-border bg-white font-body text-[14px]" />
+                    <Input value={utilityForm.consumption_kwh} onChange={(e) => setUtilityForm((prev) => ({ ...prev, consumption_kwh: e.target.value }))} placeholder={isSpanish ? "Consumo kWh opcional" : "kWh optional"} className="h-[46px] rounded-[16px] border-vyva-border bg-white font-body text-[14px]" />
+                    <Input value={utilityForm.power_kw} onChange={(e) => setUtilityForm((prev) => ({ ...prev, power_kw: e.target.value }))} placeholder={isSpanish ? "Potencia kW opcional" : "Power kW optional"} className="h-[46px] rounded-[16px] border-vyva-border bg-white font-body text-[14px]" />
+                    <Input value={utilityForm.provider} onChange={(e) => setUtilityForm((prev) => ({ ...prev, provider: e.target.value }))} placeholder={isSpanish ? "Compania actual opcional" : "Current provider optional"} className="h-[46px] rounded-[16px] border-vyva-border bg-white font-body text-[14px]" />
+                  </div>
+                  <Button type="button" onClick={handleNormalizeManualUtility} disabled={utilityLoading} className="mt-3 h-[42px] rounded-full bg-vyva-purple px-4 font-body text-[13px]">
+                    {utilityLoading ? <Loader2 size={15} className="mr-2 animate-spin" /> : <CircleCheck size={15} className="mr-2" />}
+                    {isSpanish ? "Preparar comparacion" : "Prepare comparison"}
+                  </Button>
+                </div>
+              )}
+
+              {utilityNormalized && (
                 <div className="mt-3 rounded-[18px] border border-vyva-border bg-[#FFFCF7] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
-                        {isSpanish ? "Datos detectados" : "Detected details"}
+                        {isSpanish ? "He encontrado estos datos en su factura:" : "I found these details in your bill:"}
                       </p>
                       <p className="mt-1 font-body text-[16px] font-semibold text-vyva-text-1">
-                        {billDocumentLabel(billAnalysis.document_type, isSpanish)}
+                        {utilityTypeLabel(utilityNormalized.utility_type, isSpanish)}
                       </p>
                     </div>
                     <span className={`rounded-full px-3 py-1 font-body text-[12px] font-semibold ${
-                      billAnalysis.confidence === "high"
+                      utilityNormalized.confidence >= 0.75
                         ? "bg-[#ECFDF5] text-[#0A7C4E]"
-                        : billAnalysis.confidence === "medium"
+                        : utilityNormalized.confidence >= 0.45
                           ? "bg-[#FEF3C7] text-[#92400E]"
                           : "bg-[#FEE2E2] text-[#B91C1C]"
                     }`}>
-                      {isSpanish ? "Confianza" : "Confidence"}: {billConfidenceLabel(billAnalysis.confidence, isSpanish)}
+                      {isSpanish ? "Confianza" : "Confidence"}: {Math.round(utilityNormalized.confidence * 100)}%
                     </span>
                   </div>
-                  <p className="mt-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
-                    {billAnalysis.user_summary}
-                  </p>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div className="rounded-[14px] bg-white p-3">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
                         {isSpanish ? "Compania" : "Provider"}
                       </p>
-                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
-                        {billAnalysis.provider_name ?? (isSpanish ? "No visible" : "Not visible")}
-                      </p>
+                      <Input value={utilityNormalized.provider} onChange={(e) => updateUtilityNormalizedField("provider", e.target.value)} placeholder={isSpanish ? "No visible" : "Not visible"} className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
                     </div>
                     <div className="rounded-[14px] bg-white p-3">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
-                        {isSpanish ? "Periodo" : "Period"}
+                        {isSpanish ? "Codigo postal" : "Postcode"}
                       </p>
-                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
-                        {billAnalysis.billing_period ?? (isSpanish ? "No visible" : "Not visible")}
-                      </p>
+                      <Input value={utilityNormalized.postcode} onChange={(e) => updateUtilityNormalizedField("postcode", e.target.value)} placeholder="11380" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
                     </div>
                     <div className="rounded-[14px] bg-white p-3">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
                         {isSpanish ? "Consumo" : "Usage"}
                       </p>
-                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
-                        {billAnalysis.usage.kwh != null
-                          ? `${billAnalysis.usage.kwh} kWh`
-                          : billAnalysis.usage.gas_kwh != null
-                            ? `${billAnalysis.usage.gas_kwh} kWh`
-                            : billAnalysis.usage.data_or_phone_plan ?? (isSpanish ? "No visible" : "Not visible")}
-                      </p>
+                      <Input value={fieldValue(utilityNormalized.consumption_kwh, "")} onChange={(e) => updateUtilityNormalizedField("consumption_kwh", e.target.value)} placeholder="kWh" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
                     </div>
                     <div className="rounded-[14px] bg-white p-3">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
-                        {isSpanish ? "Total" : "Total"}
+                        {isSpanish ? "Potencia contratada" : "Contracted power"}
                       </p>
-                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
-                        {formatBillAmount(billAnalysis.total_amount, billAnalysis.currency, isSpanish)}
+                      <Input value={fieldValue(utilityNormalized.power_kw, "")} onChange={(e) => updateUtilityNormalizedField("power_kw", e.target.value)} placeholder="kW" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
+                    </div>
+                    <div className="rounded-[14px] bg-white p-3 sm:col-span-2">
+                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                        {isSpanish ? "Importe total / mensual" : "Total / monthly amount"}
                       </p>
+                      <Input value={fieldValue(utilityNormalized.total_cost, "")} onChange={(e) => updateUtilityNormalizedField("total_cost", e.target.value)} placeholder="€" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
                     </div>
                   </div>
 
-                  {billAnalysis.missing_fields.length > 0 && billAnalysis.confidence === "low" && (
+                  {utilityNormalized.missing_fields.length > 0 && (
                     <p className="mt-3 rounded-[14px] bg-white px-3 py-2 font-body text-[12px] leading-relaxed text-vyva-text-2">
-                      {isSpanish ? "Falta por leer: " : "Still missing: "}
-                      {billAnalysis.missing_fields.join(", ")}
+                      {isSpanish ? "Datos pendientes o estimados: " : "Pending or estimated details: "}
+                      {utilityNormalized.missing_fields.join(", ")}
                     </p>
                   )}
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      data-testid="button-offers-confirm-bill"
-                      onClick={handleCompareBillAnalysis}
-                      disabled={offersLoading || billAnalysis.document_type === "unknown"}
+                      data-testid="button-utilities-compare"
+                      onClick={handleCompareUtility}
+                      disabled={utilityLoading}
                       className="h-[42px] rounded-full bg-vyva-purple px-4 font-body text-[13px] hover:bg-vyva-purple/90 disabled:opacity-50"
                     >
-                      {offersLoading ? <Loader2 size={15} className="mr-2 animate-spin" /> : <CircleCheck size={15} className="mr-2" />}
-                      {isSpanish ? "Confirmar y comparar" : "Confirm and compare"}
+                      {utilityLoading ? <Loader2 size={15} className="mr-2 animate-spin" /> : <CircleCheck size={15} className="mr-2" />}
+                      {isSpanish ? "Comparar opciones" : "Compare options"}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => billInputRef.current?.click()}
+                      onClick={() => setUtilityNormalized(null)}
                       className="h-[42px] rounded-full border-vyva-border bg-white px-4 font-body text-[13px]"
                     >
-                      {isSpanish ? "Repetir foto" : "Retake photo"}
+                      {isSpanish ? "Corregir datos" : "Correct details"}
                     </Button>
+                  </div>
+                </div>
+              )}
+
+              {utilityError && (
+                <p className="mt-3 rounded-[16px] bg-[#FFF7ED] px-3 py-2 font-body text-[13px] leading-relaxed text-[#9A3412]">
+                  {utilityError}
+                </p>
+              )}
+              {utilityNotice && (
+                <p className="mt-3 rounded-[16px] bg-[#F0FDF4] px-3 py-2 font-body text-[13px] leading-relaxed text-[#166534]">
+                  {utilityNotice}
+                </p>
+              )}
+
+              {utilityResult && (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-[18px] border border-[#BBF7D0] bg-[#F0FDF4] p-3">
+                    <p className="font-body text-[18px] font-semibold text-vyva-text-1">
+                      {utilityResult.summary.headline}
+                    </p>
+                    <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                      {isSpanish ? "Actualmente paga aproximadamente " : "You currently pay approximately "}
+                      <strong>{formatEuro(utilityResult.summary.current_monthly_cost, isSpanish)}</strong>.
+                      {" "}
+                      {isSpanish ? "La mejor opcion encontrada estima " : "The best option found estimates "}
+                      <strong>{formatEuro(utilityResult.summary.best_estimated_monthly_cost, isSpanish)}</strong>.
+                      {" "}
+                      {isSpanish ? "Ahorro estimado: " : "Estimated saving: "}
+                      <strong>{formatEuro(utilityResult.summary.estimated_monthly_savings, isSpanish)}</strong>.
+                    </p>
+                  </div>
+
+                  {utilityResult.results.map((result, index) => (
+                    <div key={`${result.provider}-${result.tariff_name}-${index}`} className="rounded-[20px] border border-vyva-border bg-white p-4">
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                        {index === 0 ? (isSpanish ? "Opcion recomendada" : "Recommended option") : index === 1 ? (isSpanish ? "Mas economica" : "Cheapest") : (isSpanish ? "Mas estable / sencilla" : "Most stable / simple")}
+                      </p>
+                      <p className="mt-1 font-body text-[17px] font-semibold text-vyva-text-1">{result.provider}</p>
+                      <p className="font-body text-[13px] text-vyva-text-2">{result.tariff_name}</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-[14px] bg-[#F5F3FF] p-3">
+                          <p className="font-body text-[11px] uppercase tracking-[0.10em] text-vyva-text-2">{isSpanish ? "Coste estimado" : "Estimated cost"}</p>
+                          <p className="font-body text-[15px] font-semibold text-vyva-text-1">{formatEuro(result.estimated_monthly_cost, isSpanish)}/mes</p>
+                        </div>
+                        <div className="rounded-[14px] bg-[#ECFDF5] p-3">
+                          <p className="font-body text-[11px] uppercase tracking-[0.10em] text-vyva-text-2">{isSpanish ? "Ahorro" : "Saving"}</p>
+                          <p className="font-body text-[15px] font-semibold text-[#0A7C4E]">{formatEuro(result.estimated_monthly_savings, isSpanish)}/mes</p>
+                        </div>
+                      </div>
+                      <p className="mt-3 font-body text-[13px] leading-relaxed text-vyva-text-2">{result.price_stability}</p>
+                      <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{result.permanence}</p>
+                      <span className="mt-2 inline-flex rounded-full bg-[#FBF8F4] px-3 py-1 font-body text-[12px] text-vyva-text-2">
+                        {result.source} · {isSpanish ? "confianza" : "confidence"} {billConfidenceLabel(result.confidence, isSpanish)}
+                      </span>
+                    </div>
+                  ))}
+
+                  <div className="rounded-[18px] border border-vyva-border bg-white p-3">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                      {isSpanish ? "Como lo he calculado" : "How I calculated it"}
+                    </p>
+                    <p className="mt-1 font-body text-[12px] leading-relaxed text-vyva-text-2">{utilityResult.calculation_note}</p>
+                    {utilityResult.estimated_note && <p className="mt-2 font-body text-[12px] leading-relaxed text-[#92400E]">{utilityResult.estimated_note}</p>}
+                    <p className="mt-2 font-body text-[12px] leading-relaxed text-vyva-text-2">{utilityResult.neutrality_note}</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {[
+                      { key: "whatsapp", es: "Enviar resumen por WhatsApp", en: "Send summary by WhatsApp" },
+                      { key: "save", es: "Guardar revision", en: "Save review" },
+                      { key: "remind", es: "Recordarme revisar de nuevo", en: "Remind me to review again" },
+                      { key: "switch", es: "Ayudarme a cambiar", en: "Help me switch" },
+                      { key: "correct", es: "Corregir datos", en: "Correct details" },
+                    ].map((action) => (
+                      <button
+                        key={action.key}
+                        type="button"
+                        onClick={() => handleUtilityResultAction(action.key as "whatsapp" | "save" | "remind" | "switch" | "correct")}
+                        className="vyva-tap rounded-[16px] border border-vyva-border bg-white px-3 py-3 text-left font-body text-[13px] font-semibold text-vyva-text-1"
+                      >
+                        {isSpanish ? action.es : action.en}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

@@ -36,6 +36,7 @@ import reportsRouter from "./routes/reports.js";
 import vitalsRouter from "./routes/vitals.js";
 import specialistsRouter from "./routes/specialists.js";
 import offersRouter, { analyzeOfferDocumentHandler } from "./routes/offers.js";
+import utilitiesRouter from "./routes/utilities.js";
 import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedCheckinReportHandler } from "./routes/checkins.js";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -100,6 +101,7 @@ app.use("/api/reports", authMiddleware, reportsRouter);
 app.use("/api/vitals", authMiddleware, vitalsRouter);
 app.use("/api/specialists", authMiddleware, specialistsRouter);
 app.use("/api/offers", authMiddleware, offersRouter);
+app.use("/api/utilities", authMiddleware, utilitiesRouter);
 app.get("/api/checkins/shared/:token", sharedCheckinReportHandler);
 app.post("/api/checkins/analyze", authMiddleware, requireUser, analyzeCheckinHandler);
 app.get("/api/checkins/history", authMiddleware, requireUser, checkinHistoryHandler);

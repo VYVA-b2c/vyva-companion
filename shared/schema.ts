@@ -910,6 +910,30 @@ export type VitalsReading = typeof vitalsReadings.$inferSelect;
 
 
 // ============================================================
+// NEW TABLE: utility_review_runs — evidence log for bill reviews
+// ============================================================
+
+export const utilityReviewRuns = pgTable("utility_review_runs", {
+  id:                    uuid("id").primaryKey().defaultRandom(),
+  user_id:               text("user_id").notNull(),
+  country:               text("country").notNull().default("ES"),
+  utility_type:          text("utility_type").notNull(),
+  input_method:          text("input_method").notNull(),
+  extracted_data_json:   jsonb("extracted_data_json").notNull().default({}),
+  normalized_input_json: jsonb("normalized_input_json").notNull().default({}),
+  source_used:           text("source_used").notNull().default("CNMC"),
+  source_status:         text("source_status").notNull().default("pending"),
+  results_json:          jsonb("results_json").notNull().default([]),
+  confidence:            text("confidence").notNull().default("medium"),
+  created_at:            timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertUtilityReviewRunSchema = createInsertSchema(utilityReviewRuns).omit({ id: true, created_at: true });
+export type InsertUtilityReviewRun = z.infer<typeof insertUtilityReviewRunSchema>;
+export type UtilityReviewRun = typeof utilityReviewRuns.$inferSelect;
+
+
+// ============================================================
 // SCHEMA EXPORT
 // ============================================================
 
@@ -943,4 +967,5 @@ export const schema = {
   socialConnections,
   triageReports,
   vitalsReadings,
+  utilityReviewRuns,
 };
