@@ -42,7 +42,7 @@ import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedChe
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
 const PORT = isProduction ? parseInt(process.env.PORT || "5000", 10) : 3001;
-const SERVER_BUILD_ID = "checkins-direct-2026-04-28";
+const SERVER_BUILD_ID = "bill-reader-v2-2026-04-30";
 
 app.use(cors());
 
@@ -115,6 +115,8 @@ app.get("/api/debug-runtime", (_req, res) => {
     cwd: process.cwd(),
     node_env: process.env.NODE_ENV ?? null,
     checkins_direct_routes: true,
+    bill_reader_route: true,
+    json_limit: "20mb",
   });
 });
 
