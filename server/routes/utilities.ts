@@ -70,8 +70,16 @@ function extractKwh(extracted?: Record<string, unknown>): number | null {
 }
 
 async function getProfileHints(userId: string) {
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1).catch(() => []);
-  const address = safeString((profile as any)?.address);
+  const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  if (!uuidLike) {
+    return { postcode: "", address: "" };
+  }
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1).catch((err) => {
+    console.warn("[utilities] Profile hints unavailable:", err instanceof Error ? err.message : err);
+    return [];
+  });
+  const address = safeString((profile as Record<string, unknown> | undefined)?.address);
   const postcodeMatch = address.match(/\b(0[1-9]|[1-4]\d|5[0-2])\d{3}\b/);
   return {
     postcode: postcodeMatch?.[0] ?? "",

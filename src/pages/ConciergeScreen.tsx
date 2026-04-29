@@ -1145,10 +1145,11 @@ const ConciergeScreen = () => {
           ? `Para comparar mejor, necesito un dato mas: ${normalized.next_missing_field}. Puede corregirlo abajo.`
           : `To compare better, I need one more detail: ${normalized.next_missing_field}. You can correct it below.`);
       }
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
       setUtilityError(isSpanish
-        ? "No he podido preparar los datos de la factura."
-        : "I could not prepare the bill details.");
+        ? (message || "No he podido preparar los datos de la factura.")
+        : (message || "I could not prepare the bill details."));
     } finally {
       setUtilityLoading(false);
     }
