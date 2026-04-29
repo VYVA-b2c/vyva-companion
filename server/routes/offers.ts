@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
+import OpenAI from "openai";
 import { db } from "../db.js";
 import { profiles, companionProfiles, socialUserInterests } from "../../shared/schema.js";
 
@@ -17,6 +18,42 @@ interface OffersRequestBody {
   query?: string;
   category?: OfferCategory;
   locale?: string;
+  document_context?: BillDocumentAnalysis;
+}
+
+type BillDocumentType =
+  | "electricity_bill"
+  | "gas_bill"
+  | "internet_phone_bill"
+  | "insurance_policy"
+  | "home_service_invoice"
+  | "unknown";
+
+type ConfidenceLevel = "high" | "medium" | "low";
+
+interface BillDocumentAnalysis {
+  document_type: BillDocumentType;
+  category: OfferCategory;
+  provider_name: string | null;
+  billing_period: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  usage: {
+    kwh: number | null;
+    gas_kwh: number | null;
+    data_or_phone_plan: string | null;
+  };
+  tariff_or_plan: string | null;
+  unit_prices: {
+    electricity_price_per_kwh: number | null;
+    gas_price_per_kwh: number | null;
+    standing_charge: number | null;
+  };
+  confidence: ConfidenceLevel;
+  missing_fields: string[];
+  suggested_query: string;
+  user_summary: string;
+  isFallback?: boolean;
 }
 
 interface OfferProfileContext {
@@ -80,6 +117,174 @@ const CATEGORY_SEARCH_TERMS: Record<OfferCategory, string[]> = {
   "Servicios en casa": ["limpieza domicilio verificada", "reparaciones hogar verificadas", "mantenimiento hogar mayores"],
   "Ayudas y beneficios": ["ayudas municipales mayores", "beneficios mayores", "subvenciones dependencia mayores"],
 };
+
+const LOCALE_TO_LANGUAGE: Record<string, string> = {
+  es: "Spanish",
+  en: "English",
+  de: "German",
+  fr: "French",
+  it: "Italian",
+  pt: "Portuguese",
+};
+
+function fallbackDocumentAnalysis(locale = "es"): BillDocumentAnalysis {
+  const es = normaliseLocale(locale) === "es";
+  return {
+    document_type: "unknown",
+    category: "Gastos del hogar",
+    provider_name: null,
+    billing_period: null,
+    total_amount: null,
+    currency: null,
+    usage: {
+      kwh: null,
+      gas_kwh: null,
+      data_or_phone_plan: null,
+    },
+    tariff_or_plan: null,
+    unit_prices: {
+      electricity_price_per_kwh: null,
+      gas_price_per_kwh: null,
+      standing_charge: null,
+    },
+    confidence: "low",
+    missing_fields: es
+      ? ["tipo de documento", "compania", "importe", "periodo"]
+      : ["document type", "provider", "amount", "period"],
+    suggested_query: es
+      ? "revisar una factura de servicios importantes"
+      : "review an important service bill",
+    user_summary: es
+      ? "No he podido leer esta factura con suficiente claridad. Prueba con una foto mas nitida y completa."
+      : "I could not read this bill clearly enough. Try a sharper, complete photo.",
+    isFallback: true,
+  };
+}
+
+function buildDocumentPrompt(locale: string): string {
+  const language = LOCALE_TO_LANGUAGE[normaliseLocale(locale)] ?? "Spanish";
+  return `You are VYVA's neutral bill-reading assistant for older adults.
+Read the uploaded image of a bill, invoice, policy, or receipt. Extract only visible facts. Never invent values.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "document_type": "electricity_bill | gas_bill | internet_phone_bill | insurance_policy | home_service_invoice | unknown",
+  "category": "Gastos del hogar | Seguros y proteccion | Servicios en casa",
+  "provider_name": "provider/company name or null",
+  "billing_period": "billing period or null",
+  "total_amount": 0,
+  "currency": "EUR or other currency or null",
+  "usage": {
+    "kwh": 0,
+    "gas_kwh": 0,
+    "data_or_phone_plan": "plan detail or null"
+  },
+  "tariff_or_plan": "tariff, contract, or plan name or null",
+  "unit_prices": {
+    "electricity_price_per_kwh": 0,
+    "gas_price_per_kwh": 0,
+    "standing_charge": 0
+  },
+  "confidence": "high | medium | low",
+  "missing_fields": ["short missing field names"],
+  "suggested_query": "short search/comparison query using visible facts",
+  "user_summary": "short friendly summary for the user"
+}
+
+Rules:
+- total_amount and unit prices must be numbers, not strings. Use null if not visible.
+- For electricity bills, prioritise kWh, total amount, tariff, period, and company.
+- If the image is not a relevant bill/invoice/policy, set document_type to "unknown" and confidence to "low".
+- Do not extract account numbers, bank details, full ID numbers, or private reference numbers.
+- Write user_summary and missing_fields in ${language}.
+- Keep user_summary under 28 words.`;
+}
+
+function safeNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(",", ".").replace(/[^\d.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function safeString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 180) : null;
+}
+
+function safeConfidence(value: unknown): ConfidenceLevel {
+  return value === "high" || value === "medium" || value === "low" ? value : "low";
+}
+
+function safeDocumentType(value: unknown): BillDocumentType {
+  const valid = new Set<BillDocumentType>([
+    "electricity_bill",
+    "gas_bill",
+    "internet_phone_bill",
+    "insurance_policy",
+    "home_service_invoice",
+    "unknown",
+  ]);
+  return typeof value === "string" && valid.has(value as BillDocumentType)
+    ? value as BillDocumentType
+    : "unknown";
+}
+
+function categoryFromDocumentType(type: BillDocumentType, rawCategory: unknown): OfferCategory {
+  if (typeof rawCategory === "string" && CATEGORY_SEARCH_TERMS[rawCategory as OfferCategory]) {
+    return rawCategory as OfferCategory;
+  }
+  if (type === "insurance_policy") return "Seguros y proteccion";
+  if (type === "home_service_invoice") return "Servicios en casa";
+  return "Gastos del hogar";
+}
+
+function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: string): BillDocumentAnalysis {
+  const documentType = safeDocumentType(parsed.document_type);
+  const category = categoryFromDocumentType(documentType, parsed.category);
+  const usage = parsed.usage && typeof parsed.usage === "object"
+    ? parsed.usage as Record<string, unknown>
+    : {};
+  const unitPrices = parsed.unit_prices && typeof parsed.unit_prices === "object"
+    ? parsed.unit_prices as Record<string, unknown>
+    : {};
+  const missingFields = Array.isArray(parsed.missing_fields)
+    ? parsed.missing_fields.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 6)
+    : [];
+  const es = normaliseLocale(locale) === "es";
+  const suggestedQuery = safeString(parsed.suggested_query)
+    ?? (es ? "comparar factura de servicios" : "compare service bill");
+  const providerName = safeString(parsed.provider_name);
+  const userSummary = safeString(parsed.user_summary)
+    ?? (providerName
+      ? (es ? `He detectado una factura de ${providerName}.` : `I detected a bill from ${providerName}.`)
+      : (es ? "He detectado una factura para revisar." : "I detected a bill to review."));
+
+  return {
+    document_type: documentType,
+    category,
+    provider_name: providerName,
+    billing_period: safeString(parsed.billing_period),
+    total_amount: safeNumber(parsed.total_amount),
+    currency: safeString(parsed.currency),
+    usage: {
+      kwh: safeNumber(usage.kwh),
+      gas_kwh: safeNumber(usage.gas_kwh),
+      data_or_phone_plan: safeString(usage.data_or_phone_plan),
+    },
+    tariff_or_plan: safeString(parsed.tariff_or_plan),
+    unit_prices: {
+      electricity_price_per_kwh: safeNumber(unitPrices.electricity_price_per_kwh),
+      gas_price_per_kwh: safeNumber(unitPrices.gas_price_per_kwh),
+      standing_charge: safeNumber(unitPrices.standing_charge),
+    },
+    confidence: safeConfidence(parsed.confidence),
+    missing_fields: missingFields,
+    suggested_query: suggestedQuery,
+    user_summary: userSummary,
+  };
+}
 
 function normaliseLocale(locale: unknown): string {
   const value = typeof locale === "string" ? locale.split("-")[0].toLowerCase() : "es";
@@ -460,8 +665,64 @@ function buildRankedOffer(
   };
 }
 
-async function buildOffers(query: string, category: OfferCategory, context: OfferProfileContext, locale: string) {
+function documentContextQuery(documentContext: BillDocumentAnalysis | undefined, locale: string): string {
+  if (!documentContext || documentContext.document_type === "unknown") return "";
+  const es = locale === "es";
+  const parts = [
+    documentContext.provider_name,
+    documentContext.tariff_or_plan,
+    documentContext.total_amount != null
+      ? `${documentContext.total_amount} ${documentContext.currency ?? ""}`.trim()
+      : "",
+    documentContext.usage.kwh != null ? `${documentContext.usage.kwh} kWh` : "",
+    documentContext.usage.gas_kwh != null ? `${documentContext.usage.gas_kwh} kWh gas` : "",
+    documentContext.billing_period,
+  ].filter(Boolean);
+
+  if (documentContext.document_type === "electricity_bill") {
+    return es
+      ? `comparar tarifa de luz con factura actual ${parts.join(" ")}`
+      : `compare electricity tariff with current bill ${parts.join(" ")}`;
+  }
+  if (documentContext.document_type === "gas_bill") {
+    return es
+      ? `comparar tarifa de gas con factura actual ${parts.join(" ")}`
+      : `compare gas tariff with current bill ${parts.join(" ")}`;
+  }
+  if (documentContext.document_type === "internet_phone_bill") {
+    return es
+      ? `comparar internet telefono con plan actual ${parts.join(" ")}`
+      : `compare internet phone with current plan ${parts.join(" ")}`;
+  }
+  if (documentContext.document_type === "insurance_policy") {
+    return es
+      ? `revisar seguro actual cobertura precio ${parts.join(" ")}`
+      : `review current insurance coverage price ${parts.join(" ")}`;
+  }
+  return es
+    ? `comparar factura o servicio actual ${parts.join(" ")}`
+    : `compare current bill or service ${parts.join(" ")}`;
+}
+
+function documentDecisionContext(documentContext: BillDocumentAnalysis | undefined, locale: string): string {
+  if (!documentContext || documentContext.document_type === "unknown") return "";
+  const es = locale === "es";
+  const facts = [
+    documentContext.provider_name ? (es ? `compania: ${documentContext.provider_name}` : `provider: ${documentContext.provider_name}`) : "",
+    documentContext.total_amount != null ? (es ? `total: ${documentContext.total_amount} ${documentContext.currency ?? ""}` : `total: ${documentContext.total_amount} ${documentContext.currency ?? ""}`) : "",
+    documentContext.usage.kwh != null ? `${documentContext.usage.kwh} kWh` : "",
+    documentContext.tariff_or_plan ? (es ? `tarifa: ${documentContext.tariff_or_plan}` : `tariff: ${documentContext.tariff_or_plan}`) : "",
+  ].filter(Boolean).join(", ");
+  if (!facts) return "";
+  return es
+    ? ` He tenido en cuenta los datos leidos de la factura (${facts}).`
+    : ` I considered the details read from the bill (${facts}).`;
+}
+
+async function buildOffers(query: string, category: OfferCategory, context: OfferProfileContext, locale: string, documentContext?: BillDocumentAnalysis) {
+  const documentQuery = documentContextQuery(documentContext, locale);
   const searchTerms = [
+    documentQuery,
     query,
     ...CATEGORY_SEARCH_TERMS[category],
     context.mobilityPreference === "delivery" ? "domicilio entrega" : "",
@@ -489,8 +750,73 @@ async function buildOffers(query: string, category: OfferCategory, context: Offe
     }));
 }
 
+export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
+  const { image, locale = "es" } = req.body as { image?: string; locale?: string };
+  const normalizedLocale = normaliseLocale(locale);
+
+  if (!image || typeof image !== "string") {
+    return res.status(400).json({ error: "image (base64 data URL) is required" });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY ?? "";
+  if (!apiKey) {
+    console.warn("[offers/analyze-document] OPENAI_API_KEY not set");
+    return res.json(fallbackDocumentAnalysis(normalizedLocale));
+  }
+
+  const match = image.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+  if (!match) {
+    return res.status(400).json({ error: "image must be a base64 data URL" });
+  }
+  const mimeType = match[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  const base64Data = match[2];
+
+  try {
+    const client = new OpenAI({ apiKey });
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: buildDocumentPrompt(normalizedLocale) },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`,
+                detail: "high",
+              },
+            },
+            {
+              type: "text",
+              text: "Read this bill or invoice and extract neutral comparison facts. Do not store or reveal private account numbers.",
+            },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 700,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      console.error("[offers/analyze-document] Failed to parse model JSON");
+      return res.json(fallbackDocumentAnalysis(normalizedLocale));
+    }
+
+    return res.json(normaliseDocumentAnalysis(parsed, normalizedLocale));
+  } catch (err) {
+    console.error("[offers/analyze-document] OpenAI error:", err);
+    return res.json(fallbackDocumentAnalysis(normalizedLocale));
+  }
+}
+
 router.post("/search", async (req: Request, res: Response) => {
-  const { query = "", category, locale = "es" } = req.body as OffersRequestBody;
+  const { query = "", category, locale = "es", document_context } = req.body as OffersRequestBody;
   const cleanedQuery = query.trim();
   if (!cleanedQuery && !category) {
     return res.status(400).json({ error: "query or category is required" });
@@ -499,17 +825,21 @@ router.post("/search", async (req: Request, res: Response) => {
   const normalizedLocale = normaliseLocale(locale);
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   const context = await getOfferProfileContext(userId);
-  const classifiedCategory = classifyCategory(cleanedQuery, category);
+  const documentContext = document_context && typeof document_context === "object"
+    ? normaliseDocumentAnalysis(document_context as unknown as Record<string, unknown>, normalizedLocale)
+    : undefined;
+  const classifiedCategory = documentContext?.category ?? classifyCategory(cleanedQuery, category);
 
   try {
-    const offers = await buildOffers(cleanedQuery || classifiedCategory, classifiedCategory, context, normalizedLocale);
+    const offers = await buildOffers(cleanedQuery || classifiedCategory, classifiedCategory, context, normalizedLocale, documentContext);
     const es = normalizedLocale === "es";
+    const documentNote = documentDecisionContext(documentContext, normalizedLocale);
     return res.json({
       category: classifiedCategory,
       options: offers,
       decision_explanation: es
-        ? "Como he elegido estas opciones: he priorizado precio o valor, confianza, facilidad, adecuacion a su situacion y cercania cuando era relevante."
-        : "How I chose these options: I prioritised price or value, trust, ease, fit for your situation, and proximity when relevant.",
+        ? `Como he elegido estas opciones: he priorizado precio o valor, confianza, facilidad, adecuacion a su situacion y cercania cuando era relevante.${documentNote}`
+        : `How I chose these options: I prioritised price or value, trust, ease, fit for your situation, and proximity when relevant.${documentNote}`,
       neutrality_note: es
         ? "VYVA no recibe comisiones ni promociona servicios. Estas opciones se muestran de forma neutral para ayudarle a elegir lo mejor para usted."
         : "VYVA does not receive commissions or promote services. These options are shown neutrally to help you choose what is best for you.",

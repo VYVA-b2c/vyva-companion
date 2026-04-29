@@ -35,7 +35,7 @@ import { requireUser } from "./middleware/auth.js";
 import reportsRouter from "./routes/reports.js";
 import vitalsRouter from "./routes/vitals.js";
 import specialistsRouter from "./routes/specialists.js";
-import offersRouter from "./routes/offers.js";
+import offersRouter, { analyzeOfferDocumentHandler } from "./routes/offers.js";
 import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedCheckinReportHandler } from "./routes/checkins.js";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -64,6 +64,8 @@ app.post("/api/scam-check", express.json({ limit: "10mb" }), authMiddleware, sca
 app.get("/api/scam-check", authMiddleware, scamCheckHistoryHandler);
 app.get("/api/scam-check/history", authMiddleware, scamCheckHistoryHandler);
 app.delete("/api/scam-check/:id", authMiddleware, scamCheckDeleteHandler);
+
+app.post("/api/offers/analyze-document", express.json({ limit: "10mb" }), authMiddleware, analyzeOfferDocumentHandler);
 
 app.use(express.json());
 

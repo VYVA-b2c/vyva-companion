@@ -21,6 +21,7 @@ import {
   MapPin,
   Clock,
   ExternalLink,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,6 +155,31 @@ interface OffersSearchResponse {
   next_step: string;
   no_results_message?: string;
 }
+
+type BillDocumentAnalysis = {
+  document_type: "electricity_bill" | "gas_bill" | "internet_phone_bill" | "insurance_policy" | "home_service_invoice" | "unknown";
+  category: string;
+  provider_name: string | null;
+  billing_period: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  usage: {
+    kwh: number | null;
+    gas_kwh: number | null;
+    data_or_phone_plan: string | null;
+  };
+  tariff_or_plan: string | null;
+  unit_prices: {
+    electricity_price_per_kwh: number | null;
+    gas_price_per_kwh: number | null;
+    standing_charge: number | null;
+  };
+  confidence: "high" | "medium" | "low";
+  missing_fields: string[];
+  suggested_query: string;
+  user_summary: string;
+  isFallback?: boolean;
+};
 
 const OFFER_CATEGORY_CHIPS = [
   {
@@ -468,16 +494,93 @@ async function fetchRecentSessions(): Promise<ConciergeSessionItem[]> {
   return data.items ?? [];
 }
 
-async function searchOffers(query: string, locale: string): Promise<OffersSearchResponse> {
+async function searchOffers(query: string, locale: string, documentContext?: BillDocumentAnalysis): Promise<OffersSearchResponse> {
   const res = await apiFetch("/api/offers/search", {
     method: "POST",
-    body: JSON.stringify({ query, locale }),
+    body: JSON.stringify({
+      query,
+      locale,
+      document_context: documentContext,
+    }),
   });
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(data?.error ?? `Request failed: ${res.status}`);
   }
   return await res.json() as OffersSearchResponse;
+}
+
+function compressBillImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1280;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) {
+          height = Math.round((height * MAX) / width);
+          width = MAX;
+        } else {
+          width = Math.round((width * MAX) / height);
+          height = MAX;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("canvas context unavailable"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image load failed"));
+    };
+    img.src = url;
+  });
+}
+
+async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
+  const res = await apiFetch("/api/offers/analyze-document", {
+    method: "POST",
+    body: JSON.stringify({ image, locale }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `Request failed: ${res.status}`);
+  }
+  return await res.json() as BillDocumentAnalysis;
+}
+
+function billDocumentLabel(type: BillDocumentAnalysis["document_type"], es: boolean): string {
+  switch (type) {
+    case "electricity_bill":
+      return es ? "Factura de luz" : "Electricity bill";
+    case "gas_bill":
+      return es ? "Factura de gas" : "Gas bill";
+    case "internet_phone_bill":
+      return es ? "Internet / telefono" : "Internet / phone";
+    case "insurance_policy":
+      return es ? "Seguro" : "Insurance";
+    case "home_service_invoice":
+      return es ? "Servicio en casa" : "Home service";
+    default:
+      return es ? "Documento no identificado" : "Unidentified document";
+  }
+}
+
+function billConfidenceLabel(confidence: BillDocumentAnalysis["confidence"], es: boolean): string {
+  if (confidence === "high") return es ? "alta" : "high";
+  if (confidence === "medium") return es ? "media" : "medium";
+  return es ? "baja" : "low";
+}
+
+function formatBillAmount(amount: number | null, currency: string | null, es: boolean): string {
+  if (amount == null) return es ? "No visible" : "Not visible";
+  return `${amount.toLocaleString(es ? "es-ES" : "en-GB", { maximumFractionDigits: 2 })} ${currency ?? ""}`.trim();
 }
 
 async function confirmPendingAction(item: ConciergePendingItem) {
@@ -577,6 +680,7 @@ const ConciergeScreen = () => {
   const currentLocaleRef = useRef(i18n.language);
   const saveReadyRef = useRef(false);
   const shownRecIdsRef = useRef<Set<string>>(new Set());
+  const billInputRef = useRef<HTMLInputElement>(null);
 
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
@@ -591,6 +695,9 @@ const ConciergeScreen = () => {
   const [offersResult, setOffersResult] = useState<OffersSearchResponse | null>(null);
   const [offersError, setOffersError] = useState<string | null>(null);
   const [offersIdeaPage, setOffersIdeaPage] = useState(0);
+  const [billAnalysis, setBillAnalysis] = useState<BillDocumentAnalysis | null>(null);
+  const [billAnalysisLoading, setBillAnalysisLoading] = useState(false);
+  const [billAnalysisError, setBillAnalysisError] = useState<string | null>(null);
 
   const { data: pendingActions = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["/api/concierge/actions/pending"],
@@ -804,13 +911,13 @@ const ConciergeScreen = () => {
     sendMessage(message, nextHistory);
   }
 
-  async function handleSearchOffers(nextQuery = offersQuery) {
+  async function handleSearchOffers(nextQuery = offersQuery, documentContext?: BillDocumentAnalysis) {
     const query = nextQuery.trim();
     if (!query || offersLoading) return;
     setOffersLoading(true);
     setOffersError(null);
     try {
-      const result = await searchOffers(query, i18n.language);
+      const result = await searchOffers(query, i18n.language, documentContext);
       setOffersResult(result);
     } catch {
       setOffersError(isSpanish
@@ -824,7 +931,49 @@ const ConciergeScreen = () => {
   function handleOfferChipSearch(query: string) {
     setOffersQuery(query);
     setOffersResult(null);
+    setBillAnalysis(null);
     handleSearchOffers(query);
+  }
+
+  async function handleBillFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setBillAnalysisError(isSpanish
+        ? "Por ahora solo puedo leer fotos o imagenes de facturas."
+        : "For now I can only read photos or images of bills.");
+      return;
+    }
+    setBillAnalysisLoading(true);
+    setBillAnalysis(null);
+    setBillAnalysisError(null);
+    setOffersResult(null);
+    try {
+      const image = await compressBillImage(file);
+      const analysis = await analyzeBillDocument(image, i18n.language);
+      setBillAnalysis(analysis);
+      setOffersQuery(analysis.suggested_query);
+      if (analysis.isFallback) {
+        setBillAnalysisError(analysis.user_summary);
+      }
+    } catch {
+      setBillAnalysisError(isSpanish
+        ? "No he podido leer la factura. Prueba con una foto mas clara y completa."
+        : "I could not read the bill. Try a clearer, complete photo.");
+    } finally {
+      setBillAnalysisLoading(false);
+    }
+  }
+
+  function handleCompareBillAnalysis() {
+    if (!billAnalysis || billAnalysis.document_type === "unknown") return;
+    const query = billAnalysis.suggested_query.trim() || (isSpanish
+      ? "comparar factura de servicios importantes"
+      : "compare important service bill");
+    setOffersQuery(query);
+    setOffersResult(null);
+    handleSearchOffers(query, billAnalysis);
   }
 
   function handleOfferAction(option: OfferOption) {
@@ -1141,6 +1290,149 @@ const ConciergeScreen = () => {
                 ? "VYVA compara opciones verificables según precio, confianza, facilidad y adecuación a su situación. No promociona servicios ni recibe comisiones."
                 : "VYVA compares verifiable options by price, trust, ease, and fit for your situation. It does not promote services or receive commissions."}
             </p>
+
+            <div className="mt-4 rounded-[22px] border border-[#E8DCCF] bg-white p-4">
+              <input
+                ref={billInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleBillFileSelect}
+                data-testid="input-offers-bill-photo"
+              />
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[15px] bg-[#F5F3FF]">
+                  <Camera size={20} style={{ color: "#6B21A8" }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
+                    {isSpanish ? "Analizar factura o recibo" : "Analyse a bill or receipt"}
+                  </p>
+                  <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                    {isSpanish
+                      ? "Haga una foto de una factura de luz, gas, internet, seguro o servicio. VYVA lee los datos utiles y no guarda la imagen."
+                      : "Take a photo of an electricity, gas, internet, insurance, or service bill. VYVA reads useful details and does not store the image."}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                data-testid="button-offers-analyze-bill"
+                onClick={() => billInputRef.current?.click()}
+                disabled={billAnalysisLoading}
+                className="mt-3 h-[44px] w-full rounded-full bg-vyva-purple font-body text-[14px] hover:bg-vyva-purple/90"
+              >
+                {billAnalysisLoading ? (
+                  <Loader2 size={16} className="mr-2 animate-spin text-white" />
+                ) : (
+                  <Camera size={16} className="mr-2" />
+                )}
+                {billAnalysisLoading
+                  ? (isSpanish ? "Leyendo factura..." : "Reading bill...")
+                  : (isSpanish ? "Tomar o subir foto" : "Take or upload photo")}
+              </Button>
+
+              {billAnalysisError && (
+                <p className="mt-3 rounded-[16px] bg-[#FFF7ED] px-3 py-2 font-body text-[13px] leading-relaxed text-[#9A3412]">
+                  {billAnalysisError}
+                </p>
+              )}
+
+              {billAnalysis && !billAnalysis.isFallback && (
+                <div className="mt-3 rounded-[18px] border border-vyva-border bg-[#FFFCF7] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                        {isSpanish ? "Datos detectados" : "Detected details"}
+                      </p>
+                      <p className="mt-1 font-body text-[16px] font-semibold text-vyva-text-1">
+                        {billDocumentLabel(billAnalysis.document_type, isSpanish)}
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 font-body text-[12px] font-semibold ${
+                      billAnalysis.confidence === "high"
+                        ? "bg-[#ECFDF5] text-[#0A7C4E]"
+                        : billAnalysis.confidence === "medium"
+                          ? "bg-[#FEF3C7] text-[#92400E]"
+                          : "bg-[#FEE2E2] text-[#B91C1C]"
+                    }`}>
+                      {isSpanish ? "Confianza" : "Confidence"}: {billConfidenceLabel(billAnalysis.confidence, isSpanish)}
+                    </span>
+                  </div>
+                  <p className="mt-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                    {billAnalysis.user_summary}
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="rounded-[14px] bg-white p-3">
+                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                        {isSpanish ? "Compania" : "Provider"}
+                      </p>
+                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
+                        {billAnalysis.provider_name ?? (isSpanish ? "No visible" : "Not visible")}
+                      </p>
+                    </div>
+                    <div className="rounded-[14px] bg-white p-3">
+                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                        {isSpanish ? "Periodo" : "Period"}
+                      </p>
+                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
+                        {billAnalysis.billing_period ?? (isSpanish ? "No visible" : "Not visible")}
+                      </p>
+                    </div>
+                    <div className="rounded-[14px] bg-white p-3">
+                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                        {isSpanish ? "Consumo" : "Usage"}
+                      </p>
+                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
+                        {billAnalysis.usage.kwh != null
+                          ? `${billAnalysis.usage.kwh} kWh`
+                          : billAnalysis.usage.gas_kwh != null
+                            ? `${billAnalysis.usage.gas_kwh} kWh`
+                            : billAnalysis.usage.data_or_phone_plan ?? (isSpanish ? "No visible" : "Not visible")}
+                      </p>
+                    </div>
+                    <div className="rounded-[14px] bg-white p-3">
+                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                        {isSpanish ? "Total" : "Total"}
+                      </p>
+                      <p className="mt-1 font-body text-[14px] font-semibold text-vyva-text-1">
+                        {formatBillAmount(billAnalysis.total_amount, billAnalysis.currency, isSpanish)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {billAnalysis.missing_fields.length > 0 && billAnalysis.confidence === "low" && (
+                    <p className="mt-3 rounded-[14px] bg-white px-3 py-2 font-body text-[12px] leading-relaxed text-vyva-text-2">
+                      {isSpanish ? "Falta por leer: " : "Still missing: "}
+                      {billAnalysis.missing_fields.join(", ")}
+                    </p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      data-testid="button-offers-confirm-bill"
+                      onClick={handleCompareBillAnalysis}
+                      disabled={offersLoading || billAnalysis.document_type === "unknown"}
+                      className="h-[42px] rounded-full bg-vyva-purple px-4 font-body text-[13px] hover:bg-vyva-purple/90 disabled:opacity-50"
+                    >
+                      {offersLoading ? <Loader2 size={15} className="mr-2 animate-spin" /> : <CircleCheck size={15} className="mr-2" />}
+                      {isSpanish ? "Confirmar y comparar" : "Confirm and compare"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => billInputRef.current?.click()}
+                      className="h-[42px] rounded-full border-vyva-border bg-white px-4 font-body text-[13px]"
+                    >
+                      {isSpanish ? "Repetir foto" : "Retake photo"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="mt-4 rounded-[22px] bg-white/85 p-3">
               <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
