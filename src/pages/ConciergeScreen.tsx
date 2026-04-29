@@ -644,10 +644,18 @@ function compressBillImage(file: File): Promise<string> {
 }
 
 async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
-  const res = await apiFetch("/api/bill-reader/analyze", {
+  let res = await apiFetch("/api/bill-reader/analyze", {
     method: "POST",
     body: JSON.stringify({ image, locale }),
   });
+
+  if (res.status === 404) {
+    res = await apiFetch("/api/offers/analyze-document", {
+      method: "POST",
+      body: JSON.stringify({ image, locale }),
+    });
+  }
+
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     if (res.status === 413) {
