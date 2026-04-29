@@ -741,12 +741,12 @@ function billClientMessage(locale: string, key: "unsupported" | "read_failed"): 
       en: "For now I can only read photos or images of bills.",
     },
     read_failed: {
-      es: "No he podido leer la factura. Prueba con una foto mas clara y completa.",
-      de: "Ich konnte die Rechnung nicht lesen. Bitte versuchen Sie es mit einem klareren, vollstaendigen Foto.",
-      fr: "Je n'ai pas pu lire la facture. Essayez avec une photo plus claire et complete.",
-      it: "Non sono riuscita a leggere la fattura. Prova con una foto piu chiara e completa.",
-      pt: "Nao consegui ler a fatura. Tente uma foto mais clara e completa.",
-      en: "I could not read the bill. Try a clearer, complete photo.",
+      es: "No he podido procesar la factura automaticamente. Puede rellenar los datos a mano o intentarlo de nuevo.",
+      de: "Ich konnte die Rechnung nicht automatisch verarbeiten. Sie koennen die Daten manuell eingeben oder es erneut versuchen.",
+      fr: "Je n'ai pas pu traiter automatiquement la facture. Vous pouvez saisir les donnees manuellement ou reessayer.",
+      it: "Non sono riuscita a elaborare automaticamente la fattura. Puoi inserire i dati manualmente o riprovare.",
+      pt: "Nao consegui processar automaticamente a fatura. Pode preencher os dados manualmente ou tentar novamente.",
+      en: "I could not process the bill automatically. You can enter the details manually or try again.",
     },
   } as const;
   return messages[key][lang as keyof typeof messages[typeof key]] ?? messages[key].en;
@@ -1181,8 +1181,9 @@ const ConciergeScreen = () => {
       if (analysis.isFallback) {
         setBillAnalysisError(analysis.user_summary);
       }
-    } catch {
-      setBillAnalysisError(billClientMessage(i18n.language, "read_failed"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      setBillAnalysisError(message || billClientMessage(i18n.language, "read_failed"));
     } finally {
       setBillAnalysisLoading(false);
     }
