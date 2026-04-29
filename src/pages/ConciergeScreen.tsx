@@ -649,7 +649,9 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
     body: JSON.stringify({ image, locale }),
   });
 
+  let usedFallbackRoute = false;
   if (res.status === 404) {
+    usedFallbackRoute = true;
     res = await apiFetch("/api/offers/analyze-document", {
       method: "POST",
       body: JSON.stringify({ image, locale }),
@@ -658,8 +660,18 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
 
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (res.status === 404) {
+      throw new Error(locale.startsWith("es")
+        ? "El lector de facturas todavia no esta activo en el servidor. Actualice el codigo y reinicie la app en Replit."
+        : "The bill reader is not active on the server yet. Pull the latest code and restart the app in Replit.");
+    }
     if (res.status === 413) {
       const sizeMb = (image.length / 1024 / 1024).toFixed(1);
+      if (usedFallbackRoute) {
+        throw new Error(locale.startsWith("es")
+          ? "El servidor esta usando una version antigua del lector y rechaza imagenes normales. Actualice el codigo y reinicie la app en Replit."
+          : "The server is using an old bill reader and is rejecting normal images. Pull the latest code and restart the app in Replit.");
+      }
       throw new Error(locale.startsWith("es")
         ? `La imagen comprimida sigue siendo demasiado grande (${sizeMb} MB). Pruebe con una captura algo mas pequena.`
         : `The compressed image is still too large (${sizeMb} MB). Please try a slightly smaller screenshot.`);
