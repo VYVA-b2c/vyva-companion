@@ -596,7 +596,7 @@ function compressBillImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1800;
+      const MAX = 1600;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) {
@@ -613,7 +613,16 @@ function compressBillImage(file: File): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("canvas context unavailable"));
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
+
+      // Keep enough detail for OCR while staying below server/body limits.
+      const targetChars = 3_500_000;
+      const qualities = [0.86, 0.78, 0.68, 0.58, 0.48];
+      let dataUrl = canvas.toDataURL("image/jpeg", qualities[0]);
+      for (const quality of qualities.slice(1)) {
+        if (dataUrl.length <= targetChars) break;
+        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      }
+      resolve(dataUrl);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -630,6 +639,11 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
   });
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (res.status === 413) {
+      throw new Error(locale.startsWith("es")
+        ? "La imagen pesa demasiado. He intentado comprimirla, pero pruebe con una captura algo mas pequena."
+        : "The image is too large. I tried to compress it, but please try a slightly smaller screenshot.");
+    }
     throw new Error(data?.error ?? `Request failed: ${res.status}`);
   }
   return await res.json() as BillDocumentAnalysis;

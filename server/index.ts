@@ -66,7 +66,7 @@ app.get("/api/scam-check", authMiddleware, scamCheckHistoryHandler);
 app.get("/api/scam-check/history", authMiddleware, scamCheckHistoryHandler);
 app.delete("/api/scam-check/:id", authMiddleware, scamCheckDeleteHandler);
 
-app.post("/api/offers/analyze-document", express.json({ limit: "10mb" }), authMiddleware, analyzeOfferDocumentHandler);
+app.post("/api/offers/analyze-document", express.json({ limit: "20mb" }), authMiddleware, analyzeOfferDocumentHandler);
 
 app.use(express.json());
 
