@@ -251,6 +251,44 @@ const OFFER_IDEA_CHIPS = [
   },
 ] as const;
 
+const APPOINTMENT_TYPE_CHIPS = [
+  {
+    key: "medical",
+    es: "Medica",
+    en: "Medical",
+    promptEs: "Ayudame a programar una cita medica. Usa mi perfil primero, busca opciones cercanas si hace falta, y antes de actuar preparame un resumen para confirmar.",
+    promptEn: "Help me schedule a medical appointment. Use my profile first, search nearby options if needed, and prepare a confirmation summary before acting.",
+  },
+  {
+    key: "personal-care",
+    es: "Cuidado personal",
+    en: "Personal care",
+    promptEs: "Ayudame a programar una cita de cuidado personal, como peluqueria, podologia o bienestar. Prioriza cercania, facilidad y WhatsApp si esta disponible.",
+    promptEn: "Help me schedule a personal care appointment, such as hair, podiatry, or wellness. Prioritize proximity, ease, and WhatsApp if available.",
+  },
+  {
+    key: "government",
+    es: "Tramite oficial",
+    en: "Government",
+    promptEs: "Ayudame a programar una cita para un tramite oficial. Revisa que documentos podria necesitar y prepara recordatorios.",
+    promptEn: "Help me schedule an appointment for an official service. Check what documents may be needed and prepare reminders.",
+  },
+  {
+    key: "home-service",
+    es: "Servicio en casa",
+    en: "Home service",
+    promptEs: "Ayudame a programar un servicio en casa. Usa mi direccion, prioriza proveedores fiables, y confirma precio, hora y forma de contacto.",
+    promptEn: "Help me schedule a home service. Use my address, prioritize trusted providers, and confirm price, time, and contact method.",
+  },
+  {
+    key: "social",
+    es: "Social o restaurante",
+    en: "Social or restaurant",
+    promptEs: "Ayudame a programar una reserva social o restaurante. Busca opciones accesibles, cercanas y faciles, y ofrece transporte si conviene.",
+    promptEn: "Help me schedule a social booking or restaurant. Find accessible, nearby, easy options and offer transport if useful.",
+  },
+] as const;
+
 const RECS_CACHE_BASE = "vyva_concierge_recs_v8";
 const RECS_DATE_BASE = "vyva_concierge_recs_date_v8";
 const CHAT_HISTORY_BASE = "vyva_concierge_chat";
@@ -547,6 +585,8 @@ const ConciergeScreen = () => {
   const [selectedRec, setSelectedRec] = useState<RecommendationCard | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<RecommendationActionPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [appointmentOpen, setAppointmentOpen] = useState(false);
+  const [appointmentNote, setAppointmentNote] = useState("");
   const [offersOpen, setOffersOpen] = useState(false);
   const [offersQuery, setOffersQuery] = useState("");
   const [offersLoading, setOffersLoading] = useState(false);
@@ -730,8 +770,14 @@ const ConciergeScreen = () => {
   }
 
   function handleQuickAction(key: string) {
+    if (key === "scheduleAppt") {
+      setAppointmentOpen((open) => !open);
+      setOffersOpen(false);
+      return;
+    }
     if (key === "findDeals") {
       setOffersOpen(true);
+      setAppointmentOpen(false);
       setOffersError(null);
       if (!offersQuery) {
         setOffersQuery(isSpanish ? "comida barata cerca de mi" : "affordable food near me");
@@ -741,6 +787,21 @@ const ConciergeScreen = () => {
     const prompt = t(`concierge.prompts.${key}`);
     if (!prompt) return;
     setInput(prompt);
+  }
+
+  function startAppointmentFlow(chip: (typeof APPOINTMENT_TYPE_CHIPS)[number]) {
+    const base = isSpanish ? chip.promptEs : chip.promptEn;
+    const note = appointmentNote.trim();
+    const message = note
+      ? `${base}\n\nDetalle del usuario: ${note}`
+      : base;
+    const userMsg: ChatMessage = { role: "user", content: message };
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
+    setAppointmentOpen(false);
+    setAppointmentNote("");
+    chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sendMessage(message, nextHistory);
   }
 
   async function handleSearchOffers(nextQuery = offersQuery) {
@@ -977,6 +1038,69 @@ const ConciergeScreen = () => {
             </button>
           ))}
         </div>
+
+        {appointmentOpen && (
+          <div
+            className="mt-4 rounded-[26px] border border-[#99F6E4] bg-[#F0FDFA] p-4"
+            style={{ boxShadow: "0 12px 32px rgba(15,118,110,0.12)" }}
+            data-testid="panel-appointment-assistant"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[16px] bg-white">
+                <Calendar size={21} style={{ color: "#0F766E" }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
+                  {isSpanish ? "Programar una cita" : "Schedule an appointment"}
+                </p>
+                <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
+                  {isSpanish
+                    ? "VYVA usa tu perfil primero, propone opciones si hace falta, y no reserva nada sin confirmarlo contigo."
+                    : "VYVA uses your profile first, suggests options if needed, and never books without confirming with you."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAppointmentOpen(false)}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white font-body text-[15px] text-vyva-text-2"
+                aria-label={isSpanish ? "Cerrar" : "Close"}
+              >
+                x
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[20px] bg-white/75 p-3">
+              <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#0F766E]">
+                {isSpanish ? "Que tipo de cita necesitas?" : "What kind of appointment?"}
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {APPOINTMENT_TYPE_CHIPS.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => startAppointmentFlow(chip)}
+                    disabled={chatLoading}
+                    className="vyva-tap rounded-[17px] border border-[#99F6E4] bg-white px-3 py-3 text-left font-body text-[14px] font-semibold leading-tight text-vyva-text-1 disabled:opacity-60"
+                  >
+                    {isSpanish ? chip.es : chip.en}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-[20px] bg-white/75 p-3">
+              <label className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                {isSpanish ? "Detalle opcional" : "Optional detail"}
+              </label>
+              <Input
+                value={appointmentNote}
+                onChange={(e) => setAppointmentNote(e.target.value)}
+                placeholder={isSpanish ? "Ej. dermatologia, martes por la manana, WhatsApp si se puede" : "E.g. dermatology, Tuesday morning, WhatsApp if possible"}
+                className="mt-2 min-h-[50px] rounded-[18px] border-vyva-border bg-white font-body text-[15px]"
+              />
+            </div>
+          </div>
+        )}
 
         {offersOpen && (
           <div

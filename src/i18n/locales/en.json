@@ -1150,7 +1150,7 @@
     },
     "prompts": {
       "bookRide": "Book me a taxi for tomorrow at 10am",
-      "scheduleAppt": "Help me schedule a doctor's appointment",
+      "scheduleAppt": "Help me schedule an appointment. Use my profile first, suggest verified options if needed, and do not book anything without confirming with me.",
       "researchTopic": "Explain what Medicare Part B covers in simple terms",
       "findDeals": "Find deals near me this weekend",
       "getAdvice": "What's a good simple recipe for one person?"

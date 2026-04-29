@@ -1138,7 +1138,7 @@
     },
     "prompts": {
       "bookRide": "Resérvame un taxi para mañana a las 10am",
-      "scheduleAppt": "Ayúdame a programar una cita médica",
+      "scheduleAppt": "Ayudame a programar una cita. Usa mi perfil primero, propon opciones verificadas si hace falta, y no reserves nada sin confirmarlo conmigo.",
       "researchTopic": "Explica qué cubre Medicare Parte B en términos sencillos",
       "findDeals": "Busca ofertas cerca de mí este fin de semana",
       "getAdvice": "¿Cuál es una buena receta sencilla para una persona?"
