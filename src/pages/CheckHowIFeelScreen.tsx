@@ -1471,6 +1471,7 @@ function shareLabelsFor(copy: ReturnType<typeof copyFor>) {
         copy: "Copiar informe",
         preview: "Vista previa",
         noSaved: "No hay contacto guardado",
+        addContact: "AÃ±adir contacto",
         sms: "Mensaje",
         email: "Email",
         native: "Elegir app",
@@ -1488,6 +1489,7 @@ function shareLabelsFor(copy: ReturnType<typeof copyFor>) {
         copy: "Copy report",
         preview: "Preview",
         noSaved: "No saved contact",
+        addContact: "Add contact",
         sms: "Message",
         email: "Email",
         native: "Choose app",
@@ -2108,6 +2110,10 @@ const CheckHowIFeelScreen = () => {
           labels={shareLabels}
           targets={shareTargets}
           onClose={() => setShareSheetOpen(false)}
+          onAddContact={() => {
+            setShareSheetOpen(false);
+            navigate("/settings/account");
+          }}
           onCopy={async () => {
             try {
               await copyReport(shareReportText, toast, shareLabels);
@@ -2150,6 +2156,7 @@ function ReportShareSheet({
   labels,
   targets,
   onClose,
+  onAddContact,
   onCopy,
   onNativeShare,
   onSend,
@@ -2159,6 +2166,7 @@ function ReportShareSheet({
   labels: ReturnType<typeof shareLabelsFor>;
   targets: ShareTarget[];
   onClose: () => void;
+  onAddContact: () => void;
   onCopy: () => void;
   onNativeShare: () => void;
   onSend: (target: ShareTarget) => void;
@@ -2208,7 +2216,13 @@ function ReportShareSheet({
                 <ShareTargetButton key={target.id} target={target} label={labels.caregiver} onClick={() => onSend(target)} />
               ))
             ) : (
-              <DisabledShareTarget icon={<Users size={24} />} title={labels.caregiver} detail={labels.noSaved} />
+              <DisabledShareTarget
+                icon={<Users size={24} />}
+                title={labels.caregiver}
+                detail={labels.noSaved}
+                actionLabel={labels.addContact}
+                onAction={onAddContact}
+              />
             )}
 
             {doctorTargets.length > 0 ? (
@@ -2216,7 +2230,13 @@ function ReportShareSheet({
                 <ShareTargetButton key={target.id} target={target} label={labels.doctor} onClick={() => onSend(target)} />
               ))
             ) : (
-              <DisabledShareTarget icon={<Stethoscope size={24} />} title={labels.doctor} detail={labels.noSaved} />
+              <DisabledShareTarget
+                icon={<Stethoscope size={24} />}
+                title={labels.doctor}
+                detail={labels.noSaved}
+                actionLabel={labels.addContact}
+                onAction={onAddContact}
+              />
             )}
 
             <ShareTargetButton target={newContactTarget} label={labels.newContact} onClick={onNativeShare} />
@@ -2270,16 +2290,37 @@ function ShareTargetButton({
   );
 }
 
-function DisabledShareTarget({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
+function DisabledShareTarget({
+  icon,
+  title,
+  detail,
+  actionLabel,
+  onAction,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
-    <div className="flex min-h-[74px] items-center gap-4 rounded-[22px] border border-dashed border-vyva-border bg-[#FAF9F6] p-4 opacity-80">
+    <div className="flex min-h-[74px] items-center gap-4 rounded-[22px] border border-dashed border-vyva-border bg-[#FAF9F6] p-4">
       <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[17px] bg-white text-vyva-text-3">
         {icon}
       </span>
-      <span>
+      <span className="min-w-0 flex-1">
         <span className="block font-body text-[18px] font-bold text-vyva-text-1">{title}</span>
         <span className="block font-body text-[15px] text-vyva-text-2">{detail}</span>
       </span>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="vyva-tap flex-shrink-0 rounded-full bg-vyva-purple px-4 py-2 font-body text-[13px] font-bold text-white shadow-[0_8px_18px_rgba(107,33,168,0.16)]"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
