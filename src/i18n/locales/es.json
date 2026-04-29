@@ -1116,31 +1116,31 @@
   "concierge": {
     "voiceSource": "VYVA es tu conserje personal",
     "headline": "¿En qué puedo\nayudarte hoy?",
-    "subtitle": "Ofertas, viajes, consejos y más",
+    "subtitle": "Servicios, ahorro, planes y apoyo diario",
     "forYouToday": "Para ti hoy",
     "loadingRecs": "Buscando las mejores sugerencias para ti…",
     "noRecs": "Pulsa Actualizar para ver las sugerencias de hoy.",
     "refreshRecs": "Actualizar",
     "quickActions": "Acciones rápidas",
     "chatTitle": "Chatea con VYVA",
-    "placeholder": "Pregúntame lo que quieras — viajes, ofertas, consejos…",
+    "placeholder": "Pregúntame lo que quieras — servicios, ahorro, planes, consejos…",
     "chatEmptyHint": "Usa una acción rápida o escribe tu propia pregunta.",
     "errorMsg": "Algo ha salido mal. Por favor, inténtalo de nuevo.",
     "newConversation": "Nueva conversación",
     "activityTile": "Tu conserje IA",
-    "activityTileSubtitle": "Ofertas, viajes, consejos y más — personalizado para ti",
+    "activityTileSubtitle": "Servicios, ahorro, planes y apoyo — personalizado para ti",
     "actions": {
       "bookRide": "Reservar taxi",
       "scheduleAppt": "Programar cita",
       "researchTopic": "Investigar un tema",
-      "findDeals": "Buscar ofertas",
+      "findDeals": "Ahorrar y mejorar",
       "getAdvice": "Pedir consejo"
     },
     "prompts": {
       "bookRide": "Resérvame un taxi para mañana a las 10am",
       "scheduleAppt": "Ayudame a programar una cita. Usa mi perfil primero, propon opciones verificadas si hace falta, y no reserves nada sin confirmarlo conmigo.",
       "researchTopic": "Explica qué cubre Medicare Parte B en términos sencillos",
-      "findDeals": "Busca ofertas cerca de mí este fin de semana",
+      "findDeals": "Ayúdame a revisar servicios importantes para ahorrar o elegir mejor",
       "getAdvice": "¿Cuál es una buena receta sencilla para una persona?"
     }
   },

@@ -1128,31 +1128,31 @@
   "concierge": {
     "voiceSource": "VYVA is your personal concierge",
     "headline": "How can I\nhelp you today?",
-    "subtitle": "Deals, rides, tips and more",
+    "subtitle": "Services, savings, plans and daily support",
     "forYouToday": "For You Today",
     "loadingRecs": "Finding great picks for you…",
     "noRecs": "Tap Refresh to get today's picks.",
     "refreshRecs": "Refresh",
     "quickActions": "Quick Actions",
     "chatTitle": "Chat with VYVA",
-    "placeholder": "Ask me anything — rides, deals, tips…",
+    "placeholder": "Ask me anything — services, savings, plans, tips…",
     "chatEmptyHint": "Use a quick action above or type your own question.",
     "errorMsg": "Something went wrong. Please try again.",
     "newConversation": "New conversation",
     "activityTile": "Your AI Concierge",
-    "activityTileSubtitle": "Deals, rides, tips & more — personalised for you",
+    "activityTileSubtitle": "Services, savings, plans and support — personalised for you",
     "actions": {
       "bookRide": "Book a Ride",
       "scheduleAppt": "Schedule Appointment",
       "researchTopic": "Research a Topic",
-      "findDeals": "Find Deals",
+      "findDeals": "Save & Improve",
       "getAdvice": "Get Advice"
     },
     "prompts": {
       "bookRide": "Book me a taxi for tomorrow at 10am",
       "scheduleAppt": "Help me schedule an appointment. Use my profile first, suggest verified options if needed, and do not book anything without confirming with me.",
       "researchTopic": "Explain what Medicare Part B covers in simple terms",
-      "findDeals": "Find deals near me this weekend",
+      "findDeals": "Help me review important services to save money or choose better",
       "getAdvice": "What's a good simple recipe for one person?"
     }
   },

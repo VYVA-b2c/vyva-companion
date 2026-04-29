@@ -157,97 +157,95 @@ interface OffersSearchResponse {
 
 const OFFER_CATEGORY_CHIPS = [
   {
-    es: "Hogar y servicios",
-    en: "Home services",
-    queryEs: "servicios para el hogar cerca de mi",
-    queryEn: "home services near me",
+    es: "Gastos del hogar",
+    en: "Household costs",
+    detailEs: "Electricidad, gas, internet, telefono y mantenimiento.",
+    detailEn: "Electricity, gas, internet, phone, and maintenance.",
+    queryEs: "revisar gastos del hogar electricidad gas internet telefono mantenimiento",
+    queryEn: "review household costs electricity gas internet phone maintenance",
   },
   {
-    es: "Alimentacion",
-    en: "Food",
-    queryEs: "comida barata y supermercados cerca de mi",
-    queryEn: "affordable food and groceries near me",
+    es: "Vivienda y cuidados",
+    en: "Living and care",
+    detailEs: "Residencias, centros de dia, ayuda a domicilio y estancias temporales.",
+    detailEn: "Care homes, day centres, home help, and temporary stays.",
+    queryEs: "comparar residencia mayores centro de dia ayuda a domicilio estancias temporales",
+    queryEn: "compare senior residence day centre home care temporary stays",
   },
   {
-    es: "Salud y bienestar",
-    en: "Health",
-    queryEs: "farmacia y bienestar cerca de mi",
-    queryEn: "pharmacy and wellness near me",
+    es: "Seguros y proteccion",
+    en: "Insurance and protection",
+    detailEs: "Salud, hogar, vida, asistencia y dependencia.",
+    detailEn: "Health, home, life, assistance, and dependency support.",
+    queryEs: "revisar seguro salud hogar vida asistencia dependencia cobertura precio",
+    queryEn: "review health home life assistance dependency insurance coverage price",
   },
   {
-    es: "Transporte",
-    en: "Transport",
-    queryEs: "taxi y transporte para mayores cerca de mi",
-    queryEn: "taxi and senior transport near me",
+    es: "Servicios en casa",
+    en: "Home support",
+    detailEs: "Limpieza, reparaciones, mantenimiento y cuidado personal en casa.",
+    detailEn: "Cleaning, repairs, maintenance, and personal care at home.",
+    queryEs: "servicios fiables en casa limpieza reparaciones mantenimiento cuidado personal",
+    queryEn: "reliable home services cleaning repairs maintenance personal care",
   },
   {
-    es: "Viajes y ocio",
-    en: "Leisure",
-    queryEs: "actividades y descuentos para mayores cerca de mi",
-    queryEn: "senior leisure discounts near me",
-  },
-  {
-    es: "Vivienda",
-    en: "Housing",
-    queryEs: "servicios de vivienda para mayores cerca de mi",
-    queryEn: "senior housing services near me",
-  },
-  {
-    es: "Compras generales",
-    en: "Shopping",
-    queryEs: "descuentos en tiendas cerca de mi",
-    queryEn: "shopping discounts near me",
+    es: "Ayudas y beneficios",
+    en: "Benefits and support",
+    detailEs: "Subvenciones, beneficios para mayores, ayudas locales y programas sociales.",
+    detailEn: "Grants, senior benefits, local support, and social programmes.",
+    queryEs: "ayudas disponibles beneficios para mayores subvenciones programas sociales locales",
+    queryEn: "available benefits senior support grants local social programmes",
   },
 ] as const;
 
 const OFFER_IDEA_CHIPS = [
   {
-    es: "Entrega de supermercado hoy",
-    en: "Grocery delivery today",
-    queryEs: "entrega de supermercado hoy cerca de mi",
-    queryEn: "grocery delivery today near me",
+    es: "Reducir gastos mensuales",
+    en: "Reduce monthly costs",
+    queryEs: "reducir gastos mensuales luz gas internet seguros servicios esenciales",
+    queryEn: "reduce monthly costs electricity gas internet insurance essential services",
   },
   {
-    es: "Farmacia con descuentos",
-    en: "Pharmacy savings",
-    queryEs: "farmacia con descuentos cerca de mi",
-    queryEn: "pharmacy savings near me",
+    es: "Revisar ayudas disponibles",
+    en: "Review available benefits",
+    queryEs: "revisar ayudas disponibles para mayores en mi zona",
+    queryEn: "review available senior benefits in my area",
   },
   {
-    es: "Taxi fiable",
-    en: "Reliable taxi",
-    queryEs: "taxi fiable cerca de mi",
-    queryEn: "reliable taxi near me",
+    es: "Comparar servicios de cuidado",
+    en: "Compare care services",
+    queryEs: "comparar ayuda a domicilio centros de dia residencias mayores",
+    queryEn: "compare home help day centres senior residences",
   },
   {
-    es: "Menu del dia economico",
-    en: "Affordable set menu",
-    queryEs: "menu del dia economico cerca de mi",
-    queryEn: "affordable set menu near me",
+    es: "Revisar mi internet",
+    en: "Review my internet plan",
+    queryEs: "revisar internet telefono precio cobertura facilidad para mayores",
+    queryEn: "review internet phone price coverage ease for seniors",
   },
   {
-    es: "Cine o museo con descuento",
-    en: "Cinema or museum deal",
-    queryEs: "cine museo descuentos mayores cerca de mi",
-    queryEn: "cinema museum senior discounts near me",
+    es: "Comprobar seguro actual",
+    en: "Check current insurance",
+    queryEs: "revisar seguro actual cobertura precio proteccion",
+    queryEn: "review current insurance coverage price protection",
   },
   {
-    es: "Optica cerca de mi",
-    en: "Nearby optician",
-    queryEs: "optica promociones cerca de mi",
-    queryEn: "optician offers near me",
+    es: "Ayuda fiable en casa",
+    en: "Reliable help at home",
+    queryEs: "buscar ayuda fiable en casa limpieza reparaciones mantenimiento",
+    queryEn: "find reliable help at home cleaning repairs maintenance",
   },
   {
-    es: "Ayuda en casa",
-    en: "Help at home",
-    queryEs: "ayuda en casa para mayores cerca de mi",
-    queryEn: "help at home for seniors near me",
+    es: "Opciones de residencia",
+    en: "Care home options",
+    queryEs: "comparar residencias de mayores cerca calidad precio ubicacion",
+    queryEn: "compare nearby care homes quality price location",
   },
   {
-    es: "Mercado local",
-    en: "Local market",
-    queryEs: "mercado local buen precio cerca de mi",
-    queryEn: "good value local market near me",
+    es: "Optimizar mis facturas",
+    en: "Optimise my bills",
+    queryEs: "optimizar facturas electricidad gas internet mantenimiento hogar",
+    queryEn: "optimise bills electricity gas internet home maintenance",
   },
 ] as const;
 
@@ -699,7 +697,7 @@ const ConciergeScreen = () => {
   useEffect(() => {
     if (!offersOpen) return;
     const interval = window.setInterval(() => {
-      setOffersIdeaPage((page) => (page + 1) % Math.ceil(OFFER_IDEA_CHIPS.length / 4));
+      setOffersIdeaPage((page) => (page + 1) % Math.max(1, Math.ceil((OFFER_IDEA_CHIPS.length - 3) / 4)));
     }, 4200);
     return () => window.clearInterval(interval);
   }, [offersOpen]);
@@ -780,7 +778,9 @@ const ConciergeScreen = () => {
       setAppointmentOpen(false);
       setOffersError(null);
       if (!offersQuery) {
-        setOffersQuery(isSpanish ? "comida barata cerca de mi" : "affordable food near me");
+        setOffersQuery(isSpanish
+          ? "reducir gastos mensuales y revisar servicios importantes"
+          : "reduce monthly costs and review important services");
       }
       return;
     }
@@ -814,8 +814,8 @@ const ConciergeScreen = () => {
       setOffersResult(result);
     } catch {
       setOffersError(isSpanish
-        ? "No he podido buscar ofertas verificadas ahora mismo."
-        : "I could not search verified offers right now.");
+        ? "No he podido comparar opciones verificables ahora mismo."
+        : "I could not compare verifiable options right now.");
     } finally {
       setOffersLoading(false);
     }
@@ -830,8 +830,8 @@ const ConciergeScreen = () => {
   function handleOfferAction(option: OfferOption) {
     if (option.phone) {
       setInput(isSpanish
-        ? `Ayudame a llamar a ${option.name} para confirmar esta oferta o servicio.`
-        : `Help me call ${option.name} to confirm this offer or service.`);
+        ? `Ayudame a contactar con ${option.name} para revisar esta opcion y confirmar el siguiente paso.`
+        : `Help me contact ${option.name} to review this option and confirm the next step.`);
       setOffersOpen(false);
       chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -889,7 +889,8 @@ const ConciergeScreen = () => {
 
   const activeAction = pendingActions[0];
   const queuedActionCount = Math.max(0, pendingActions.length - 1);
-  const visibleOfferIdeas = OFFER_IDEA_CHIPS.slice(offersIdeaPage * 4, offersIdeaPage * 4 + 4);
+  const priorityOfferIdeas = OFFER_IDEA_CHIPS.slice(0, 3);
+  const visibleOfferIdeas = OFFER_IDEA_CHIPS.slice(3 + offersIdeaPage * 4, 3 + offersIdeaPage * 4 + 4);
 
   return (
     <div className="vyva-page">
@@ -1104,23 +1105,26 @@ const ConciergeScreen = () => {
 
         {offersOpen && (
           <div
-            className="mt-4 rounded-[26px] border border-[#FCD34D] bg-[#FFFBEB] p-4"
-            style={{ boxShadow: "0 12px 32px rgba(201,137,10,0.12)" }}
+            className="mt-4 rounded-[26px] border border-[#D9C7B6] bg-[#FCF8F1] p-4"
+            style={{ boxShadow: "0 14px 34px rgba(76,49,28,0.10)" }}
             data-testid="panel-offers-search"
           >
             <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[16px] bg-white">
-                <Tag size={21} style={{ color: "#C9890A" }} />
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[16px] bg-white shadow-sm">
+                <Tag size={21} style={{ color: "#6B21A8" }} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-body text-[18px] font-semibold leading-tight text-vyva-text-1">
-                  {isSpanish ? "Buscar ofertas utiles" : "Find useful offers"}
+                  {isSpanish ? "Ahorra y mejora tus servicios" : "Save and improve your services"}
                 </p>
                 <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">
                   {isSpanish
-                    ? "VYVA compara cercania, precio, confianza y facilidad. Solo muestra opciones verificables."
-                    : "VYVA compares proximity, value, trust, and ease. It only shows verifiable options."}
+                    ? "Comparamos opciones verificables para ayudarle a pagar menos, elegir mejor y gestionar servicios importantes."
+                    : "We compare verifiable options to help you pay less, choose better, and manage important services."}
                 </p>
+                <span className="mt-2 inline-flex rounded-full bg-white px-3 py-1 font-body text-[12px] font-semibold text-vyva-purple">
+                  {isSpanish ? "Neutral y sin comisiones." : "Neutral and commission-free."}
+                </span>
               </div>
               <button
                 type="button"
@@ -1132,20 +1136,26 @@ const ConciergeScreen = () => {
               </button>
             </div>
 
-            <div className="mt-4 rounded-[20px] bg-white/75 p-3">
-              <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-[#C9890A]">
-                {isSpanish ? "Categorias" : "Categories"}
+            <p className="mt-4 rounded-[18px] border border-vyva-border bg-white/80 p-3 font-body text-[13px] leading-relaxed text-vyva-text-2">
+              {isSpanish
+                ? "VYVA compara opciones verificables según precio, confianza, facilidad y adecuación a su situación. No promociona servicios ni recibe comisiones."
+                : "VYVA compares verifiable options by price, trust, ease, and fit for your situation. It does not promote services or receive commissions."}
+            </p>
+
+            <div className="mt-4 rounded-[22px] bg-white/85 p-3">
+              <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
+                {isSpanish ? "Puede mejorar esto ahora" : "You can improve this now"}
               </p>
-              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                {OFFER_CATEGORY_CHIPS.map((chip) => {
-                  const label = isSpanish ? chip.es : chip.en;
-                  const query = isSpanish ? chip.queryEs : chip.queryEn;
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {priorityOfferIdeas.map((idea) => {
+                  const label = isSpanish ? idea.es : idea.en;
+                  const query = isSpanish ? idea.queryEs : idea.queryEn;
                   return (
                     <button
-                      key={chip.es}
+                      key={idea.es}
                       type="button"
                       onClick={() => handleOfferChipSearch(query)}
-                      className="vyva-tap flex-shrink-0 rounded-full border border-[#FCD34D] bg-white px-3 py-2 font-body text-[12px] font-semibold text-vyva-text-1"
+                      className="vyva-tap rounded-[18px] border border-[#E8DCCF] bg-[#FFFCF7] px-4 py-3 text-left font-body text-[15px] font-semibold leading-tight text-vyva-text-1"
                     >
                       {label}
                     </button>
@@ -1154,13 +1164,41 @@ const ConciergeScreen = () => {
               </div>
             </div>
 
-            <div className="mt-3 rounded-[20px] bg-white/75 p-3">
+            <div className="mt-3 rounded-[22px] bg-white/85 p-3">
+              <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
+                {isSpanish ? "Categorias importantes" : "Important categories"}
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {OFFER_CATEGORY_CHIPS.map((chip) => {
+                  const label = isSpanish ? chip.es : chip.en;
+                  const detail = isSpanish ? chip.detailEs : chip.detailEn;
+                  const query = isSpanish ? chip.queryEs : chip.queryEn;
+                  return (
+                    <button
+                      key={chip.es}
+                      type="button"
+                      onClick={() => handleOfferChipSearch(query)}
+                      className="vyva-tap rounded-[18px] border border-vyva-border bg-white px-4 py-3 text-left"
+                    >
+                      <span className="block font-body text-[15px] font-semibold leading-tight text-vyva-text-1">
+                        {label}
+                      </span>
+                      <span className="mt-1 block font-body text-[12px] leading-relaxed text-vyva-text-2">
+                        {detail}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-[22px] bg-white/85 p-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">
-                  {isSpanish ? "Ideas para probar" : "Ideas to try"}
+                  {isSpanish ? "Recomendado para usted" : "Recommended for you"}
                 </p>
                 <span className="font-body text-[11px] text-vyva-text-2">
-                  {isSpanish ? "Cambian solas" : "Rotates"}
+                  {isSpanish ? "Según perfil y contexto" : "Based on profile and context"}
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1192,8 +1230,8 @@ const ConciergeScreen = () => {
                     handleSearchOffers();
                   }
                 }}
-                placeholder={isSpanish ? "Ej: comida barata, farmacia, taxi..." : "E.g. cheap food, pharmacy, taxi..."}
-                className="h-[46px] flex-1 rounded-full border-[#FCD34D] bg-white font-body text-[14px]"
+                placeholder={isSpanish ? "Ej: revisar mi seguro, reducir la luz..." : "E.g. review my insurance, lower electricity..."}
+                className="h-[46px] flex-1 rounded-full border-[#D9C7B6] bg-white font-body text-[14px]"
               />
               <Button
                 data-testid="button-offers-search"
@@ -1226,8 +1264,8 @@ const ConciergeScreen = () => {
                   <div className="rounded-[18px] bg-white p-4">
                     <p className="font-body text-[14px] leading-relaxed text-vyva-text-1">
                       {offersResult.no_results_message || (isSpanish
-                        ? "No hay suficientes opciones verificadas ahora mismo."
-                        : "There are not enough verified options right now.")}
+                        ? "No hay suficientes opciones verificables ahora mismo."
+                        : "There are not enough verifiable options right now.")}
                     </p>
                   </div>
                 ) : (
@@ -1261,7 +1299,7 @@ const ConciergeScreen = () => {
                           onClick={() => handleOfferAction(option)}
                           className="h-[40px] rounded-full bg-vyva-purple px-4 font-body text-[13px] hover:bg-vyva-purple/90"
                         >
-                          {option.phone ? (isSpanish ? "Preparar llamada" : "Prepare call") : option.website || option.maps_url ? (isSpanish ? "Abrir" : "Open") : (isSpanish ? "Ver contacto" : "View contact")}
+                          {option.phone ? (isSpanish ? "Contactar proveedor" : "Contact provider") : option.website || option.maps_url ? (isSpanish ? "Revisar ahora" : "Review now") : (isSpanish ? "Ver contacto" : "View contact")}
                         </Button>
                         <span className="inline-flex items-center rounded-full bg-[#FBF8F4] px-3 py-2 font-body text-[12px] text-vyva-text-2">
                           {option.contact_method}

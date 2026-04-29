@@ -7,13 +7,11 @@ const router = Router();
 const DEMO_USER_ID = "demo-user";
 
 type OfferCategory =
-  | "Hogar y servicios"
-  | "Alimentacion"
-  | "Salud y bienestar"
-  | "Transporte y movilidad"
-  | "Viajes y ocio"
-  | "Vivienda"
-  | "Compras generales";
+  | "Gastos del hogar"
+  | "Vivienda y cuidados"
+  | "Seguros y proteccion"
+  | "Servicios en casa"
+  | "Ayudas y beneficios";
 
 interface OffersRequestBody {
   query?: string;
@@ -68,23 +66,19 @@ interface RankedOffer {
 }
 
 const CATEGORY_ALIASES: Array<{ category: OfferCategory; terms: RegExp }> = [
-  { category: "Hogar y servicios", terms: /(hogar|casa|limpieza|fontaner|electric|reparaci|jardin|home|clean|repair|plumb|electric)/i },
-  { category: "Alimentacion", terms: /(comida|supermercado|mercado|aliment|compra|food|grocery|market|restaurant|meal)/i },
-  { category: "Salud y bienestar", terms: /(salud|farmacia|bienestar|fisio|optica|dentista|pharmacy|health|wellness|physio|dental)/i },
-  { category: "Transporte y movilidad", terms: /(taxi|transporte|movilidad|autobus|ride|transport|mobility|bus)/i },
-  { category: "Viajes y ocio", terms: /(viaje|ocio|cine|museo|teatro|hotel|actividad|travel|leisure|museum|cinema|event)/i },
-  { category: "Vivienda", terms: /(vivienda|alquiler|residencia|inmobiliaria|housing|rent|residence|real estate)/i },
-  { category: "Compras generales", terms: /(oferta|descuento|ropa|zapato|tienda|shopping|discount|deal|store|clothes)/i },
+  { category: "Gastos del hogar", terms: /(luz|electric|gas|internet|telefono|factura|tarifa|mantenimiento|comunidad|bill|utility|phone|broadband|maintenance)/i },
+  { category: "Vivienda y cuidados", terms: /(residencia|centro de dia|cuidad|ayuda a domicilio|dependencia|estancia|care|home help|day centre|residence|nursing)/i },
+  { category: "Seguros y proteccion", terms: /(seguro|poliza|cobertura|proteccion|asistencia|vida|hogar|salud|insurance|coverage|protection)/i },
+  { category: "Servicios en casa", terms: /(limpieza|reparaci|fontaner|electricista|mantenimiento|cuidado personal|profesional|clean|repair|plumb|home service)/i },
+  { category: "Ayudas y beneficios", terms: /(ayuda|beneficio|subvencion|municipal|social|mayores|apoyo|grant|benefit|public support|local support)/i },
 ];
 
 const CATEGORY_SEARCH_TERMS: Record<OfferCategory, string[]> = {
-  "Hogar y servicios": ["servicios hogar verificados", "limpieza domicilio", "reparaciones hogar"],
-  Alimentacion: ["supermercado ofertas", "mercado local", "entrega supermercado"],
-  "Salud y bienestar": ["farmacia ofertas", "optica promociones", "centro bienestar"],
-  "Transporte y movilidad": ["taxi local", "transporte mayores", "alquiler movilidad"],
-  "Viajes y ocio": ["actividades mayores descuentos", "cine descuentos mayores", "museo actividades"],
-  Vivienda: ["servicios vivienda mayores", "asesoria vivienda", "residencias informacion"],
-  "Compras generales": ["ofertas tiendas", "descuentos mayores", "centro comercial ofertas"],
+  "Gastos del hogar": ["comparador electricidad gas oficial", "internet telefono mayores", "asesoria ahorro facturas hogar"],
+  "Vivienda y cuidados": ["residencias mayores verificadas", "centros de dia mayores", "ayuda a domicilio mayores"],
+  "Seguros y proteccion": ["seguro salud mayores", "seguro hogar comparador", "asistencia dependencia mayores"],
+  "Servicios en casa": ["limpieza domicilio verificada", "reparaciones hogar verificadas", "mantenimiento hogar mayores"],
+  "Ayudas y beneficios": ["ayudas municipales mayores", "beneficios mayores", "subvenciones dependencia mayores"],
 };
 
 function normaliseLocale(locale: unknown): string {
@@ -95,7 +89,7 @@ function normaliseLocale(locale: unknown): string {
 function classifyCategory(query: string, explicit?: string): OfferCategory {
   if (explicit && CATEGORY_SEARCH_TERMS[explicit as OfferCategory]) return explicit as OfferCategory;
   const match = CATEGORY_ALIASES.find((entry) => entry.terms.test(query));
-  return match?.category ?? "Compras generales";
+  return match?.category ?? "Gastos del hogar";
 }
 
 function isDeliveryPreferred(text: string): boolean {
@@ -103,7 +97,7 @@ function isDeliveryPreferred(text: string): boolean {
 }
 
 function isPriceSensitive(text: string): boolean {
-  return /(barato|ahorro|econom|descuento|oferta|cheap|save|discount|low cost)/i.test(text);
+  return /(barato|ahorro|econom|descuento|oferta|factura|precio|cheap|save|discount|low cost|bill|price)/i.test(text);
 }
 
 async function getOfferProfileContext(userId: string): Promise<OfferProfileContext> {
@@ -143,9 +137,10 @@ function trustedSourceGuidance(category: OfferCategory, countryCode: string): st
     "servicios publicos o municipales",
     "programas comunitarios",
   ];
-  if (category === "Salud y bienestar") base.unshift("farmacias y redes sanitarias");
-  if (category === "Viajes y ocio") base.unshift("agendas municipales y centros culturales");
-  if (category === "Alimentacion") base.unshift("supermercados y mercados locales conocidos");
+  if (category === "Gastos del hogar") base.unshift("comparadores oficiales o regulados");
+  if (category === "Vivienda y cuidados") base.unshift("directorios publicos de cuidados y centros acreditados");
+  if (category === "Seguros y proteccion") base.unshift("aseguradoras reconocidas y fuentes regulatorias");
+  if (category === "Ayudas y beneficios") base.unshift("servicios publicos, ayuntamiento y programas sociales");
   if (countryCode.toUpperCase() !== "ES") base.push("directorios locales fiables del pais");
   return base;
 }
@@ -250,6 +245,122 @@ async function searchGooglePlaces(
   return detailed;
 }
 
+function buildGuidedCandidates(
+  category: OfferCategory,
+  context: OfferProfileContext,
+  locale: string,
+): PlaceCandidate[] {
+  const es = locale === "es";
+  const cityLabel = [context.city, context.region].filter(Boolean).join(", ");
+  const localArea = cityLabel || (es ? "su zona" : "your area");
+  const source = es ? "VYVA revision guiada" : "VYVA guided review";
+
+  const templates: Record<OfferCategory, PlaceCandidate[]> = {
+    "Gastos del hogar": [
+      {
+        name: es ? "Revisar factura de luz o gas" : "Review electricity or gas bill",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+      {
+        name: es ? "Comparar internet y telefono" : "Compare internet and phone",
+        address: localArea,
+        source,
+        sourceType: "known_platform",
+      },
+      {
+        name: es ? "Detectar permanencias y cargos ocultos" : "Find commitments and hidden charges",
+        address: localArea,
+        source,
+        sourceType: "known_platform",
+      },
+    ],
+    "Vivienda y cuidados": [
+      {
+        name: es ? "Comparar ayuda a domicilio" : "Compare home help",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+      {
+        name: es ? "Revisar centros de dia cercanos" : "Review nearby day centres",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+      {
+        name: es ? "Comparar residencias de mayores" : "Compare senior residences",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+    ],
+    "Seguros y proteccion": [
+      {
+        name: es ? "Revisar cobertura del seguro actual" : "Review current insurance coverage",
+        address: localArea,
+        source,
+        sourceType: "known_platform",
+      },
+      {
+        name: es ? "Buscar cobertura mas adecuada" : "Find more suitable coverage",
+        address: localArea,
+        source,
+        sourceType: "known_platform",
+      },
+      {
+        name: es ? "Comprobar asistencia y dependencia" : "Check assistance and dependency support",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+    ],
+    "Servicios en casa": [
+      {
+        name: es ? "Buscar profesional verificado en casa" : "Find verified help at home",
+        address: localArea,
+        source,
+        sourceType: "verified_local_business",
+      },
+      {
+        name: es ? "Comparar limpieza o mantenimiento" : "Compare cleaning or maintenance",
+        address: localArea,
+        source,
+        sourceType: "verified_local_business",
+      },
+      {
+        name: es ? "Preparar llamada con requisitos claros" : "Prepare a call with clear requirements",
+        address: localArea,
+        source,
+        sourceType: "known_platform",
+      },
+    ],
+    "Ayudas y beneficios": [
+      {
+        name: es ? "Comprobar ayudas municipales" : "Check municipal benefits",
+        address: localArea,
+        source: es ? "Ayuntamiento y servicios sociales" : "Town hall and social services",
+        sourceType: "public_or_community",
+      },
+      {
+        name: es ? "Revisar beneficios para mayores" : "Review senior benefits",
+        address: localArea,
+        source: es ? "Programas publicos y comunitarios" : "Public and community programmes",
+        sourceType: "public_or_community",
+      },
+      {
+        name: es ? "Preparar documentos necesarios" : "Prepare required documents",
+        address: localArea,
+        source,
+        sourceType: "public_or_community",
+      },
+    ],
+  };
+
+  return templates[category];
+}
+
 function scoreCandidate(candidate: PlaceCandidate, category: OfferCategory, context: OfferProfileContext, query: string) {
   const addressText = candidate.address?.toLowerCase() ?? "";
   const cityMatch = context.city && addressText.includes(context.city.toLowerCase()) ? 1 : 0.65;
@@ -269,7 +380,7 @@ function scoreCandidate(candidate: PlaceCandidate, category: OfferCategory, cont
 
   const text = `${candidate.name} ${candidate.address ?? ""} ${query}`.toLowerCase();
   const categoryFit = CATEGORY_SEARCH_TERMS[category].some((term) => text.includes(term.split(" ")[0].toLowerCase())) ? 78 : 62;
-  const deliveryFit = context.mobilityPreference === "delivery" && /domicilio|delivery|entrega|farmacia|supermercado/i.test(text) ? 18 : 0;
+  const deliveryFit = context.mobilityPreference === "delivery" && /domicilio|delivery|casa|ayuda a domicilio|home help|at home/i.test(text) ? 18 : 0;
   const preference_match = Math.min(100, categoryFit + deliveryFit);
 
   const total = Math.round(
@@ -283,13 +394,17 @@ function scoreCandidate(candidate: PlaceCandidate, category: OfferCategory, cont
   return { total, breakdown: { distance, price_value, trust, simplicity, preference_match } };
 }
 
-function advantageText(candidate: PlaceCandidate, locale: string): string {
+function serviceValueText(candidate: PlaceCandidate, locale: string): string {
   const es = locale === "es";
   if (typeof candidate.priceLevel === "number") {
-    const level = "€".repeat(Math.min(Math.max(candidate.priceLevel, 1), 4));
-    return es ? `Nivel de precio aproximado: ${level}. Confirmar la oferta antes de comprar.` : `Approximate price level: ${level}. Confirm the offer before buying.`;
+    const level = "EUR ".repeat(Math.min(Math.max(candidate.priceLevel, 1), 4)).trim();
+    return es
+      ? `Nivel de precio aproximado: ${level}. Conviene confirmar condiciones, permanencia y coste real.`
+      : `Approximate price level: ${level}. Confirm terms, commitment, and real cost.`;
   }
-  return es ? "Ventaja pendiente de confirmar; VYVA puede revisar web o llamar." : "Advantage needs confirmation; VYVA can check the website or call.";
+  return es
+    ? "Coste o ventaja pendiente de confirmar; VYVA puede revisar la web o llamar."
+    : "Cost or advantage needs confirmation; VYVA can check the website or call.";
 }
 
 function contactText(candidate: PlaceCandidate, locale: string): string {
@@ -297,6 +412,8 @@ function contactText(candidate: PlaceCandidate, locale: string): string {
   if (candidate.phone) return es ? `Llamar: ${candidate.phone}` : `Call: ${candidate.phone}`;
   if (candidate.website) return es ? "Web disponible" : "Website available";
   if (candidate.mapsUrl) return es ? "Abrir en mapa" : "Open map";
+  if (candidate.sourceType === "public_or_community") return es ? "VYVA puede preparar los pasos" : "VYVA can prepare the steps";
+  if (candidate.sourceType === "known_platform") return es ? "VYVA puede ayudar a comparar" : "VYVA can help compare";
   return es ? "Contacto no publicado; revisar antes." : "No published contact; check first.";
 }
 
@@ -324,12 +441,12 @@ function buildRankedOffer(
     name: candidate.name,
     category,
     what_it_offers: es
-      ? `Opcion local relacionada con ${category.toLowerCase()}.`
-      : `Local option related to ${category}.`,
-    price_or_advantage: advantageText(candidate, locale),
+      ? `Opcion verificable para ${category.toLowerCase()}.`
+      : `Verifiable option for ${category}.`,
+    price_or_advantage: serviceValueText(candidate, locale),
     why_good_option: es
-      ? `Buena combinacion de cercania, confianza y facilidad. Fuente: ${candidate.source}.`
-      : `Good balance of proximity, trust, and ease. Source: ${candidate.source}.`,
+      ? `Buena combinacion de adecuacion, confianza y facilidad. Fuente: ${candidate.source}.`
+      : `Good balance of fit, trust, and ease. Source: ${candidate.source}.`,
     distance_or_availability: [candidate.address, availability].filter(Boolean).join(" · "),
     contact_method: contactText(candidate, locale),
     phone: candidate.phone,
@@ -354,9 +471,12 @@ async function buildOffers(query: string, category: OfferCategory, context: Offe
   const allResults = (await Promise.all(
     searchTerms.slice(0, 4).map((term) => searchGooglePlaces(term, context, locale).catch(() => [])),
   )).flat();
+  const guidedResults = allResults.length === 0
+    ? buildGuidedCandidates(category, context, locale)
+    : [];
 
   const deduped = Array.from(
-    new Map(allResults.map((candidate) => [candidate.name.toLowerCase(), candidate])).values(),
+    new Map([...allResults, ...guidedResults].map((candidate) => [candidate.name.toLowerCase(), candidate])).values(),
   );
 
   return deduped
@@ -388,19 +508,19 @@ router.post("/search", async (req: Request, res: Response) => {
       category: classifiedCategory,
       options: offers,
       decision_explanation: es
-        ? "Como he elegido estas opciones: he priorizado cercania, precio o valor, confianza, facilidad de contacto y preferencias del usuario cuando estaban disponibles."
-        : "How I chose these options: I prioritised proximity, price or value, trust, ease of contact, and user preferences when available.",
+        ? "Como he elegido estas opciones: he priorizado precio o valor, confianza, facilidad, adecuacion a su situacion y cercania cuando era relevante."
+        : "How I chose these options: I prioritised price or value, trust, ease, fit for your situation, and proximity when relevant.",
       neutrality_note: es
         ? "VYVA no recibe comisiones ni promociona servicios. Estas opciones se muestran de forma neutral para ayudarle a elegir lo mejor para usted."
         : "VYVA does not receive commissions or promote services. These options are shown neutrally to help you choose what is best for you.",
       source_guidance: trustedSourceGuidance(classifiedCategory, context.countryCode),
       next_step: es
-        ? "Puedo ayudarle a llamar, abrir la web, comparar mas opciones o guardar su preferencia para la proxima vez."
-        : "I can help call, open the website, compare more options, or save your preference for next time.",
+        ? "Puedo ayudarle a revisar ahora, comparar opciones, contactar un proveedor, guardar un recordatorio o enviar un resumen por WhatsApp."
+        : "I can help review now, compare options, contact a provider, save a reminder, or send a WhatsApp summary.",
       no_results_message: offers.length === 0
         ? es
-          ? "No he encontrado suficientes opciones verificadas ahora mismo. Es mejor no inventar ofertas; pruebe una categoria mas concreta o una zona cercana."
-          : "I could not find enough verified options right now. It is better not to invent offers; try a more specific category or nearby area."
+          ? "No he encontrado suficientes opciones verificables ahora mismo. Es mejor no inventar; pruebe un servicio mas concreto o una zona cercana."
+          : "I could not find enough verifiable options right now. It is better not to invent; try a more specific service or nearby area."
         : "",
     });
   } catch (err) {
