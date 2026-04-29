@@ -924,6 +924,8 @@ export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
   }
 }
 
+router.post("/analyze-document", analyzeOfferDocumentHandler);
+
 router.post("/search", async (req: Request, res: Response) => {
   const { query = "", category, locale = "es", document_context } = req.body as OffersRequestBody;
   const cleanedQuery = query.trim();
