@@ -52,10 +52,18 @@ function monthlyBaseline(input: NormalizedUtilityInput): number {
 }
 
 const CNMC_COMPARATOR_URL = "https://comparador.cnmc.gob.es/";
-const CNMC_RESULTS_FALLBACK_URL =
+const CNMC_RESULTS_URL_ENV =
   process.env.CNMC_RESULTS_URL?.trim()
   || process.env.VITE_CNMC_RESULTS_URL?.trim()
-  || CNMC_COMPARATOR_URL;
+  || "";
+
+function isCnmcResultsUrl(url?: string): boolean {
+  return !!url && /^https:\/\/comparador\.cnmc\.gob\.es\/comparador\/listado\//i.test(url);
+}
+
+const CNMC_RESULTS_FALLBACK_URL = isCnmcResultsUrl(CNMC_RESULTS_URL_ENV)
+  ? CNMC_RESULTS_URL_ENV
+  : "";
 
 interface CandidateLink {
   text: string;
@@ -182,8 +190,9 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
-      source_url: CNMC_RESULTS_FALLBACK_URL,
-      action_label: "Ver ofertas",
+      ...(CNMC_RESULTS_FALLBACK_URL
+        ? { source_url: CNMC_RESULTS_FALLBACK_URL, action_label: "Ver ofertas" }
+        : {}),
       confidence: "low" as const,
       notes: option.notes,
     };
@@ -223,6 +232,12 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
     const bodyText = (await page.locator("body").innerText({ timeout: 10000 })).slice(0, 8000);
     const hasComparator = /comparador|electricidad|gas|ofertas|tarifa/i.test(bodyText);
     if (!hasComparator) throw new Error("CNMC comparator page did not expose expected text");
+
+    const startButton = page.getByRole("button", { name: /iniciar/i }).first();
+    if (await startButton.count()) {
+      await startButton.click({ timeout: 5000 }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => undefined);
+    }
 
     const inputs = await page.locator("input").count();
     for (let i = 0; i < inputs; i += 1) {
@@ -266,7 +281,7 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
         price_stability: /fijo|estable/i.test(details.nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
         green_energy: /verde|renovable/i.test(details.nearby) ? true : null,
         source: "CNMC",
-        source_url: /\/comparador\/listado\//.test(pageUrl) ? pageUrl : undefined,
+        source_url: isCnmcResultsUrl(pageUrl) ? pageUrl : undefined,
         provider_url: providerUrl || undefined,
         action_label: "Ver ofertas",
         confidence: providerUrl ? "high" : "medium",

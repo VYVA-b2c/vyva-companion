@@ -209,6 +209,19 @@ function resultSummary(input: NormalizedUtilityInput, results: UtilityComparison
   };
 }
 
+function isUsefulComparisonUrl(url?: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (/comparador\.cnmc\.gob\.es$/i.test(parsed.hostname)) {
+      return parsed.pathname !== "/" && parsed.pathname !== "";
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function logUtilityRun(userId: string, body: {
   input_method: InputMethod;
   normalized: NormalizedUtilityInput;
@@ -277,8 +290,8 @@ router.post("/compare", async (req: Request, res: Response) => {
 
     const estimated = normalized.missing_fields.some((field) => field.startsWith("estimated:"));
     const sourceUrl =
-      comparison.results.find((result) => result.source_url)?.source_url
-      ?? comparison.results.find((result) => result.provider_url)?.provider_url
+      comparison.results.find((result) => isUsefulComparisonUrl(result.source_url))?.source_url
+      ?? comparison.results.find((result) => isUsefulComparisonUrl(result.provider_url))?.provider_url
       ?? "";
 
     return res.json({

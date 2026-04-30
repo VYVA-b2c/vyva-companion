@@ -1512,13 +1512,44 @@ const ConciergeScreen = () => {
     ].filter(Boolean).join("\n");
   }
 
-  function utilityOptionUrl(result: UtilityComparisonResult, parent?: UtilityCompareResponse): string {
-    return result.provider_url || result.source_url || parent?.source_url || "";
+  function isUsefulUtilityUrl(url?: string): boolean {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      if (/comparador\.cnmc\.gob\.es$/i.test(parsed.hostname)) {
+        return parsed.pathname !== "/" && parsed.pathname !== "";
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  function utilityOptionActionLabel(result: UtilityComparisonResult): string {
-    if (result.action_label) return result.action_label;
-    if (result.source === "CNMC") return isSpanish ? "Ver ofertas" : "View offers";
+  function isCnmcResultsUrl(url?: string): boolean {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return /comparador\.cnmc\.gob\.es$/i.test(parsed.hostname)
+        && /^\/comparador\/listado\//i.test(parsed.pathname);
+    } catch {
+      return false;
+    }
+  }
+
+  function utilityOptionUrl(result: UtilityComparisonResult, parent?: UtilityCompareResponse): string {
+    return [result.provider_url, result.source_url, parent?.source_url]
+      .find((url) => isUsefulUtilityUrl(url)) ?? "";
+  }
+
+  function utilityOptionActionLabel(result: UtilityComparisonResult, url?: string): string {
+    if (result.action_label && (!/ver ofertas/i.test(result.action_label) || isCnmcResultsUrl(url))) {
+      return result.action_label;
+    }
+    if (isCnmcResultsUrl(url)) return isSpanish ? "Ver ofertas" : "View offers";
+    if (result.provider_url && isUsefulUtilityUrl(result.provider_url)) {
+      return isSpanish ? "Ver oferta" : "View offer";
+    }
+    if (result.source === "CNMC") return isSpanish ? "Ver resultados" : "View results";
     return isSpanish ? "Ver opciones" : "View options";
   }
 
@@ -2207,7 +2238,7 @@ const ConciergeScreen = () => {
                           className="mt-3 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-vyva-purple/20 bg-[#F5F3FF] px-4 py-2 font-body text-[13px] font-semibold text-vyva-purple"
                         >
                           <ExternalLink size={15} />
-                          {utilityOptionActionLabel(result)}
+                          {utilityOptionActionLabel(result, optionUrl)}
                         </a>
                       )}
                     </div>
