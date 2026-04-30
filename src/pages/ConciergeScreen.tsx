@@ -814,6 +814,23 @@ function hasFieldValue(value: string | number | boolean | null | undefined): boo
   return true;
 }
 
+function utilityDetailLabel(field: string, es: boolean): string {
+  const isEstimated = field.startsWith("estimated:");
+  const key = isEstimated ? field.replace("estimated:", "") : field;
+  const labels: Record<string, { es: string; en: string }> = {
+    postcode: { es: "codigo postal", en: "postcode" },
+    power_kw: { es: "potencia", en: "power" },
+    consumption_kwh: { es: "consumo", en: "usage" },
+    "estimated monthly cost or consumption_kwh": {
+      es: "importe mensual o consumo",
+      en: "monthly cost or usage",
+    },
+  };
+  const label = labels[key]?.[es ? "es" : "en"] ?? key.replace(/_/g, " ");
+  if (!isEstimated) return label;
+  return es ? `${label} estimado` : `estimated ${label}`;
+}
+
 function billClientMessage(locale: string, key: "unsupported" | "read_failed"): string {
   const lang = locale.split("-")[0].toLowerCase();
   const messages = {
@@ -1945,7 +1962,9 @@ const ConciergeScreen = () => {
                     const blockingMissingFields = utilityNormalized.missing_fields.filter((field) => !field.startsWith("estimated:"));
                     const shownMissingFields = blockingMissingFields.filter((field) => !(field === "postcode" && !postcodeMissing));
                     const estimatedFields = utilityNormalized.missing_fields.filter((field) => field.startsWith("estimated:"));
-                    const detailLabels = [...shownMissingFields, ...estimatedFields];
+                    const detailLabels = [...shownMissingFields, ...estimatedFields].map((field) => utilityDetailLabel(field, isSpanish));
+                    const consumptionEstimated = utilityNormalized.missing_fields.includes("estimated:consumption_kwh");
+                    const powerEstimated = utilityNormalized.missing_fields.includes("estimated:power_kw");
 
                     return (
                       <>
@@ -2000,17 +2019,45 @@ const ConciergeScreen = () => {
                         </p>
                       )}
                     </div>
-                    <div className="rounded-[14px] bg-white p-3">
-                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
-                        {isSpanish ? "Consumo" : "Usage"}
-                      </p>
-                      <Input value={fieldValue(utilityNormalized.consumption_kwh, "")} onChange={(e) => updateUtilityNormalizedField("consumption_kwh", e.target.value)} placeholder="kWh" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
+                    <div className={`rounded-[14px] p-3 ${consumptionEstimated ? "border border-[#FDE68A] bg-[#FFFBEB]" : "bg-white"}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                          {isSpanish ? "Consumo" : "Usage"}
+                        </p>
+                        {consumptionEstimated && (
+                          <span className="rounded-full bg-white px-2 py-0.5 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-[#92400E]">
+                            {isSpanish ? "Estimado" : "Estimated"}
+                          </span>
+                        )}
+                      </div>
+                      <Input value={fieldValue(utilityNormalized.consumption_kwh, "")} onChange={(e) => updateUtilityNormalizedField("consumption_kwh", e.target.value)} placeholder="kWh" className={`mt-1 h-[38px] rounded-[12px] bg-white font-body text-[14px] ${consumptionEstimated ? "border-[#FBBF24] focus-visible:ring-[#FBBF24]" : "border-vyva-border"}`} />
+                      {consumptionEstimated && (
+                        <p className="mt-2 font-body text-[11px] leading-snug text-[#92400E]">
+                          {isSpanish
+                            ? "VYVA lo ha estimado desde el importe. Corrijalo si ve el kWh exacto en la factura."
+                            : "VYVA estimated this from the amount. Correct it if you see the exact kWh on the bill."}
+                        </p>
+                      )}
                     </div>
-                    <div className="rounded-[14px] bg-white p-3">
-                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
-                        {isSpanish ? "Potencia contratada" : "Contracted power"}
-                      </p>
-                      <Input value={fieldValue(utilityNormalized.power_kw, "")} onChange={(e) => updateUtilityNormalizedField("power_kw", e.target.value)} placeholder="kW" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
+                    <div className={`rounded-[14px] p-3 ${powerEstimated ? "border border-[#FDE68A] bg-[#FFFBEB]" : "bg-white"}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                          {isSpanish ? "Potencia contratada" : "Contracted power"}
+                        </p>
+                        {powerEstimated && (
+                          <span className="rounded-full bg-white px-2 py-0.5 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-[#92400E]">
+                            {isSpanish ? "Estimado" : "Estimated"}
+                          </span>
+                        )}
+                      </div>
+                      <Input value={fieldValue(utilityNormalized.power_kw, "")} onChange={(e) => updateUtilityNormalizedField("power_kw", e.target.value)} placeholder="kW" className={`mt-1 h-[38px] rounded-[12px] bg-white font-body text-[14px] ${powerEstimated ? "border-[#FBBF24] focus-visible:ring-[#FBBF24]" : "border-vyva-border"}`} />
+                      {powerEstimated && (
+                        <p className="mt-2 font-body text-[11px] leading-snug text-[#92400E]">
+                          {isSpanish
+                            ? "Estimacion segura para comparar. Puede cambiarla si aparece en la factura."
+                            : "Safe estimate for comparison. You can change it if it appears on the bill."}
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-[14px] bg-white p-3 sm:col-span-2">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">

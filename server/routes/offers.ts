@@ -249,6 +249,8 @@ Rules:
 - total_amount and unit prices must be numbers, not strings. Use null if not visible.
 - Never use 0 as a placeholder for missing data. If a numeric value is not visible, return null.
 - For electricity bills, prioritise visible consumption in kWh, total amount, energy cost, power/standing charge, taxes, tariff, period, and company.
+- For usage.kwh, only extract an exact kWh number clearly tied to the current billing period or total bill consumption, such as "consumo en el periodo", "energia consumida", "consumo total realizado", or an explicit current-period kWh line.
+- Do NOT use chart axis labels, bar heights, historical consumption graphs, euro amounts, average daily costs, or inferred values as usage.kwh. If the kWh value is only implied or appears only in a graph, return null and add "consumption_kwh" to missing_fields.
 - For Spanish bills, extract a visible 5-digit postal code from the customer/service address line when present. Example: "29602, Marbella (Malaga)" means postcode "29602".
 - If a postcode is visible in an address block, put it in postcode even if the label "codigo postal" is not shown.
 - If you see Spanish labels such as "Importe a pagar", "Energia consumida", "Potencia contratada", "Tu consumo total realizado", or "kWh", classify it as "electricity_bill".
