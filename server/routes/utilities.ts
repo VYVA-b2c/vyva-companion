@@ -276,10 +276,16 @@ router.post("/compare", async (req: Request, res: Response) => {
     });
 
     const estimated = normalized.missing_fields.some((field) => field.startsWith("estimated:"));
+    const sourceUrl =
+      comparison.results.find((result) => result.source_url)?.source_url
+      ?? comparison.results.find((result) => result.provider_url)?.provider_url
+      ?? "";
+
     return res.json({
       normalized_input: normalized,
       source_used: comparison.source_used,
       source_status: comparison.source_status,
+      source_url: sourceUrl,
       summary: resultSummary(normalized, comparison.results),
       results: comparison.results,
       calculation_note: "He usado los datos de su factura o los datos que me ha facilitado, especialmente codigo postal, consumo, potencia e importe actual. Despues he comparado opciones usando el comparador oficial de la CNMC.",

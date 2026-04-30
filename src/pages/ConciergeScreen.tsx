@@ -233,6 +233,7 @@ interface UtilityCompareResponse {
   normalized_input: NormalizedUtilityInput;
   source_used: "CNMC" | "Fallback";
   source_status: "success" | "fallback" | "failed";
+  source_url?: string;
   summary: {
     headline: string;
     current_monthly_cost: number | null;
@@ -1491,10 +1492,10 @@ const ConciergeScreen = () => {
 
   function buildUtilityShareText(result: UtilityCompareResponse): string {
     const best = result.results[0];
-    const bestUrl = best ? utilityOptionUrl(best) : "";
+    const bestUrl = best ? utilityOptionUrl(best, result) : result.source_url ?? "";
     const optionLines = result.results
       .map((option, index) => {
-        const optionUrl = utilityOptionUrl(option);
+        const optionUrl = utilityOptionUrl(option, result);
         return `${index + 1}. ${option.provider} - ${option.tariff_name}: ${formatEuro(option.estimated_monthly_cost, isSpanish)}/mes${optionUrl ? ` (${optionUrl})` : ""}`;
       })
       .join("\n");
@@ -1511,8 +1512,8 @@ const ConciergeScreen = () => {
     ].filter(Boolean).join("\n");
   }
 
-  function utilityOptionUrl(result: UtilityComparisonResult): string {
-    return result.source_url || result.provider_url || "";
+  function utilityOptionUrl(result: UtilityComparisonResult, parent?: UtilityCompareResponse): string {
+    return result.provider_url || result.source_url || parent?.source_url || "";
   }
 
   function utilityOptionActionLabel(result: UtilityComparisonResult): string {
@@ -2178,7 +2179,7 @@ const ConciergeScreen = () => {
                   </div>
 
                   {utilityResult.results.map((result, index) => {
-                    const optionUrl = utilityOptionUrl(result);
+                    const optionUrl = utilityOptionUrl(result, utilityResult);
                     return (
                     <div key={`${result.provider}-${result.tariff_name}-${index}`} className="rounded-[20px] border border-vyva-border bg-white p-4">
                       <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
