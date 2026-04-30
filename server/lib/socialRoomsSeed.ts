@@ -323,6 +323,88 @@ export const socialRoomSeeds: SocialRoomSeed[] = [
     ],
   },
   {
+    slug: "music-salon",
+    names: { es: "El Salón de Música", de: "Der Musiksalon", en: "Music Salon" },
+    category: "activity",
+    agentSlug: "clara",
+    agentFullName: "Clara Vidal",
+    agentColour: "#7E22CE",
+    agentCredential: {
+      es: "Musicóloga · escucha guiada",
+      de: "Musikwissenschaftlerin · geführtes Hören",
+      en: "Musicologist · guided listening",
+    },
+    ctaLabel: { es: "Escuchar con Clara", de: "Mit Clara hören", en: "Listen with Clara" },
+    topicTags: ["music", "classical", "songs", "culture", "memory"],
+    timeSlots: ["afternoon", "evening"],
+    featured: true,
+    dailyTopics: [
+      {
+        topic: { es: "Una pieza clásica con historia", de: "Ein klassisches Stück mit Geschichte", en: "A classical piece with a story" },
+        opener: {
+          es: "Hoy podemos escuchar una pieza breve y descubrir la historia que guarda. ¿Te apetece empezar por algo sereno?",
+          de: "Heute können wir ein kurzes Stück hören und seine Geschichte entdecken. Möchtest du mit etwas Ruhigem beginnen?",
+          en: "Today we can listen to a short piece and discover the story inside it. Shall we start with something calm?",
+        },
+        quote: {
+          es: "Una melodía puede abrir una habitación entera de recuerdos.",
+          de: "Eine Melodie kann einen ganzen Raum voller Erinnerungen öffnen.",
+          en: "A melody can open an entire room of memories.",
+        },
+        activityType: "story",
+        contentTag: { es: "Escucha guiada", de: "Geführtes Hören", en: "Guided listening" },
+        contentTitle: { es: "Música para escuchar con calma", de: "Musik zum ruhigen Hören", en: "Music to listen to slowly" },
+        contentBody: {
+          es: "Clara te cuenta quién la compuso, qué escuchar primero y una pequeña historia para disfrutarla mejor.",
+          de: "Clara erzählt, wer es komponiert hat, worauf du zuerst achten kannst und eine kleine Geschichte dazu.",
+          en: "Clara shares who composed it, what to listen for first, and a small story to enjoy it more deeply.",
+        },
+      },
+      {
+        topic: { es: "Canciones que acompañan la memoria", de: "Lieder, die Erinnerungen begleiten", en: "Songs that carry memory" },
+        opener: {
+          es: "Hay canciones que vuelven como una fotografía. ¿Hay alguna melodía que te transporte a otro momento?",
+          de: "Manche Lieder kehren wie ein Foto zurück. Gibt es eine Melodie, die dich in eine andere Zeit bringt?",
+          en: "Some songs return like a photograph. Is there a melody that carries you back to another time?",
+        },
+        quote: {
+          es: "La memoria también sabe cantar.",
+          de: "Auch die Erinnerung kann singen.",
+          en: "Memory knows how to sing too.",
+        },
+        activityType: "discussion",
+        contentTag: { es: "Conversación musical", de: "Musikalisches Gespräch", en: "Musical conversation" },
+        contentTitle: { es: "Una canción de antes", de: "Ein Lied von früher", en: "A song from before" },
+        contentBody: {
+          es: "Comparte una canción querida y Clara puede ayudarte a recordar su época, su estilo y por qué emociona.",
+          de: "Teile ein geliebtes Lied, und Clara hilft dir, seine Zeit, seinen Stil und seine Wirkung zu entdecken.",
+          en: "Share a beloved song and Clara can help explore its era, style, and why it still moves people.",
+        },
+      },
+      {
+        topic: { es: "Descubrir un compositor sin prisa", de: "Einen Komponisten ohne Eile entdecken", en: "Discovering a composer without hurry" },
+        opener: {
+          es: "Podemos conocer a un compositor poco a poco, sin tecnicismos. ¿Prefieres algo alegre, tranquilo o dramático?",
+          de: "Wir können einen Komponisten langsam kennenlernen, ohne Fachsprache. Lieber heiter, ruhig oder dramatisch?",
+          en: "We can meet a composer slowly, without jargon. Would you prefer something joyful, calm, or dramatic?",
+        },
+        quote: {
+          es: "Entender una obra empieza por disfrutar un detalle.",
+          de: "Ein Werk zu verstehen beginnt damit, ein Detail zu genießen.",
+          en: "Understanding a piece begins by enjoying one detail.",
+        },
+        activityType: "advice",
+        contentTag: { es: "Puerta de entrada", de: "Einstieg", en: "A doorway in" },
+        contentTitle: { es: "Qué escuchar primero", de: "Was du zuerst hören kannst", en: "What to listen for first" },
+        contentBody: {
+          es: "Clara propone una pieza corta, explica el contexto y te da una pista sencilla para escucharla.",
+          de: "Clara schlägt ein kurzes Stück vor, erklärt den Kontext und gibt dir einen einfachen Hörhinweis.",
+          en: "Clara suggests a short piece, explains the context, and gives one simple listening cue.",
+        },
+      },
+    ],
+  },
+  {
     slug: "book-club",
     names: { es: "El Club del Libro", de: "Der Buchclub", en: "Book Club" },
     category: "activity",

@@ -10,7 +10,8 @@ export type AgentGlyph =
   | "book"
   | "sun"
   | "palette"
-  | "news";
+  | "news"
+  | "music";
 
 export type AgentPersona = {
   slug: string;
@@ -162,6 +163,23 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
     elevenLabsAgentId: import.meta.env.VITE_ELEVENLABS_AGENT_ELENA ?? import.meta.env.VITE_ELEVENLABS_SOCIAL_AGENT_ELENA,
     systemPrompt:
       "Curious and balanced. Share hopeful information with a calm, open tone.",
+  },
+  clara: {
+    slug: "clara",
+    fullName: "Clara Vidal",
+    colour: "#7E22CE",
+    credential: {
+      es: "Musicóloga · escucha guiada",
+      de: "Musikwissenschaftlerin · geführtes Hören",
+      en: "Musicologist · guided listening",
+    },
+    glyph: "music",
+    elevenLabsAgentId:
+      import.meta.env.VITE_ELEVENLABS_AGENT_CLARA ??
+      import.meta.env.VITE_ELEVENLABS_SOCIAL_AGENT_CLARA ??
+      import.meta.env.VITE_ELEVENLABS_MUSIC_SOCIAL_AGENT_ID,
+    systemPrompt:
+      "Warm, cultured, and engaging. Recommend music with short stories, context, and one inviting question.",
   },
 };
 

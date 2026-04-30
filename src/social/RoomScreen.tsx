@@ -520,6 +520,50 @@ function buildFallbackRoomResponse(slug: string, language: SocialLanguage): Soci
       options: [],
       liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
     },
+    "music-salon": {
+      slug: "music-salon",
+      name: language === "en" ? "Music Salon" : language === "de" ? "Der Musiksalon" : "El Salón de Música",
+      category: "activity",
+      agentSlug: "clara",
+      agentFullName: "Clara Vidal",
+      agentColour: "#7E22CE",
+      agentCredential:
+        language === "en"
+          ? "Musicologist · guided listening"
+          : language === "de"
+            ? "Musikwissenschaftlerin · geführtes Hören"
+            : "Musicóloga · escucha guiada",
+      ctaLabel: language === "en" ? "Listen with Clara" : language === "de" ? "Mit Clara hören" : "Escuchar con Clara",
+      topicTags: ["music", "classical"],
+      timeSlots: ["afternoon", "evening"],
+      featured: true,
+      participantCount: 5,
+      sessionDate: today,
+      topic:
+        language === "en"
+          ? "A classical piece with a story"
+          : language === "de"
+            ? "Ein klassisches Stück mit Geschichte"
+            : "Una pieza clásica con historia",
+      opener:
+        language === "en"
+          ? "Hello, I’m Clara. Shall we discover one beautiful piece and the story behind it?"
+          : language === "de"
+            ? "Hallo, ich bin Clara. Entdecken wir ein schönes Stück und seine Geschichte?"
+            : "Hola, soy Clara. ¿Descubrimos una pieza bonita y la historia que guarda?",
+      quote: "",
+      activityType: "story",
+      contentTag: "",
+      contentTitle:
+        language === "en"
+          ? "Music to listen to slowly"
+          : language === "de"
+            ? "Musik zum ruhigen Hören"
+            : "Música para escuchar con calma",
+      contentBody: "",
+      options: [],
+      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
+    },
     "book-club": {
       slug: "book-club",
       name: language === "en" ? "Book Club" : language === "de" ? "Der Buchclub" : "El Club del Libro",

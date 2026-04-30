@@ -81,6 +81,14 @@ function GlyphIcon({ glyph, colour }: { glyph: AgentGlyph; colour: string }) {
           <path d="M9 13h4" />
         </svg>
       );
+    case "music":
+      return (
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke={colour} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18V6l9-2v12" />
+          <circle cx="7" cy="18" r="2" />
+          <circle cx="16" cy="16" r="2" />
+        </svg>
+      );
     default:
       return (
         <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke={colour} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

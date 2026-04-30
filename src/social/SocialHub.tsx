@@ -65,6 +65,35 @@ function buildFallbackRooms(language: SocialLanguage): SocialRoom[] {
             ? "FIDE-Meister · Nationaler Schiedsrichter"
             : "Maestro FIDE · Árbitro nacional",
     },
+    music: {
+      name: language === "en" ? "Music Salon" : language === "de" ? "Der Musiksalon" : "El Salón de Música",
+      topic:
+        language === "en"
+          ? "A classical piece with a story"
+          : language === "de"
+            ? "Ein klassisches Stück mit Geschichte"
+            : "Una pieza clásica con historia",
+      opener:
+        language === "en"
+          ? "Hello, I’m Clara. Shall we discover one beautiful piece and the story behind it?"
+          : language === "de"
+            ? "Hallo, ich bin Clara. Entdecken wir ein schönes Stück und seine Geschichte?"
+            : "Hola, soy Clara. ¿Descubrimos una pieza bonita y la historia que guarda?",
+      contentTitle:
+        language === "en"
+          ? "Music to listen to slowly"
+          : language === "de"
+            ? "Musik zum ruhigen Hören"
+            : "Música para escuchar con calma",
+      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
+      cta: language === "en" ? "Listen with Clara" : language === "de" ? "Mit Clara hören" : "Escuchar con Clara",
+      credential:
+        language === "en"
+          ? "Musicologist · guided listening"
+          : language === "de"
+            ? "Musikwissenschaftlerin · geführtes Hören"
+            : "Musicóloga · escucha guiada",
+    },
     kitchen: {
       name: language === "en" ? "Kitchen Table" : language === "de" ? "Der Küchentisch" : "La Mesa de la Cocina",
       topic:
@@ -177,6 +206,31 @@ function buildFallbackRooms(language: SocialLanguage): SocialRoom[] {
       options: [],
       liveBadge: localized.chess.liveBadge,
       heroScore: 80,
+    },
+    {
+      slug: "music-salon",
+      name: localized.music.name,
+      category: "activity",
+      agentSlug: "clara",
+      agentFullName: "Clara Vidal",
+      agentColour: "#7E22CE",
+      agentCredential: localized.music.credential,
+      ctaLabel: localized.music.cta,
+      topicTags: ["music", "classical"],
+      timeSlots: ["afternoon", "evening"],
+      featured: true,
+      participantCount: 5,
+      sessionDate: today,
+      topic: localized.music.topic,
+      opener: localized.music.opener,
+      quote: "",
+      activityType: "story",
+      contentTag: "",
+      contentTitle: localized.music.contentTitle,
+      contentBody: "",
+      options: [],
+      liveBadge: localized.music.liveBadge,
+      heroScore: 75,
     },
     {
       slug: "kitchen-table",

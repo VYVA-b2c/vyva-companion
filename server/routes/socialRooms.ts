@@ -407,6 +407,14 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `Todo movimiento cuenta. Incluso un paseo breve puede abrir el día. ¿Cuándo disfrutas más moverte?`;
   }
 
+  if (slug === "music-salon") {
+    return language === "de"
+      ? `Musik trägt oft eine Erinnerung mit sich. Magst du eher etwas Ruhiges, Fröhliches oder Klassisches hören?`
+      : language === "en"
+        ? `Music often carries a memory with it. Would you prefer something calm, joyful, or classical today?`
+        : `La música suele traer un recuerdo consigo. ¿Prefieres algo tranquilo, alegre o clásico hoy?`;
+  }
+
   if (slug === "pen-pals" || slug === "heritage-exchange") {
     return language === "de"
       ? `Das ist ein schöner Gesprächsbeginn. Freundliche Neugier verbindet Menschen. Möchtest du eine passende Verbindung suchen?`
@@ -447,6 +455,11 @@ function buildPromptChips(slug: string, language: SocialLanguage) {
       de: ["Gib mir eine einfache Idee", "Welche Farben passen gut?", "Ich möchte sanft beginnen"],
       en: ["Give me a simple idea", "Which colours work well together?", "I want to start gently"],
     },
+    "music-salon": {
+      es: ["Recomiéndame una pieza", "Cuéntame la historia", "Quiero algo tranquilo"],
+      de: ["Empfiehl mir ein Stück", "Erzähl mir die Geschichte", "Ich möchte etwas Ruhiges"],
+      en: ["Recommend a piece", "Tell me the story", "I want something calm"],
+    },
   };
 
   const fallback: Record<SocialLanguage, string[]> = {
@@ -478,6 +491,11 @@ function buildRoomMembers(slug: string, language: SocialLanguage, count: number)
       es: ["Está eligiendo colores suaves", "Pidió una idea sencilla", "Está viendo el ejemplo", "Empezó con una forma redonda"],
       de: ["Wählt sanfte Farben", "Bat um eine einfache Idee", "Schaut sich das Beispiel an", "Hat mit einer runden Form begonnen"],
       en: ["Is choosing soft colours", "Asked for a simple idea", "Is viewing the example", "Started with a round shape"],
+    },
+    "music-salon": {
+      es: ["Está escuchando una pieza breve", "Pidió una historia musical", "Quiere algo tranquilo", "Está recordando una canción"],
+      de: ["Hört ein kurzes Stück", "Bat um eine Musikgeschichte", "Möchte etwas Ruhiges", "Erinnert sich an ein Lied"],
+      en: ["Is listening to a short piece", "Asked for a music story", "Wants something calm", "Is remembering a song"],
     },
   };
 
@@ -513,6 +531,11 @@ function buildRoomChat(slug: string, language: SocialLanguage, members: Array<{ 
       es: ["Yo empiezo siempre con formas redondas.", "Los colores suaves me relajan mucho."],
       de: ["Ich beginne immer mit runden Formen.", "Sanfte Farben entspannen mich sehr."],
       en: ["I always start with round shapes.", "Soft colours relax me a lot."],
+    },
+    "music-salon": {
+      es: ["A mí me gusta saber la historia antes de escuchar.", "Las piezas cortas me ayudan a concentrarme."],
+      de: ["Ich mag es, die Geschichte vor dem Hören zu kennen.", "Kurze Stücke helfen mir, aufmerksam zu bleiben."],
+      en: ["I like knowing the story before listening.", "Short pieces help me stay focused."],
     },
   };
 
