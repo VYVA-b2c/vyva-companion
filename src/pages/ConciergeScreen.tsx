@@ -218,6 +218,9 @@ interface UtilityComparisonResult {
   price_stability: string;
   green_energy: boolean | null;
   source: "CNMC" | "Fallback";
+  source_url?: string;
+  provider_url?: string;
+  action_label?: string;
   confidence: "high" | "medium" | "low";
   notes: string[];
 }
@@ -1449,22 +1452,48 @@ const ConciergeScreen = () => {
 
   function buildUtilityShareText(result: UtilityCompareResponse): string {
     const best = result.results[0];
+    const bestUrl = best ? utilityOptionUrl(best) : "";
+    const optionLines = result.results
+      .map((option, index) => {
+        const optionUrl = utilityOptionUrl(option);
+        return `${index + 1}. ${option.provider} - ${option.tariff_name}: ${formatEuro(option.estimated_monthly_cost, isSpanish)}/mes${optionUrl ? ` (${optionUrl})` : ""}`;
+      })
+      .join("\n");
     return [
       isSpanish ? "Resumen de revision de factura VYVA" : "VYVA bill review summary",
       `${isSpanish ? "Coste actual aproximado" : "Approx current cost"}: ${formatEuro(result.summary.current_monthly_cost, isSpanish)}/mes`,
       best ? `${isSpanish ? "Mejor opcion estimada" : "Best estimated option"}: ${best.provider} - ${best.tariff_name}` : "",
       `${isSpanish ? "Coste estimado" : "Estimated cost"}: ${formatEuro(result.summary.best_estimated_monthly_cost, isSpanish)}/mes`,
       `${isSpanish ? "Ahorro estimado" : "Estimated saving"}: ${formatEuro(result.summary.estimated_monthly_savings, isSpanish)}/mes`,
+      optionLines ? `${isSpanish ? "Opciones sugeridas" : "Suggested options"}:\n${optionLines}` : "",
+      bestUrl ? `${isSpanish ? "Verificar o contratar" : "Verify or contract"}: ${bestUrl}` : "",
       result.estimated_note,
       result.neutrality_note,
     ].filter(Boolean).join("\n");
   }
 
+  function utilityOptionUrl(result: UtilityComparisonResult): string {
+    return result.provider_url || result.source_url || "";
+  }
+
+  function utilityOptionActionLabel(result: UtilityComparisonResult): string {
+    if (result.provider_url) return isSpanish ? "Ver tarifa" : "View tariff";
+    if (result.source === "CNMC") return isSpanish ? "Ver en CNMC" : "View on CNMC";
+    return result.action_label || (isSpanish ? "Abrir comparador oficial" : "Open official comparator");
+  }
+
+  function handleCorrectUtilityDetails() {
+    setUtilityResult(null);
+    setUtilityError(null);
+    setUtilityNotice(isSpanish
+      ? "Puede editar cualquier campo de la factura y volver a pulsar Comparar opciones."
+      : "You can edit any bill field and press Compare options again.");
+  }
+
   async function handleUtilityResultAction(action: "whatsapp" | "save" | "remind" | "switch" | "correct") {
     if (!utilityResult) return;
     if (action === "correct") {
-      setUtilityResult(null);
-      setUtilityNotice(null);
+      handleCorrectUtilityDetails();
       return;
     }
     if (action === "whatsapp") {
@@ -2070,7 +2099,7 @@ const ConciergeScreen = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setUtilityNormalized(null)}
+                      onClick={handleCorrectUtilityDetails}
                       className="h-[42px] rounded-full border-vyva-border bg-white px-4 font-body text-[13px]"
                     >
                       {isSpanish ? "Corregir datos" : "Correct details"}
@@ -2111,7 +2140,9 @@ const ConciergeScreen = () => {
                     </p>
                   </div>
 
-                  {utilityResult.results.map((result, index) => (
+                  {utilityResult.results.map((result, index) => {
+                    const optionUrl = utilityOptionUrl(result);
+                    return (
                     <div key={`${result.provider}-${result.tariff_name}-${index}`} className="rounded-[20px] border border-vyva-border bg-white p-4">
                       <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
                         {index === 0 ? (isSpanish ? "Opcion recomendada" : "Recommended option") : index === 1 ? (isSpanish ? "Mas economica" : "Cheapest") : (isSpanish ? "Mas estable / sencilla" : "Most stable / simple")}
@@ -2133,8 +2164,20 @@ const ConciergeScreen = () => {
                       <span className="mt-2 inline-flex rounded-full bg-[#FBF8F4] px-3 py-1 font-body text-[12px] text-vyva-text-2">
                         {result.source} · {isSpanish ? "confianza" : "confidence"} {billConfidenceLabel(result.confidence, isSpanish)}
                       </span>
+                      {optionUrl && (
+                        <a
+                          href={optionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-vyva-purple/20 bg-[#F5F3FF] px-4 py-2 font-body text-[13px] font-semibold text-vyva-purple"
+                        >
+                          <ExternalLink size={15} />
+                          {utilityOptionActionLabel(result)}
+                        </a>
+                      )}
                     </div>
-                  ))}
+                  );
+                  })}
 
                   <div className="rounded-[18px] border border-vyva-border bg-white p-3">
                     <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2">

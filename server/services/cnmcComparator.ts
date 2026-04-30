@@ -28,6 +28,9 @@ export interface UtilityComparisonResult {
   price_stability: string;
   green_energy: boolean | null;
   source: "CNMC" | "Fallback";
+  source_url?: string;
+  provider_url?: string;
+  action_label?: string;
   confidence: UtilityConfidence;
   notes: string[];
 }
@@ -47,6 +50,8 @@ function monthlyBaseline(input: NormalizedUtilityInput): number {
   if (input.consumption_kwh) return Math.max(0, input.consumption_kwh * 0.22);
   return 75;
 }
+
+const CNMC_COMPARATOR_URL = "https://comparador.cnmc.gob.es/";
 
 function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonResult[] {
   const current = monthlyBaseline(input);
@@ -97,6 +102,8 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
+      source_url: CNMC_COMPARATOR_URL,
+      action_label: "Abrir comparador oficial",
       confidence: "low" as const,
       notes: option.notes,
     };
@@ -173,6 +180,8 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
         price_stability: /fijo|estable/i.test(nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
         green_energy: /verde|renovable/i.test(nearby) ? true : null,
         source: "CNMC",
+        source_url: CNMC_COMPARATOR_URL,
+        action_label: "Ver en CNMC",
         confidence: "medium",
         notes: ["Extraido del comparador oficial CNMC mediante automatizacion."],
       };
