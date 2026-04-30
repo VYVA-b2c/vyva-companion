@@ -792,6 +792,12 @@ function fieldValue(value: string | number | boolean | null | undefined, fallbac
   return String(value);
 }
 
+function hasFieldValue(value: string | number | boolean | null | undefined): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  return true;
+}
+
 function billClientMessage(locale: string, key: "unsupported" | "read_failed"): string {
   const lang = locale.split("-")[0].toLowerCase();
   const messages = {
@@ -1387,6 +1393,12 @@ const ConciergeScreen = () => {
 
   async function handleCompareUtility() {
     if (!utilityNormalized) return;
+    if (!hasFieldValue(utilityNormalized.postcode)) {
+      setUtilityError(isSpanish
+        ? "Para comparar mejor, escriba su codigo postal."
+        : "To compare better, please enter your postcode.");
+      return;
+    }
     const comparableInput: NormalizedUtilityInput = {
       ...utilityNormalized,
       postcode: String(utilityNormalized.postcode ?? "").trim(),
@@ -1943,6 +1955,15 @@ const ConciergeScreen = () => {
 
               {utilityNormalized && (
                 <div className="mt-3 rounded-[18px] border border-vyva-border bg-[#FFFCF7] p-3">
+                  {(() => {
+                    const postcodeMissing = !hasFieldValue(utilityNormalized.postcode);
+                    const blockingMissingFields = utilityNormalized.missing_fields.filter((field) => !field.startsWith("estimated:"));
+                    const shownMissingFields = blockingMissingFields.filter((field) => !(field === "postcode" && !postcodeMissing));
+                    const estimatedFields = utilityNormalized.missing_fields.filter((field) => field.startsWith("estimated:"));
+                    const detailLabels = [...shownMissingFields, ...estimatedFields];
+
+                    return (
+                      <>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
@@ -1969,11 +1990,30 @@ const ConciergeScreen = () => {
                       </p>
                       <Input value={utilityNormalized.provider} onChange={(e) => updateUtilityNormalizedField("provider", e.target.value)} placeholder={isSpanish ? "No visible" : "Not visible"} className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
                     </div>
-                    <div className="rounded-[14px] bg-white p-3">
-                      <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
+                    <div className={`rounded-[14px] p-3 ${postcodeMissing ? "border border-[#FDBA74] bg-[#FFF7ED]" : "bg-white"}`}>
+                      <div className="flex items-center justify-between gap-2">
+                      <p className={`font-body text-[11px] font-semibold uppercase tracking-[0.10em] ${postcodeMissing ? "text-[#9A3412]" : "text-vyva-text-2"}`}>
                         {isSpanish ? "Codigo postal" : "Postcode"}
                       </p>
-                      <Input value={utilityNormalized.postcode} onChange={(e) => updateUtilityNormalizedField("postcode", e.target.value)} placeholder="11380" className="mt-1 h-[38px] rounded-[12px] border-vyva-border bg-white font-body text-[14px]" />
+                      {postcodeMissing && (
+                        <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-[#C2410C]">
+                          {isSpanish ? "Necesario" : "Required"}
+                        </span>
+                      )}
+                      </div>
+                      <Input
+                        value={utilityNormalized.postcode}
+                        onChange={(e) => updateUtilityNormalizedField("postcode", e.target.value)}
+                        placeholder={isSpanish ? "Escriba su codigo postal" : "Enter postcode"}
+                        className={`mt-1 h-[38px] rounded-[12px] bg-white font-body text-[14px] ${postcodeMissing ? "border-[#FB923C] focus-visible:ring-[#FB923C]" : "border-vyva-border"}`}
+                      />
+                      {postcodeMissing && (
+                        <p className="mt-2 font-body text-[11px] leading-snug text-[#9A3412]">
+                          {isSpanish
+                            ? "No aparece de forma fiable en la factura. Escríbalo para comparar opciones de su zona."
+                            : "It was not found reliably on the bill. Enter it to compare options in your area."}
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-[14px] bg-white p-3">
                       <p className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-vyva-text-2">
@@ -1995,10 +2035,10 @@ const ConciergeScreen = () => {
                     </div>
                   </div>
 
-                  {utilityNormalized.missing_fields.length > 0 && (
+                  {detailLabels.length > 0 && (
                     <p className="mt-3 rounded-[14px] bg-white px-3 py-2 font-body text-[12px] leading-relaxed text-vyva-text-2">
                       {isSpanish ? "Datos pendientes o estimados: " : "Pending or estimated details: "}
-                      {utilityNormalized.missing_fields.join(", ")}
+                      {detailLabels.join(", ")}
                     </p>
                   )}
 
@@ -2022,6 +2062,9 @@ const ConciergeScreen = () => {
                       {isSpanish ? "Corregir datos" : "Correct details"}
                     </Button>
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
