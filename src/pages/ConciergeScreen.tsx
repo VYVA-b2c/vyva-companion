@@ -647,6 +647,15 @@ function compressBillImage(file: File): Promise<string> {
   });
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("No he podido abrir el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function billReaderEndpoints(): string[] {
   return ["/api/bill-reader/analyze", "/api/offers/analyze-document"];
 }
@@ -806,12 +815,12 @@ function billClientMessage(locale: string, key: "unsupported" | "read_failed"): 
   const lang = locale.split("-")[0].toLowerCase();
   const messages = {
     unsupported: {
-      es: "Por ahora solo puedo leer fotos o imagenes de facturas.",
-      de: "Im Moment kann ich nur Fotos oder Bilder von Rechnungen lesen.",
-      fr: "Pour l'instant, je peux seulement lire des photos ou images de factures.",
-      it: "Per ora posso leggere solo foto o immagini di fatture.",
-      pt: "Por agora, so consigo ler fotos ou imagens de faturas.",
-      en: "For now I can only read photos or images of bills.",
+      es: "Puedo leer fotos, imagenes o PDF de facturas. Pruebe con uno de esos formatos.",
+      de: "Ich kann Fotos, Bilder oder PDF-Rechnungen lesen. Bitte versuchen Sie eines dieser Formate.",
+      fr: "Je peux lire des photos, images ou PDF de factures. Essayez l'un de ces formats.",
+      it: "Posso leggere foto, immagini o PDF di fatture. Prova con uno di questi formati.",
+      pt: "Posso ler fotos, imagens ou PDF de faturas. Tente um desses formatos.",
+      en: "I can read bill photos, images, or PDFs. Please try one of those formats.",
     },
     read_failed: {
       es: "No he podido procesar la factura automaticamente. Puede rellenar los datos a mano o intentarlo de nuevo.",
@@ -1235,7 +1244,8 @@ const ConciergeScreen = () => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!file.type.startsWith("image/") && !isPdf) {
       setBillAnalysisError(billClientMessage(i18n.language, "unsupported"));
       return;
     }
@@ -1246,8 +1256,8 @@ const ConciergeScreen = () => {
     setUtilityNormalized(null);
     setUtilityResult(null);
     try {
-      const image = await compressBillImage(file);
-      const analysis = await analyzeBillDocument(image, i18n.language);
+      const documentDataUrl = isPdf ? await readFileAsDataUrl(file) : await compressBillImage(file);
+      const analysis = await analyzeBillDocument(documentDataUrl, i18n.language);
       setBillAnalysis(analysis);
       setOffersQuery(analysis.suggested_query);
       if (!analysis.isFallback && analysis.document_type !== "unknown") {
@@ -1799,7 +1809,7 @@ const ConciergeScreen = () => {
               <input
                 ref={billInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 capture="environment"
                 className="hidden"
                 onChange={handleBillFileSelect}
@@ -1853,8 +1863,8 @@ const ConciergeScreen = () => {
               {(utilityMethod === "upload" || utilityMethod === "photo") && (
                 <div className="mt-3 rounded-[16px] bg-[#F5F3FF] px-3 py-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
                   {isSpanish
-                    ? "La foto se usa solo para leer la factura. No se guarda. Lector v3 directo activo."
-                    : "The photo is only used to read the bill. It is not stored. Direct reader v3 active."}
+                    ? "La foto o PDF se usa solo para leer la factura. No se guarda. Lector v3 directo activo."
+                    : "The photo or PDF is only used to read the bill. It is not stored. Direct reader v3 active."}
                 </div>
               )}
 

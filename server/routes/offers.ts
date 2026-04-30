@@ -215,8 +215,8 @@ function fallbackDocumentAnalysis(locale = "es", reason: BillFallbackReason = "u
 function buildDocumentPrompt(locale: string): string {
   const language = LOCALE_TO_LANGUAGE[normaliseLocale(locale)] ?? "Spanish";
   return `You are VYVA's neutral bill-reading assistant for older adults.
-Read the uploaded image of a bill, invoice, policy, or receipt. Extract only visible facts. Never invent values.
-The image may be a screenshot or cropped view of an online bill. It can still be useful even if the provider name, customer name, or billing period is not visible.
+Read the uploaded bill, invoice, policy, or receipt from an image or extracted PDF text. Extract only visible facts. Never invent values.
+The document may be a screenshot, cropped view, scanned bill, or PDF text. It can still be useful even if the provider name, customer name, or billing period is not visible.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -247,6 +247,7 @@ Return ONLY valid JSON with this exact shape:
 
 Rules:
 - total_amount and unit prices must be numbers, not strings. Use null if not visible.
+- Never use 0 as a placeholder for missing data. If a numeric value is not visible, return null.
 - For electricity bills, prioritise visible consumption in kWh, total amount, energy cost, power/standing charge, taxes, tariff, period, and company.
 - For Spanish bills, extract a visible 5-digit postal code from the customer/service address line when present. Example: "29602, Marbella (Malaga)" means postcode "29602".
 - If a postcode is visible in an address block, put it in postcode even if the label "codigo postal" is not shown.
@@ -259,6 +260,27 @@ Rules:
 - Keep user_summary under 28 words.`;
 }
 
+async function extractPdfText(base64Data: string): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const bytes = Uint8Array.from(Buffer.from(base64Data, "base64"));
+  const loadingTask = pdfjs.getDocument({ data: bytes, disableWorker: true });
+  const pdf = await loadingTask.promise;
+  const pages: string[] = [];
+  const maxPages = Math.min(pdf.numPages, 6);
+
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => "str" in item ? item.str : "")
+      .filter(Boolean)
+      .join(" ");
+    pages.push(text);
+  }
+
+  return pages.join("\n").replace(/\s+/g, " ").trim().slice(0, 12000);
+}
+
 function safeNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -266,6 +288,11 @@ function safeNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function positiveNumber(value: unknown): number | null {
+  const parsed = safeNumber(value);
+  return parsed != null && parsed > 0 ? parsed : null;
 }
 
 function safeString(value: unknown): string | null {
@@ -374,8 +401,8 @@ function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: stri
   const providerName = safeString(parsed.provider_name);
   const serviceAddress = safeString(parsed.service_address);
   const postcode = normalizeSpanishPostcode(parsed.postcode) ?? normalizeSpanishPostcode(serviceAddress);
-  const visibleKwh = safeNumber(usage.kwh);
-  const totalAmount = safeNumber(parsed.total_amount);
+  const visibleKwh = positiveNumber(usage.kwh);
+  const totalAmount = positiveNumber(parsed.total_amount);
   if (documentType === "unknown" && visibleKwh != null) {
     documentType = "electricity_bill";
   }
@@ -397,14 +424,14 @@ function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: stri
     currency: safeString(parsed.currency),
     usage: {
       kwh: visibleKwh,
-      gas_kwh: safeNumber(usage.gas_kwh),
+      gas_kwh: positiveNumber(usage.gas_kwh),
       data_or_phone_plan: safeString(usage.data_or_phone_plan),
     },
     tariff_or_plan: safeString(parsed.tariff_or_plan),
     unit_prices: {
-      electricity_price_per_kwh: safeNumber(unitPrices.electricity_price_per_kwh),
-      gas_price_per_kwh: safeNumber(unitPrices.gas_price_per_kwh),
-      standing_charge: safeNumber(unitPrices.standing_charge),
+      electricity_price_per_kwh: positiveNumber(unitPrices.electricity_price_per_kwh),
+      gas_price_per_kwh: positiveNumber(unitPrices.gas_price_per_kwh),
+      standing_charge: positiveNumber(unitPrices.standing_charge),
     },
     confidence: safeConfidence(parsed.confidence),
     missing_fields: missingFields,
@@ -882,7 +909,7 @@ export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
   const normalizedLocale = normaliseLocale(locale);
 
   if (!image || typeof image !== "string") {
-    return res.status(400).json({ error: "image (base64 data URL) is required" });
+    return res.status(400).json({ error: "image or PDF (base64 data URL) is required" });
   }
 
   const apiKey = process.env.OPENAI_API_KEY ?? "";
@@ -891,34 +918,42 @@ export async function analyzeOfferDocumentHandler(req: Request, res: Response) {
     return res.json(fallbackDocumentAnalysis(normalizedLocale, "missing_api_key"));
   }
 
-  const match = image.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+  const match = image.match(/^data:((?:image\/[a-zA-Z+.-]+)|application\/pdf);base64,(.+)$/);
   if (!match) {
-    return res.status(400).json({ error: "image must be a base64 data URL" });
+    return res.status(400).json({ error: "document must be an image or PDF base64 data URL" });
   }
-  const mimeType = match[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  const mimeType = match[1];
   const base64Data = match[2];
 
   try {
     const client = new OpenAI({ apiKey });
+    const userContent = mimeType === "application/pdf"
+      ? [
+        {
+          type: "text" as const,
+          text: `Read this extracted PDF bill text and extract neutral comparison facts. Do not store or reveal private account numbers.\n\nPDF text:\n${await extractPdfText(base64Data)}`,
+        },
+      ]
+      : [
+        {
+          type: "image_url" as const,
+          image_url: {
+            url: `data:${mimeType};base64,${base64Data}`,
+            detail: "high" as const,
+          },
+        },
+        {
+          type: "text" as const,
+          text: "Read this bill or invoice and extract neutral comparison facts. Do not store or reveal private account numbers.",
+        },
+      ];
     const completion = await client.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: buildDocumentPrompt(normalizedLocale) },
         {
           role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Data}`,
-                detail: "high",
-              },
-            },
-            {
-              type: "text",
-              text: "Read this bill or invoice and extract neutral comparison facts. Do not store or reveal private account numbers.",
-            },
-          ],
+          content: userContent,
         },
       ],
       temperature: 0.1,
