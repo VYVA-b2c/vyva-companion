@@ -645,19 +645,45 @@ function compressBillImage(file: File): Promise<string> {
   });
 }
 
-async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
-  let res = await apiFetch("/api/bill-reader/analyze", {
-    method: "POST",
-    body: JSON.stringify({ image, locale }),
-  });
+function billReaderEndpoints(): string[] {
+  const endpoints = ["/api/bill-reader/analyze", "/api/offers/analyze-document"];
+  if (typeof window === "undefined") return endpoints;
 
-  let usedFallbackRoute = false;
-  if (res.status === 404) {
-    usedFallbackRoute = true;
-    res = await apiFetch("/api/offers/analyze-document", {
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  if (!isLocal || window.location.port === "3001") return endpoints;
+
+  // Replit/Vite can occasionally serve a fresh frontend while proxying to a stale
+  // API process. Try the backend port directly before giving up.
+  return [
+    ...endpoints,
+    "http://127.0.0.1:3001/api/bill-reader/analyze",
+    "http://127.0.0.1:3001/api/offers/analyze-document",
+  ];
+}
+
+async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
+  let lastResponse: Response | null = null;
+  let lastEndpoint = "";
+
+  for (const endpoint of billReaderEndpoints()) {
+    const res = await apiFetch(endpoint, {
       method: "POST",
       body: JSON.stringify({ image, locale }),
-    });
+    }).catch(() => null);
+
+    if (!res) continue;
+    lastResponse = res;
+    lastEndpoint = endpoint;
+    if (res.status === 404) continue;
+    if (res.ok) return await res.json() as BillDocumentAnalysis;
+    break;
+  }
+
+  const res = lastResponse;
+  if (!res) {
+    throw new Error(locale.startsWith("es")
+      ? "No he podido conectar con el lector de facturas. Reinicie la app en Replit y pruebe de nuevo."
+      : "I could not connect to the bill reader. Restart the app in Replit and try again.");
   }
 
   if (!res.ok) {
@@ -669,7 +695,7 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
     }
     if (res.status === 413) {
       const sizeMb = (image.length / 1024 / 1024).toFixed(1);
-      if (usedFallbackRoute) {
+      if (lastEndpoint.includes("/offers/analyze-document")) {
         throw new Error(locale.startsWith("es")
           ? "El servidor esta usando una version antigua del lector y rechaza imagenes normales. Actualice el codigo y reinicie la app en Replit."
           : "The server is using an old bill reader and is rejecting normal images. Pull the latest code and restart the app in Replit.");
@@ -680,6 +706,7 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
     }
     throw new Error(data?.error ?? `Request failed: ${res.status}`);
   }
+
   return await res.json() as BillDocumentAnalysis;
 }
 
