@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others \"tsx server/index.ts\" \"vite\"",
+    "dev": "tsx server/index.ts",
     "dev:server": "tsx server/index.ts",
     "dev:client": "vite",
     "db:push": "drizzle-kit push",

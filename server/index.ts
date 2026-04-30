@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs/promises";
 import "dotenv/config";
 import { routerHandler } from "./routes/router.js";
 import { conversationTokenHandler } from "./routes/conversationToken.js";
@@ -41,7 +42,7 @@ import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedChe
 
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
-const PORT = isProduction ? parseInt(process.env.PORT || "5000", 10) : 3001;
+const PORT = parseInt(process.env.PORT || "5000", 10);
 const SERVER_BUILD_ID = "bill-reader-v2-2026-04-30";
 
 app.use(cors());
@@ -203,17 +204,44 @@ app.get("/api/places/staticmap", async (req, res) => {
   }
 });
 
-if (isProduction) {
-  const distPath = path.resolve(process.cwd(), "dist");
-  console.log(`[server] serving static files from: ${distPath}`);
-  app.use(express.static(distPath));
-  app.get(/(.*)/, (_req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
+async function configureFrontend() {
+  if (isProduction) {
+    const distPath = path.resolve(process.cwd(), "dist");
+    console.log(`[server] serving static files from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get(/(.*)/, (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+    return;
+  }
+
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    server: { middlewareMode: true, hmr: false },
+    appType: "custom",
+  });
+
+  app.use(vite.middlewares);
+  app.get(/(.*)/, async (req, res, next) => {
+    try {
+      const indexPath = path.resolve(process.cwd(), "index.html");
+      const template = await fs.readFile(indexPath, "utf-8");
+      const html = await vite.transformIndexHtml(req.originalUrl, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (err) {
+      vite.ssrFixStacktrace(err as Error);
+      next(err);
+    }
   });
 }
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[server] listening on port ${PORT} (${isProduction ? "production" : "development"})`);
+configureFrontend().then(() => {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[server] listening on port ${PORT} (${isProduction ? "production" : "development"})`);
+  });
+}).catch((err) => {
+  console.error("[server] failed to start", err);
+  process.exit(1);
 });
 
 export default app;
