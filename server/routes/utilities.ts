@@ -165,6 +165,21 @@ function validateComparisonInput(input: NormalizedUtilityInput): string | null {
   return null;
 }
 
+async function normalizeComparisonBody(body: UtilityCompareBody, userId: string): Promise<NormalizedUtilityInput> {
+  if (!body.normalized_input) {
+    return normalizeUtilitiesInput(body, userId);
+  }
+
+  // Re-normalize confirmed form values so stale client-side missing_fields cannot
+  // block comparison after the user has corrected a visible field.
+  return normalizeUtilitiesInput({
+    input_method: body.input_method,
+    locale: body.locale,
+    extracted_data: body.extracted_data,
+    fields: body.normalized_input as unknown as Record<string, unknown>,
+  }, userId);
+}
+
 function currentMonthlyCost(input: NormalizedUtilityInput): number | null {
   if (input.total_cost != null && input.billing_period_days && input.billing_period_days > 0) {
     return Number(((input.total_cost / input.billing_period_days) * 30.4).toFixed(2));
@@ -239,7 +254,7 @@ router.post("/compare", async (req: Request, res: Response) => {
   const body = req.body as UtilityCompareBody;
   const userId = (req as any).user?.id ?? DEMO_USER_ID;
   try {
-    const normalized = body.normalized_input ?? await normalizeUtilitiesInput(body, userId);
+    const normalized = await normalizeComparisonBody(body, userId);
     const missing = validateComparisonInput(normalized);
     if (missing) {
       return res.status(400).json({
