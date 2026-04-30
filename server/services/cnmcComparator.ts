@@ -53,6 +53,82 @@ function monthlyBaseline(input: NormalizedUtilityInput): number {
 
 const CNMC_COMPARATOR_URL = "https://comparador.cnmc.gob.es/";
 
+interface CandidateLink {
+  text: string;
+  href: string;
+}
+
+function normalizeForMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function cleanResultLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isLikelyUtilityProvider(value: string): boolean {
+  const text = normalizeForMatch(value);
+  if (text.length < 3 || text.length > 90) return false;
+  if (parseMoney(value) != null) return false;
+  if (/comparador|cnmc|resultado|importe|precio|ahorro|condicion|permanencia|detalle|ver oferta|contratar|electricidad|gas natural|codigo postal|consumo|potencia/.test(text)) {
+    return false;
+  }
+  return /energia|energy|luz|gas|endesa|iberdrola|naturgy|repsol|totalenergies|octopus|holaluz|factor|pepeenergy|lucera|plenitude|curenergia|comercializadora|energiaxxi|chc|gana|alcanzia|audax|nexus|som energia|fenie|watium|bonarea|electra/.test(text)
+    || /^[a-z0-9][a-z0-9 ]{2,50}$/.test(text);
+}
+
+function extractResultIdentity(lines: string[], moneyLine: string, fallbackIndex: number): { provider: string; tariff: string; nearby: string } {
+  const moneyIndex = lines.indexOf(moneyLine);
+  const windowLines = lines
+    .slice(Math.max(0, moneyIndex - 5), moneyIndex + 6)
+    .map(cleanResultLine)
+    .filter(Boolean);
+  const provider = windowLines.find(isLikelyUtilityProvider) ?? `Resultado CNMC ${fallbackIndex + 1}`;
+  const tariff = windowLines
+    .find((line) => line !== provider && /tarifa|plan|precio|fijo|variable|discriminacion|2\.0|3\.0|luz|gas/i.test(line))
+    ?? windowLines.filter((line) => line !== provider).slice(0, 3).join(" ").slice(0, 140)
+    ?? `Tarifa CNMC ${fallbackIndex + 1}`;
+  return {
+    provider: provider.slice(0, 80),
+    tariff: tariff.slice(0, 140),
+    nearby: windowLines.join(" "),
+  };
+}
+
+function toAbsoluteUrl(href: string, baseUrl: string): string {
+  if (!href || /^javascript:|^#/.test(href)) return "";
+  try {
+    return new URL(href, baseUrl || CNMC_COMPARATOR_URL).toString();
+  } catch {
+    return "";
+  }
+}
+
+function matchProviderUrl(provider: string, tariff: string, links: CandidateLink[], pageUrl: string): string {
+  const providerKey = normalizeForMatch(provider);
+  const tariffKey = normalizeForMatch(tariff);
+  let best: { href: string; score: number } | null = null;
+
+  for (const link of links) {
+    const text = normalizeForMatch(link.text);
+    const href = toAbsoluteUrl(link.href, pageUrl);
+    if (!href) continue;
+    let score = 0;
+    if (providerKey && text.includes(providerKey)) score += 4;
+    if (tariffKey && text.includes(tariffKey.slice(0, 24))) score += 3;
+    if (/contratar|oferta|detalle|ver|mas informacion|web/.test(text)) score += 2;
+    if (/comparador\.cnmc\.gob\.es/.test(href)) score += 1;
+    if (score > (best?.score ?? 0)) best = { href, score };
+  }
+
+  return best && best.score >= 4 ? best.href : "";
+}
+
 function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonResult[] {
   const current = monthlyBaseline(input);
   const utilityLabel = input.utility_type === "gas" ? "Gas" : input.utility_type === "dual" ? "Luz + gas" : "Luz";
@@ -163,26 +239,33 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
     const lines = resultText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const moneyLines = lines.filter((line) => parseMoney(line) != null);
     if (moneyLines.length < 2) throw new Error("CNMC did not expose parseable tariff results");
+    const links = await page.locator("a").evaluateAll((anchors) => anchors.map((anchor) => ({
+      text: anchor.textContent ?? "",
+      href: anchor.getAttribute("href") ?? "",
+    }))).catch(() => [] as CandidateLink[]);
+    const pageUrl = page.url();
 
     const current = monthlyBaseline(input);
     const parsed = moneyLines.slice(0, 6).map((line, index): UtilityComparisonResult => {
       const amount = parseMoney(line);
       const monthly = amount && amount > 250 ? amount / 12 : amount;
-      const nearby = lines.slice(Math.max(0, lines.indexOf(line) - 2), lines.indexOf(line) + 3).join(" ");
+      const details = extractResultIdentity(lines, line, index);
+      const providerUrl = matchProviderUrl(details.provider, details.tariff, links, pageUrl);
       return {
-        provider: nearby.split(/\s+-\s+|:/)[0]?.slice(0, 80) || `Resultado CNMC ${index + 1}`,
-        tariff_name: nearby.slice(0, 120) || `Tarifa CNMC ${index + 1}`,
+        provider: details.provider,
+        tariff_name: details.tariff,
         estimated_monthly_cost: monthly ? Number(monthly.toFixed(2)) : null,
         estimated_annual_cost: monthly ? Number((monthly * 12).toFixed(2)) : null,
         estimated_monthly_savings: monthly ? Number(Math.max(0, current - monthly).toFixed(2)) : null,
         contract_type: "Comparador oficial CNMC",
-        permanence: /permanencia/i.test(nearby) ? "Revisar permanencia indicada" : "No detectada automaticamente",
-        price_stability: /fijo|estable/i.test(nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
-        green_energy: /verde|renovable/i.test(nearby) ? true : null,
+        permanence: /permanencia/i.test(details.nearby) ? "Revisar permanencia indicada" : "No detectada automaticamente",
+        price_stability: /fijo|estable/i.test(details.nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
+        green_energy: /verde|renovable/i.test(details.nearby) ? true : null,
         source: "CNMC",
         source_url: CNMC_COMPARATOR_URL,
-        action_label: "Ver en CNMC",
-        confidence: "medium",
+        provider_url: providerUrl || undefined,
+        action_label: providerUrl ? "Ver tarifa" : "Ver en CNMC",
+        confidence: providerUrl ? "high" : "medium",
         notes: ["Extraido del comparador oficial CNMC mediante automatizacion."],
       };
     });

@@ -952,8 +952,6 @@ const ConciergeScreen = () => {
   const [billAnalysis, setBillAnalysis] = useState<BillDocumentAnalysis | null>(null);
   const [billAnalysisLoading, setBillAnalysisLoading] = useState(false);
   const [billAnalysisError, setBillAnalysisError] = useState<string | null>(null);
-  const [billRouteStatus, setBillRouteStatus] = useState<string | null>(null);
-  const [billRouteTesting, setBillRouteTesting] = useState(false);
   const [utilityMethod, setUtilityMethod] = useState<UtilityInputMethod | null>(null);
   const [utilityForm, setUtilityForm] = useState({ ...EMPTY_UTILITY_FORM });
   const [utilityVoiceAnswers, setUtilityVoiceAnswers] = useState<Record<string, string>>({});
@@ -1287,30 +1285,6 @@ const ConciergeScreen = () => {
     handleSearchOffers(query, billAnalysis);
   }
 
-  async function testBillReaderRoute() {
-    setBillRouteTesting(true);
-    setBillRouteStatus(null);
-    try {
-      const attempts = [];
-      for (const endpoint of billReaderEndpoints()) {
-        const res = await apiFetch(endpoint, {
-          method: "POST",
-          body: JSON.stringify({}),
-        }).catch((err) => ({ error: err instanceof Error ? err.message : String(err) }));
-        if ("error" in res) {
-          attempts.push(`${endpoint}: error ${res.error}`);
-          continue;
-        }
-        const text = await res.text().catch(() => "");
-        attempts.push(`${endpoint}: ${res.status} ${text.slice(0, 90)}`);
-        if (res.status === 400 && text.includes("image")) break;
-      }
-      setBillRouteStatus(attempts.join(" | "));
-    } finally {
-      setBillRouteTesting(false);
-    }
-  }
-
   function updateUtilityNormalizedField(key: keyof NormalizedUtilityInput, value: string) {
     setUtilityError(null);
     setUtilityResult(null);
@@ -1482,20 +1456,8 @@ const ConciergeScreen = () => {
     return result.action_label || (isSpanish ? "Abrir comparador oficial" : "Open official comparator");
   }
 
-  function handleCorrectUtilityDetails() {
-    setUtilityResult(null);
-    setUtilityError(null);
-    setUtilityNotice(isSpanish
-      ? "Puede editar cualquier campo de la factura y volver a pulsar Comparar opciones."
-      : "You can edit any bill field and press Compare options again.");
-  }
-
-  async function handleUtilityResultAction(action: "whatsapp" | "save" | "remind" | "switch" | "correct") {
+  async function handleUtilityResultAction(action: "whatsapp" | "save" | "remind" | "switch") {
     if (!utilityResult) return;
-    if (action === "correct") {
-      handleCorrectUtilityDetails();
-      return;
-    }
     if (action === "whatsapp") {
       const text = encodeURIComponent(buildUtilityShareText(utilityResult));
       window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
@@ -1892,28 +1854,8 @@ const ConciergeScreen = () => {
               {(utilityMethod === "upload" || utilityMethod === "photo") && (
                 <div className="mt-3 rounded-[16px] bg-[#F5F3FF] px-3 py-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
                   {isSpanish
-                    ? "La foto o PDF se usa solo para leer la factura. No se guarda. Lector v3 directo activo."
-                    : "The photo or PDF is only used to read the bill. It is not stored. Direct reader v3 active."}
-                </div>
-              )}
-
-              {(utilityMethod === "upload" || utilityMethod === "photo") && (
-                <div className="mt-2 rounded-[16px] border border-vyva-border bg-[#FFFCF7] p-2">
-                  <button
-                    type="button"
-                    onClick={testBillReaderRoute}
-                    disabled={billRouteTesting}
-                    className="font-body text-[12px] font-semibold text-vyva-purple underline-offset-4 hover:underline disabled:opacity-60"
-                  >
-                    {billRouteTesting
-                      ? (isSpanish ? "Comprobando lector..." : "Checking reader...")
-                      : (isSpanish ? "Comprobar lector" : "Check reader")}
-                  </button>
-                  {billRouteStatus && (
-                    <p className="mt-2 break-words font-mono text-[10px] leading-relaxed text-vyva-text-2">
-                      {billRouteStatus}
-                    </p>
-                  )}
+                    ? "La foto o PDF se usa solo para leer la factura. No se guarda."
+                    : "The photo or PDF is only used to read the bill. It is not stored."}
                 </div>
               )}
 
@@ -2096,14 +2038,6 @@ const ConciergeScreen = () => {
                       {utilityLoading ? <Loader2 size={15} className="mr-2 animate-spin" /> : <CircleCheck size={15} className="mr-2" />}
                       {isSpanish ? "Comparar opciones" : "Compare options"}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCorrectUtilityDetails}
-                      className="h-[42px] rounded-full border-vyva-border bg-white px-4 font-body text-[13px]"
-                    >
-                      {isSpanish ? "Corregir datos" : "Correct details"}
-                    </Button>
                   </div>
                       </>
                     );
@@ -2193,12 +2127,11 @@ const ConciergeScreen = () => {
                       { key: "save", es: "Guardar revision", en: "Save review" },
                       { key: "remind", es: "Recordarme revisar de nuevo", en: "Remind me to review again" },
                       { key: "switch", es: "Ayudarme a cambiar", en: "Help me switch" },
-                      { key: "correct", es: "Corregir datos", en: "Correct details" },
                     ].map((action) => (
                       <button
                         key={action.key}
                         type="button"
-                        onClick={() => handleUtilityResultAction(action.key as "whatsapp" | "save" | "remind" | "switch" | "correct")}
+                        onClick={() => handleUtilityResultAction(action.key as "whatsapp" | "save" | "remind" | "switch")}
                         className="vyva-tap rounded-[16px] border border-vyva-border bg-white px-3 py-3 text-left font-body text-[13px] font-semibold text-vyva-text-1"
                       >
                         {isSpanish ? action.es : action.en}
