@@ -193,6 +193,7 @@ type BillDocumentAnalysis = {
 
 type UtilityInputMethod = "upload" | "photo" | "voice" | "manual";
 type UtilityType = "electricity" | "gas" | "dual";
+type SavingsPanelView = "overview" | "utilities";
 
 interface NormalizedUtilityInput {
   country: "ES";
@@ -786,6 +787,26 @@ function billDocumentLabel(type: BillDocumentAnalysis["document_type"], es: bool
   }
 }
 
+function isCnmcUtilityBillDocument(type: BillDocumentAnalysis["document_type"]): boolean {
+  return type === "electricity_bill" || type === "gas_bill";
+}
+
+function nonCnmcBillNotice(type: BillDocumentAnalysis["document_type"], es: boolean): string {
+  const label = billDocumentLabel(type, es).toLowerCase();
+  if (type === "internet_phone_bill") {
+    return es
+      ? "He detectado una factura de internet o telefono. La comparacion oficial de CNMC solo cubre luz y gas; por ahora puedo preparar una revision orientativa de servicio."
+      : "I detected an internet or phone bill. The official CNMC comparison only covers electricity and gas; for now I can prepare an indicative service review.";
+  }
+  return es
+    ? `He detectado ${label}. Esta herramienta compara oficialmente luz y gas; para este documento puedo preparar una revision orientativa.`
+    : `I detected ${label}. This tool officially compares electricity and gas; for this document I can prepare an indicative review.`;
+}
+
+function shouldOpenUtilitySavingsReview(labelEs: string): boolean {
+  return ["Gastos del hogar", "Reducir gastos mensuales", "Optimizar mis facturas"].includes(labelEs);
+}
+
 function billConfidenceLabel(confidence: BillDocumentAnalysis["confidence"], es: boolean): string {
   if (confidence === "high") return es ? "alta" : "high";
   if (confidence === "medium") return es ? "media" : "medium";
@@ -967,6 +988,7 @@ const ConciergeScreen = () => {
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const [appointmentNote, setAppointmentNote] = useState("");
   const [offersOpen, setOffersOpen] = useState(false);
+  const [savingsPanelView, setSavingsPanelView] = useState<SavingsPanelView>("overview");
   const [offersQuery, setOffersQuery] = useState("");
   const [offersLoading, setOffersLoading] = useState(false);
   const [offersResult, setOffersResult] = useState<OffersSearchResponse | null>(null);
@@ -1169,6 +1191,7 @@ const ConciergeScreen = () => {
     }
     if (key === "findDeals") {
       setOffersOpen(true);
+      setSavingsPanelView("overview");
       setAppointmentOpen(false);
       setOffersError(null);
       if (!offersQuery) {
@@ -1216,11 +1239,23 @@ const ConciergeScreen = () => {
   }
 
   function handleOfferChipSearch(query: string) {
+    setSavingsPanelView("overview");
     setOffersQuery(query);
     setOffersResult(null);
     setBillAnalysis(null);
     setUtilityResult(null);
     handleSearchOffers(query);
+  }
+
+  function openUtilitySavingsReview() {
+    setSavingsPanelView("utilities");
+    setOffersResult(null);
+    setOffersError(null);
+  }
+
+  function closeOffersPanel() {
+    setOffersOpen(false);
+    setSavingsPanelView("overview");
   }
 
   function resetUtilityReview(method?: UtilityInputMethod) {
@@ -1284,8 +1319,15 @@ const ConciergeScreen = () => {
       const analysis = await analyzeBillDocument(documentDataUrl, i18n.language);
       setBillAnalysis(analysis);
       setOffersQuery(analysis.suggested_query);
-      if (!analysis.isFallback && analysis.document_type !== "unknown") {
+      if (!analysis.isFallback && isCnmcUtilityBillDocument(analysis.document_type)) {
         await normalizeFromBillAnalysis(analysis, utilityMethod === "upload" ? "upload" : "photo");
+      }
+      if (!analysis.isFallback && analysis.document_type !== "unknown" && !isCnmcUtilityBillDocument(analysis.document_type)) {
+        setUtilityMethod(utilityMethod === "upload" ? "upload" : "photo");
+        setUtilityNotice(nonCnmcBillNotice(analysis.document_type, isSpanish));
+      }
+      if (!analysis.isFallback && analysis.document_type === "unknown") {
+        setBillAnalysisError(analysis.user_summary);
       }
       if (analysis.isFallback) {
         setBillAnalysisError(analysis.user_summary);
@@ -1500,7 +1542,7 @@ const ConciergeScreen = () => {
         ? "Ayudame a cambiar de tarifa paso a paso usando esta comparacion. Primero prepara un resumen y pideme confirmacion."
         : "Help me switch tariff step by step using this comparison. First prepare a summary and ask me to confirm.");
     setInput(prompt);
-    setOffersOpen(false);
+    closeOffersPanel();
     chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -1509,7 +1551,7 @@ const ConciergeScreen = () => {
       setInput(isSpanish
         ? `Ayudame a contactar con ${option.name} para revisar esta opcion y confirmar el siguiente paso.`
         : `Help me contact ${option.name} to review this option and confirm the next step.`);
-      setOffersOpen(false);
+      closeOffersPanel();
       chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -1805,7 +1847,7 @@ const ConciergeScreen = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setOffersOpen(false)}
+                onClick={closeOffersPanel}
                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white font-body text-[15px] text-vyva-text-2"
                 aria-label={isSpanish ? "Cerrar" : "Close"}
               >
@@ -1819,6 +1861,7 @@ const ConciergeScreen = () => {
                 : "VYVA compares verifiable options by price, trust, ease, and fit for your situation. It does not promote services or receive commissions."}
             </p>
 
+            {savingsPanelView === "utilities" && (
             <div className="mt-4 rounded-[22px] border border-[#E8DCCF] bg-white p-4">
               <input
                 ref={billInputRef}
@@ -1829,6 +1872,13 @@ const ConciergeScreen = () => {
                 onChange={handleBillFileSelect}
                 data-testid="input-offers-bill-photo"
               />
+              <button
+                type="button"
+                onClick={() => setSavingsPanelView("overview")}
+                className="mb-3 inline-flex rounded-full bg-[#FBF8F4] px-3 py-2 font-body text-[12px] font-semibold text-vyva-purple"
+              >
+                {isSpanish ? "Ahorra y mejora > Reducir gastos mensuales" : "Save and improve > Reduce monthly costs"}
+              </button>
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[15px] bg-[#F5F3FF]">
                   <Zap size={20} style={{ color: "#6B21A8" }} />
@@ -2194,7 +2244,10 @@ const ConciergeScreen = () => {
                 </div>
               )}
             </div>
+            )}
 
+            {savingsPanelView === "overview" && (
+              <>
             <div className="mt-4 rounded-[22px] bg-white/85 p-3">
               <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-purple">
                 {isSpanish ? "Puede mejorar esto ahora" : "You can improve this now"}
@@ -2203,11 +2256,12 @@ const ConciergeScreen = () => {
                 {priorityOfferIdeas.map((idea) => {
                   const label = isSpanish ? idea.es : idea.en;
                   const query = isSpanish ? idea.queryEs : idea.queryEn;
+                  const opensUtilityReview = shouldOpenUtilitySavingsReview(idea.es);
                   return (
                     <button
                       key={idea.es}
                       type="button"
-                      onClick={() => handleOfferChipSearch(query)}
+                      onClick={() => opensUtilityReview ? openUtilitySavingsReview() : handleOfferChipSearch(query)}
                       className="vyva-tap rounded-[18px] border border-[#E8DCCF] bg-[#FFFCF7] px-4 py-3 text-left font-body text-[15px] font-semibold leading-tight text-vyva-text-1"
                     >
                       {label}
@@ -2226,11 +2280,12 @@ const ConciergeScreen = () => {
                   const label = isSpanish ? chip.es : chip.en;
                   const detail = isSpanish ? chip.detailEs : chip.detailEn;
                   const query = isSpanish ? chip.queryEs : chip.queryEn;
+                  const opensUtilityReview = shouldOpenUtilitySavingsReview(chip.es);
                   return (
                     <button
                       key={chip.es}
                       type="button"
-                      onClick={() => handleOfferChipSearch(query)}
+                      onClick={() => opensUtilityReview ? openUtilitySavingsReview() : handleOfferChipSearch(query)}
                       className="vyva-tap rounded-[18px] border border-vyva-border bg-white px-4 py-3 text-left"
                     >
                       <span className="block font-body text-[15px] font-semibold leading-tight text-vyva-text-1">
@@ -2258,11 +2313,12 @@ const ConciergeScreen = () => {
                 {visibleOfferIdeas.map((idea) => {
                   const label = isSpanish ? idea.es : idea.en;
                   const query = isSpanish ? idea.queryEs : idea.queryEn;
+                  const opensUtilityReview = shouldOpenUtilitySavingsReview(idea.es);
                   return (
                     <button
                       key={idea.es}
                       type="button"
-                      onClick={() => handleOfferChipSearch(query)}
+                      onClick={() => opensUtilityReview ? openUtilitySavingsReview() : handleOfferChipSearch(query)}
                       className="vyva-tap rounded-[16px] border border-vyva-border bg-white px-3 py-3 text-left font-body text-[13px] font-semibold leading-tight text-vyva-text-1"
                     >
                       {label}
@@ -2374,6 +2430,8 @@ const ConciergeScreen = () => {
                   </p>
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
         )}
