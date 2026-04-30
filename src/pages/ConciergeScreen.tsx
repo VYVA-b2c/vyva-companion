@@ -942,6 +942,8 @@ const ConciergeScreen = () => {
   const [billAnalysis, setBillAnalysis] = useState<BillDocumentAnalysis | null>(null);
   const [billAnalysisLoading, setBillAnalysisLoading] = useState(false);
   const [billAnalysisError, setBillAnalysisError] = useState<string | null>(null);
+  const [billRouteStatus, setBillRouteStatus] = useState<string | null>(null);
+  const [billRouteTesting, setBillRouteTesting] = useState(false);
   const [utilityMethod, setUtilityMethod] = useState<UtilityInputMethod | null>(null);
   const [utilityForm, setUtilityForm] = useState({ ...EMPTY_UTILITY_FORM });
   const [utilityVoiceAnswers, setUtilityVoiceAnswers] = useState<Record<string, string>>({});
@@ -1272,6 +1274,30 @@ const ConciergeScreen = () => {
     setOffersQuery(query);
     setOffersResult(null);
     handleSearchOffers(query, billAnalysis);
+  }
+
+  async function testBillReaderRoute() {
+    setBillRouteTesting(true);
+    setBillRouteStatus(null);
+    try {
+      const attempts = [];
+      for (const endpoint of billReaderEndpoints()) {
+        const res = await apiFetch(endpoint, {
+          method: "POST",
+          body: JSON.stringify({}),
+        }).catch((err) => ({ error: err instanceof Error ? err.message : String(err) }));
+        if ("error" in res) {
+          attempts.push(`${endpoint}: error ${res.error}`);
+          continue;
+        }
+        const text = await res.text().catch(() => "");
+        attempts.push(`${endpoint}: ${res.status} ${text.slice(0, 90)}`);
+        if (res.status === 400 && text.includes("image")) break;
+      }
+      setBillRouteStatus(attempts.join(" | "));
+    } finally {
+      setBillRouteTesting(false);
+    }
   }
 
   function updateUtilityNormalizedField(key: keyof NormalizedUtilityInput, value: string) {
@@ -1805,8 +1831,28 @@ const ConciergeScreen = () => {
               {(utilityMethod === "upload" || utilityMethod === "photo") && (
                 <div className="mt-3 rounded-[16px] bg-[#F5F3FF] px-3 py-2 font-body text-[13px] leading-relaxed text-vyva-text-2">
                   {isSpanish
-                    ? "La foto se usa solo para leer la factura. No se guarda. Lector v2 activo."
-                    : "The photo is only used to read the bill. It is not stored. Reader v2 active."}
+                    ? "La foto se usa solo para leer la factura. No se guarda. Lector v3 directo activo."
+                    : "The photo is only used to read the bill. It is not stored. Direct reader v3 active."}
+                </div>
+              )}
+
+              {(utilityMethod === "upload" || utilityMethod === "photo") && (
+                <div className="mt-2 rounded-[16px] border border-vyva-border bg-[#FFFCF7] p-2">
+                  <button
+                    type="button"
+                    onClick={testBillReaderRoute}
+                    disabled={billRouteTesting}
+                    className="font-body text-[12px] font-semibold text-vyva-purple underline-offset-4 hover:underline disabled:opacity-60"
+                  >
+                    {billRouteTesting
+                      ? (isSpanish ? "Comprobando lector..." : "Checking reader...")
+                      : (isSpanish ? "Comprobar lector" : "Check reader")}
+                  </button>
+                  {billRouteStatus && (
+                    <p className="mt-2 break-words font-mono text-[10px] leading-relaxed text-vyva-text-2">
+                      {billRouteStatus}
+                    </p>
+                  )}
                 </div>
               )}
 
