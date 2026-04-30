@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mic, Square } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -252,6 +252,34 @@ function getAgentThinkingLabel(language: SocialLanguage, name: string) {
   if (language === "en") return `${name} is thinking…`;
   if (language === "de") return `${name} denkt nach…`;
   return `${name} está pensando…`;
+}
+
+function getRoomInteractionHint(language: SocialLanguage) {
+  if (language === "en") return "You can type, tap a suggestion, or press Speak now to talk with the room agent.";
+  if (language === "de") return "Du kannst schreiben, eine Frage antippen oder Jetzt sprechen drücken.";
+  return "Puedes escribir, tocar una sugerencia o pulsar Hablar ahora para responder por voz.";
+}
+
+function getRoomVoiceUnavailableLabel(language: SocialLanguage) {
+  if (language === "en") return "Live voice is not available in this room right now. You can keep writing here.";
+  if (language === "de") return "Die Live-Stimme ist in diesem Raum gerade nicht verfügbar. Du kannst hier weiter schreiben.";
+  return "La voz en directo no está disponible ahora mismo. Puedes seguir escribiendo aquí.";
+}
+
+function getVoiceButtonLabel(language: SocialLanguage, isUserSpeaking: boolean, isConnecting: boolean) {
+  if (isUserSpeaking) {
+    if (language === "en") return "Finish speaking";
+    if (language === "de") return "Fertig gesprochen";
+    return "Terminar";
+  }
+  if (isConnecting) {
+    if (language === "en") return "Opening voice...";
+    if (language === "de") return "Stimme öffnet...";
+    return "Abriendo voz...";
+  }
+  if (language === "en") return "Speak now";
+  if (language === "de") return "Jetzt sprechen";
+  return "Hablar ahora";
 }
 
 function buildFallbackMembers(room: SocialRoomResponse["room"], language: SocialLanguage) {
@@ -1007,8 +1035,13 @@ const RoomScreen = () => {
     sendContextUpdate,
     status: agentSessionStatus,
     isSpeaking: agentIsSpeaking,
+    isUserSpeaking,
     isConnecting: agentIsConnecting,
+    hasMicrophone,
+    lastError: agentVoiceError,
     transcript: agentTranscript,
+    beginUserTurn,
+    endUserTurn,
   } = useVyvaVoice();
 
   const leaveVisitIdRef = useRef<string | null>(null);
@@ -1018,8 +1051,11 @@ const RoomScreen = () => {
   const transcriptCursorRef = useRef(0);
   const liveGreetingKeyRef = useRef<string | null>(null);
   const pendingQuestionRef = useRef<string | null>(null);
+  const queuedQuestionRef = useRef<string | null>(null);
+  const startListeningWhenReadyRef = useRef(false);
   const welcomeReplyPendingRef = useRef(false);
   const liveReplyTimeoutRef = useRef<number | null>(null);
+  const reconnectFallbackTimeoutRef = useRef<number | null>(null);
 
   const { data, isLoading, isError } = useQuery<SocialRoomResponse>({
     queryKey: [`/api/social/rooms/${slug}?lang=${language}`],
@@ -1044,11 +1080,6 @@ const RoomScreen = () => {
     if (!room) return null;
     return getSocialAgentPersona(room.agentSlug);
   }, [room]);
-
-  const liveAgentPrompt = useMemo(() => {
-    if (!room || !socialAgent) return undefined;
-    return buildAgentPrompt(language, room.name, room.topic, socialAgent.systemPrompt);
-  }, [language, room, socialAgent]);
 
   const quickQuestions = useMemo(
     () => getQuickQuestions(slug, language, roomResponse?.promptChips ?? []),
@@ -1098,6 +1129,13 @@ const RoomScreen = () => {
     }
   }, []);
 
+  const clearReconnectFallbackTimeout = useCallback(() => {
+    if (reconnectFallbackTimeoutRef.current) {
+      window.clearTimeout(reconnectFallbackTimeoutRef.current);
+      reconnectFallbackTimeoutRef.current = null;
+    }
+  }, []);
+
   const submitFallbackQuestion = useCallback(
     async (trimmed: string) => {
       const response = await apiFetch(`/api/social/rooms/${slug}/message`, {
@@ -1120,28 +1158,75 @@ const RoomScreen = () => {
     [clearPresenceTimers, language, slug, visitId],
   );
 
+  const startRoomAgentSession = useCallback(
+    (skipMicrophone = true) => {
+      if (!room?.slug || !room.agentSlug) return;
+      void startVoice(undefined, undefined, {
+        agentSlug: room.agentSlug,
+        roomSlug: room.slug,
+        skipMicrophone,
+      });
+    },
+    [room?.agentSlug, room?.slug, startVoice],
+  );
+
+  const armLiveReplyTimeout = useCallback(
+    (trimmed: string) => {
+      clearLiveReplyTimeout();
+      liveReplyTimeoutRef.current = window.setTimeout(() => {
+        if (pendingQuestionRef.current !== trimmed) return;
+        pendingQuestionRef.current = null;
+        welcomeReplyPendingRef.current = false;
+        setIsSending(false);
+        void submitFallbackQuestion(trimmed);
+      }, 9000);
+    },
+    [clearLiveReplyTimeout, submitFallbackQuestion],
+  );
+
+  const sendLiveQuestion = useCallback(
+    async (trimmed: string) => {
+      pendingQuestionRef.current = trimmed;
+      setLatestQuestion(trimmed);
+      setLatestAnswer("");
+      setDraft("");
+      setIsSending(true);
+      setAgentPresence("thinking");
+
+      const sent = sendAgentText(trimmed);
+      if (!sent) {
+        pendingQuestionRef.current = null;
+        setIsSending(false);
+        await submitFallbackQuestion(trimmed);
+        return;
+      }
+
+      armLiveReplyTimeout(trimmed);
+    },
+    [armLiveReplyTimeout, sendAgentText, submitFallbackQuestion],
+  );
+
   useEffect(() => {
     return () => {
       clearPresenceTimers();
       clearLiveReplyTimeout();
+      clearReconnectFallbackTimeout();
       stopVoice();
     };
-  }, [clearLiveReplyTimeout, clearPresenceTimers, stopVoice]);
+  }, [clearLiveReplyTimeout, clearPresenceTimers, clearReconnectFallbackTimeout, stopVoice]);
 
   useEffect(() => {
-    if (!room?.slug || !room.agentSlug || !liveAgentPrompt) return;
+    if (!room?.slug || !room.agentSlug) return;
 
     liveGreetingKeyRef.current = null;
     transcriptCursorRef.current = 0;
     pendingQuestionRef.current = null;
+    queuedQuestionRef.current = null;
+    startListeningWhenReadyRef.current = false;
     welcomeReplyPendingRef.current = false;
     setAgentPresence("thinking");
-    void startVoice(undefined, liveAgentPrompt, {
-      agentSlug: room.agentSlug,
-      roomSlug: room.slug,
-      skipMicrophone: true,
-    });
-  }, [liveAgentPrompt, room?.agentSlug, room?.slug, startVoice]);
+    startRoomAgentSession(true);
+  }, [room?.agentSlug, room?.slug, startRoomAgentSession]);
 
   useEffect(() => {
     if (!room || !socialAgent || agentSessionStatus !== "connected") return;
@@ -1177,6 +1262,28 @@ const RoomScreen = () => {
   }, [agentIsConnecting, agentSessionStatus, clearPresenceTimers]);
 
   useEffect(() => {
+    if (agentSessionStatus !== "connected") return;
+
+    if (startListeningWhenReadyRef.current && hasMicrophone) {
+      startListeningWhenReadyRef.current = false;
+      void beginUserTurn();
+    }
+
+    const queuedQuestion = queuedQuestionRef.current;
+    if (queuedQuestion) {
+      queuedQuestionRef.current = null;
+      clearReconnectFallbackTimeout();
+      void sendLiveQuestion(queuedQuestion);
+    }
+  }, [
+    agentSessionStatus,
+    beginUserTurn,
+    clearReconnectFallbackTimeout,
+    hasMicrophone,
+    sendLiveQuestion,
+  ]);
+
+  useEffect(() => {
     if (agentIsSpeaking) {
       clearPresenceTimers();
       setAgentPresence("speaking");
@@ -1198,6 +1305,19 @@ const RoomScreen = () => {
     if (nextEntries.length === 0) return;
 
     nextEntries.forEach((entry) => {
+      if (entry.from === "user") {
+        const text = entry.text.trim();
+        if (text) {
+          pendingQuestionRef.current = text;
+          setLatestQuestion(text);
+          setLatestAnswer("");
+          setIsSending(true);
+          setAgentPresence("thinking");
+          armLiveReplyTimeout(text);
+        }
+        return;
+      }
+
       if (entry.from !== "vyva") return;
 
       clearPresenceTimers();
@@ -1229,7 +1349,7 @@ const RoomScreen = () => {
         setIsSending(false);
       }
     });
-  }, [agentIsSpeaking, agentTranscript, clearPresenceTimers]);
+  }, [agentIsSpeaking, agentTranscript, armLiveReplyTimeout, clearPresenceTimers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1282,36 +1402,56 @@ const RoomScreen = () => {
     if (!trimmed) return;
 
     if (agentSessionStatus === "connected") {
-      pendingQuestionRef.current = trimmed;
-      setLatestQuestion(trimmed);
-      setLatestAnswer("");
-      setDraft("");
-      setIsSending(true);
-      setAgentPresence("thinking");
-      const sent = sendAgentText(trimmed);
-      if (!sent) {
-        pendingQuestionRef.current = null;
-        setIsSending(false);
-        await submitFallbackQuestion(trimmed);
-        return;
-      }
-      clearLiveReplyTimeout();
-      liveReplyTimeoutRef.current = window.setTimeout(() => {
-        if (pendingQuestionRef.current !== trimmed) return;
-        pendingQuestionRef.current = null;
-        welcomeReplyPendingRef.current = false;
-        setIsSending(false);
-        void submitFallbackQuestion(trimmed);
-      }, 9000);
+      await sendLiveQuestion(trimmed);
       return;
     }
 
+    pendingQuestionRef.current = trimmed;
+    queuedQuestionRef.current = trimmed;
+    setLatestQuestion(trimmed);
+    setLatestAnswer("");
+    setDraft("");
     setIsSending(true);
-    try {
-      await submitFallbackQuestion(trimmed);
-    } finally {
-      setIsSending(false);
+    setAgentPresence("thinking");
+
+    if (agentSessionStatus === "idle") {
+      startRoomAgentSession(true);
     }
+
+    clearReconnectFallbackTimeout();
+    reconnectFallbackTimeoutRef.current = window.setTimeout(() => {
+      if (queuedQuestionRef.current !== trimmed) return;
+      queuedQuestionRef.current = null;
+      pendingQuestionRef.current = null;
+      setIsSending(false);
+      void submitFallbackQuestion(trimmed);
+    }, 8000);
+  };
+
+  const handleVoiceToggle = async () => {
+    if (!room?.slug || !room.agentSlug) return;
+
+    if (isUserSpeaking) {
+      endUserTurn();
+      setAgentPresence("thinking");
+      return;
+    }
+
+    if (agentSessionStatus === "connected" && hasMicrophone) {
+      const started = await beginUserTurn();
+      if (started) setAgentPresence("idle");
+      return;
+    }
+
+    startListeningWhenReadyRef.current = true;
+    queuedQuestionRef.current = null;
+    pendingQuestionRef.current = null;
+    welcomeReplyPendingRef.current = false;
+    transcriptCursorRef.current = agentTranscript.length;
+    setIsSending(false);
+    setAgentPresence("thinking");
+    stopVoice();
+    void window.setTimeout(() => startRoomAgentSession(false), 0);
   };
 
   const addComment = (itemId: string) => {
@@ -1449,6 +1589,15 @@ const RoomScreen = () => {
       <main className="mt-5 space-y-4">
         <section className="rounded-[34px] border border-[#E8DDCF] bg-[#FFFDFC] p-6 shadow-[0_16px_34px_rgba(91,33,182,0.05)]">
           <p className="font-body text-[18px] font-medium text-[#8B7D9A]">{getTopicHint(slug, language, room.topic)}</p>
+          <p className="mt-3 rounded-[20px] bg-[#F8F3FF] px-4 py-3 font-body text-[18px] leading-[1.35] text-[#6B5D78]">
+            {getRoomInteractionHint(language)}
+          </p>
+
+          {agentVoiceError && agentSessionStatus === "idle" && (
+            <p className="mt-3 rounded-[20px] border border-[#F4D6BF] bg-[#FFF7ED] px-4 py-3 font-body text-[18px] leading-[1.35] text-[#9A3412]">
+              {getRoomVoiceUnavailableLabel(language)}
+            </p>
+          )}
 
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex gap-3">
@@ -1492,6 +1641,20 @@ const RoomScreen = () => {
                 ))}
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => void handleVoiceToggle()}
+              disabled={agentIsConnecting && !isUserSpeaking}
+              className="inline-flex min-h-[64px] items-center justify-center gap-3 rounded-[22px] px-5 font-body text-[21px] font-semibold text-white disabled:opacity-60"
+              style={{
+                background: isUserSpeaking ? "#C81E1E" : room.agentColour,
+                boxShadow: "0 12px 24px rgba(91,33,182,0.12)",
+              }}
+            >
+              {isUserSpeaking ? <Square size={21} /> : <Mic size={22} />}
+              {getVoiceButtonLabel(language, isUserSpeaking, agentIsConnecting)}
+            </button>
           </div>
 
           {latestQuestion && latestAnswer && (

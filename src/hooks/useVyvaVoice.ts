@@ -132,7 +132,10 @@ export function useVyvaVoice() {
   const [status, setStatus] = useState<"idle" | "connecting" | "connected">("idle");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [hasMicrophone, setHasMicrophone] = useState(false);
   const systemPromptRef = useRef<string | undefined>(undefined);
+  const statusRef = useRef<"idle" | "connecting" | "connected">("idle");
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -146,6 +149,11 @@ export function useVyvaVoice() {
   const isUserStreamingRef = useRef(false);
   const playbackNodesRef = useRef<AudioBufferSourceNode[]>([]);
   const hiddenOutgoingMessagesRef = useRef<string[]>([]);
+
+  const setVoiceStatus = useCallback((nextStatus: "idle" | "connecting" | "connected") => {
+    statusRef.current = nextStatus;
+    setStatus(nextStatus);
+  }, []);
 
   const interruptAgentAudio = useCallback(() => {
     playbackNodesRef.current.forEach((node) => {
@@ -192,6 +200,7 @@ export function useVyvaVoice() {
     pendingChunksRef.current = 0;
     isUserStreamingRef.current = false;
     hiddenOutgoingMessagesRef.current = [];
+    setHasMicrophone(false);
     setIsUserSpeaking(false);
   }, [interruptAgentAudio]);
 
@@ -203,10 +212,12 @@ export function useVyvaVoice() {
       systemPrompt?: string,
       options?: StartVoiceOptions,
     ) => {
-      if (status !== "idle") return;
+      if (statusRef.current !== "idle") return;
       setIsConnecting(true);
-      setStatus("connecting");
+      setVoiceStatus("connecting");
       setTranscript([]);
+      setLastError(null);
+      setHasMicrophone(false);
       systemPromptRef.current = systemPrompt;
       const shouldResolveAgentOnServer = Boolean(options?.agentSlug || options?.roomSlug);
       const activeAgentId = options?.agentId ?? (shouldResolveAgentOnServer ? undefined : VYVA_AGENT_ID);
@@ -216,7 +227,7 @@ export function useVyvaVoice() {
         const greeting = contextHint ?? "Listening...";
         setTranscript([{ from: "vyva", text: greeting, timestamp: Date.now() }]);
         setIsSpeaking(true);
-        setStatus("connected");
+        setVoiceStatus("connected");
         setIsConnecting(false);
         return;
       }
@@ -224,6 +235,7 @@ export function useVyvaVoice() {
       try {
         const stream = skipMicrophone ? null : await navigator.mediaDevices.getUserMedia({ audio: true });
         micStreamRef.current = stream;
+        setHasMicrophone(Boolean(stream));
 
         let wsUrl: string;
         try {
@@ -236,7 +248,22 @@ export function useVyvaVoice() {
               ...(systemPrompt ? { prompt_override: systemPrompt } : {}),
             }),
           });
-          if (!res.ok) throw new Error("token fetch failed");
+          if (!res.ok) {
+            const errorText = await res.text();
+            let message = errorText || "token fetch failed";
+            try {
+              const parsed = JSON.parse(errorText) as {
+                error?: string;
+                detail?: string;
+                expected_keys?: string[];
+              };
+              message = parsed.error || parsed.detail || message;
+              if (parsed.expected_keys?.[0]) {
+                message = `${message} (${parsed.expected_keys[0]})`;
+              }
+            } catch {}
+            throw new Error(message);
+          }
           const data = (await res.json()) as { signed_url?: string; token?: string };
           if (data.signed_url) {
             wsUrl = data.signed_url;
@@ -302,7 +329,7 @@ export function useVyvaVoice() {
               const match = fmt?.match(/(\d+)$/);
               outputSampleRateRef.current = match ? parseInt(match[1]) : 16000;
               nextPlayTimeRef.current = audioCtxRef.current?.currentTime ?? 0;
-              setStatus("connected");
+              setVoiceStatus("connected");
               setIsConnecting(false);
               break;
             }
@@ -381,25 +408,26 @@ export function useVyvaVoice() {
         };
 
         ws.onerror = () => {
-          setStatus("idle");
+          setVoiceStatus("idle");
           setIsConnecting(false);
           setIsSpeaking(false);
           teardown();
         };
 
         ws.onclose = () => {
-          setStatus("idle");
+          setVoiceStatus("idle");
           setIsSpeaking(false);
           teardown();
         };
       } catch (err) {
         console.error("[VYVA] Failed to start session:", err);
-        setStatus("idle");
+        setLastError(err instanceof Error ? err.message : "Unable to start voice session");
+        setVoiceStatus("idle");
         setIsConnecting(false);
         teardown();
       }
     },
-    [status, teardown, interruptAgentAudio]
+    [setVoiceStatus, teardown]
   );
 
   const beginUserTurn = useCallback(async () => {
@@ -420,11 +448,12 @@ export function useVyvaVoice() {
 
   const stopVoice = useCallback(() => {
     teardown();
-    setStatus("idle");
+    setVoiceStatus("idle");
     setIsSpeaking(false);
     setIsUserSpeaking(false);
+    setLastError(null);
     systemPromptRef.current = undefined;
-  }, [teardown]);
+  }, [setVoiceStatus, teardown]);
 
   const sendText = useCallback(
     (text: string, options?: SendTextOptions) => {
@@ -465,6 +494,8 @@ export function useVyvaVoice() {
     isSpeaking,
     isUserSpeaking,
     isConnecting,
+    hasMicrophone,
+    lastError,
     transcript,
     systemPromptRef,
     beginUserTurn,
