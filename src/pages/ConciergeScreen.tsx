@@ -1537,18 +1537,22 @@ const ConciergeScreen = () => {
   }
 
   function utilityOptionUrl(result: UtilityComparisonResult, parent?: UtilityCompareResponse): string {
-    return [result.provider_url, result.source_url, parent?.source_url]
+    const configuredCnmcResultsUrl = (import.meta.env.VITE_CNMC_RESULTS_URL as string | undefined)?.trim();
+    return [
+      result.source_url,
+      parent?.source_url,
+      configuredCnmcResultsUrl,
+      result.provider_url,
+    ]
       .find((url) => isUsefulUtilityUrl(url)) ?? "";
   }
 
   function utilityOptionActionLabel(result: UtilityComparisonResult, url?: string): string {
+    if (isUsefulUtilityUrl(url)) return isSpanish ? "Ver ofertas" : "View offers";
     if (result.action_label && (!/ver ofertas/i.test(result.action_label) || isCnmcResultsUrl(url))) {
       return result.action_label;
     }
     if (isCnmcResultsUrl(url)) return isSpanish ? "Ver ofertas" : "View offers";
-    if (result.provider_url && isUsefulUtilityUrl(result.provider_url)) {
-      return isSpanish ? "Ver oferta" : "View offer";
-    }
     if (result.source === "CNMC") return isSpanish ? "Ver resultados" : "View results";
     return isSpanish ? "Ver opciones" : "View options";
   }
@@ -2228,8 +2232,6 @@ const ConciergeScreen = () => {
                           <p className="font-body text-[15px] font-semibold text-[#0A7C4E]">{formatEuro(result.estimated_monthly_savings, isSpanish)}/mes</p>
                         </div>
                       </div>
-                      <p className="mt-3 font-body text-[13px] leading-relaxed text-vyva-text-2">{result.price_stability}</p>
-                      <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{result.permanence}</p>
                       {optionUrl && (
                         <a
                           href={optionUrl}

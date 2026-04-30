@@ -65,6 +65,170 @@ const CNMC_RESULTS_FALLBACK_URL = isCnmcResultsUrl(CNMC_RESULTS_URL_ENV)
   ? CNMC_RESULTS_URL_ENV
   : "";
 
+function isNumeric(value: unknown): value is number | string {
+  return value !== null && value !== undefined && value !== "" && !Number.isNaN(Number(value));
+}
+
+function padNumber(value: unknown, length: number): string {
+  return isNumeric(value) ? String(Math.round(Number(value))).padStart(length, "0") : "0".repeat(length);
+}
+
+function normalizeCnmcPower(value: unknown): string {
+  if (!isNumeric(value)) return "00000";
+  const numeric = Number(value);
+  const fixed = numeric.toFixed(3).replace(".", "");
+  return (numeric >= 10 ? fixed : `0${fixed}`).padEnd(5, "0");
+}
+
+function normalizeCnmcPrice(value: unknown): string {
+  if (!isNumeric(value)) return "00000000";
+  const numeric = Number(value);
+  const fixed = numeric.toFixed(2).replace(".", "");
+  return (numeric >= 10 ? fixed : `0${fixed}`).padStart(8, "0");
+}
+
+function normalizeCnmcAdjustment(value: unknown): string {
+  if (!isNumeric(value)) return "000000";
+  const numeric = Number(value);
+  if (numeric < 0) return `9${Math.abs(numeric).toFixed(2).replace(".", "").padStart(5, "0")}`;
+  const fixed = numeric.toFixed(2).replace(".", "");
+  if (numeric >= 100) return `0${fixed.padStart(5, "0")}`;
+  if (numeric >= 10) return `0${(`0${fixed}`).padStart(5, "0")}`;
+  return `0${(`00${fixed}`).padStart(5, "0")}`;
+}
+
+function normalizeCnmcAdjustmentUnitPrice(value: unknown): string {
+  if (!isNumeric(value)) return "000000";
+  const numeric = Number(value);
+  const sign = numeric < 0 ? "9" : "0";
+  return `${sign}${Math.abs(numeric).toFixed(4).replace(".", "").padStart(5, "0")}`;
+}
+
+function normalizeCnmcPowerPrice(value: unknown): string {
+  return isNumeric(value) ? Number(value).toFixed(6).replace(".", "").padStart(8, "0") : "00000000";
+}
+
+function normalizeCnmcEnergyPrice(value: unknown): string {
+  return isNumeric(value) ? Number(value).toFixed(6).replace(".", "").padStart(7, "0") : "0000000";
+}
+
+function annualizeConsumption(input: NormalizedUtilityInput, utility: "electricity" | "gas"): number {
+  const raw = input.consumption_kwh ?? (utility === "gas" ? 6000 : 2600);
+  if (input.billing_period_days && input.billing_period_days > 0 && input.consumption_kwh != null) {
+    return Math.max(1, Math.round((raw / input.billing_period_days) * 365));
+  }
+  return Math.max(1, Math.round(raw));
+}
+
+function splitAnnualElectricityConsumption(total: number) {
+  const first = Math.round(total * 0.2865);
+  const second = Math.round(total * 0.2458);
+  return {
+    first,
+    second,
+    third: Math.max(0, total - first - second),
+  };
+}
+
+function cnmcParamsToHex(digits: string): string {
+  let hex = BigInt(digits).toString(16).toUpperCase();
+  if (hex.length % 2) hex = `0${hex}`;
+  return hex;
+}
+
+function buildCnmcResultsUrl(input: NormalizedUtilityInput): string {
+  const postcode = input.postcode?.replace(/\D/g, "").slice(0, 5) ?? "";
+  if (postcode.length !== 5) return "";
+  const utilityType = input.utility_type === "gas" ? "G" : input.utility_type === "dual" ? "C" : "E";
+  const annualElectricity = utilityType === "G" ? 2600 : annualizeConsumption(input, "electricity");
+  const annualGas = utilityType === "E" ? 6000 : annualizeConsumption(input, "gas");
+  const electricitySplit = splitAnnualElectricityConsumption(annualElectricity);
+  const power = input.power_kw ?? 3.5;
+
+  let digits = "";
+  digits += utilityType === "E" ? "1" : utilityType === "G" ? "2" : "3";
+  digits += "4"; // Default domestic 2.0TD-style tariff used by CNMC when the bill does not expose a clearer tariff.
+  digits += "0"; // No additional services and no permanence by default.
+  digits += postcode.padStart(5, "0");
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += normalizeCnmcPower(power);
+  digits += padNumber(annualElectricity, 6);
+  digits += padNumber(electricitySplit.first, 6);
+  digits += padNumber(electricitySplit.second, 6);
+  digits += padNumber(electricitySplit.third, 6);
+  digits += "000000"; // Extra electricity periods are only used for higher-power tariffs.
+  digits += "000000";
+  digits += "000000";
+  digits += padNumber(annualGas, 7);
+  digits += "000000"; // idOferta
+  digits += "0000"; // curvaConsumo
+  digits += "1"; // vivienda
+  digits += padNumber(annualElectricity, 6);
+  digits += padNumber(annualGas, 7);
+  digits += "000000".repeat(12); // QR and provider-specific consumption splits.
+  digits += "1"; // factura
+  digits += normalizeCnmcPrice(input.total_cost);
+  digits += "0000"; // commercialiser code
+  digits += "0000000000000".repeat(3); // dates
+  digits += "0"; // access tariff / QR flag
+  digits += input.has_social_bonus ? "1" : "0";
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPrice(null);
+  digits += "0";
+  digits += normalizeCnmcAdjustment(null);
+  digits += normalizeCnmcAdjustment(null);
+  digits += normalizeCnmcAdjustment(null);
+  digits += normalizeCnmcAdjustment(null);
+  digits += normalizeCnmcAdjustmentUnitPrice(null);
+  digits += normalizeCnmcAdjustmentUnitPrice(null);
+  digits += normalizeCnmcAdjustmentUnitPrice(null);
+  digits += normalizeCnmcAdjustmentUnitPrice(null);
+  digits += normalizeCnmcAdjustment(null);
+  digits += "0000000000000";
+  digits += "0000";
+  digits += "000";
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPower(null);
+  digits += normalizeCnmcPower(null);
+  digits += "0000000000000";
+  digits += `0${normalizeCnmcPrice(null)}`;
+  digits += `0${normalizeCnmcPrice(null)}`;
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPrice(null);
+  digits += normalizeCnmcPowerPrice(null);
+  digits += normalizeCnmcPowerPrice(null);
+  digits += normalizeCnmcEnergyPrice(null);
+  digits += normalizeCnmcEnergyPrice(null);
+  digits += normalizeCnmcEnergyPrice(null);
+  digits += "00000";
+  digits += "00000";
+  digits += "0"; // cambio
+  digits += "0"; // promo
+  digits += "0"; // verde
+  digits += "0"; // revision flag
+  digits += "0000000000000";
+  digits += "0"; // trampeo
+  digits += "00"; // perfil consumo
+  digits += "0000"; // cups internal id
+  digits += "2"; // revisionPrecios
+  digits += "000000"; // autoconsumo energy
+  digits += "0000000"; // auditoria
+  digits += "0000000000000";
+  digits += "0000000000000";
+  digits += normalizeCnmcPower(3.5);
+  digits += "0"; // autoconsumo
+
+  return `${CNMC_COMPARATOR_URL}comparador/listado/${cnmcParamsToHex(digits)}`;
+}
+
 interface CandidateLink {
   text: string;
   href: string;
@@ -143,6 +307,7 @@ function matchProviderUrl(provider: string, tariff: string, links: CandidateLink
 
 function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonResult[] {
   const current = monthlyBaseline(input);
+  const generatedCnmcUrl = buildCnmcResultsUrl(input);
   const utilityLabel = input.utility_type === "gas" ? "Gas" : input.utility_type === "dual" ? "Luz + gas" : "Luz";
   const options = [
     {
@@ -190,8 +355,8 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
-      ...(CNMC_RESULTS_FALLBACK_URL
-        ? { source_url: CNMC_RESULTS_FALLBACK_URL, action_label: "Ver ofertas" }
+      ...(generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL
+        ? { source_url: generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL, action_label: "Ver ofertas" }
         : {}),
       confidence: "low" as const,
       notes: option.notes,
@@ -263,6 +428,7 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
       href: anchor.getAttribute("href") ?? "",
     }))).catch(() => [] as CandidateLink[]);
     const pageUrl = page.url();
+    const generatedCnmcUrl = buildCnmcResultsUrl(input);
 
     const current = monthlyBaseline(input);
     const parsed = moneyLines.slice(0, 6).map((line, index): UtilityComparisonResult => {
@@ -281,7 +447,7 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
         price_stability: /fijo|estable/i.test(details.nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
         green_energy: /verde|renovable/i.test(details.nearby) ? true : null,
         source: "CNMC",
-        source_url: isCnmcResultsUrl(pageUrl) ? pageUrl : undefined,
+        source_url: isCnmcResultsUrl(pageUrl) ? pageUrl : generatedCnmcUrl || undefined,
         provider_url: providerUrl || undefined,
         action_label: "Ver ofertas",
         confidence: providerUrl ? "high" : "medium",
