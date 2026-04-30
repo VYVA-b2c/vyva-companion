@@ -646,19 +646,7 @@ function compressBillImage(file: File): Promise<string> {
 }
 
 function billReaderEndpoints(): string[] {
-  const endpoints = ["/api/bill-reader/analyze", "/api/offers/analyze-document"];
-  if (typeof window === "undefined") return endpoints;
-
-  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  if (!isLocal || window.location.port === "3001") return endpoints;
-
-  // Replit/Vite can occasionally serve a fresh frontend while proxying to a stale
-  // API process. Try the backend port directly before giving up.
-  return [
-    ...endpoints,
-    "http://127.0.0.1:3001/api/bill-reader/analyze",
-    "http://127.0.0.1:3001/api/offers/analyze-document",
-  ];
+  return ["/api/bill-reader/analyze", "/api/offers/analyze-document"];
 }
 
 async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
