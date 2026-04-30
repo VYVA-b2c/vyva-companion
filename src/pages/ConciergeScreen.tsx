@@ -1289,13 +1289,19 @@ const ConciergeScreen = () => {
   }
 
   function updateUtilityNormalizedField(key: keyof NormalizedUtilityInput, value: string) {
+    setUtilityError(null);
+    setUtilityResult(null);
     setUtilityNormalized((prev) => {
       if (!prev) return prev;
       const numericFields = new Set(["power_kw", "consumption_kwh", "billing_period_days", "total_cost", "confidence"]);
       const nextValue = numericFields.has(key as string)
         ? (value.trim() ? Number(value.replace(",", ".")) : null)
         : value;
-      return { ...prev, [key]: nextValue } as NormalizedUtilityInput;
+      const next = { ...prev, [key]: nextValue } as NormalizedUtilityInput;
+      if (value.trim()) {
+        next.missing_fields = next.missing_fields.filter((field) => field !== key && field !== `estimated:${key}`);
+      }
+      return next;
     });
   }
 
@@ -1381,6 +1387,18 @@ const ConciergeScreen = () => {
 
   async function handleCompareUtility() {
     if (!utilityNormalized) return;
+    const comparableInput: NormalizedUtilityInput = {
+      ...utilityNormalized,
+      postcode: String(utilityNormalized.postcode ?? "").trim(),
+      missing_fields: utilityNormalized.missing_fields.filter((field) => {
+        if (field === "postcode" && String(utilityNormalized.postcode ?? "").trim()) return false;
+        if (field === "power_kw" && utilityNormalized.power_kw != null) return false;
+        if (field === "estimated:power_kw" && utilityNormalized.power_kw != null) return false;
+        if (field === "estimated monthly cost or consumption_kwh"
+          && (utilityNormalized.total_cost != null || utilityNormalized.consumption_kwh != null)) return false;
+        return true;
+      }),
+    };
     setUtilityLoading(true);
     setUtilityError(null);
     setUtilityNotice(null);
@@ -1389,7 +1407,7 @@ const ConciergeScreen = () => {
       const result = await compareUtilityReview({
         input_method: utilityMethod ?? "manual",
         locale: i18n.language,
-        normalized_input: utilityNormalized,
+        normalized_input: comparableInput,
         extracted_data: billAnalysis ? billAnalysisToUtilityExtracted(billAnalysis) : {},
       });
       setUtilityResult(result);
