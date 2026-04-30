@@ -166,8 +166,11 @@ type BillDocumentAnalysis = {
   provider_name: string | null;
   service_address?: string | null;
   postcode?: string | null;
+  cups?: string | null;
   billing_period: string | null;
+  billing_period_days?: number | null;
   total_amount: number | null;
+  power_kw?: number | null;
   currency: string | null;
   usage: {
     kwh: number | null;
@@ -718,9 +721,12 @@ function billAnalysisToUtilityExtracted(analysis: BillDocumentAnalysis): Record<
     provider_name: analysis.provider_name,
     service_address: analysis.service_address,
     postcode: analysis.postcode,
+    cups: analysis.cups,
     tariff_or_plan: analysis.tariff_or_plan,
     billing_period: analysis.billing_period,
+    billing_period_days: analysis.billing_period_days,
     total_amount: analysis.total_amount,
+    power_kw: analysis.power_kw,
     usage: analysis.usage,
     unit_prices: analysis.unit_prices,
     confidence: analysis.confidence,
