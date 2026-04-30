@@ -600,10 +600,12 @@ function compressBillImage(file: File): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("canvas context unavailable"));
 
-      // Keep enough detail for OCR while staying safely below API body limits.
-      const targetChars = 1_800_000;
-      const qualities = [0.78, 0.68, 0.58, 0.48, 0.38];
-      const maxSizes = [1400, 1200, 1000, 850, 700];
+      // Replit sometimes keeps an older ~100kb JSON parser alive after restarts.
+      // Stay under that stricter ceiling so bill reading keeps working while the
+      // backend catches up. The user can still correct missing fields afterward.
+      const targetChars = 80_000;
+      const qualities = [0.7, 0.6, 0.5, 0.42, 0.35, 0.28];
+      const maxSizes = [950, 820, 700, 580, 460];
       let best = "";
 
       for (const maxSize of maxSizes) {
