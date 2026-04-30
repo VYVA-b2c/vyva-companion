@@ -52,6 +52,10 @@ function monthlyBaseline(input: NormalizedUtilityInput): number {
 }
 
 const CNMC_COMPARATOR_URL = "https://comparador.cnmc.gob.es/";
+const CNMC_RESULTS_FALLBACK_URL =
+  process.env.CNMC_RESULTS_URL?.trim()
+  || process.env.VITE_CNMC_RESULTS_URL?.trim()
+  || CNMC_COMPARATOR_URL;
 
 interface CandidateLink {
   text: string;
@@ -178,6 +182,8 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
+      source_url: CNMC_RESULTS_FALLBACK_URL,
+      action_label: "Ver ofertas",
       confidence: "low" as const,
       notes: option.notes,
     };
