@@ -164,6 +164,8 @@ type BillDocumentAnalysis = {
   document_type: "electricity_bill" | "gas_bill" | "internet_phone_bill" | "insurance_policy" | "home_service_invoice" | "unknown";
   category: string;
   provider_name: string | null;
+  service_address?: string | null;
+  postcode?: string | null;
   billing_period: string | null;
   total_amount: number | null;
   currency: string | null;
@@ -702,6 +704,8 @@ function billAnalysisToUtilityExtracted(analysis: BillDocumentAnalysis): Record<
   return {
     document_type: analysis.document_type,
     provider_name: analysis.provider_name,
+    service_address: analysis.service_address,
+    postcode: analysis.postcode,
     tariff_or_plan: analysis.tariff_or_plan,
     billing_period: analysis.billing_period,
     total_amount: analysis.total_amount,

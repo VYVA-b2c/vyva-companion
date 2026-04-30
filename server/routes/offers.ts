@@ -36,6 +36,8 @@ interface BillDocumentAnalysis {
   document_type: BillDocumentType;
   category: OfferCategory;
   provider_name: string | null;
+  service_address: string | null;
+  postcode: string | null;
   billing_period: string | null;
   total_amount: number | null;
   currency: string | null;
@@ -185,6 +187,8 @@ function fallbackDocumentAnalysis(locale = "es", reason: BillFallbackReason = "u
     document_type: "unknown",
     category: "Gastos del hogar",
     provider_name: null,
+    service_address: null,
+    postcode: null,
     billing_period: null,
     total_amount: null,
     currency: null,
@@ -219,6 +223,8 @@ Return ONLY valid JSON with this exact shape:
   "document_type": "electricity_bill | gas_bill | internet_phone_bill | insurance_policy | home_service_invoice | unknown",
   "category": "Gastos del hogar | Seguros y proteccion | Servicios en casa",
   "provider_name": "provider/company name or null",
+  "service_address": "service/customer address if visible, or null",
+  "postcode": "Spanish 5-digit postcode if visible, or null",
   "billing_period": "billing period or null",
   "total_amount": 0,
   "currency": "EUR or other currency or null",
@@ -242,6 +248,8 @@ Return ONLY valid JSON with this exact shape:
 Rules:
 - total_amount and unit prices must be numbers, not strings. Use null if not visible.
 - For electricity bills, prioritise visible consumption in kWh, total amount, energy cost, power/standing charge, taxes, tariff, period, and company.
+- For Spanish bills, extract a visible 5-digit postal code from the customer/service address line when present. Example: "29602, Marbella (Malaga)" means postcode "29602".
+- If a postcode is visible in an address block, put it in postcode even if the label "codigo postal" is not shown.
 - If you see Spanish labels such as "Importe a pagar", "Energia consumida", "Potencia contratada", "Tu consumo total realizado", or "kWh", classify it as "electricity_bill".
 - Missing provider_name or billing_period must NOT make the document unknown if total amount or kWh are visible.
 - If amount and kWh are clearly visible but provider/period are cropped out, use confidence "medium", not "low".
@@ -262,6 +270,12 @@ function safeNumber(value: unknown): number | null {
 
 function safeString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 180) : null;
+}
+
+function normalizeSpanishPostcode(value: unknown): string | null {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const match = text.match(/\b(0[1-9]|[1-4]\d|5[0-2])\d{3}\b/);
+  return match?.[0] ?? null;
 }
 
 function safeConfidence(value: unknown): ConfidenceLevel {
@@ -358,6 +372,8 @@ function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: stri
   const suggestedQuery = safeString(parsed.suggested_query)
     ?? (es ? "comparar factura de servicios" : "compare service bill");
   const providerName = safeString(parsed.provider_name);
+  const serviceAddress = safeString(parsed.service_address);
+  const postcode = normalizeSpanishPostcode(parsed.postcode) ?? normalizeSpanishPostcode(serviceAddress);
   const visibleKwh = safeNumber(usage.kwh);
   const totalAmount = safeNumber(parsed.total_amount);
   if (documentType === "unknown" && visibleKwh != null) {
@@ -374,6 +390,8 @@ function normaliseDocumentAnalysis(parsed: Record<string, unknown>, locale: stri
     document_type: documentType,
     category: categoryFromDocumentType(documentType, parsed.category),
     provider_name: providerName,
+    service_address: serviceAddress,
+    postcode,
     billing_period: safeString(parsed.billing_period),
     total_amount: totalAmount,
     currency: safeString(parsed.currency),
