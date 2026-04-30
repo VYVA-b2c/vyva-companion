@@ -7,7 +7,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import SocialStyles from "./SocialStyles";
 import { getSocialCopy, getSocialLanguage } from "./roomUtils";
-import { getSocialAgentId, getSocialAgentPersona } from "./agentPersonas";
+import { getSocialAgentPersona } from "./agentPersonas";
 import type { SocialLanguage, SocialRoom, SocialRoomMember, SocialRoomResponse } from "./types";
 
 const FALLBACK_MEMBER_NAMES = ["Carmen", "Josefa", "Manuel", "Ana"];
@@ -1001,11 +1001,6 @@ const RoomScreen = () => {
     return getSocialAgentPersona(room.agentSlug);
   }, [room]);
 
-  const roomAgentId = useMemo(() => {
-    if (!room) return undefined;
-    return getSocialAgentId(room.agentSlug);
-  }, [room]);
-
   const liveAgentPrompt = useMemo(() => {
     if (!room || !socialAgent) return undefined;
     return buildAgentPrompt(language, room.name, room.topic, socialAgent.systemPrompt);
@@ -1090,7 +1085,7 @@ const RoomScreen = () => {
   }, [clearLiveReplyTimeout, clearPresenceTimers, stopVoice]);
 
   useEffect(() => {
-    if (!room?.slug || !roomAgentId || !liveAgentPrompt) return;
+    if (!room?.slug || !room.agentSlug || !liveAgentPrompt) return;
 
     liveGreetingKeyRef.current = null;
     transcriptCursorRef.current = 0;
@@ -1098,10 +1093,11 @@ const RoomScreen = () => {
     welcomeReplyPendingRef.current = false;
     setAgentPresence("thinking");
     void startVoice(undefined, liveAgentPrompt, {
-      agentId: roomAgentId,
+      agentSlug: room.agentSlug,
+      roomSlug: room.slug,
       skipMicrophone: true,
     });
-  }, [liveAgentPrompt, room?.slug, roomAgentId, startVoice]);
+  }, [liveAgentPrompt, room?.agentSlug, room?.slug, startVoice]);
 
   useEffect(() => {
     if (!room || !socialAgent || agentSessionStatus !== "connected") return;

@@ -79,6 +79,8 @@ export interface TranscriptEntry {
 
 type StartVoiceOptions = {
   agentId?: string;
+  agentSlug?: string;
+  roomSlug?: string;
   skipMicrophone?: boolean;
 };
 
@@ -206,10 +208,11 @@ export function useVyvaVoice() {
       setStatus("connecting");
       setTranscript([]);
       systemPromptRef.current = systemPrompt;
-      const activeAgentId = options?.agentId ?? VYVA_AGENT_ID;
+      const shouldResolveAgentOnServer = Boolean(options?.agentSlug || options?.roomSlug);
+      const activeAgentId = options?.agentId ?? (shouldResolveAgentOnServer ? undefined : VYVA_AGENT_ID);
       const skipMicrophone = options?.skipMicrophone ?? false;
 
-      if (!activeAgentId) {
+      if (!activeAgentId && !shouldResolveAgentOnServer) {
         const greeting = contextHint ?? "Listening...";
         setTranscript([{ from: "vyva", text: greeting, timestamp: Date.now() }]);
         setIsSpeaking(true);
@@ -227,7 +230,9 @@ export function useVyvaVoice() {
           const res = await apiFetch("/api/elevenlabs-conversation-token", {
             method: "POST",
             body: JSON.stringify({
-              agent_id: activeAgentId,
+              ...(activeAgentId ? { agent_id: activeAgentId } : {}),
+              ...(options?.agentSlug ? { agent_slug: options.agentSlug } : {}),
+              ...(options?.roomSlug ? { room_slug: options.roomSlug } : {}),
               ...(systemPrompt ? { prompt_override: systemPrompt } : {}),
             }),
           });
@@ -235,12 +240,13 @@ export function useVyvaVoice() {
           const data = (await res.json()) as { signed_url?: string; token?: string };
           if (data.signed_url) {
             wsUrl = data.signed_url;
-          } else if (data.token) {
+          } else if (data.token && activeAgentId) {
             wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${activeAgentId}&token=${data.token}`;
           } else {
             throw new Error("no URL or token");
           }
         } catch (err) {
+          if (!activeAgentId) throw err;
           console.warn("[VYVA] Token fetch failed, trying public connection:", err);
           wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${activeAgentId}`;
         }

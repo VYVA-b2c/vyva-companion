@@ -1,13 +1,87 @@
 import type { Request, Response } from "express";
+import { getSocialRoomBySlug } from "../lib/socialRoomsSeed.js";
+
+const SOCIAL_AGENT_ENV_KEYS: Record<string, string[]> = {
+  rosa: ["ELEVENLABS_AGENT_ROSA", "ELEVENLABS_SOCIAL_AGENT_ROSA", "VITE_ELEVENLABS_AGENT_ROSA", "VITE_ELEVENLABS_SOCIAL_AGENT_ROSA"],
+  lorenzo: ["ELEVENLABS_AGENT_LORENZO", "ELEVENLABS_SOCIAL_AGENT_LORENZO", "VITE_ELEVENLABS_AGENT_LORENZO", "VITE_ELEVENLABS_SOCIAL_AGENT_LORENZO"],
+  lola: ["ELEVENLABS_AGENT_LOLA", "ELEVENLABS_SOCIAL_AGENT_LOLA", "VITE_ELEVENLABS_AGENT_LOLA", "VITE_ELEVENLABS_SOCIAL_AGENT_LOLA"],
+  sofia: ["ELEVENLABS_AGENT_SOFIA", "ELEVENLABS_SOCIAL_AGENT_SOFIA", "VITE_ELEVENLABS_AGENT_SOFIA", "VITE_ELEVENLABS_SOCIAL_AGENT_SOFIA"],
+  pedro: ["ELEVENLABS_AGENT_PEDRO", "ELEVENLABS_SOCIAL_AGENT_PEDRO", "VITE_ELEVENLABS_AGENT_PEDRO", "VITE_ELEVENLABS_SOCIAL_AGENT_PEDRO"],
+  marco: ["ELEVENLABS_AGENT_MARCO", "ELEVENLABS_SOCIAL_AGENT_MARCO", "VITE_ELEVENLABS_AGENT_MARCO", "VITE_ELEVENLABS_SOCIAL_AGENT_MARCO"],
+  isabel: ["ELEVENLABS_AGENT_ISABEL", "ELEVENLABS_SOCIAL_AGENT_ISABEL", "VITE_ELEVENLABS_AGENT_ISABEL", "VITE_ELEVENLABS_SOCIAL_AGENT_ISABEL"],
+  vyva: ["ELEVENLABS_AGENT_VYVA", "ELEVENLABS_SOCIAL_AGENT_VYVA", "VITE_ELEVENLABS_AGENT_VYVA", "VITE_ELEVENLABS_SOCIAL_AGENT_VYVA", "ELEVENLABS_AGENT_ID", "VITE_ELEVENLABS_AGENT_ID"],
+  carmen: ["ELEVENLABS_AGENT_CARMEN", "ELEVENLABS_SOCIAL_AGENT_CARMEN", "VITE_ELEVENLABS_AGENT_CARMEN", "VITE_ELEVENLABS_SOCIAL_AGENT_CARMEN"],
+  elena: ["ELEVENLABS_AGENT_ELENA", "ELEVENLABS_SOCIAL_AGENT_ELENA", "VITE_ELEVENLABS_AGENT_ELENA", "VITE_ELEVENLABS_SOCIAL_AGENT_ELENA"],
+};
+
+const DEFAULT_AGENT_ENV_KEYS = [
+  "ELEVENLABS_SOCIAL_AGENT_ID",
+  "ELEVENLABS_AGENT_ID",
+  "VITE_ELEVENLABS_SOCIAL_AGENT_ID",
+  "VITE_ELEVENLABS_AGENT_ID",
+];
+
+function readFirstEnv(keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function normalizeSlug(value?: string) {
+  return value?.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "") || undefined;
+}
+
+function resolveSocialAgentId(agentSlug?: string, roomSlug?: string) {
+  const normalizedAgentSlug = normalizeSlug(agentSlug);
+  const normalizedRoomSlug = normalizeSlug(roomSlug);
+  const roomAgentSlug = normalizedRoomSlug ? getSocialRoomBySlug(normalizedRoomSlug)?.agentSlug : undefined;
+  const resolvedSlug = normalizedAgentSlug ?? normalizeSlug(roomAgentSlug);
+
+  if (!resolvedSlug) {
+    return {
+      agentId: readFirstEnv(DEFAULT_AGENT_ENV_KEYS),
+      resolvedSlug,
+      source: "default",
+    };
+  }
+
+  const keys = [
+    ...(SOCIAL_AGENT_ENV_KEYS[resolvedSlug] ?? []),
+    `ELEVENLABS_AGENT_${resolvedSlug.toUpperCase()}`,
+    `ELEVENLABS_SOCIAL_AGENT_${resolvedSlug.toUpperCase()}`,
+    `VITE_ELEVENLABS_AGENT_${resolvedSlug.toUpperCase()}`,
+    `VITE_ELEVENLABS_SOCIAL_AGENT_${resolvedSlug.toUpperCase()}`,
+    ...DEFAULT_AGENT_ENV_KEYS,
+  ];
+
+  return {
+    agentId: readFirstEnv(keys),
+    resolvedSlug,
+    source: "slug",
+  };
+}
 
 export async function conversationTokenHandler(req: Request, res: Response) {
-  const { agent_id, prompt_override } = req.body as {
+  const { agent_id, agent_slug, room_slug, prompt_override } = req.body as {
     agent_id?: string;
+    agent_slug?: string;
+    room_slug?: string;
     prompt_override?: string;
   };
 
-  if (!agent_id) {
-    return res.status(400).json({ error: "agent_id required" });
+  const resolved = agent_id?.trim()
+    ? { agentId: agent_id.trim(), resolvedSlug: normalizeSlug(agent_slug), source: "explicit" }
+    : resolveSocialAgentId(agent_slug, room_slug);
+
+  if (!resolved.agentId) {
+    console.warn("[conversationToken] No ElevenLabs agent configured", {
+      agent_slug,
+      room_slug,
+      resolved_slug: resolved.resolvedSlug,
+    });
+    return res.status(400).json({ error: "agent_id or configured agent_slug required" });
   }
 
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -26,7 +100,7 @@ export async function conversationTokenHandler(req: Request, res: Response) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            agent_id,
+            agent_id: resolved.agentId,
             overrides: { agent: { prompt: { prompt: prompt_override } } },
           }),
         }
@@ -35,14 +109,14 @@ export async function conversationTokenHandler(req: Request, res: Response) {
       if (!resp.ok) {
         const errText = await resp.text();
         console.warn("[conversationToken] signed URL with override failed:", errText);
-        return signedUrlNoOverride(agent_id, ELEVENLABS_API_KEY, res);
+        return signedUrlNoOverride(resolved.agentId, ELEVENLABS_API_KEY, res);
       }
 
       const data = (await resp.json()) as { signed_url?: string };
-      return res.json({ signed_url: data.signed_url });
+      return res.json({ signed_url: data.signed_url, agent_slug: resolved.resolvedSlug, source: resolved.source });
     }
 
-    return signedUrlNoOverride(agent_id, ELEVENLABS_API_KEY, res);
+    return signedUrlNoOverride(resolved.agentId, ELEVENLABS_API_KEY, res);
   } catch (e) {
     return res.status(500).json({ error: (e as Error).message });
   }
