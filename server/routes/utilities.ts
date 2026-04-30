@@ -26,7 +26,9 @@ interface UtilityCompareBody {
 }
 
 function safeString(value: unknown): string {
-  return typeof value === "string" ? value.trim().slice(0, 180) : "";
+  if (typeof value === "string") return value.trim().slice(0, 180);
+  if (typeof value === "number" && Number.isFinite(value)) return String(value).trim().slice(0, 180);
+  return "";
 }
 
 function safeNumber(value: unknown): number | null {
