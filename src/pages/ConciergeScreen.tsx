@@ -1470,13 +1470,13 @@ const ConciergeScreen = () => {
   }
 
   function utilityOptionUrl(result: UtilityComparisonResult): string {
-    return result.provider_url || result.source_url || "";
+    return result.source_url || result.provider_url || "";
   }
 
   function utilityOptionActionLabel(result: UtilityComparisonResult): string {
-    if (result.provider_url) return isSpanish ? "Ver tarifa" : "View tariff";
-    if (result.source === "CNMC") return isSpanish ? "Ver en CNMC" : "View on CNMC";
-    return result.action_label || (isSpanish ? "Abrir comparador oficial" : "Open official comparator");
+    if (result.action_label) return result.action_label;
+    if (result.source === "CNMC") return isSpanish ? "Ver ofertas" : "View offers";
+    return isSpanish ? "Ver opciones" : "View options";
   }
 
   async function handleUtilityResultAction(action: "whatsapp" | "save" | "remind" | "switch") {
@@ -2149,7 +2149,7 @@ const ConciergeScreen = () => {
                       <p className="mt-3 font-body text-[13px] leading-relaxed text-vyva-text-2">{result.price_stability}</p>
                       <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{result.permanence}</p>
                       <span className="mt-2 inline-flex rounded-full bg-[#FBF8F4] px-3 py-1 font-body text-[12px] text-vyva-text-2">
-                        {result.source} · {isSpanish ? "confianza" : "confidence"} {billConfidenceLabel(result.confidence, isSpanish)}
+                        {isSpanish ? "Confianza" : "Confidence"} {billConfidenceLabel(result.confidence, isSpanish)}
                       </span>
                       {optionUrl && (
                         <a

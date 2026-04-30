@@ -178,8 +178,6 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
-      source_url: CNMC_COMPARATOR_URL,
-      action_label: "Abrir comparador oficial",
       confidence: "low" as const,
       notes: option.notes,
     };
@@ -262,9 +260,9 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
         price_stability: /fijo|estable/i.test(details.nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
         green_energy: /verde|renovable/i.test(details.nearby) ? true : null,
         source: "CNMC",
-        source_url: CNMC_COMPARATOR_URL,
+        source_url: /\/comparador\/listado\//.test(pageUrl) ? pageUrl : undefined,
         provider_url: providerUrl || undefined,
-        action_label: providerUrl ? "Ver tarifa" : "Ver en CNMC",
+        action_label: "Ver ofertas",
         confidence: providerUrl ? "high" : "medium",
         notes: ["Extraido del comparador oficial CNMC mediante automatizacion."],
       };
