@@ -600,7 +600,7 @@ async function searchOffers(query: string, locale: string, documentContext?: Bil
   return await res.json() as OffersSearchResponse;
 }
 
-function compressBillImage(file: File): Promise<string> {
+function compressBillImage(file: File, targetChars = 1_500_000): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -610,12 +610,13 @@ function compressBillImage(file: File): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("canvas context unavailable"));
 
-      // Replit sometimes keeps an older ~100kb JSON parser alive after restarts.
-      // Stay under that stricter ceiling so bill reading keeps working while the
-      // backend catches up. The user can still correct missing fields afterward.
-      const targetChars = 80_000;
-      const qualities = [0.7, 0.6, 0.5, 0.42, 0.35, 0.28];
-      const maxSizes = [950, 820, 700, 580, 460];
+      const emergencyMode = targetChars <= 120_000;
+      const qualities = emergencyMode
+        ? [0.48, 0.4, 0.32, 0.24, 0.16, 0.1]
+        : [0.86, 0.78, 0.68, 0.58, 0.48, 0.38];
+      const maxSizes = emergencyMode
+        ? [620, 520, 420, 340, 260, 200, 160]
+        : [1900, 1600, 1300, 1050, 850];
       let best = "";
 
       for (const maxSize of maxSizes) {
@@ -668,9 +669,14 @@ function billReaderEndpoints(): string[] {
   return ["/api/bill-reader/analyze", "/api/offers/analyze-document"];
 }
 
+function billReaderError(message: string, status?: number): Error & { status?: number } {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = status;
+  return error;
+}
+
 async function analyzeBillDocument(image: string, locale: string): Promise<BillDocumentAnalysis> {
   let lastResponse: Response | null = null;
-  let lastEndpoint = "";
 
   for (const endpoint of billReaderEndpoints()) {
     const res = await apiFetch(endpoint, {
@@ -680,7 +686,6 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
 
     if (!res) continue;
     lastResponse = res;
-    lastEndpoint = endpoint;
     if (res.status === 404) continue;
     if (res.ok) return await res.json() as BillDocumentAnalysis;
     break;
@@ -688,7 +693,7 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
 
   const res = lastResponse;
   if (!res) {
-    throw new Error(locale.startsWith("es")
+    throw billReaderError(locale.startsWith("es")
       ? "No he podido conectar con el lector de facturas. Reinicie la app en Replit y pruebe de nuevo."
       : "I could not connect to the bill reader. Restart the app in Replit and try again.");
   }
@@ -696,22 +701,17 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     if (res.status === 404) {
-      throw new Error(locale.startsWith("es")
+      throw billReaderError(locale.startsWith("es")
         ? "El lector de facturas todavia no esta activo en el servidor. Actualice el codigo y reinicie la app en Replit."
-        : "The bill reader is not active on the server yet. Pull the latest code and restart the app in Replit.");
+        : "The bill reader is not active on the server yet. Pull the latest code and restart the app in Replit.", res.status);
     }
     if (res.status === 413) {
       const sizeMb = (image.length / 1024 / 1024).toFixed(1);
-      if (lastEndpoint.includes("/offers/analyze-document")) {
-        throw new Error(locale.startsWith("es")
-          ? "El servidor esta usando una version antigua del lector y rechaza imagenes normales. Actualice el codigo y reinicie la app en Replit."
-          : "The server is using an old bill reader and is rejecting normal images. Pull the latest code and restart the app in Replit.");
-      }
-      throw new Error(locale.startsWith("es")
-        ? `La imagen comprimida sigue siendo demasiado grande (${sizeMb} MB). Pruebe con una captura algo mas pequena.`
-        : `The compressed image is still too large (${sizeMb} MB). Please try a slightly smaller screenshot.`);
+      throw billReaderError(locale.startsWith("es")
+        ? `La imagen no ha podido enviarse al lector (${sizeMb} MB). Voy a intentarlo con una version mas ligera.`
+        : `The image could not be sent to the reader (${sizeMb} MB). I will try a lighter version.`, res.status);
     }
-    throw new Error(data?.error ?? `Request failed: ${res.status}`);
+    throw billReaderError(data?.error ?? `Request failed: ${res.status}`, res.status);
   }
 
   return await res.json() as BillDocumentAnalysis;
@@ -1317,7 +1317,15 @@ const ConciergeScreen = () => {
     setUtilityResult(null);
     try {
       const documentDataUrl = isPdf ? await readFileAsDataUrl(file) : await compressBillImage(file);
-      const analysis = await analyzeBillDocument(documentDataUrl, i18n.language);
+      let analysis: BillDocumentAnalysis;
+      try {
+        analysis = await analyzeBillDocument(documentDataUrl, i18n.language);
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        if (status !== 413 || isPdf) throw err;
+        const emergencyDataUrl = await compressBillImage(file, 75_000);
+        analysis = await analyzeBillDocument(emergencyDataUrl, i18n.language);
+      }
       setBillAnalysis(analysis);
       setOffersQuery(analysis.suggested_query);
       if (!analysis.isFallback && isCnmcUtilityBillDocument(analysis.document_type)) {
