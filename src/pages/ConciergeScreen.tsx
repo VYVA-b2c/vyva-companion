@@ -2198,9 +2198,6 @@ const ConciergeScreen = () => {
                       </div>
                       <p className="mt-3 font-body text-[13px] leading-relaxed text-vyva-text-2">{result.price_stability}</p>
                       <p className="font-body text-[12px] leading-relaxed text-vyva-text-2">{result.permanence}</p>
-                      <span className="mt-2 inline-flex rounded-full bg-[#FBF8F4] px-3 py-1 font-body text-[12px] text-vyva-text-2">
-                        {isSpanish ? "Confianza" : "Confidence"} {billConfidenceLabel(result.confidence, isSpanish)}
-                      </span>
                       {optionUrl && (
                         <a
                           href={optionUrl}
