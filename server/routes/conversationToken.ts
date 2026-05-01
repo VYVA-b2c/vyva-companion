@@ -224,15 +224,18 @@ function resolveSocialAgentId(agentSlug?: string, roomSlug?: string) {
 }
 
 export async function conversationTokenHandler(req: Request, res: Response) {
-  const { agent_id, agent_slug, room_slug, prompt_override } = req.body as {
+  const { agent_id, agent_slug, room_slug } = req.body as {
     agent_id?: string;
     agent_slug?: string;
     room_slug?: string;
-    prompt_override?: string;
   };
 
-  const resolved = agent_id?.trim()
-    ? { agentId: agent_id.trim(), resolvedSlug: normalizeSlug(agent_slug), source: "explicit" }
+  const normalizedRoomSlug = normalizeSlug(room_slug);
+  const explicitAgentId = agent_id?.trim();
+  const resolved = normalizedRoomSlug
+    ? resolveSocialAgentId(agent_slug, normalizedRoomSlug)
+    : explicitAgentId
+    ? { agentId: explicitAgentId, resolvedSlug: normalizeSlug(agent_slug), source: "explicit" }
     : resolveSocialAgentId(agent_slug, room_slug);
 
   if (!resolved.agentId) {
@@ -258,37 +261,9 @@ export async function conversationTokenHandler(req: Request, res: Response) {
   }
 
   try {
-    const shouldUsePromptOverride = Boolean(prompt_override && !room_slug?.trim());
-
-    if (shouldUsePromptOverride) {
-      const resp = await fetch(
-        "https://api.elevenlabs.io/v1/convai/conversation/get_signed_url",
-        {
-          method: "POST",
-          headers: {
-            "xi-api-key": ELEVENLABS_API_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            agent_id: resolved.agentId,
-            overrides: { agent: { prompt: { prompt: prompt_override } } },
-          }),
-        }
-      );
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        console.warn("[conversationToken] signed URL with override failed:", errText);
-        return signedUrlNoOverride(resolved.agentId, ELEVENLABS_API_KEY, res);
-      }
-
-      const data = (await resp.json()) as { signed_url?: string };
-      return res.json({ signed_url: data.signed_url, agent_slug: resolved.resolvedSlug, source: resolved.source });
-    }
-
     return signedUrlNoOverride(resolved.agentId, ELEVENLABS_API_KEY, res, {
       agent_slug: resolved.resolvedSlug,
-      room_slug,
+      room_slug: normalizedRoomSlug,
       source: resolved.source,
     });
   } catch (e) {
