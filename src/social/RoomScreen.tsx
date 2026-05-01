@@ -259,7 +259,14 @@ function getRoomInteractionHint(language: SocialLanguage) {
   return "Puedes escribir, tocar una sugerencia o pulsar Hablar ahora para responder por voz.";
 }
 
-function getRoomVoiceUnavailableLabel(language: SocialLanguage) {
+function getRoomVoiceUnavailableLabel(language: SocialLanguage, error?: string | null) {
+  const missingAgentMatch = error?.match(/(ELEVENLABS_[A-Z0-9_]+_AGENT_ID|ELEVENLABS_AGENT_[A-Z0-9_]+)/);
+  if (missingAgentMatch) {
+    const key = missingAgentMatch[1];
+    if (language === "en") return `This room needs its ElevenLabs agent ID configured: ${key}.`;
+    if (language === "de") return `Für diesen Raum fehlt die ElevenLabs-Agent-ID: ${key}.`;
+    return `Falta configurar el agente de voz de esta sala: ${key}.`;
+  }
   if (language === "en") return "Live voice is not available in this room right now. You can keep writing here.";
   if (language === "de") return "Die Live-Stimme ist in diesem Raum gerade nicht verfügbar. Du kannst hier weiter schreiben.";
   return "La voz en directo no está disponible ahora mismo. Puedes seguir escribiendo aquí.";
@@ -1564,7 +1571,7 @@ const RoomScreen = () => {
 
           {voiceAttempted && agentVoiceError && agentSessionStatus === "idle" && (
             <p className="mt-3 rounded-[20px] border border-[#F4D6BF] bg-[#FFF7ED] px-4 py-3 font-body text-[18px] leading-[1.35] text-[#9A3412]">
-              {getRoomVoiceUnavailableLabel(language)}
+              {getRoomVoiceUnavailableLabel(language, agentVoiceError)}
             </p>
           )}
 
