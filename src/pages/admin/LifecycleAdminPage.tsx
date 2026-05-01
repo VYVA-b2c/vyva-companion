@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type Intake = {
   id: string;
@@ -50,6 +50,34 @@ const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
 const statuses = ["", "created", "link_sent", "consent_pending", "active", "dropped"];
 const tiers = ["trial", "unlimited", "custom"];
+const languageOptions = [
+  { value: "es", label: "Español" },
+  { value: "en", label: "English" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "it", label: "Italiano" },
+  { value: "pt", label: "Português" },
+];
+const timezoneOptions = ["Europe/Madrid", "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Rome", "Europe/Lisbon"];
+const countryCodeOptions = ["+34 ES", "+44 UK", "+33 FR", "+49 DE", "+39 IT", "+351 PT", "+1 US"];
+
+const emptyIntakeForm = {
+  first_name: "",
+  last_name: "",
+  preferred_name: "",
+  date_of_birth: "",
+  gender: "prefer_not_to_say",
+  country_code: "+34 ES",
+  phone: "",
+  whatsapp: "",
+  email: "",
+  language: "es",
+  timezone: "Europe/Madrid",
+  user_type: "elder",
+  entry_point: "form",
+  tier: "trial",
+  organization_id: "",
+};
 
 export default function LifecycleAdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
@@ -61,15 +89,7 @@ export default function LifecycleAdminPage() {
   const [consentAttempts, setConsentAttempts] = useState<ConsentAttempt[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [message, setMessage] = useState("");
-  const [newIntake, setNewIntake] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    user_type: "elder",
-    entry_point: "form",
-    tier: "trial",
-    organization_id: "",
-  });
+  const [newIntake, setNewIntake] = useState(emptyIntakeForm);
   const [newOrg, setNewOrg] = useState({ name: "", default_tier: "trial" });
 
   const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
@@ -109,16 +129,37 @@ export default function LifecycleAdminPage() {
 
   async function createIntake() {
     setMessage("");
+    const fullName = `${newIntake.first_name.trim()} ${newIntake.last_name.trim()}`.trim();
+    const [callingCode, countryCode = "ES"] = newIntake.country_code.split(" ");
+    const phone = `${callingCode} ${newIntake.phone.trim()}`.trim();
     const data = await api("/intakes", {
       method: "POST",
       body: JSON.stringify({
-        ...newIntake,
+        name: fullName,
+        phone,
         organization_id: newIntake.organization_id || null,
         email: newIntake.email || undefined,
+        user_type: newIntake.user_type,
+        entry_point: newIntake.entry_point,
+        tier: newIntake.tier,
+        metadata: {
+          first_name: newIntake.first_name.trim(),
+          last_name: newIntake.last_name.trim(),
+          preferred_name: newIntake.preferred_name.trim(),
+          date_of_birth: newIntake.date_of_birth,
+          gender: newIntake.gender,
+          calling_code: callingCode,
+          country_code: countryCode,
+          phone_number: phone,
+          whatsapp_number: newIntake.whatsapp.trim() || phone,
+          email: newIntake.email.trim(),
+          language: newIntake.language,
+          timezone: newIntake.timezone,
+        },
       }),
     });
     setMessage(`Intake creado para ${data.intake.name}.`);
-    setNewIntake({ name: "", phone: "", email: "", user_type: "elder", entry_point: "form", tier: "trial", organization_id: "" });
+    setNewIntake(emptyIntakeForm);
     await refresh();
   }
 
@@ -248,10 +289,58 @@ export default function LifecycleAdminPage() {
           <section className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
             <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
               <h2 className="font-serif text-3xl">Create intake</h2>
+              <p className="mt-2 text-sm text-[#7d6b65]">Basic profile details, matching the user settings form.</p>
               <div className="mt-4 grid gap-3">
-                <input className="rounded-2xl border px-4 py-3" placeholder="Name" value={newIntake.name} onChange={(e) => setNewIntake({ ...newIntake, name: e.target.value })} />
-                <input className="rounded-2xl border px-4 py-3" placeholder="Phone" value={newIntake.phone} onChange={(e) => setNewIntake({ ...newIntake, phone: e.target.value })} />
-                <input className="rounded-2xl border px-4 py-3" placeholder="Email optional" value={newIntake.email} onChange={(e) => setNewIntake({ ...newIntake, email: e.target.value })} />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Nombre" required>
+                    <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.first_name} onChange={(e) => setNewIntake({ ...newIntake, first_name: e.target.value })} />
+                  </Field>
+                  <Field label="Apellidos" required>
+                    <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.last_name} onChange={(e) => setNewIntake({ ...newIntake, last_name: e.target.value })} />
+                  </Field>
+                </div>
+                <Field label="Nombre preferido (como le llama VYVA)" optional>
+                  <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.preferred_name} onChange={(e) => setNewIntake({ ...newIntake, preferred_name: e.target.value })} />
+                </Field>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Fecha de nacimiento" optional>
+                    <input className="w-full rounded-2xl border px-4 py-3" type="date" value={newIntake.date_of_birth} onChange={(e) => setNewIntake({ ...newIntake, date_of_birth: e.target.value })} />
+                  </Field>
+                  <Field label="Género" optional>
+                    <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.gender} onChange={(e) => setNewIntake({ ...newIntake, gender: e.target.value })}>
+                      <option value="prefer_not_to_say">Prefiero no decirlo</option>
+                      <option value="female">Femenino</option>
+                      <option value="male">Masculino</option>
+                      <option value="non_binary">No binario</option>
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Número de teléfono" required>
+                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                    <select className="rounded-2xl border px-3 py-3" value={newIntake.country_code} onChange={(e) => setNewIntake({ ...newIntake, country_code: e.target.value })}>
+                      {countryCodeOptions.map((value) => <option key={value}>{value}</option>)}
+                    </select>
+                    <input className="rounded-2xl border px-4 py-3" placeholder="612 345 678" value={newIntake.phone} onChange={(e) => setNewIntake({ ...newIntake, phone: e.target.value })} />
+                  </div>
+                </Field>
+                <Field label="WhatsApp (si es diferente)" optional>
+                  <input className="w-full rounded-2xl border px-4 py-3" placeholder="Dejar en blanco si es el mismo" value={newIntake.whatsapp} onChange={(e) => setNewIntake({ ...newIntake, whatsapp: e.target.value })} />
+                </Field>
+                <Field label="Correo electrónico" optional>
+                  <input className="w-full rounded-2xl border px-4 py-3" placeholder="tu@correo.com" value={newIntake.email} onChange={(e) => setNewIntake({ ...newIntake, email: e.target.value })} />
+                </Field>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Idioma" optional>
+                    <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.language} onChange={(e) => setNewIntake({ ...newIntake, language: e.target.value })}>
+                      {languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Zona horaria" optional>
+                    <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.timezone} onChange={(e) => setNewIntake({ ...newIntake, timezone: e.target.value })}>
+                      {timezoneOptions.map((value) => <option key={value}>{value}</option>)}
+                    </select>
+                  </Field>
+                </div>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.user_type} onChange={(e) => setNewIntake({ ...newIntake, user_type: e.target.value })}>
                   {userTypes.filter(Boolean).map((v) => <option key={v}>{v}</option>)}
                 </select>
@@ -265,7 +354,7 @@ export default function LifecycleAdminPage() {
                   <option value="">No organization</option>
                   {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                 </select>
-                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={createIntake}>Create</button>
+                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={!newIntake.first_name.trim() || !newIntake.last_name.trim() || !newIntake.phone.trim()} onClick={createIntake}>Create</button>
               </div>
             </div>
             <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
@@ -354,6 +443,28 @@ export default function LifecycleAdminPage() {
         )}
       </section>
     </main>
+  );
+}
+
+function Field({
+  label,
+  required,
+  optional,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 flex justify-between text-sm font-bold text-[#4d4351]">
+        <span>{label}{required ? " *" : ""}</span>
+        {optional && <span className="font-normal text-purple-700">Optional</span>}
+      </span>
+      {children}
+    </label>
   );
 }
 

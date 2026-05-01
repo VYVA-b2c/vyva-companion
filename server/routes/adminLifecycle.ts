@@ -147,6 +147,7 @@ async function ensurePasswordlessUser(input: {
   email?: string | null;
   tier: string;
   organizationId?: string | null;
+  profile?: Record<string, unknown>;
 }) {
   const email = (input.email || syntheticEmailForPhone(input.phone)).toLowerCase();
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -155,20 +156,42 @@ async function ensurePasswordlessUser(input: {
     password_hash: placeholderPasswordHash(),
   }).returning())[0];
 
+  const preferredName = typeof input.profile?.preferred_name === "string" && input.profile.preferred_name.trim()
+    ? input.profile.preferred_name.trim()
+    : input.name.split(" ")[0] ?? input.name;
+  const dateOfBirth = typeof input.profile?.date_of_birth === "string" ? input.profile.date_of_birth : null;
+  const language = typeof input.profile?.language === "string" && input.profile.language ? input.profile.language : "es";
+  const timezone = typeof input.profile?.timezone === "string" && input.profile.timezone ? input.profile.timezone : "Europe/Madrid";
+  const countryCode = typeof input.profile?.country_code === "string" && input.profile.country_code ? input.profile.country_code : "ES";
+  const whatsappNumber = typeof input.profile?.whatsapp_number === "string" && input.profile.whatsapp_number.trim()
+    ? input.profile.whatsapp_number.trim()
+    : normalizePhone(input.phone);
+
   await db.insert(profiles).values({
     id: user.id,
     full_name: input.name,
-    preferred_name: input.name.split(" ")[0] ?? input.name,
+    preferred_name: preferredName,
+    date_of_birth: dateOfBirth,
+    language,
     phone_number: normalizePhone(input.phone),
+    whatsapp_number: whatsappNumber,
     email: input.email || null,
+    country_code: countryCode,
+    timezone,
     subscription_tier: input.tier,
     subscription_status: "active",
   } as typeof profiles.$inferInsert).onConflictDoUpdate({
     target: profiles.id,
     set: {
       full_name: input.name,
+      preferred_name: preferredName,
+      date_of_birth: dateOfBirth,
+      language,
       phone_number: normalizePhone(input.phone),
+      whatsapp_number: whatsappNumber,
       email: input.email || null,
+      country_code: countryCode,
+      timezone,
       subscription_tier: input.tier,
       updated_at: new Date(),
     },
@@ -242,6 +265,7 @@ adminLifecycleRouter.post("/intakes", async (req: Request, res: Response) => {
     email: elderEmail || null,
     tier: data.tier,
     organizationId: data.organization_id ?? null,
+    profile: data.user_type === "family" ? (data.metadata?.elder_profile as Record<string, unknown> | undefined) : data.metadata,
   });
 
   let familyUserId: string | null = null;
@@ -252,6 +276,7 @@ adminLifecycleRouter.post("/intakes", async (req: Request, res: Response) => {
       email: data.email || null,
       tier: data.tier,
       organizationId: data.organization_id ?? null,
+      profile: data.metadata,
     });
     familyUserId = familyUser.id;
   }
