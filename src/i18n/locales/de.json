@@ -182,7 +182,8 @@
         "label": "Concierge",
         "hint": "Hilfe anfordern"
       }
-    }
+    },
+    "whatNow": "Was machen wir jetzt?"
   },
   "voiceHero": {
     "talkToVyva": "Mit VYVA sprechen",
@@ -958,6 +959,11 @@
       "saving": "Wird gespeichert…",
       "continue": "Weiter",
       "placeholderName": "z.B. Maria Müller"
+    },
+    "sectionFallback": {
+      "title": "Demnächst",
+      "subtitle": "Dieser Bereich ist bald verfügbar.",
+      "back": "Zurück zum Profil"
     }
   },
   "weather": {
@@ -1250,5 +1256,11 @@
       "Es ist immer jemand da",
       "Du bist hier willkommen"
     ]
+  },
+  "sos": {
+    "title": "Notfallalarm senden?",
+    "description": "Wir benachrichtigen Ihre Notfallkontakte und können in Ihrem Namen den Notdienst kontaktieren.",
+    "cancel": "Abbrechen",
+    "sendNow": "Alarm jetzt senden"
   }
 }

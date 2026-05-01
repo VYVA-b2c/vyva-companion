@@ -9,7 +9,7 @@ const BottomNav = ({ onSosClick }: { onSosClick: () => void }) => {
 
   const tabs = [
     { path: "/", label: t("nav.home"), icon: House },
-    { path: "/informes", label: t("informes.title", "Reports"), icon: ClipboardList },
+    { path: "/informes", label: t("informes.title", "Mis informes"), icon: ClipboardList },
   ] as const;
 
   return (

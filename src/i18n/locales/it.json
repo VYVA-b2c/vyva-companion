@@ -182,7 +182,8 @@
         "label": "Concierge",
         "hint": "Chiedi aiuto"
       }
-    }
+    },
+    "whatNow": "Cosa facciamo adesso?"
   },
   "voiceHero": {
     "talkToVyva": "Parla con VYVA",
@@ -958,6 +959,11 @@
       "saving": "Salvataggio…",
       "continue": "Continua",
       "placeholderName": "es. Maria Rossi"
+    },
+    "sectionFallback": {
+      "title": "Prossimamente",
+      "subtitle": "Questa sezione sarà disponibile presto.",
+      "back": "Torna al profilo"
     }
   },
   "weather": {
@@ -1250,5 +1256,11 @@
       "C e sempre qualcuno",
       "Sei il benvenuto qui"
     ]
+  },
+  "sos": {
+    "title": "Inviare un avviso di emergenza?",
+    "description": "Avviseremo i tuoi contatti di emergenza e potremo contattare i servizi di emergenza per tuo conto.",
+    "cancel": "Annulla",
+    "sendNow": "Invia avviso ora"
   }
 }

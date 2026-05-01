@@ -5,10 +5,20 @@ import vyvaLogo from "@/assets/vyva-logo.png";
 
 const StatusBar = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const now = new Date();
-  const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const localeByLanguage: Record<string, string> = {
+    es: "es-ES",
+    en: "en-GB",
+    fr: "fr-FR",
+    de: "de-DE",
+    it: "it-IT",
+    pt: "pt-PT",
+  };
+  const languageCode = i18n.language.split("-")[0];
+  const locale = localeByLanguage[languageCode] ?? "es-ES";
+  const time = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const date = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div className="fixed left-1/2 top-0 z-50 w-full max-w-[520px] -translate-x-1/2 border-b border-vyva-border bg-white/95 px-[22px] py-2.5 backdrop-blur">

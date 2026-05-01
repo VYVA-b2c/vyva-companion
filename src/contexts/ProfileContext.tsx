@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import i18n, { LANGUAGE_STORAGE_KEY } from "@/i18n/index";
 import { SUPPORTED_LANGUAGES } from "@/i18n/detectLanguage";
+import type { LanguageCode } from "@/i18n/languages";
 
 interface ProfileData {
   firstName: string;
@@ -29,6 +30,34 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
+function normalizeProfileLanguage(language?: string | null): LanguageCode | null {
+  if (!language) return null;
+
+  const raw = language.trim().toLowerCase();
+  if (SUPPORTED_LANGUAGES.includes(raw as LanguageCode)) return raw as LanguageCode;
+
+  const normalized = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const languageAliases: Record<string, LanguageCode> = {
+    espanol: "es",
+    spanish: "es",
+    castellano: "es",
+    ingles: "en",
+    english: "en",
+    francais: "fr",
+    frances: "fr",
+    french: "fr",
+    deutsch: "de",
+    aleman: "de",
+    german: "de",
+    italiano: "it",
+    italian: "it",
+    portugues: "pt",
+    portuguese: "pt",
+  };
+
+  return languageAliases[normalized] ?? null;
+}
+
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading } = useQuery<ProfileData | null>({
     queryKey: ["/api/profile"],
@@ -45,8 +74,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       .join("") || "";
 
   useEffect(() => {
-    const lang = profile?.language;
-    if (!lang || !SUPPORTED_LANGUAGES.includes(lang)) return;
+    const lang = normalizeProfileLanguage(profile?.language);
+    if (!lang) return;
     if (lang !== i18n.language) {
       i18n.changeLanguage(lang);
     }

@@ -182,7 +182,8 @@
         "label": "Concierge",
         "hint": "Pedir ajuda"
       }
-    }
+    },
+    "whatNow": "O que fazemos agora?"
   },
   "voiceHero": {
     "talkToVyva": "Falar com VYVA",
@@ -958,6 +959,11 @@
       "saving": "A guardar…",
       "continue": "Continuar",
       "placeholderName": "ex. Maria Silva"
+    },
+    "sectionFallback": {
+      "title": "Em breve",
+      "subtitle": "Esta secção estará disponível em breve.",
+      "back": "Voltar ao perfil"
     }
   },
   "weather": {
@@ -1250,5 +1256,11 @@
       "Ha sempre alguem aqui",
       "E bem-vindo aqui"
     ]
+  },
+  "sos": {
+    "title": "Enviar alerta de emergência?",
+    "description": "Vamos avisar os seus contactos de emergência e podemos contactar os serviços de emergência em seu nome.",
+    "cancel": "Cancelar",
+    "sendNow": "Enviar alerta agora"
   }
 }

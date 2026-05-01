@@ -182,7 +182,8 @@
         "label": "Concierge",
         "hint": "Pedir ayuda"
       }
-    }
+    },
+    "whatNow": "¿Qué hacemos ahora?"
   },
   "voiceHero": {
     "talkToVyva": "Hablar con VYVA",
@@ -438,23 +439,23 @@
       "langPt": "Português",
       "tzMadrid": "España (Madrid)",
       "tzBerlin": "Alemania (Berlín)",
-        "tzLondon": "Reino Unido (Londres)",
-        "required": "Obligatorio",
-        "optional": "Opcional",
-        "minimumInfoTitle": "Para empezar, completa los datos obligatorios.",
-        "minimumInfoHint": "El nombre, los apellidos y el numero de telefono son obligatorios para usar VYVA.",
-        "firstName": "Nombre",
-        "lastName": "Apellidos",
-        "firstNamePlaceholder": "Escribe el nombre",
-        "lastNamePlaceholder": "Escribe los apellidos",
-        "firstNameRequired": "El nombre es obligatorio.",
-        "lastNameRequired": "Los apellidos son obligatorios.",
-        "phoneRequired": "El numero de telefono es obligatorio.",
-        "requiredFieldsMissing": "Completa los campos obligatorios.",
-        "saved": "Datos de la cuenta guardados",
-        "saveError": "No se pudieron guardar los datos de la cuenta",
-        "defaultName": "Maria"
-      }
+      "tzLondon": "Reino Unido (Londres)",
+      "required": "Obligatorio",
+      "optional": "Opcional",
+      "minimumInfoTitle": "Para empezar, completa los datos obligatorios.",
+      "minimumInfoHint": "El nombre, los apellidos y el numero de telefono son obligatorios para usar VYVA.",
+      "firstName": "Nombre",
+      "lastName": "Apellidos",
+      "firstNamePlaceholder": "Escribe el nombre",
+      "lastNamePlaceholder": "Escribe los apellidos",
+      "firstNameRequired": "El nombre es obligatorio.",
+      "lastNameRequired": "Los apellidos son obligatorios.",
+      "phoneRequired": "El numero de telefono es obligatorio.",
+      "requiredFieldsMissing": "Completa los campos obligatorios.",
+      "saved": "Datos de la cuenta guardados",
+      "saveError": "No se pudieron guardar los datos de la cuenta",
+      "defaultName": "Maria"
+    }
   },
   "health": {
     "voiceSource": "VYVA controla tu salud",
@@ -973,6 +974,11 @@
       "saving": "Guardando…",
       "continue": "Continuar",
       "placeholderName": "p. ej. María García"
+    },
+    "sectionFallback": {
+      "title": "Próximamente",
+      "subtitle": "Esta sección estará disponible pronto.",
+      "back": "Volver al perfil"
     }
   },
   "weather": {
@@ -1324,5 +1330,11 @@
       "duration": "Duración de la sesión",
       "chatCta": "Hablar con VYVA"
     }
+  },
+  "sos": {
+    "title": "¿Enviar alerta de emergencia?",
+    "description": "Avisaremos a sus contactos de emergencia y podremos contactar con servicios de emergencia en su nombre.",
+    "cancel": "Cancelar",
+    "sendNow": "Enviar alerta ahora"
   }
 }

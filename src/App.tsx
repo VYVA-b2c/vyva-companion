@@ -2,6 +2,7 @@ import type React from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Route, Routes, useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -89,6 +90,7 @@ const SECTION_MAP: Record<string, React.ComponentType> = {
 function SectionRouter() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const Section = id ? SECTION_MAP[id] : null;
 
   if (Section) return <Section />;
@@ -96,13 +98,13 @@ function SectionRouter() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#f5f3f8] gap-4 px-6 text-center">
       <span className="text-5xl">🚧</span>
-      <h2 className="text-xl font-bold text-gray-900">Coming soon</h2>
-      <p className="text-sm text-gray-500">This section is on its way!</p>
+      <h2 className="text-xl font-bold text-gray-900">{t("onboarding.sectionFallback.title")}</h2>
+      <p className="text-sm text-gray-500">{t("onboarding.sectionFallback.subtitle")}</p>
       <button
         onClick={() => navigate("/onboarding/profile")}
         className="mt-2 px-6 py-3 rounded-full bg-[#6b21a8] text-white text-sm font-semibold"
       >
-        Back to profile
+        {t("onboarding.sectionFallback.back")}
       </button>
     </div>
   );

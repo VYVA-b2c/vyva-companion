@@ -109,8 +109,9 @@ function readStoredLanguage(): LanguageCode {
     return legacyStored;
   }
 
-  persistLanguage(DEFAULT_LANGUAGE);
-  return detectBrowserLanguage();
+  const detectedLanguage = detectBrowserLanguage();
+  persistLanguage(detectedLanguage);
+  return detectedLanguage;
 }
 
 let currentLanguage: LanguageCode = readStoredLanguage();

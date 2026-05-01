@@ -282,7 +282,7 @@ const HomeScreen = () => {
       />
 
       <div className="mt-[22px]">
-        <p className="font-body text-[16px] font-semibold text-vyva-text-2 mb-4">¿Qué hacemos ahora?</p>
+        <p className="font-body text-[16px] font-semibold text-vyva-text-2 mb-4">{t("home.whatNow")}</p>
         <div className="grid grid-cols-2 gap-3">
           {QUICK_TILES.map((tile) => (
             <button

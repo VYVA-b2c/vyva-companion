@@ -182,7 +182,8 @@
         "label": "Concierge",
         "hint": "Obtenir de l'aide"
       }
-    }
+    },
+    "whatNow": "Que faisons-nous maintenant ?"
   },
   "voiceHero": {
     "talkToVyva": "Parler à VYVA",
@@ -438,23 +439,23 @@
       "langPt": "Português",
       "tzMadrid": "Espagne (Madrid)",
       "tzBerlin": "Allemagne (Berlin)",
-        "tzLondon": "Royaume-Uni (Londres)",
-        "required": "Obligatoire",
-        "optional": "Optionnel",
-        "minimumInfoTitle": "Pour commencer, veuillez remplir les informations obligatoires.",
-        "minimumInfoHint": "Le prenom, le nom et le numero de telephone sont obligatoires pour utiliser VYVA.",
-        "firstName": "Prenom",
-        "lastName": "Nom",
-        "firstNamePlaceholder": "Entrez le prenom",
-        "lastNamePlaceholder": "Entrez le nom",
-        "firstNameRequired": "Le prenom est obligatoire.",
-        "lastNameRequired": "Le nom est obligatoire.",
-        "phoneRequired": "Le numero de telephone est obligatoire.",
-        "requiredFieldsMissing": "Veuillez remplir les champs obligatoires.",
-        "saved": "Informations du compte enregistrees",
-        "saveError": "Impossible d'enregistrer les informations du compte",
-        "defaultName": "Maria"
-      }
+      "tzLondon": "Royaume-Uni (Londres)",
+      "required": "Obligatoire",
+      "optional": "Optionnel",
+      "minimumInfoTitle": "Pour commencer, veuillez remplir les informations obligatoires.",
+      "minimumInfoHint": "Le prenom, le nom et le numero de telephone sont obligatoires pour utiliser VYVA.",
+      "firstName": "Prenom",
+      "lastName": "Nom",
+      "firstNamePlaceholder": "Entrez le prenom",
+      "lastNamePlaceholder": "Entrez le nom",
+      "firstNameRequired": "Le prenom est obligatoire.",
+      "lastNameRequired": "Le nom est obligatoire.",
+      "phoneRequired": "Le numero de telephone est obligatoire.",
+      "requiredFieldsMissing": "Veuillez remplir les champs obligatoires.",
+      "saved": "Informations du compte enregistrees",
+      "saveError": "Impossible d'enregistrer les informations du compte",
+      "defaultName": "Maria"
+    }
   },
   "health": {
     "voiceSource": "VYVA surveille votre santé",
@@ -973,6 +974,11 @@
       "saving": "Enregistrement…",
       "continue": "Continuer",
       "placeholderName": "ex. Marie Dupont"
+    },
+    "sectionFallback": {
+      "title": "Bientôt disponible",
+      "subtitle": "Cette section sera bientôt disponible.",
+      "back": "Retour au profil"
     }
   },
   "weather": {
@@ -1265,5 +1271,11 @@
       "Quelqu un est toujours la",
       "Vous etes le bienvenu ici"
     ]
+  },
+  "sos": {
+    "title": "Envoyer une alerte d'urgence ?",
+    "description": "Nous préviendrons vos contacts d'urgence et pourrons contacter les services d'urgence en votre nom.",
+    "cancel": "Annuler",
+    "sendNow": "Envoyer l'alerte"
   }
 }

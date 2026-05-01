@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import StatusBar from "./StatusBar";
 import BottomNav from "./BottomNav";
@@ -8,6 +9,8 @@ const FULL_SCREEN_ROUTES = ["/chat"];
 const WIDE_ROUTES = ["/social-rooms"];
 
 const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
+  const { t } = useTranslation();
+
   if (!open) return null;
 
   return (
@@ -27,9 +30,9 @@ const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
           <AlertCircle size={28} style={{ color: "#B91C1C" }} />
         </div>
 
-        <h3 className="mb-1 text-center font-display text-[22px] text-vyva-text-1">Send emergency alert?</h3>
+        <h3 className="mb-1 text-center font-display text-[22px] text-vyva-text-1">{t("sos.title")}</h3>
         <p className="mb-6 px-2 text-center font-body text-[14px] text-vyva-text-2">
-          This will notify Sarah &amp; James and contact emergency services on your behalf.
+          {t("sos.description")}
         </p>
 
         <div className="flex gap-3">
@@ -38,7 +41,7 @@ const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
             className="vyva-secondary-action flex-1"
             data-testid="button-sos-cancel"
           >
-            Cancel
+            {t("sos.cancel")}
           </button>
           <button
             onClick={() => onOpenChange(false)}
@@ -46,7 +49,7 @@ const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
             style={{ background: "#B91C1C" }}
             data-testid="button-sos-confirm"
           >
-            Send alert now
+            {t("sos.sendNow")}
           </button>
         </div>
       </div>
