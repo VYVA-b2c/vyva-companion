@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import { profiles, utilityReviewRuns } from "../../shared/schema.js";
 import {
-  buildCnmcResultsUrl,
   compareWithCnmc,
   type NormalizedUtilityInput,
   type UtilityComparisonResult,
@@ -295,11 +294,9 @@ router.post("/compare", async (req: Request, res: Response) => {
     });
 
     const estimated = normalized.missing_fields.some((field) => field.startsWith("estimated:"));
-    const generatedCnmcUrl = buildCnmcResultsUrl(normalized);
     const sourceUrl =
       comparison.results.find((result) => isUsefulComparisonUrl(result.source_url))?.source_url
       ?? comparison.results.find((result) => isUsefulComparisonUrl(result.provider_url))?.provider_url
-      ?? (isUsefulComparisonUrl(generatedCnmcUrl) ? generatedCnmcUrl : "")
       ?? "";
 
     return res.json({

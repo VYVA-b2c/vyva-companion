@@ -52,18 +52,10 @@ function monthlyBaseline(input: NormalizedUtilityInput): number {
 }
 
 const CNMC_COMPARATOR_URL = "https://comparador.cnmc.gob.es/";
-const CNMC_RESULTS_URL_ENV =
-  process.env.CNMC_RESULTS_URL?.trim()
-  || process.env.VITE_CNMC_RESULTS_URL?.trim()
-  || "";
 
 function isCnmcResultsUrl(url?: string): boolean {
   return !!url && /^https:\/\/comparador\.cnmc\.gob\.es\/comparador\/listado\//i.test(url);
 }
-
-const CNMC_RESULTS_FALLBACK_URL = isCnmcResultsUrl(CNMC_RESULTS_URL_ENV)
-  ? CNMC_RESULTS_URL_ENV
-  : "";
 
 function isNumeric(value: unknown): value is number | string {
   return value !== null && value !== undefined && value !== "" && !Number.isNaN(Number(value));
@@ -120,6 +112,16 @@ function annualizeConsumption(input: NormalizedUtilityInput, utility: "electrici
   return Math.max(1, Math.round(raw));
 }
 
+function annualGasConsumption(input: NormalizedUtilityInput, utilityType: "E" | "G" | "C"): number {
+  if (utilityType === "E") return 6000;
+  if (utilityType === "C") {
+    // V1 extracts a single consumption value from most bills. For dual links,
+    // treat that value as electricity and use CNMC's common gas default.
+    return 6000;
+  }
+  return annualizeConsumption(input, "gas");
+}
+
 function splitAnnualElectricityConsumption(total: number) {
   const first = Math.round(total * 0.2865);
   const second = Math.round(total * 0.2458);
@@ -141,7 +143,7 @@ export function buildCnmcResultsUrl(input: NormalizedUtilityInput): string {
   if (postcode.length !== 5) return "";
   const utilityType = input.utility_type === "gas" ? "G" : input.utility_type === "dual" ? "C" : "E";
   const annualElectricity = utilityType === "G" ? 2600 : annualizeConsumption(input, "electricity");
-  const annualGas = utilityType === "E" ? 6000 : annualizeConsumption(input, "gas");
+  const annualGas = annualGasConsumption(input, utilityType);
   const electricitySplit = splitAnnualElectricityConsumption(annualElectricity);
   const power = input.power_kw ?? 3.5;
 
@@ -234,6 +236,192 @@ interface CandidateLink {
   href: string;
 }
 
+interface CnmcApiOffer {
+  comercializadora?: string;
+  oferta?: string;
+  importePrimerAnio?: number;
+  importeSegundoAnio?: number;
+  validez?: string;
+  penalizacion?: boolean;
+  verde?: boolean;
+  serviciosAdicionales?: boolean;
+  tipoRevision?: number;
+}
+
+function buildCnmcApiUrl(input: NormalizedUtilityInput): string {
+  const utilityType = input.utility_type === "gas" ? "G" : input.utility_type === "dual" ? "C" : "E";
+  const endpoint = input.utility_type === "gas" ? "gas" : input.utility_type === "dual" ? "conjuntas" : "electricidad";
+  const postcode = input.postcode?.replace(/\D/g, "").slice(0, 5) || "00000";
+  const annualElectricity = utilityType === "G" ? 2600 : annualizeConsumption(input, "electricity");
+  const annualGas = annualGasConsumption(input, utilityType);
+  const electricitySplit = splitAnnualElectricityConsumption(annualElectricity);
+  const power = input.power_kw ?? 3.5;
+
+  const params: Record<string, string | number | boolean> = {
+    tipoSuministro: utilityType,
+    codigoPostal: postcode,
+    potencia: power,
+    potenciaPrimeraFranja: power,
+    potenciaSegundaFranja: power,
+    potenciaTerceraFranja: power,
+    potenciaCuartaFranja: power,
+    potenciaQuintaFranja: power,
+    potenciaSextaFranja: power,
+    consumoAnualE: annualElectricity,
+    consumoAnualEOrig: annualElectricity,
+    consumoPrimeraFranja: electricitySplit.first,
+    consumoSegundaFranja: electricitySplit.second,
+    consumoTerceraFranja: electricitySplit.third,
+    consumoCuartaFranja: 0,
+    consumoQuintaFranja: 0,
+    consumoSextaFranja: 0,
+    consumoAnualEQr: 0,
+    consumoPrimeraFranjaQr: 0,
+    consumoSegundaFranjaQr: 0,
+    consumoTerceraFranjaQr: 0,
+    consumoCuartaFranjaQr: 0,
+    consumoQuintaFranjaQr: 0,
+    consumoSextaFranjaQr: 0,
+    consumoAnualEPQr: 0,
+    consumoPrimeraFranjaPQr: 0,
+    consumoSegundaFranjaPQr: 0,
+    consumoTerceraFranjaPQr: 0,
+    consumoCuartaFranjaPQr: 0,
+    consumoQuintaFranjaPQr: 0,
+    consumoSextaFranjaPQr: 0,
+    tarifa: 4,
+    consumoAnualG: annualGas,
+    consumoAnualGOrig: annualGas,
+    serviciosAdicionales: 2,
+    permanencia: 2,
+    vivienda: true,
+    factura: false,
+    energiaAutoconsumo: 0,
+    idAuditoriaQR: 0,
+    potenciaAutoconsumo: 3.5,
+    revisionPrecios: 2,
+    importe: 0,
+    tc: 0,
+    bs: 0,
+    impSA: 0,
+    impOtros: 0,
+    exc: 0,
+    reg: 0,
+    mecanismoAjuste: 0,
+    importeMecanismoAjustePunta: 0,
+    importeMecanismoAjusteLlano: 0,
+    importeMecanismoAjusteValle: 0,
+    precioConsumoMecanismoAjustePunta: 0,
+    precioConsumoMecanismoAjusteLlano: 0,
+    precioConsumoMecanismoAjusteValle: 0,
+    precioConsumoMecanismoAjusteTotal: 0,
+    mecanismoAjusteIVA: 0,
+    impOtrosConIE: 0,
+    impOtrosSinIE: 0,
+    pmaxP1: 0,
+    pmaxP2: 0,
+    dtoBS: 0,
+    finBS: 0,
+    ajuste: 0,
+    impPot: 0,
+    impEner: 0,
+    dto: 0,
+    prP1: 0,
+    prP2: 0,
+    prE1: 0,
+    prE2: 0,
+    prE3: 0,
+    cfP1flex: 0,
+    cfP2flex: 0,
+    cambio: 0,
+    promo: 0,
+    verde: 0,
+    rev: 0,
+    trampeo: 0,
+    perfilConsumo: 10,
+    cups: input.cups || "0000",
+    autoconsumo: false,
+  };
+
+  return `${CNMC_COMPARATOR_URL}api/publico/ofertas/${endpoint}?${new URLSearchParams(
+    Object.entries(params).map(([key, value]) => [key, String(value)]),
+  ).toString()}&`;
+}
+
+function extractCnmcApiOffers(payload: unknown, utilityType: UtilityType): CnmcApiOffer[] {
+  const data = payload as Record<string, unknown>;
+  const direct = [
+    data.resultadoComparador,
+    data.resultadoComparadorSinAjustePrecio,
+    data.resultadoComparadorConAjustePrecio,
+  ].filter(Array.isArray).flat() as CnmcApiOffer[];
+
+  if (utilityType !== "dual") return direct;
+
+  const jointContainers = [
+    data.resultadoComparadorConjuntas,
+    data.resultadoComparadorConjuntasSinAjustePrecio,
+    data.resultadoComparadorConjuntasConAjustePrecio,
+  ].filter((value): value is Record<string, unknown> => !!value && typeof value === "object");
+
+  const joint = jointContainers
+    .flatMap((container) => Array.isArray(container.ofertasConjuntas) ? container.ofertasConjuntas : []) as CnmcApiOffer[];
+
+  return joint.length ? joint : direct;
+}
+
+function cnmcRevisionLabel(value: number | undefined): string {
+  if (value === 5) return "Revisión de precios anual";
+  if (value === 2) return "Precio regulado o revisión limitada";
+  return "Condiciones indicadas por CNMC";
+}
+
+async function fetchCnmcApiResults(input: NormalizedUtilityInput): Promise<UtilityComparisonResult[]> {
+  const response = await fetch(buildCnmcApiUrl(input), {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`CNMC API returned ${response.status}`);
+
+  const payload = await response.json();
+  const offers = extractCnmcApiOffers(payload, input.utility_type)
+    .filter((offer) => offer && offer.comercializadora && offer.oferta && isNumeric(offer.importePrimerAnio));
+
+  if (!offers.length) throw new Error("CNMC API returned no offer rows");
+
+  const current = monthlyBaseline(input);
+  const seen = new Set<string>();
+  const results = offers
+    .map((offer): UtilityComparisonResult => {
+      const annual = Number(offer.importePrimerAnio);
+      const monthly = Number((annual / 12).toFixed(2));
+      const key = `${offer.comercializadora}|${offer.oferta}|${annual}`;
+      seen.add(key);
+      return {
+        provider: cleanResultLine(offer.comercializadora || "Proveedor CNMC"),
+        tariff_name: cleanResultLine(offer.oferta || "Oferta CNMC"),
+        estimated_monthly_cost: monthly,
+        estimated_annual_cost: Number(annual.toFixed(2)),
+        estimated_monthly_savings: Number(Math.max(0, current - monthly).toFixed(2)),
+        contract_type: "Comparador oficial CNMC",
+        permanence: offer.penalizacion ? "Puede incluir penalización" : "Sin penalización detectada",
+        price_stability: cnmcRevisionLabel(offer.tipoRevision),
+        green_energy: offer.verde ?? null,
+        source: "CNMC",
+        confidence: "high",
+        notes: [
+          offer.validez || "Oferta publicada por el comparador oficial CNMC.",
+          offer.serviciosAdicionales ? "Incluye servicios adicionales; conviene revisarlos." : "Sin servicios adicionales detectados.",
+        ],
+      };
+    })
+    .filter((result, index, all) => {
+      const key = `${result.provider}|${result.tariff_name}|${result.estimated_annual_cost}`;
+      return all.findIndex((candidate) => `${candidate.provider}|${candidate.tariff_name}|${candidate.estimated_annual_cost}` === key) === index;
+    });
+
+  return rankAndTrim(results);
+}
+
 function normalizeForMatch(value: string): string {
   return value
     .normalize("NFD")
@@ -307,38 +495,37 @@ function matchProviderUrl(provider: string, tariff: string, links: CandidateLink
 
 function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonResult[] {
   const current = monthlyBaseline(input);
-  const generatedCnmcUrl = buildCnmcResultsUrl(input);
   const utilityLabel = input.utility_type === "gas" ? "Gas" : input.utility_type === "dual" ? "Luz + gas" : "Luz";
   const options = [
     {
-      provider: "Comparacion orientativa VYVA",
-      tariff_name: `${utilityLabel} - opcion recomendada`,
+      provider: "Estimacion VYVA",
+      tariff_name: `${utilityLabel} - calculo orientativo recomendado`,
       factor: 0.84,
-      contract_type: "Mercado libre / revisar condiciones",
-      permanence: "Comprobar antes de contratar",
-      price_stability: "Precio orientativo con datos parciales",
+      contract_type: "Estimacion orientativa",
+      permanence: "",
+      price_stability: "Orientativo",
       green_energy: null,
-      notes: ["CNMC no respondio a tiempo; esta opcion usa una estimacion orientativa.", "Conviene confirmar precio final en el comparador oficial."],
+      notes: ["La comparacion oficial no respondio a tiempo; este resultado es orientativo."],
     },
     {
-      provider: "Tarifa economica estimada",
-      tariff_name: `${utilityLabel} - mas economica`,
+      provider: "Estimacion VYVA",
+      tariff_name: `${utilityLabel} - calculo orientativo de ahorro`,
       factor: 0.79,
-      contract_type: "Comparacion secundaria",
-      permanence: "Puede variar",
-      price_stability: "Menos estable; revisar letra pequena",
+      contract_type: "Estimacion orientativa",
+      permanence: "",
+      price_stability: "Orientativo",
       green_energy: null,
-      notes: ["Prioriza ahorro estimado, no simplicidad.", "No es una recomendacion comercial."],
+      notes: ["Prioriza el posible ahorro, con menor confianza que una comparacion oficial."],
     },
     {
-      provider: "Tarifa estable estimada",
-      tariff_name: `${utilityLabel} - mas estable`,
+      provider: "Estimacion VYVA",
+      tariff_name: `${utilityLabel} - calculo orientativo estable`,
       factor: 0.90,
-      contract_type: "Precio estable / sencilla",
-      permanence: "Comprobar permanencia",
-      price_stability: "Mas estable y facil de entender",
+      contract_type: "Estimacion orientativa",
+      permanence: "",
+      price_stability: "Orientativo",
       green_energy: null,
-      notes: ["Prioriza claridad y estabilidad sobre maximo ahorro.", "Resultado orientativo."],
+      notes: ["Prioriza claridad y estabilidad sobre maximo ahorro estimado."],
     },
   ];
 
@@ -355,9 +542,6 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
-      ...(isCnmcResultsUrl(generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL)
-        ? { source_url: generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL, action_label: "Ver ofertas" }
-        : {}),
       confidence: "low" as const,
       notes: option.notes,
     };
@@ -384,6 +568,13 @@ function parseMoney(text: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function looksLikeCnmcResultsPage(text: string): boolean {
+  const normalized = normalizeForMatch(text);
+  const hasResultLanguage = /importe anual|mercado libre|ver oferta|nombre comercializadora|revision de precios|permanencia/.test(normalized);
+  const hasWelcomeLanguage = /bienvenido al portal del consumidor|tipo de suministro que desea contratar/.test(normalized);
+  return hasResultLanguage && !hasWelcomeLanguage;
+}
+
 async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<UtilityComparisonResult[]> {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({
@@ -392,34 +583,48 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
   });
   try {
     const page = await browser.newPage({ locale: "es-ES" });
-    await page.goto("https://comparador.cnmc.gob.es/", { waitUntil: "domcontentloaded", timeout: 30000 });
+    const generatedCnmcUrl = buildCnmcResultsUrl(input);
+    let reachedResultsPage = false;
 
-    const bodyText = (await page.locator("body").innerText({ timeout: 10000 })).slice(0, 8000);
-    const hasComparator = /comparador|electricidad|gas|ofertas|tarifa/i.test(bodyText);
-    if (!hasComparator) throw new Error("CNMC comparator page did not expose expected text");
-
-    const startButton = page.getByRole("button", { name: /iniciar/i }).first();
-    if (await startButton.count()) {
-      await startButton.click({ timeout: 5000 }).catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => undefined);
+    if (generatedCnmcUrl) {
+      await page.goto(generatedCnmcUrl, { waitUntil: "networkidle", timeout: 30000 }).catch(() => undefined);
+      const directText = await page.locator("body").innerText({ timeout: 10000 }).catch(() => "");
+      reachedResultsPage = looksLikeCnmcResultsPage(directText);
     }
 
-    const inputs = await page.locator("input").count();
-    for (let i = 0; i < inputs; i += 1) {
-      const inputEl = page.locator("input").nth(i);
-      const attrs = `${await inputEl.getAttribute("name").catch(() => "")} ${await inputEl.getAttribute("id").catch(() => "")} ${await inputEl.getAttribute("placeholder").catch(() => "")}`;
-      if (/postal|cp|codigo/i.test(attrs)) await inputEl.fill(input.postcode).catch(() => undefined);
-      if (/consumo|kwh/i.test(attrs) && input.consumption_kwh != null) await inputEl.fill(String(Math.round(input.consumption_kwh))).catch(() => undefined);
-      if (/potencia|kw/i.test(attrs) && input.power_kw != null) await inputEl.fill(String(input.power_kw).replace(".", ",")).catch(() => undefined);
-    }
+    if (!reachedResultsPage) {
+      await page.goto("https://comparador.cnmc.gob.es/", { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    const clickable = page.getByRole("button", { name: /comparar|buscar|calcular|simular|siguiente/i }).first();
-    if (await clickable.count()) {
-      await clickable.click({ timeout: 5000 }).catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => undefined);
+      const bodyText = (await page.locator("body").innerText({ timeout: 10000 })).slice(0, 8000);
+      const hasComparator = /comparador|electricidad|gas|ofertas|tarifa/i.test(bodyText);
+      if (!hasComparator) throw new Error("CNMC comparator page did not expose expected text");
+
+      const startButton = page.getByRole("button", { name: /iniciar/i }).first();
+      if (await startButton.count()) {
+        await startButton.click({ timeout: 5000 }).catch(() => undefined);
+        await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => undefined);
+      }
+
+      const inputs = await page.locator("input").count();
+      for (let i = 0; i < inputs; i += 1) {
+        const inputEl = page.locator("input").nth(i);
+        const attrs = `${await inputEl.getAttribute("name").catch(() => "")} ${await inputEl.getAttribute("id").catch(() => "")} ${await inputEl.getAttribute("placeholder").catch(() => "")}`;
+        if (/postal|cp|codigo/i.test(attrs)) await inputEl.fill(input.postcode).catch(() => undefined);
+        if (/consumo|kwh/i.test(attrs) && input.consumption_kwh != null) await inputEl.fill(String(Math.round(input.consumption_kwh))).catch(() => undefined);
+        if (/potencia|kw/i.test(attrs) && input.power_kw != null) await inputEl.fill(String(input.power_kw).replace(".", ",")).catch(() => undefined);
+      }
+
+      const clickable = page.getByRole("button", { name: /comparar|buscar|calcular|simular|siguiente/i }).first();
+      if (await clickable.count()) {
+        await clickable.click({ timeout: 5000 }).catch(() => undefined);
+        await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => undefined);
+      }
     }
 
     const resultText = (await page.locator("body").innerText({ timeout: 10000 })).slice(0, 12000);
+    if (!looksLikeCnmcResultsPage(resultText)) {
+      throw new Error("CNMC did not reach a result listing page");
+    }
     const lines = resultText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const moneyLines = lines.filter((line) => parseMoney(line) != null);
     if (moneyLines.length < 2) throw new Error("CNMC did not expose parseable tariff results");
@@ -428,7 +633,7 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
       href: anchor.getAttribute("href") ?? "",
     }))).catch(() => [] as CandidateLink[]);
     const pageUrl = page.url();
-    const generatedCnmcUrl = buildCnmcResultsUrl(input);
+    const resultsUrl = isCnmcResultsUrl(pageUrl) ? pageUrl : generatedCnmcUrl;
 
     const current = monthlyBaseline(input);
     const parsed = moneyLines.slice(0, 6).map((line, index): UtilityComparisonResult => {
@@ -447,7 +652,7 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
         price_stability: /fijo|estable/i.test(details.nearby) ? "Precio estable indicado" : "Revisar estabilidad del precio",
         green_energy: /verde|renovable/i.test(details.nearby) ? true : null,
         source: "CNMC",
-        source_url: isCnmcResultsUrl(pageUrl) ? pageUrl : generatedCnmcUrl || undefined,
+        source_url: isCnmcResultsUrl(resultsUrl) ? resultsUrl : undefined,
         provider_url: providerUrl || undefined,
         action_label: "Ver ofertas",
         confidence: providerUrl ? "high" : "medium",
@@ -463,16 +668,28 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
 
 export async function compareWithCnmc(input: NormalizedUtilityInput): Promise<CnmcComparisonResponse> {
   try {
-    const officialResultsUrl = buildCnmcResultsUrl(input);
-    const cnmcResults = await attemptCnmcAutomation(input);
-    if (cnmcResults.length > 0) {
-      const results = cnmcResults.map((result) => ({
+    const apiResults = await fetchCnmcApiResults(input);
+    if (apiResults.length > 0) {
+      return {
+        source_used: "CNMC",
+        source_status: "success",
+        results: apiResults.map((result) => ({
+          ...result,
+          action_label: "Ver ofertas",
+        })),
+        explanation: "He comparado con los datos oficiales del comparador CNMC usando los datos normalizados de la factura.",
+      };
+    }
+  } catch (err) {
+    console.warn("[utilities/cnmc] CNMC API issue, trying browser automation:", err instanceof Error ? err.message : err);
+  }
+
+  try {
+    const automatedResults = await attemptCnmcAutomation(input);
+    if (automatedResults.length > 0) {
+      const results = automatedResults.map((result) => ({
         ...result,
-        source_url: isCnmcResultsUrl(result.source_url)
-          ? result.source_url
-          : isCnmcResultsUrl(officialResultsUrl)
-            ? officialResultsUrl
-            : undefined,
+        source_url: isCnmcResultsUrl(result.source_url) ? result.source_url : undefined,
         action_label: "Ver ofertas",
       }));
       return {

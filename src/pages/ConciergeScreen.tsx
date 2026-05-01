@@ -1545,11 +1545,9 @@ const ConciergeScreen = () => {
   }
 
   function utilityOptionUrl(result: UtilityComparisonResult, parent?: UtilityCompareResponse): string {
-    const configuredCnmcResultsUrl = (import.meta.env.VITE_CNMC_RESULTS_URL as string | undefined)?.trim();
     return [
       result.source_url,
       parent?.source_url,
-      configuredCnmcResultsUrl,
       result.provider_url,
     ]
       .find((url) => isUsefulUtilityUrl(url)) ?? "";
@@ -1557,10 +1555,6 @@ const ConciergeScreen = () => {
 
   function utilityOptionActionLabel(result: UtilityComparisonResult, url?: string): string {
     if (isUsefulUtilityUrl(url)) return isSpanish ? "Ver ofertas" : "View offers";
-    if (result.action_label && (!/ver ofertas/i.test(result.action_label) || isCnmcResultsUrl(url))) {
-      return result.action_label;
-    }
-    if (isCnmcResultsUrl(url)) return isSpanish ? "Ver ofertas" : "View offers";
     if (result.source === "CNMC") return isSpanish ? "Ver resultados" : "View results";
     return isSpanish ? "Ver opciones" : "View options";
   }
