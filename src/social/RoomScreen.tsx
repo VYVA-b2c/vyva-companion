@@ -1152,7 +1152,7 @@ const RoomScreen = () => {
   );
 
   const startRoomAgentSession = useCallback(
-    (skipMicrophone = false) => {
+    (skipMicrophone = true) => {
       if (!room?.slug || !room.agentSlug) return;
       void startVoice(undefined, undefined, {
         agentSlug: room.agentSlug,
@@ -1216,7 +1216,7 @@ const RoomScreen = () => {
     queuedQuestionRef.current = null;
     startListeningWhenReadyRef.current = false;
     setAgentPresence("thinking");
-    startRoomAgentSession(false);
+    startRoomAgentSession(true);
   }, [room?.agentSlug, room?.slug, startRoomAgentSession]);
 
   useEffect(() => {
