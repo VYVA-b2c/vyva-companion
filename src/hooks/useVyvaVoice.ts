@@ -112,6 +112,10 @@ function float32ToInt16Bytes(f32: Float32Array): Uint8Array {
   return new Uint8Array(i16.buffer);
 }
 
+function makeSilenceChunk(frameCount = 2048): string {
+  return uint8ToBase64(new Uint8Array(frameCount * 2));
+}
+
 function int16BytesToFloat32(bytes: Uint8Array): Float32Array {
   const i16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
   const f32 = new Float32Array(i16.length);
@@ -167,6 +171,16 @@ export function useVyvaVoice() {
     setIsSpeaking(false);
     if (audioCtxRef.current) {
       nextPlayTimeRef.current = audioCtxRef.current.currentTime;
+    }
+  }, []);
+
+  const sendSilenceTail = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const silenceChunk = makeSilenceChunk();
+    for (let i = 0; i < 10; i++) {
+      ws.send(JSON.stringify({ user_audio_chunk: silenceChunk }));
     }
   }, []);
 
@@ -442,9 +456,12 @@ export function useVyvaVoice() {
   }, [interruptAgentAudio, status]);
 
   const endUserTurn = useCallback(() => {
+    if (isUserStreamingRef.current) {
+      sendSilenceTail();
+    }
     isUserStreamingRef.current = false;
     setIsUserSpeaking(false);
-  }, []);
+  }, [sendSilenceTail]);
 
   const stopVoice = useCallback(() => {
     teardown();

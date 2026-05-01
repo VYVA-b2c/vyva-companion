@@ -7,7 +7,6 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import SocialStyles from "./SocialStyles";
 import { getSocialCopy, getSocialLanguage } from "./roomUtils";
-import { getSocialAgentPersona } from "./agentPersonas";
 import type { SocialLanguage, SocialRoom, SocialRoomMember, SocialRoomResponse } from "./types";
 
 const FALLBACK_MEMBER_NAMES = ["Carmen", "Josefa", "Manuel", "Ana"];
@@ -1053,7 +1052,6 @@ const RoomScreen = () => {
   const pendingQuestionRef = useRef<string | null>(null);
   const queuedQuestionRef = useRef<string | null>(null);
   const startListeningWhenReadyRef = useRef(false);
-  const welcomeReplyPendingRef = useRef(false);
   const liveReplyTimeoutRef = useRef<number | null>(null);
   const reconnectFallbackTimeoutRef = useRef<number | null>(null);
 
@@ -1074,11 +1072,6 @@ const RoomScreen = () => {
   const agentName = useMemo(() => {
     if (!room) return "";
     return room.agentFullName.split(" ")[0] ?? room.agentFullName;
-  }, [room]);
-
-  const socialAgent = useMemo(() => {
-    if (!room) return null;
-    return getSocialAgentPersona(room.agentSlug);
   }, [room]);
 
   const quickQuestions = useMemo(
@@ -1159,7 +1152,7 @@ const RoomScreen = () => {
   );
 
   const startRoomAgentSession = useCallback(
-    (skipMicrophone = true) => {
+    (skipMicrophone = false) => {
       if (!room?.slug || !room.agentSlug) return;
       void startVoice(undefined, undefined, {
         agentSlug: room.agentSlug,
@@ -1176,7 +1169,6 @@ const RoomScreen = () => {
       liveReplyTimeoutRef.current = window.setTimeout(() => {
         if (pendingQuestionRef.current !== trimmed) return;
         pendingQuestionRef.current = null;
-        welcomeReplyPendingRef.current = false;
         setIsSending(false);
         void submitFallbackQuestion(trimmed);
       }, 9000);
@@ -1223,25 +1215,19 @@ const RoomScreen = () => {
     pendingQuestionRef.current = null;
     queuedQuestionRef.current = null;
     startListeningWhenReadyRef.current = false;
-    welcomeReplyPendingRef.current = false;
     setAgentPresence("thinking");
-    startRoomAgentSession(true);
+    startRoomAgentSession(false);
   }, [room?.agentSlug, room?.slug, startRoomAgentSession]);
 
   useEffect(() => {
-    if (!room || !socialAgent || agentSessionStatus !== "connected") return;
+    if (!room || agentSessionStatus !== "connected") return;
 
     const userDisplayName = firstName || profile?.firstName;
-    const greetingKey = `${room.slug}:${language}:${userDisplayName ?? ""}`;
-    if (liveGreetingKeyRef.current === greetingKey) return;
+    const contextKey = `${room.slug}:${language}:${userDisplayName ?? ""}`;
+    if (liveGreetingKeyRef.current === contextKey) return;
 
     sendContextUpdate(buildAgentContext(language, room.name, room.topic, quickQuestions));
-    setAgentPresence("thinking");
-    welcomeReplyPendingRef.current = true;
-    sendAgentText(buildWelcomeBootstrap(language, socialAgent.fullName, userDisplayName), {
-      invisibleInTranscript: true,
-    });
-    liveGreetingKeyRef.current = greetingKey;
+    liveGreetingKeyRef.current = contextKey;
   }, [
     agentSessionStatus,
     firstName,
@@ -1249,9 +1235,7 @@ const RoomScreen = () => {
     profile?.firstName,
     quickQuestions,
     room,
-    sendAgentText,
     sendContextUpdate,
-    socialAgent,
   ]);
 
   useEffect(() => {
@@ -1329,18 +1313,6 @@ const RoomScreen = () => {
         }
         speakingTimerRef.current = null;
       }, 2600);
-
-      if (welcomeReplyPendingRef.current && !pendingQuestionRef.current) {
-        welcomeReplyPendingRef.current = false;
-        return;
-      }
-
-      if (welcomeReplyPendingRef.current && pendingQuestionRef.current && looksLikeGreeting(entry.text)) {
-        welcomeReplyPendingRef.current = false;
-        return;
-      }
-
-      welcomeReplyPendingRef.current = false;
 
       if (pendingQuestionRef.current) {
         setLatestQuestion(pendingQuestionRef.current);
@@ -1446,7 +1418,6 @@ const RoomScreen = () => {
     startListeningWhenReadyRef.current = true;
     queuedQuestionRef.current = null;
     pendingQuestionRef.current = null;
-    welcomeReplyPendingRef.current = false;
     transcriptCursorRef.current = agentTranscript.length;
     setIsSending(false);
     setAgentPresence("thinking");
