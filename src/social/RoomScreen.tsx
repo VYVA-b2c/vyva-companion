@@ -1027,6 +1027,7 @@ const RoomScreen = () => {
   const [commentComposerFor, setCommentComposerFor] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [extraComments, setExtraComments] = useState<Record<string, FeedComment[]>>({});
+  const [voiceAttempted, setVoiceAttempted] = useState(false);
   const {
     startVoice,
     stopVoice,
@@ -1131,22 +1132,29 @@ const RoomScreen = () => {
 
   const submitFallbackQuestion = useCallback(
     async (trimmed: string) => {
-      const response = await apiFetch(`/api/social/rooms/${slug}/message`, {
-        method: "POST",
-        body: JSON.stringify({ message: trimmed, lang: language, visitId: visitId ?? undefined }),
-      });
-      if (!response.ok) return;
+      try {
+        const response = await apiFetch(`/api/social/rooms/${slug}/message`, {
+          method: "POST",
+          body: JSON.stringify({ message: trimmed, lang: language, visitId: visitId ?? undefined }),
+        });
+        if (!response.ok) {
+          setAgentPresence("idle");
+          return;
+        }
 
-      const result = (await response.json()) as { reply?: string };
-      setLatestQuestion(trimmed);
-      setLatestAnswer(result.reply ?? "");
-      setDraft("");
-      clearPresenceTimers();
-      setAgentPresence("speaking");
-      speakingTimerRef.current = window.setTimeout(() => {
-        setAgentPresence("idle");
-        speakingTimerRef.current = null;
-      }, 2200);
+        const result = (await response.json()) as { reply?: string };
+        setLatestQuestion(trimmed);
+        setLatestAnswer(result.reply ?? "");
+        setDraft("");
+        clearPresenceTimers();
+        setAgentPresence("speaking");
+        speakingTimerRef.current = window.setTimeout(() => {
+          setAgentPresence("idle");
+          speakingTimerRef.current = null;
+        }, 2200);
+      } finally {
+        setIsSending(false);
+      }
     },
     [clearPresenceTimers, language, slug, visitId],
   );
@@ -1215,9 +1223,9 @@ const RoomScreen = () => {
     pendingQuestionRef.current = null;
     queuedQuestionRef.current = null;
     startListeningWhenReadyRef.current = false;
-    setAgentPresence("thinking");
-    startRoomAgentSession(true);
-  }, [room?.agentSlug, room?.slug, startRoomAgentSession]);
+    setVoiceAttempted(false);
+    setAgentPresence("idle");
+  }, [room?.agentSlug, room?.slug]);
 
   useEffect(() => {
     if (!room || agentSessionStatus !== "connected") return;
@@ -1378,26 +1386,15 @@ const RoomScreen = () => {
       return;
     }
 
-    pendingQuestionRef.current = trimmed;
-    queuedQuestionRef.current = trimmed;
     setLatestQuestion(trimmed);
     setLatestAnswer("");
     setDraft("");
     setIsSending(true);
     setAgentPresence("thinking");
-
-    if (agentSessionStatus === "idle") {
-      startRoomAgentSession(true);
-    }
-
+    pendingQuestionRef.current = null;
+    queuedQuestionRef.current = null;
     clearReconnectFallbackTimeout();
-    reconnectFallbackTimeoutRef.current = window.setTimeout(() => {
-      if (queuedQuestionRef.current !== trimmed) return;
-      queuedQuestionRef.current = null;
-      pendingQuestionRef.current = null;
-      setIsSending(false);
-      void submitFallbackQuestion(trimmed);
-    }, 8000);
+    await submitFallbackQuestion(trimmed);
   };
 
   const handleVoiceToggle = async () => {
@@ -1415,6 +1412,7 @@ const RoomScreen = () => {
       return;
     }
 
+    setVoiceAttempted(true);
     startListeningWhenReadyRef.current = true;
     queuedQuestionRef.current = null;
     pendingQuestionRef.current = null;
@@ -1564,7 +1562,7 @@ const RoomScreen = () => {
             {getRoomInteractionHint(language)}
           </p>
 
-          {agentVoiceError && agentSessionStatus === "idle" && (
+          {voiceAttempted && agentVoiceError && agentSessionStatus === "idle" && (
             <p className="mt-3 rounded-[20px] border border-[#F4D6BF] bg-[#FFF7ED] px-4 py-3 font-body text-[18px] leading-[1.35] text-[#9A3412]">
               {getRoomVoiceUnavailableLabel(language)}
             </p>
