@@ -254,9 +254,9 @@ function getAgentThinkingLabel(language: SocialLanguage, name: string) {
 }
 
 function getRoomInteractionHint(language: SocialLanguage) {
-  if (language === "en") return "You can type, tap a suggestion, or press Speak now to talk with the room agent.";
-  if (language === "de") return "Du kannst schreiben, eine Frage antippen oder Jetzt sprechen drücken.";
-  return "Puedes escribir, tocar una sugerencia o pulsar Hablar ahora para responder por voz.";
+  if (language === "en") return "The room agent starts automatically. You can speak, type, or tap a suggestion.";
+  if (language === "de") return "Der Raum-Agent startet automatisch. Du kannst sprechen, schreiben oder eine Frage antippen.";
+  return "El agente de la sala empieza automáticamente. Puedes hablar, escribir o tocar una sugerencia.";
 }
 
 function getRoomVoiceUnavailableLabel(language: SocialLanguage, error?: string | null) {
@@ -272,8 +272,8 @@ function getRoomVoiceUnavailableLabel(language: SocialLanguage, error?: string |
   return "La voz en directo no está disponible ahora mismo. Puedes seguir escribiendo aquí.";
 }
 
-function getVoiceButtonLabel(language: SocialLanguage, isUserSpeaking: boolean, isConnecting: boolean) {
-  if (isUserSpeaking) {
+function getVoiceButtonLabel(language: SocialLanguage, isVoiceActive: boolean, isConnecting: boolean) {
+  if (isVoiceActive) {
     if (language === "en") return "Finish speaking";
     if (language === "de") return "Fertig gesprochen";
     return "Terminar";
@@ -1060,6 +1060,7 @@ const RoomScreen = () => {
   const pendingQuestionRef = useRef<string | null>(null);
   const queuedQuestionRef = useRef<string | null>(null);
   const startListeningWhenReadyRef = useRef(false);
+  const autoStartedRoomRef = useRef<string | null>(null);
   const liveReplyTimeoutRef = useRef<number | null>(null);
   const reconnectFallbackTimeoutRef = useRef<number | null>(null);
 
@@ -1230,9 +1231,35 @@ const RoomScreen = () => {
     pendingQuestionRef.current = null;
     queuedQuestionRef.current = null;
     startListeningWhenReadyRef.current = false;
+    autoStartedRoomRef.current = null;
     setVoiceAttempted(false);
     setAgentPresence("idle");
   }, [room?.agentSlug, room?.slug]);
+
+  useEffect(() => {
+    if (!room?.slug || !room.agentSlug) return;
+    if (agentSessionStatus !== "idle" || agentIsConnecting) return;
+
+    const autoStartKey = `${room.slug}:${room.agentSlug}`;
+    if (autoStartedRoomRef.current === autoStartKey) return;
+
+    autoStartedRoomRef.current = autoStartKey;
+    setVoiceAttempted(true);
+    startListeningWhenReadyRef.current = true;
+    queuedQuestionRef.current = null;
+    pendingQuestionRef.current = null;
+    transcriptCursorRef.current = agentTranscript.length;
+    setIsSending(false);
+    setAgentPresence("thinking");
+    startRoomAgentSession(false);
+  }, [
+    agentIsConnecting,
+    agentSessionStatus,
+    agentTranscript.length,
+    room?.agentSlug,
+    room?.slug,
+    startRoomAgentSession,
+  ]);
 
   useEffect(() => {
     if (!room || agentSessionStatus !== "connected") return;
@@ -1407,15 +1434,21 @@ const RoomScreen = () => {
   const handleVoiceToggle = async () => {
     if (!room?.slug || !room.agentSlug) return;
 
-    if (isUserSpeaking) {
-      endUserTurn();
-      setAgentPresence("thinking");
-      return;
-    }
+    const voiceSessionActive =
+      isUserSpeaking ||
+      agentIsSpeaking ||
+      agentIsConnecting ||
+      agentSessionStatus === "connected" ||
+      agentSessionStatus === "connecting";
 
-    if (agentSessionStatus === "connected" && hasMicrophone) {
-      const started = await beginUserTurn();
-      if (started) setAgentPresence("idle");
+    if (voiceSessionActive) {
+      endUserTurn();
+      stopVoice();
+      startListeningWhenReadyRef.current = false;
+      queuedQuestionRef.current = null;
+      pendingQuestionRef.current = null;
+      setIsSending(false);
+      setAgentPresence("idle");
       return;
     }
 
@@ -1621,15 +1654,25 @@ const RoomScreen = () => {
             <button
               type="button"
               onClick={() => void handleVoiceToggle()}
-              disabled={agentIsConnecting && !isUserSpeaking}
               className="inline-flex min-h-[64px] items-center justify-center gap-3 rounded-[22px] px-5 font-body text-[21px] font-semibold text-white disabled:opacity-60"
               style={{
-                background: isUserSpeaking ? "#C81E1E" : room.agentColour,
+                background:
+                  isUserSpeaking || agentIsSpeaking || agentSessionStatus === "connected" || agentIsConnecting
+                    ? "#C81E1E"
+                    : room.agentColour,
                 boxShadow: "0 12px 24px rgba(91,33,182,0.12)",
               }}
             >
-              {isUserSpeaking ? <Square size={21} /> : <Mic size={22} />}
-              {getVoiceButtonLabel(language, isUserSpeaking, agentIsConnecting)}
+              {isUserSpeaking || agentIsSpeaking || agentSessionStatus === "connected" || agentIsConnecting ? (
+                <Square size={21} />
+              ) : (
+                <Mic size={22} />
+              )}
+              {getVoiceButtonLabel(
+                language,
+                isUserSpeaking || agentIsSpeaking || agentSessionStatus === "connected" || agentIsConnecting,
+                agentIsConnecting,
+              )}
             </button>
           </div>
 
