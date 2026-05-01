@@ -5,7 +5,7 @@ import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "../db.js";
-import { users, profiles } from "../../shared/schema.js";
+import { accessLinks, lifecycleEvents, profiles, userIntakes, users } from "../../shared/schema.js";
 import { signToken } from "../lib/jwt.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { sendPasswordResetEmail } from "../lib/email.js";
@@ -44,6 +44,10 @@ const resetRequestSchema = z.object({
 const resetPasswordSchema = z.object({
   token:    z.string().min(1, "Reset token is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const consumeAccessLinkSchema = z.object({
+  token: z.string().min(16, "Access token is required"),
 });
 
 /** Token lifetime: 1 hour */
@@ -149,6 +153,91 @@ authRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
     .where(eq(users.id, user.id));
 
   return res.json({ id: user.id, email: user.email, prevSeenAt });
+});
+
+/**
+ * POST /api/auth/access-link/consume
+ * Passwordless entry for elder/family invite links. Valid links return the
+ * same JWT used by the rest of the app, so onboarding/app routes remain intact.
+ */
+authRouter.post("/access-link/consume", async (req: Request, res: Response) => {
+  const parsed = consumeAccessLinkSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid access link" });
+  }
+
+  const [link] = await db
+    .select()
+    .from(accessLinks)
+    .where(eq(accessLinks.token, parsed.data.token))
+    .limit(1);
+
+  if (!link || link.revoked_at) {
+    return res.status(404).json({ error: "This access link is invalid." });
+  }
+  if (new Date() > link.expires_at) {
+    return res.status(410).json({ error: "This access link has expired." });
+  }
+  if (link.use_count >= link.max_uses) {
+    return res.status(410).json({ error: "This access link has already been used." });
+  }
+
+  let userId = link.user_id;
+  let intake: typeof userIntakes.$inferSelect | undefined;
+  if (link.intake_id) {
+    [intake] = await db
+      .select()
+      .from(userIntakes)
+      .where(eq(userIntakes.id, link.intake_id))
+      .limit(1);
+    userId = userId ?? intake?.user_id ?? intake?.elder_user_id ?? intake?.family_user_id ?? null;
+  }
+
+  if (!userId) {
+    return res.status(409).json({ error: "This access link is not attached to a user yet." });
+  }
+
+  const now = new Date();
+  await db
+    .update(accessLinks)
+    .set({
+      clicked_at: link.clicked_at ?? now,
+      converted_at: now,
+      use_count: link.use_count + 1,
+    })
+    .where(eq(accessLinks.id, link.id));
+
+  if (intake) {
+    await db
+      .update(userIntakes)
+      .set({
+        journey_step: "access_link_clicked",
+        last_activity_at: now,
+        updated_at: now,
+      })
+      .where(eq(userIntakes.id, intake.id));
+
+    await db.insert(lifecycleEvents).values({
+      intake_id: intake.id,
+      user_id: userId,
+      event_type: "access_link_clicked",
+      from_status: intake.status,
+      to_status: intake.status,
+      channel: "passwordless_link",
+      metadata: { destination: link.destination, link_type: link.link_type },
+    });
+  }
+
+  await db.update(users).set({ last_seen_at: now }).where(eq(users.id, userId));
+
+  const token = await signToken(userId);
+  return res.json({
+    token,
+    userId,
+    destination: link.destination,
+    tier: link.tier,
+    targetRole: link.target_role,
+  });
 });
 
 /**

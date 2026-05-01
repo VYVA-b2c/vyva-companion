@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import AccessLinkPage from "@/pages/AccessLinkPage";
 import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OnboardingGuard from "./components/OnboardingGuard";
@@ -67,6 +68,8 @@ import SettingsHome from "./pages/settings/SettingsHome";
 import AccountSettings from "./pages/settings/AccountSettings";
 import NotificationsSettings from "./pages/settings/NotificationsSettings";
 import ProxyPendingPage from "./pages/admin/ProxyPendingPage";
+import LifecycleAdminPage from "./pages/admin/LifecycleAdminPage";
+import CaregiverDashboardPage from "./pages/CaregiverDashboardPage";
 import SocialHub from "./social/SocialHub";
 import RoomScreen from "./social/RoomScreen";
 
@@ -121,9 +124,11 @@ const App = () => (
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/access/:token" element={<AccessLinkPage />} />
                 <Route path="/confirm/:token" element={<ElderConfirmByToken />} />
                 <Route path="/shared/check-in/:token" element={<SharedCheckinReport />} />
                 <Route path="/admin/proxy-pending" element={<ProxyPendingPage />} />
+                <Route path="/admin/lifecycle" element={<LifecycleAdminPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>
                     <Route path="/onboarding" element={<WelcomeScreen />} />
@@ -153,6 +158,8 @@ const App = () => (
                   <Route path="/informes" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/informes/:id" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/companions" element={<AppShell><CompanionsScreen /></AppShell>} />
+                  <Route path="/caregiver" element={<CaregiverDashboardPage />} />
+                  <Route path="/caregiver-dashboard" element={<CaregiverDashboardPage />} />
                   <Route path="/social-rooms" element={<AppShell><SocialHub /></AppShell>} />
                   <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />
                   <Route path="/meds" element={<AppShell><MedsScreen /></AppShell>} />

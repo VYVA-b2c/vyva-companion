@@ -107,6 +107,43 @@ export const invitationStatusEnum = pgEnum("invitation_status", [
   "expired",
 ]);
 
+export const lifecycleEntryPointEnum = pgEnum("lifecycle_entry_point", [
+  "form",
+  "phone",
+  "whatsapp",
+  "admin",
+]);
+
+export const lifecycleUserTypeEnum = pgEnum("lifecycle_user_type", [
+  "elder",
+  "family",
+  "admin",
+]);
+
+export const lifecycleStatusEnum = pgEnum("lifecycle_status", [
+  "created",
+  "link_sent",
+  "consent_pending",
+  "active",
+  "dropped",
+]);
+
+export const accessLinkTypeEnum = pgEnum("access_link_type", [
+  "trial",
+  "unlimited",
+  "organization",
+  "custom",
+  "caregiver",
+]);
+
+export const consentAttemptStatusEnum = pgEnum("consent_attempt_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "no_answer",
+  "failed",
+]);
+
 
 // ============================================================
 // AUTH TABLE: users — email/password accounts
@@ -913,6 +950,155 @@ export type VitalsReading = typeof vitalsReadings.$inferSelect;
 // NEW TABLE: utility_review_runs — evidence log for bill reviews
 // ============================================================
 
+// ============================================================
+// NEW TABLE: organizations - invite and entitlement grouping
+// ============================================================
+
+export const organizations = pgTable("organizations", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  name:          text("name").notNull(),
+  slug:          text("slug").notNull().unique(),
+  contact_name:  text("contact_name"),
+  contact_email: text("contact_email"),
+  contact_phone: text("contact_phone"),
+  default_tier:  text("default_tier").notNull().default("trial"),
+  is_active:     boolean("is_active").notNull().default(true),
+  metadata:      jsonb("metadata").notNull().default({}),
+  created_at:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:    timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, created_at: true, updated_at: true });
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
+
+export const tierEntitlements = pgTable("tier_entitlements", {
+  id:                  uuid("id").primaryKey().defaultRandom(),
+  tier:                text("tier").notNull().unique(),
+  display_name:        text("display_name").notNull(),
+  description:         text("description"),
+  voice_assistant:     boolean("voice_assistant").notNull().default(false),
+  medication_tracking: boolean("medication_tracking").notNull().default(false),
+  symptom_check:       boolean("symptom_check").notNull().default(false),
+  concierge:           boolean("concierge").notNull().default(false),
+  caregiver_dashboard: boolean("caregiver_dashboard").notNull().default(false),
+  custom_features:     jsonb("custom_features").notNull().default({}),
+  is_active:           boolean("is_active").notNull().default(true),
+  created_at:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertTierEntitlementSchema = createInsertSchema(tierEntitlements).omit({ id: true, created_at: true, updated_at: true });
+export type InsertTierEntitlement = z.infer<typeof insertTierEntitlementSchema>;
+export type TierEntitlement = typeof tierEntitlements.$inferSelect;
+
+export const userIntakes = pgTable("user_intakes", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  user_id:          text("user_id"),
+  elder_user_id:    text("elder_user_id"),
+  family_user_id:   text("family_user_id"),
+  name:             text("name").notNull(),
+  phone:            text("phone").notNull(),
+  email:            text("email"),
+  user_type:        lifecycleUserTypeEnum("user_type").notNull().default("elder"),
+  entry_point:      lifecycleEntryPointEnum("entry_point").notNull().default("form"),
+  organization_id:  uuid("organization_id"),
+  tier:             text("tier").notNull().default("trial"),
+  status:           lifecycleStatusEnum("status").notNull().default("created"),
+  journey_step:     text("journey_step").notNull().default("created"),
+  consent_status:   text("consent_status").notNull().default("not_required"),
+  source_payload:   jsonb("source_payload").notNull().default({}),
+  metadata:         jsonb("metadata").notNull().default({}),
+  link_sent_at:     timestamp("link_sent_at", { withTimezone: true }),
+  activated_at:     timestamp("activated_at", { withTimezone: true }),
+  dropped_at:       timestamp("dropped_at", { withTimezone: true }),
+  last_activity_at: timestamp("last_activity_at", { withTimezone: true }),
+  created_at:       timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:       timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertUserIntakeSchema = createInsertSchema(userIntakes).omit({ id: true, created_at: true, updated_at: true });
+export type InsertUserIntake = z.infer<typeof insertUserIntakeSchema>;
+export type UserIntake = typeof userIntakes.$inferSelect;
+
+export const accessLinks = pgTable("access_links", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  token:           text("token").notNull().unique(),
+  user_id:         text("user_id"),
+  intake_id:       uuid("intake_id"),
+  organization_id: uuid("organization_id"),
+  link_type:       accessLinkTypeEnum("link_type").notNull().default("trial"),
+  tier:            text("tier").notNull().default("trial"),
+  destination:     text("destination").notNull().default("/onboarding"),
+  target_role:     text("target_role").notNull().default("elder"),
+  max_uses:        integer("max_uses").notNull().default(1),
+  use_count:       integer("use_count").notNull().default(0),
+  clicked_at:      timestamp("clicked_at", { withTimezone: true }),
+  converted_at:    timestamp("converted_at", { withTimezone: true }),
+  expires_at:      timestamp("expires_at", { withTimezone: true }).notNull(),
+  revoked_at:      timestamp("revoked_at", { withTimezone: true }),
+  metadata:        jsonb("metadata").notNull().default({}),
+  created_at:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertAccessLinkSchema = createInsertSchema(accessLinks).omit({ id: true, created_at: true });
+export type InsertAccessLink = z.infer<typeof insertAccessLinkSchema>;
+export type AccessLink = typeof accessLinks.$inferSelect;
+
+export const lifecycleEvents = pgTable("lifecycle_events", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  intake_id:   uuid("intake_id"),
+  user_id:     text("user_id"),
+  event_type:  text("event_type").notNull(),
+  from_status: text("from_status"),
+  to_status:   text("to_status"),
+  channel:     text("channel"),
+  metadata:    jsonb("metadata").notNull().default({}),
+  created_at:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertLifecycleEventSchema = createInsertSchema(lifecycleEvents).omit({ id: true, created_at: true });
+export type InsertLifecycleEvent = z.infer<typeof insertLifecycleEventSchema>;
+export type LifecycleEvent = typeof lifecycleEvents.$inferSelect;
+
+export const consentAttempts = pgTable("consent_attempts", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  intake_id:         uuid("intake_id"),
+  elder_user_id:     text("elder_user_id"),
+  family_user_id:    text("family_user_id"),
+  attempt_number:    integer("attempt_number").notNull().default(1),
+  status:            consentAttemptStatusEnum("status").notNull().default("pending"),
+  channel:           text("channel").notNull().default("voice"),
+  scheduled_at:      timestamp("scheduled_at", { withTimezone: true }),
+  completed_at:      timestamp("completed_at", { withTimezone: true }),
+  source_session_id: text("source_session_id"),
+  result_payload:    jsonb("result_payload").notNull().default({}),
+  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertConsentAttemptSchema = createInsertSchema(consentAttempts).omit({ id: true, created_at: true });
+export type InsertConsentAttempt = z.infer<typeof insertConsentAttemptSchema>;
+export type ConsentAttempt = typeof consentAttempts.$inferSelect;
+
+export const communicationsLog = pgTable("communications_log", {
+  id:                  uuid("id").primaryKey().defaultRandom(),
+  intake_id:           uuid("intake_id"),
+  user_id:             text("user_id"),
+  channel:             text("channel").notNull(),
+  recipient:           text("recipient").notNull(),
+  purpose:             text("purpose").notNull(),
+  status:              text("status").notNull().default("queued"),
+  provider_message_id: text("provider_message_id"),
+  body:                text("body"),
+  metadata:            jsonb("metadata").notNull().default({}),
+  sent_at:             timestamp("sent_at", { withTimezone: true }),
+  created_at:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertCommunicationLogSchema = createInsertSchema(communicationsLog).omit({ id: true, created_at: true });
+export type InsertCommunicationLog = z.infer<typeof insertCommunicationLogSchema>;
+export type CommunicationLog = typeof communicationsLog.$inferSelect;
+
 export const utilityReviewRuns = pgTable("utility_review_runs", {
   id:                    uuid("id").primaryKey().defaultRandom(),
   user_id:               text("user_id").notNull(),
@@ -967,5 +1153,12 @@ export const schema = {
   socialConnections,
   triageReports,
   vitalsReadings,
+  organizations,
+  tierEntitlements,
+  userIntakes,
+  accessLinks,
+  lifecycleEvents,
+  consentAttempts,
+  communicationsLog,
   utilityReviewRuns,
 };
