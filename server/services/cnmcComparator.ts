@@ -136,7 +136,7 @@ function cnmcParamsToHex(digits: string): string {
   return hex;
 }
 
-function buildCnmcResultsUrl(input: NormalizedUtilityInput): string {
+export function buildCnmcResultsUrl(input: NormalizedUtilityInput): string {
   const postcode = input.postcode?.replace(/\D/g, "").slice(0, 5) ?? "";
   if (postcode.length !== 5) return "";
   const utilityType = input.utility_type === "gas" ? "G" : input.utility_type === "dual" ? "C" : "E";
@@ -355,7 +355,7 @@ function buildFallbackResults(input: NormalizedUtilityInput): UtilityComparisonR
       price_stability: option.price_stability,
       green_energy: option.green_energy,
       source: "Fallback" as const,
-      ...(generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL
+      ...(isCnmcResultsUrl(generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL)
         ? { source_url: generatedCnmcUrl || CNMC_RESULTS_FALLBACK_URL, action_label: "Ver ofertas" }
         : {}),
       confidence: "low" as const,
@@ -463,12 +463,22 @@ async function attemptCnmcAutomation(input: NormalizedUtilityInput): Promise<Uti
 
 export async function compareWithCnmc(input: NormalizedUtilityInput): Promise<CnmcComparisonResponse> {
   try {
+    const officialResultsUrl = buildCnmcResultsUrl(input);
     const cnmcResults = await attemptCnmcAutomation(input);
     if (cnmcResults.length > 0) {
+      const results = cnmcResults.map((result) => ({
+        ...result,
+        source_url: isCnmcResultsUrl(result.source_url)
+          ? result.source_url
+          : isCnmcResultsUrl(officialResultsUrl)
+            ? officialResultsUrl
+            : undefined,
+        action_label: "Ver ofertas",
+      }));
       return {
         source_used: "CNMC",
         source_status: "success",
-        results: cnmcResults,
+        results,
         explanation: "He comparado con el comparador oficial de la CNMC usando los datos normalizados de la factura.",
       };
     }

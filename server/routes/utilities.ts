@@ -2,7 +2,13 @@ import { Router, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import { profiles, utilityReviewRuns } from "../../shared/schema.js";
-import { compareWithCnmc, type NormalizedUtilityInput, type UtilityComparisonResult, type UtilityType } from "../services/cnmcComparator.js";
+import {
+  buildCnmcResultsUrl,
+  compareWithCnmc,
+  type NormalizedUtilityInput,
+  type UtilityComparisonResult,
+  type UtilityType,
+} from "../services/cnmcComparator.js";
 
 const router = Router();
 const DEMO_USER_ID = "demo-user";
@@ -214,7 +220,7 @@ function isUsefulComparisonUrl(url?: string): boolean {
   try {
     const parsed = new URL(url);
     if (/comparador\.cnmc\.gob\.es$/i.test(parsed.hostname)) {
-      return parsed.pathname !== "/" && parsed.pathname !== "";
+      return /^\/comparador\/listado\//i.test(parsed.pathname);
     }
     return true;
   } catch {
@@ -289,9 +295,11 @@ router.post("/compare", async (req: Request, res: Response) => {
     });
 
     const estimated = normalized.missing_fields.some((field) => field.startsWith("estimated:"));
+    const generatedCnmcUrl = buildCnmcResultsUrl(normalized);
     const sourceUrl =
       comparison.results.find((result) => isUsefulComparisonUrl(result.source_url))?.source_url
       ?? comparison.results.find((result) => isUsefulComparisonUrl(result.provider_url))?.provider_url
+      ?? (isUsefulComparisonUrl(generatedCnmcUrl) ? generatedCnmcUrl : "")
       ?? "";
 
     return res.json({

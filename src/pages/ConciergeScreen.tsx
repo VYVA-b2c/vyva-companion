@@ -1525,7 +1525,7 @@ const ConciergeScreen = () => {
     try {
       const parsed = new URL(url);
       if (/comparador\.cnmc\.gob\.es$/i.test(parsed.hostname)) {
-        return parsed.pathname !== "/" && parsed.pathname !== "";
+        return /^\/comparador\/listado\//i.test(parsed.pathname);
       }
       return true;
     } catch {
