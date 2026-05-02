@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 
 type Intake = {
   id: string;
@@ -13,6 +13,7 @@ type Intake = {
   tier: string;
   organization_id?: string | null;
   organization_name?: string | null;
+  account_status?: "enabled" | "disabled";
   created_at: string;
   link_sent_at?: string | null;
   last_activity_at?: string | null;
@@ -24,6 +25,19 @@ type Organization = {
   slug: string;
   default_tier: string;
   is_active: boolean;
+};
+
+type BulkPreviewRow = {
+  row_number: number;
+  valid: boolean;
+  errors: string[];
+  values: Record<string, string>;
+};
+
+type BulkPreviewResponse = {
+  organization: Organization;
+  rows: BulkPreviewRow[];
+  summary: { total: number; valid: number; invalid: number };
 };
 
 type ConsentAttempt = {
@@ -44,19 +58,44 @@ type Communication = {
   created_at: string;
 };
 
-const ADMIN_KEY_STORAGE = "vyva_admin_lifecycle_key";
+type ScheduledEvent = {
+  id: string;
+  event_type: string;
+  title: string;
+  description?: string | null;
+  channel: string;
+  agent_slug?: string | null;
+  room_slug?: string | null;
+  scheduled_for?: string | null;
+  display_time?: string | null;
+  timezone: string;
+  recurrence: string;
+  status: string;
+  source: string;
+  read_only?: boolean;
+};
 
+type UserDetail = {
+  intake: Intake;
+  profile: Record<string, any> | null;
+  communications: Communication[];
+  lifecycle_events: Array<Record<string, any>>;
+  consent_attempts: ConsentAttempt[];
+  scheduled_events: ScheduledEvent[];
+};
+
+const ADMIN_KEY_STORAGE = "vyva_admin_lifecycle_key";
 const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
 const statuses = ["", "created", "link_sent", "consent_pending", "active", "dropped"];
 const tiers = ["trial", "unlimited", "custom"];
 const languageOptions = [
-  { value: "es", label: "Español" },
+  { value: "es", label: "Spanish" },
   { value: "en", label: "English" },
-  { value: "fr", label: "Français" },
-  { value: "de", label: "Deutsch" },
-  { value: "it", label: "Italiano" },
-  { value: "pt", label: "Português" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
 ];
 const timezoneOptions = ["Europe/Madrid", "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Rome", "Europe/Lisbon"];
 const countryCodeOptions = ["+34 ES", "+44 UK", "+33 FR", "+49 DE", "+39 IT", "+351 PT", "+1 US"];
@@ -79,6 +118,58 @@ const emptyIntakeForm = {
   organization_id: "",
 };
 
+const emptyScheduledEvent = {
+  event_type: "vyva_chat",
+  title: "",
+  description: "",
+  channel: "app",
+  agent_slug: "",
+  room_slug: "",
+  scheduled_for: "",
+  timezone: "Europe/Madrid",
+  recurrence: "none",
+  status: "upcoming",
+};
+
+function csvToRows(text: string) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+  const parseLine = (line: string) => {
+    const values: string[] = [];
+    let current = "";
+    let quoted = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values;
+  };
+  const headers = parseLine(lines[0]).map((header) => header.trim().toLowerCase().replace(/\s+/g, "_"));
+  return lines.slice(1).map((line) => {
+    const values = parseLine(line);
+    return headers.reduce<Record<string, string>>((row, header, index) => {
+      row[header] = values[index] ?? "";
+      return row;
+    }, {});
+  });
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Not scheduled";
+  return new Date(value).toLocaleString();
+}
+
 export default function LifecycleAdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [activeTab, setActiveTab] = useState("users");
@@ -86,11 +177,19 @@ export default function LifecycleAdminPage() {
   const [summary, setSummary] = useState<Record<string, any> | null>(null);
   const [users, setUsers] = useState<Intake[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [orgFilter, setOrgFilter] = useState<"active" | "archived" | "all">("active");
   const [consentAttempts, setConsentAttempts] = useState<ConsentAttempt[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [message, setMessage] = useState("");
   const [newIntake, setNewIntake] = useState(emptyIntakeForm);
   const [newOrg, setNewOrg] = useState({ name: "", default_tier: "trial" });
+  const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
+  const [selectedDraft, setSelectedDraft] = useState<Record<string, any>>({});
+  const [newEvent, setNewEvent] = useState(emptyScheduledEvent);
+  const [bulkOrg, setBulkOrg] = useState<Organization | null>(null);
+  const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
+  const [bulkPreview, setBulkPreview] = useState<BulkPreviewResponse | null>(null);
+  const [sendBulkLinks, setSendBulkLinks] = useState(false);
 
   const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
 
@@ -158,7 +257,7 @@ export default function LifecycleAdminPage() {
         },
       }),
     });
-    setMessage(`Intake creado para ${data.intake.name}.`);
+    setMessage(`Intake created for ${data.intake.name}.`);
     setNewIntake(emptyIntakeForm);
     await refresh();
   }
@@ -166,13 +265,13 @@ export default function LifecycleAdminPage() {
   async function sendLink(intake: Intake) {
     const data = await api(`/intakes/${intake.id}/send-link`, { method: "POST" });
     await navigator.clipboard?.writeText(data.url).catch(() => undefined);
-    setMessage(`Enlace preparado y copiado: ${data.url}`);
+    setMessage(`Access link prepared and copied: ${data.url}`);
     await refresh();
   }
 
   async function triggerConsent(intake: Intake) {
     await api(`/consent/${intake.id}/trigger`, { method: "POST" });
-    setMessage("Consentimiento puesto en cola.");
+    setMessage("Consent call queued.");
     await refresh();
   }
 
@@ -181,7 +280,7 @@ export default function LifecycleAdminPage() {
       method: "POST",
       body: JSON.stringify({ status, result_payload: { source: "admin_panel" } }),
     });
-    setMessage(`Consentimiento marcado como ${status}.`);
+    setMessage(`Consent marked as ${status}.`);
     await refresh();
   }
 
@@ -190,8 +289,20 @@ export default function LifecycleAdminPage() {
       method: "POST",
       body: JSON.stringify(newOrg),
     });
-    setMessage(`Organización creada: ${data.organization.name}.`);
+    setMessage(`Organization created: ${data.organization.name}.`);
     setNewOrg({ name: "", default_tier: "trial" });
+    await refresh();
+  }
+
+  async function archiveOrg(org: Organization) {
+    await api(`/organizations/${org.id}`, { method: "DELETE" });
+    setMessage(`${org.name} archived.`);
+    await refresh();
+  }
+
+  async function restoreOrg(org: Organization) {
+    await api(`/organizations/${org.id}/restore`, { method: "POST" });
+    setMessage(`${org.name} restored.`);
     await refresh();
   }
 
@@ -209,28 +320,122 @@ export default function LifecycleAdminPage() {
         caregiver_dashboard: tier === "unlimited",
       }),
     });
-    setMessage(`Tier ${tier} guardado.`);
+    setMessage(`Tier ${tier} saved.`);
   }
+
+  async function openUserDetail(intake: Intake) {
+    const data = await api(`/users/${intake.id}/details`);
+    setSelectedUser(data);
+    setSelectedDraft({
+      full_name: data.profile?.full_name ?? intake.name,
+      preferred_name: data.profile?.preferred_name ?? "",
+      date_of_birth: data.profile?.date_of_birth ?? "",
+      email: data.profile?.email ?? intake.email ?? "",
+      phone_number: data.profile?.phone_number ?? intake.phone,
+      whatsapp_number: data.profile?.whatsapp_number ?? "",
+      language: data.profile?.language ?? "es",
+      timezone: data.profile?.timezone ?? "Europe/Madrid",
+      caregiver_name: data.profile?.caregiver_name ?? "",
+      caregiver_contact: data.profile?.caregiver_contact ?? "",
+      tier: intake.tier,
+      organization_id: intake.organization_id ?? "",
+    });
+  }
+
+  async function saveUserDetail() {
+    if (!selectedUser) return;
+    const data = await api(`/users/${selectedUser.intake.id}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...selectedDraft,
+        organization_id: selectedDraft.organization_id || null,
+      }),
+    });
+    setMessage("User details saved.");
+    setSelectedUser({ ...selectedUser, intake: data.intake, profile: data.profile });
+    await refresh();
+  }
+
+  async function toggleUser(intake: Intake) {
+    const disabled = intake.account_status === "disabled";
+    await api(`/users/${intake.id}/${disabled ? "enable" : "disable"}`, {
+      method: "POST",
+      body: JSON.stringify({ reason: disabled ? "" : "Disabled by admin" }),
+    });
+    setMessage(disabled ? "User enabled." : "User disabled.");
+    if (selectedUser?.intake.id === intake.id) await openUserDetail(intake);
+    await refresh();
+  }
+
+  async function createScheduledEventForUser() {
+    if (!selectedUser || !newEvent.title.trim() || !newEvent.scheduled_for) return;
+    await api(`/users/${selectedUser.intake.id}/scheduled-events`, {
+      method: "POST",
+      body: JSON.stringify(newEvent),
+    });
+    setNewEvent(emptyScheduledEvent);
+    await openUserDetail(selectedUser.intake);
+    setMessage("Scheduled event added.");
+  }
+
+  async function setEventStatus(event: ScheduledEvent, action: "pause" | "resume" | "cancel") {
+    if (event.read_only) return;
+    await api(`/scheduled-events/${event.id}/${action}`, { method: "POST" });
+    if (selectedUser) await openUserDetail(selectedUser.intake);
+  }
+
+  async function handleBulkFile(e: ChangeEvent<HTMLInputElement>, org: Organization) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setMessage("CSV is supported in v1. Excel support can be added next.");
+      return;
+    }
+    const rows = csvToRows(await file.text());
+    setBulkOrg(org);
+    setBulkRows(rows);
+    setBulkPreview(null);
+    setMessage(`${rows.length} rows loaded. Preview before importing.`);
+  }
+
+  async function previewBulk() {
+    if (!bulkOrg) return;
+    const data = await api(`/organizations/${bulkOrg.id}/bulk-intakes/preview`, {
+      method: "POST",
+      body: JSON.stringify({ rows: bulkRows }),
+    });
+    setBulkPreview(data);
+  }
+
+  async function importBulk() {
+    if (!bulkOrg) return;
+    const data = await api(`/organizations/${bulkOrg.id}/bulk-intakes/import`, {
+      method: "POST",
+      body: JSON.stringify({ rows: bulkRows, send_links: sendBulkLinks }),
+    });
+    setMessage(`Imported ${data.summary.imported} users. Skipped ${data.summary.skipped}.`);
+    setBulkOrg(null);
+    setBulkRows([]);
+    setBulkPreview(null);
+    setSendBulkLinks(false);
+    await refresh();
+  }
+
+  const visibleOrganizations = organizations.filter((org) => (
+    orgFilter === "all" ? true : orgFilter === "active" ? org.is_active : !org.is_active
+  ));
 
   return (
     <main className="min-h-screen bg-[#f7f2eb] px-6 py-8 text-[#2f2135]">
       <section className="mx-auto max-w-7xl">
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-[#eadfd5]">
+        <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-6 shadow-sm">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-purple-700">VYVA Admin</p>
           <h1 className="mt-2 font-serif text-4xl">Signup, Access and Lifecycle</h1>
-          <p className="mt-2 text-[#7d6b65]">
-            One operating layer for form, phone, WhatsApp and admin-created users.
-          </p>
+          <p className="mt-2 text-[#7d6b65]">One operating layer for form, phone, WhatsApp and admin-created users.</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <input
-              className="min-w-[260px] rounded-2xl border border-[#e4d8ce] px-4 py-3"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="Admin key"
-            />
-            <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => refresh().catch((err) => setMessage(err.message))}>
-              Refresh
-            </button>
+            <input className="min-w-[260px] rounded-2xl border border-[#e4d8ce] px-4 py-3" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="Admin key" />
+            <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => refresh().catch((err) => setMessage(err.message))}>Refresh</button>
             {message && <span className="rounded-2xl bg-purple-50 px-4 py-3 text-purple-800">{message}</span>}
           </div>
         </div>
@@ -243,7 +448,7 @@ export default function LifecycleAdminPage() {
             ["Dropped", summary?.dropped ?? 0],
             ["Links sent", summary?.byStatus?.link_sent ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-3xl bg-white p-5 border border-[#eadfd5]">
+            <div key={label} className="rounded-3xl border border-[#eadfd5] bg-white p-5">
               <p className="text-sm text-[#8b7a73]">{label}</p>
               <p className="mt-1 text-3xl font-black">{String(value)}</p>
             </div>
@@ -252,18 +457,14 @@ export default function LifecycleAdminPage() {
 
         <nav className="mt-5 flex flex-wrap gap-2">
           {["users", "invites", "consent", "organizations", "tiers", "communications", "analytics"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-full px-5 py-3 font-bold ${activeTab === tab ? "bg-purple-700 text-white" : "bg-white text-purple-700 border border-purple-100"}`}
-            >
-              {tab}
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-full px-5 py-3 font-bold ${activeTab === tab ? "bg-purple-700 text-white" : "border border-purple-100 bg-white text-purple-700"}`}>
+              {tab[0].toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </nav>
 
         {activeTab === "users" && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
+          <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
             <div className="grid gap-3 md:grid-cols-4">
               {[
                 ["entry_point", entryPoints],
@@ -271,114 +472,75 @@ export default function LifecycleAdminPage() {
                 ["status", statuses],
                 ["tier", ["", ...tiers]],
               ].map(([key, values]) => (
-                <select
-                  key={key as string}
-                  className="rounded-2xl border border-[#e4d8ce] px-4 py-3"
-                  value={(filters as any)[key as string]}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, [key as string]: e.target.value }))}
-                >
-                  {(values as string[]).map((value) => <option key={value} value={value}>{value || key}</option>)}
+                <select key={key as string} className="rounded-2xl border border-[#e4d8ce] px-4 py-3" value={(filters as any)[key as string]} onChange={(e) => setFilters((prev) => ({ ...prev, [key as string]: e.target.value }))}>
+                  {(values as string[]).map((value) => <option key={value} value={value}>{value || String(key).replace("_", " ")}</option>)}
                 </select>
               ))}
             </div>
-            <IntakeTable users={users} onSendLink={sendLink} onTriggerConsent={triggerConsent} />
+            <IntakeTable users={users} onView={openUserDetail} onSendLink={sendLink} onTriggerConsent={triggerConsent} onToggleEnabled={toggleUser} />
           </section>
         )}
 
         {activeTab === "invites" && (
           <section className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
-            <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
+            <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
               <h2 className="font-serif text-3xl">Create intake</h2>
               <p className="mt-2 text-sm text-[#7d6b65]">Basic profile details, matching the user settings form.</p>
               <div className="mt-4 grid gap-3">
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Nombre" required>
-                    <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.first_name} onChange={(e) => setNewIntake({ ...newIntake, first_name: e.target.value })} />
-                  </Field>
-                  <Field label="Apellidos" required>
-                    <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.last_name} onChange={(e) => setNewIntake({ ...newIntake, last_name: e.target.value })} />
-                  </Field>
+                  <Field label="First name" required><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.first_name} onChange={(e) => setNewIntake({ ...newIntake, first_name: e.target.value })} /></Field>
+                  <Field label="Last name" required><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.last_name} onChange={(e) => setNewIntake({ ...newIntake, last_name: e.target.value })} /></Field>
                 </div>
-                <Field label="Nombre preferido (como le llama VYVA)" optional>
-                  <input className="w-full rounded-2xl border px-4 py-3" value={newIntake.preferred_name} onChange={(e) => setNewIntake({ ...newIntake, preferred_name: e.target.value })} />
-                </Field>
+                <Field label="Preferred name" optional><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.preferred_name} onChange={(e) => setNewIntake({ ...newIntake, preferred_name: e.target.value })} /></Field>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Fecha de nacimiento" optional>
-                    <input className="w-full rounded-2xl border px-4 py-3" type="date" value={newIntake.date_of_birth} onChange={(e) => setNewIntake({ ...newIntake, date_of_birth: e.target.value })} />
-                  </Field>
-                  <Field label="Género" optional>
+                  <Field label="Date of birth" optional><input className="w-full rounded-2xl border px-4 py-3" type="date" value={newIntake.date_of_birth} onChange={(e) => setNewIntake({ ...newIntake, date_of_birth: e.target.value })} /></Field>
+                  <Field label="Gender" optional>
                     <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.gender} onChange={(e) => setNewIntake({ ...newIntake, gender: e.target.value })}>
-                      <option value="prefer_not_to_say">Prefiero no decirlo</option>
-                      <option value="female">Femenino</option>
-                      <option value="male">Masculino</option>
-                      <option value="non_binary">No binario</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                      <option value="non_binary">Non-binary</option>
                     </select>
                   </Field>
                 </div>
-                <Field label="Número de teléfono" required>
+                <Field label="Phone number" required>
                   <div className="grid grid-cols-[120px_1fr] gap-2">
-                    <select className="rounded-2xl border px-3 py-3" value={newIntake.country_code} onChange={(e) => setNewIntake({ ...newIntake, country_code: e.target.value })}>
-                      {countryCodeOptions.map((value) => <option key={value}>{value}</option>)}
-                    </select>
+                    <select className="rounded-2xl border px-3 py-3" value={newIntake.country_code} onChange={(e) => setNewIntake({ ...newIntake, country_code: e.target.value })}>{countryCodeOptions.map((value) => <option key={value}>{value}</option>)}</select>
                     <input className="rounded-2xl border px-4 py-3" placeholder="612 345 678" value={newIntake.phone} onChange={(e) => setNewIntake({ ...newIntake, phone: e.target.value })} />
                   </div>
                 </Field>
-                <Field label="WhatsApp (si es diferente)" optional>
-                  <input className="w-full rounded-2xl border px-4 py-3" placeholder="Dejar en blanco si es el mismo" value={newIntake.whatsapp} onChange={(e) => setNewIntake({ ...newIntake, whatsapp: e.target.value })} />
-                </Field>
-                <Field label="Correo electrónico" optional>
-                  <input className="w-full rounded-2xl border px-4 py-3" placeholder="tu@correo.com" value={newIntake.email} onChange={(e) => setNewIntake({ ...newIntake, email: e.target.value })} />
-                </Field>
+                <Field label="WhatsApp, if different" optional><input className="w-full rounded-2xl border px-4 py-3" placeholder="Leave blank if same as phone" value={newIntake.whatsapp} onChange={(e) => setNewIntake({ ...newIntake, whatsapp: e.target.value })} /></Field>
+                <Field label="Email" optional><input className="w-full rounded-2xl border px-4 py-3" placeholder="name@example.com" value={newIntake.email} onChange={(e) => setNewIntake({ ...newIntake, email: e.target.value })} /></Field>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Idioma" optional>
-                    <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.language} onChange={(e) => setNewIntake({ ...newIntake, language: e.target.value })}>
-                      {languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Zona horaria" optional>
-                    <select className="w-full rounded-2xl border px-4 py-3" value={newIntake.timezone} onChange={(e) => setNewIntake({ ...newIntake, timezone: e.target.value })}>
-                      {timezoneOptions.map((value) => <option key={value}>{value}</option>)}
-                    </select>
-                  </Field>
+                  <Field label="Language" optional><select className="w-full rounded-2xl border px-4 py-3" value={newIntake.language} onChange={(e) => setNewIntake({ ...newIntake, language: e.target.value })}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+                  <Field label="Timezone" optional><select className="w-full rounded-2xl border px-4 py-3" value={newIntake.timezone} onChange={(e) => setNewIntake({ ...newIntake, timezone: e.target.value })}>{timezoneOptions.map((value) => <option key={value}>{value}</option>)}</select></Field>
                 </div>
-                <select className="rounded-2xl border px-4 py-3" value={newIntake.user_type} onChange={(e) => setNewIntake({ ...newIntake, user_type: e.target.value })}>
-                  {userTypes.filter(Boolean).map((v) => <option key={v}>{v}</option>)}
-                </select>
-                <select className="rounded-2xl border px-4 py-3" value={newIntake.entry_point} onChange={(e) => setNewIntake({ ...newIntake, entry_point: e.target.value })}>
-                  {entryPoints.filter(Boolean).map((v) => <option key={v}>{v}</option>)}
-                </select>
-                <select className="rounded-2xl border px-4 py-3" value={newIntake.tier} onChange={(e) => setNewIntake({ ...newIntake, tier: e.target.value })}>
-                  {tiers.map((v) => <option key={v}>{v}</option>)}
-                </select>
+                <select className="rounded-2xl border px-4 py-3" value={newIntake.user_type} onChange={(e) => setNewIntake({ ...newIntake, user_type: e.target.value })}>{userTypes.filter(Boolean).map((v) => <option key={v}>{v}</option>)}</select>
+                <select className="rounded-2xl border px-4 py-3" value={newIntake.entry_point} onChange={(e) => setNewIntake({ ...newIntake, entry_point: e.target.value })}>{entryPoints.filter(Boolean).map((v) => <option key={v}>{v}</option>)}</select>
+                <select className="rounded-2xl border px-4 py-3" value={newIntake.tier} onChange={(e) => setNewIntake({ ...newIntake, tier: e.target.value })}>{tiers.map((v) => <option key={v}>{v}</option>)}</select>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.organization_id} onChange={(e) => setNewIntake({ ...newIntake, organization_id: e.target.value })}>
                   <option value="">No organization</option>
-                  {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+                  {organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                 </select>
-                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={!newIntake.first_name.trim() || !newIntake.last_name.trim() || !newIntake.phone.trim()} onClick={createIntake}>Create</button>
+                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={!newIntake.first_name.trim() || !newIntake.last_name.trim() || !newIntake.phone.trim()} onClick={createIntake}>Create intake</button>
               </div>
             </div>
-            <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
+            <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
               <h2 className="font-serif text-3xl">Recent lifecycle users</h2>
-              <IntakeTable users={users.slice(0, 8)} onSendLink={sendLink} onTriggerConsent={triggerConsent} compact />
+              <IntakeTable users={users.slice(0, 8)} onView={openUserDetail} onSendLink={sendLink} onTriggerConsent={triggerConsent} onToggleEnabled={toggleUser} compact />
             </div>
           </section>
         )}
 
         {activeTab === "consent" && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
+          <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
             <h2 className="font-serif text-3xl">Consent queue</h2>
             <div className="mt-4 grid gap-3">
               {consentAttempts.map((attempt) => (
                 <div key={attempt.id} className="rounded-3xl border border-[#eadfd5] p-4">
-                  <p className="font-bold">{attempt.intake?.name ?? "Unknown intake"} · attempt {attempt.attempt_number}</p>
-                  <p className="text-sm text-[#7d6b65]">{attempt.status} · {attempt.channel} · {new Date(attempt.created_at).toLocaleString()}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {["approved", "rejected", "no_answer"].map((status) => (
-                      <button key={status} className="rounded-full border px-4 py-2 font-bold" onClick={() => markConsent(attempt, status)}>
-                        Mark {status}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="font-bold">{attempt.intake?.name ?? "Unknown intake"} - attempt {attempt.attempt_number}</p>
+                  <p className="text-sm text-[#7d6b65]">{attempt.status} - {attempt.channel} - {new Date(attempt.created_at).toLocaleString()}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">{["approved", "rejected", "no_answer"].map((status) => <button key={status} className="rounded-full border px-4 py-2 font-bold" onClick={() => markConsent(attempt, status)}>Mark {status}</button>)}</div>
                 </div>
               ))}
             </div>
@@ -387,76 +549,89 @@ export default function LifecycleAdminPage() {
 
         {activeTab === "organizations" && (
           <section className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
-            <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
+            <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
               <h2 className="font-serif text-3xl">New organization</h2>
               <input className="mt-4 w-full rounded-2xl border px-4 py-3" placeholder="Organization name" value={newOrg.name} onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })} />
-              <select className="mt-3 w-full rounded-2xl border px-4 py-3" value={newOrg.default_tier} onChange={(e) => setNewOrg({ ...newOrg, default_tier: e.target.value })}>
-                {tiers.map((v) => <option key={v}>{v}</option>)}
-              </select>
+              <select className="mt-3 w-full rounded-2xl border px-4 py-3" value={newOrg.default_tier} onChange={(e) => setNewOrg({ ...newOrg, default_tier: e.target.value })}>{tiers.map((v) => <option key={v}>{v}</option>)}</select>
               <button className="mt-3 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={createOrg}>Create organization</button>
+              <p className="mt-4 text-sm text-[#7d6b65]">Bulk upload requires CSV. Columns: first_name, last_name, phone. Optional: preferred_name, date_of_birth, gender, whatsapp, email, language, timezone, user_type, tier.</p>
             </div>
-            <div className="rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
-              {organizations.map((org) => (
+            <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+              <div className="mb-4 flex gap-2">
+                {(["active", "archived", "all"] as const).map((value) => <button key={value} onClick={() => setOrgFilter(value)} className={`rounded-full px-4 py-2 font-bold ${orgFilter === value ? "bg-purple-700 text-white" : "border text-purple-700"}`}>{value}</button>)}
+              </div>
+              {visibleOrganizations.map((org) => (
                 <div key={org.id} className="mb-3 rounded-3xl border p-4">
                   <p className="font-bold">{org.name}</p>
-                  <p className="text-sm text-[#7d6b65]">{org.slug} · default tier: {org.default_tier}</p>
+                  <p className="text-sm text-[#7d6b65]">{org.slug} - default tier: {org.default_tier} - {org.is_active ? "Active" : "Archived"}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {org.is_active ? (
+                      <>
+                        <label className="cursor-pointer rounded-full bg-purple-50 px-4 py-2 font-bold text-purple-700">
+                          Upload users
+                          <input type="file" accept=".csv" className="hidden" onChange={(e) => handleBulkFile(e, org)} />
+                        </label>
+                        <button className="rounded-full border px-4 py-2 font-bold" onClick={() => archiveOrg(org)}>Archive organization</button>
+                      </>
+                    ) : (
+                      <button className="rounded-full border px-4 py-2 font-bold" onClick={() => restoreOrg(org)}>Restore organization</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {activeTab === "tiers" && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
-            <h2 className="font-serif text-3xl">Tier bundles</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {tiers.map((tier) => (
-                <div key={tier} className="rounded-3xl border p-4">
-                  <p className="text-xl font-black capitalize">{tier}</p>
-                  <p className="mt-2 text-sm text-[#7d6b65]">Controls voice, health, concierge and caregiver entitlements.</p>
-                  <button className="mt-4 rounded-full bg-purple-50 px-4 py-2 font-bold text-purple-700" onClick={() => saveTier(tier)}>Save default bundle</button>
-                </div>
-              ))}
+        {bulkOrg && (
+          <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+            <h2 className="font-serif text-3xl">Bulk onboarding for {bulkOrg.name}</h2>
+            <p className="mt-1 text-sm text-[#7d6b65]">{bulkRows.length} CSV rows loaded. Preview before importing.</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 rounded-full border px-4 py-2 font-bold"><input type="checkbox" checked={sendBulkLinks} onChange={(e) => setSendBulkLinks(e.target.checked)} /> Send app links after import</label>
+              <button className="rounded-full bg-purple-700 px-4 py-2 font-bold text-white" onClick={previewBulk}>Preview rows</button>
+              <button className="rounded-full border px-4 py-2 font-bold" onClick={() => setBulkOrg(null)}>Close</button>
             </div>
+            {bulkPreview && (
+              <>
+                <p className="mt-4 font-bold">{bulkPreview.summary.valid} valid, {bulkPreview.summary.invalid} need attention.</p>
+                <div className="mt-3 max-h-[360px] overflow-auto">
+                  <table className="w-full min-w-[760px] border-separate border-spacing-y-2 text-sm">
+                    <thead><tr className="text-left uppercase text-[#8b7a73]"><th>Row</th><th>Name</th><th>Phone</th><th>Status</th><th>Errors</th></tr></thead>
+                    <tbody>{bulkPreview.rows.map((row) => <tr key={row.row_number} className="bg-[#fbf8f5]"><td className="rounded-l-2xl p-3">{row.row_number}</td><td>{row.values.name}</td><td>{row.values.phone}</td><td>{row.valid ? "Valid" : "Fix needed"}</td><td className="rounded-r-2xl p-3 text-red-700">{row.errors.join(", ")}</td></tr>)}</tbody>
+                  </table>
+                </div>
+                <button className="mt-4 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={bulkPreview.summary.valid === 0 || bulkPreview.summary.invalid > 0} onClick={importBulk}>Import valid rows</button>
+              </>
+            )}
           </section>
         )}
 
-        {activeTab === "communications" && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
-            <h2 className="font-serif text-3xl">Communication log</h2>
-            <div className="mt-4 grid gap-3">
-              {communications.map((item) => (
-                <div key={item.id} className="rounded-3xl border p-4">
-                  <p className="font-bold">{item.purpose} · {item.channel}</p>
-                  <p className="text-sm text-[#7d6b65]">{item.recipient} · {item.status} · {new Date(item.created_at).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {activeTab === "analytics" && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 border border-[#eadfd5]">
-            <h2 className="font-serif text-3xl">Analytics snapshot</h2>
-            <pre className="mt-4 overflow-auto rounded-3xl bg-[#2f2135] p-5 text-sm text-white">{JSON.stringify(summary, null, 2)}</pre>
-          </section>
-        )}
+        {activeTab === "tiers" && <TierSection onSave={saveTier} />}
+        {activeTab === "communications" && <CommunicationsSection communications={communications} />}
+        {activeTab === "analytics" && <AnalyticsSection summary={summary} />}
       </section>
+
+      {selectedUser && (
+        <UserDetailModal
+          detail={selectedUser}
+          draft={selectedDraft}
+          setDraft={setSelectedDraft}
+          organizations={organizations}
+          onClose={() => setSelectedUser(null)}
+          onSave={saveUserDetail}
+          onToggle={() => toggleUser(selectedUser.intake)}
+          newEvent={newEvent}
+          setNewEvent={setNewEvent}
+          onCreateEvent={createScheduledEventForUser}
+          onEventStatus={setEventStatus}
+        />
+      )}
     </main>
   );
 }
 
-function Field({
-  label,
-  required,
-  optional,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  optional?: boolean;
-  children: ReactNode;
-}) {
+function Field({ label, required, optional, children }: { label: string; required?: boolean; optional?: boolean; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 flex justify-between text-sm font-bold text-[#4d4351]">
@@ -468,33 +643,18 @@ function Field({
   );
 }
 
-function IntakeTable({
-  users,
-  onSendLink,
-  onTriggerConsent,
-  compact = false,
-}: {
+function IntakeTable({ users, onView, onSendLink, onTriggerConsent, onToggleEnabled, compact = false }: {
   users: Intake[];
+  onView: (intake: Intake) => void;
   onSendLink: (intake: Intake) => void;
   onTriggerConsent: (intake: Intake) => void;
+  onToggleEnabled: (intake: Intake) => void;
   compact?: boolean;
 }) {
   return (
     <div className="mt-5 overflow-auto">
-      <table className="w-full min-w-[900px] border-separate border-spacing-y-2">
-        <thead>
-          <tr className="text-left text-sm uppercase tracking-wide text-[#8b7a73]">
-            <th>Name</th>
-            {!compact && <th>Phone</th>}
-            <th>Type</th>
-            <th>Entry</th>
-            <th>Tier</th>
-            <th>Status</th>
-            <th>Consent</th>
-            <th>Org</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+      <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
+        <thead><tr className="text-left text-sm uppercase tracking-wide text-[#8b7a73]"><th>Name</th>{!compact && <th>Phone</th>}<th>Type</th><th>Entry</th><th>Tier</th><th>Status</th><th>Account</th><th>Consent</th><th>Org</th><th>Action</th></tr></thead>
         <tbody>
           {users.map((user) => (
             <tr key={user.id} className="rounded-2xl bg-[#fbf8f5]">
@@ -504,18 +664,15 @@ function IntakeTable({
               <td className="px-3 py-3">{user.entry_point}</td>
               <td className="px-3 py-3">{user.tier}</td>
               <td className="px-3 py-3">{user.status}</td>
+              <td className="px-3 py-3">{user.account_status ?? "enabled"}</td>
               <td className="px-3 py-3">{user.consent_status}</td>
               <td className="px-3 py-3">{user.organization_name ?? "-"}</td>
               <td className="rounded-r-2xl px-3 py-3">
-                <div className="flex gap-2">
-                  <button className="rounded-full bg-purple-700 px-3 py-2 text-sm font-bold text-white" onClick={() => onSendLink(user)}>
-                    Send link
-                  </button>
-                  {user.user_type === "family" && (
-                    <button className="rounded-full border px-3 py-2 text-sm font-bold" onClick={() => onTriggerConsent(user)}>
-                      Consent
-                    </button>
-                  )}
+                <div className="flex flex-wrap gap-2">
+                  <button className="rounded-full bg-[#2f2135] px-3 py-2 text-sm font-bold text-white" onClick={() => onView(user)}>View</button>
+                  <button className="rounded-full bg-purple-700 px-3 py-2 text-sm font-bold text-white" onClick={() => onSendLink(user)}>Send link</button>
+                  <button className="rounded-full border px-3 py-2 text-sm font-bold" onClick={() => onToggleEnabled(user)}>{user.account_status === "disabled" ? "Enable" : "Disable"}</button>
+                  {user.user_type === "family" && <button className="rounded-full border px-3 py-2 text-sm font-bold" onClick={() => onTriggerConsent(user)}>Consent</button>}
                 </div>
               </td>
             </tr>
@@ -523,5 +680,139 @@ function IntakeTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus }: {
+  detail: UserDetail;
+  draft: Record<string, any>;
+  setDraft: (next: Record<string, any>) => void;
+  organizations: Organization[];
+  onClose: () => void;
+  onSave: () => void;
+  onToggle: () => void;
+  newEvent: typeof emptyScheduledEvent;
+  setNewEvent: (next: typeof emptyScheduledEvent) => void;
+  onCreateEvent: () => void;
+  onEventStatus: (event: ScheduledEvent, action: "pause" | "resume" | "cancel") => void;
+}) {
+  const disabled = detail.profile?.account_status === "disabled" || detail.intake.account_status === "disabled";
+  return (
+    <div className="fixed inset-0 z-50 overflow-auto bg-black/30 p-4">
+      <div className="mx-auto max-w-5xl rounded-[2rem] bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div><p className="text-sm font-bold uppercase tracking-[0.22em] text-purple-700">User details</p><h2 className="font-serif text-4xl">{detail.intake.name}</h2><p className="text-[#7d6b65]">{detail.intake.user_type} - {detail.intake.status} - {disabled ? "Disabled" : "Enabled"}</p></div>
+          <button className="rounded-full border px-4 py-2 font-bold" onClick={onClose}>Close</button>
+        </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <section className="rounded-3xl border p-4">
+            <h3 className="text-xl font-black">Profile and access</h3>
+            <div className="mt-3 grid gap-3">
+              <Field label="Full name"><input className="w-full rounded-2xl border px-4 py-3" value={draft.full_name ?? ""} onChange={(e) => setDraft({ ...draft, full_name: e.target.value })} /></Field>
+              <Field label="Preferred name"><input className="w-full rounded-2xl border px-4 py-3" value={draft.preferred_name ?? ""} onChange={(e) => setDraft({ ...draft, preferred_name: e.target.value })} /></Field>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Phone"><input className="w-full rounded-2xl border px-4 py-3" value={draft.phone_number ?? ""} onChange={(e) => setDraft({ ...draft, phone_number: e.target.value })} /></Field>
+                <Field label="WhatsApp"><input className="w-full rounded-2xl border px-4 py-3" value={draft.whatsapp_number ?? ""} onChange={(e) => setDraft({ ...draft, whatsapp_number: e.target.value })} /></Field>
+              </div>
+              <Field label="Email"><input className="w-full rounded-2xl border px-4 py-3" value={draft.email ?? ""} onChange={(e) => setDraft({ ...draft, email: e.target.value })} /></Field>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Caregiver name"><input className="w-full rounded-2xl border px-4 py-3" value={draft.caregiver_name ?? ""} onChange={(e) => setDraft({ ...draft, caregiver_name: e.target.value })} /></Field>
+                <Field label="Caregiver contact"><input className="w-full rounded-2xl border px-4 py-3" value={draft.caregiver_contact ?? ""} onChange={(e) => setDraft({ ...draft, caregiver_contact: e.target.value })} /></Field>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Field label="Tier"><select className="w-full rounded-2xl border px-4 py-3" value={draft.tier ?? "trial"} onChange={(e) => setDraft({ ...draft, tier: e.target.value })}>{tiers.map((tier) => <option key={tier}>{tier}</option>)}</select></Field>
+                <Field label="Language"><select className="w-full rounded-2xl border px-4 py-3" value={draft.language ?? "es"} onChange={(e) => setDraft({ ...draft, language: e.target.value })}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+                <Field label="Organization"><select className="w-full rounded-2xl border px-4 py-3" value={draft.organization_id ?? ""} onChange={(e) => setDraft({ ...draft, organization_id: e.target.value })}><option value="">None</option>{organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></Field>
+              </div>
+              <div className="flex flex-wrap gap-2"><button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={onSave}>Save changes</button><button className="rounded-2xl border px-5 py-3 font-bold" onClick={onToggle}>{disabled ? "Enable user" : "Disable user"}</button></div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border p-4">
+            <h3 className="text-xl font-black">Scheduled events</h3>
+            <div className="mt-3 grid gap-2">
+              {detail.scheduled_events.length === 0 && <p className="text-[#7d6b65]">No scheduled events yet.</p>}
+              {detail.scheduled_events.map((event) => (
+                <div key={event.id} className="rounded-2xl bg-[#fbf8f5] p-3">
+                  <p className="font-bold">{event.title}</p>
+                  <p className="text-sm text-[#7d6b65]">{event.event_type} - {event.status} - {event.display_time ?? formatDate(event.scheduled_for)}</p>
+                  {event.description && <p className="text-sm">{event.description}</p>}
+                  {!event.read_only && <div className="mt-2 flex gap-2"><button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, event.status === "paused" ? "resume" : "pause")}>{event.status === "paused" ? "Resume" : "Pause"}</button><button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, "cancel")}>Cancel</button></div>}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl bg-purple-50 p-3">
+              <p className="font-bold">Add event</p>
+              <div className="mt-2 grid gap-2">
+                <input className="rounded-xl border px-3 py-2" placeholder="Title" value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} />
+                <input className="rounded-xl border px-3 py-2" type="datetime-local" value={newEvent.scheduled_for} onChange={(e) => setNewEvent({ ...newEvent, scheduled_for: e.target.value })} />
+                <div className="grid gap-2 md:grid-cols-3">
+                  <select className="rounded-xl border px-3 py-2" value={newEvent.event_type} onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value })}><option value="check_in_call">Check-in call</option><option value="medication_reminder">Medication reminder</option><option value="brain_coach">Brain coach</option><option value="vyva_chat">VYVA chat</option><option value="social_room_session">Social room session</option><option value="concierge_call">Concierge call</option><option value="custom">Custom</option></select>
+                  <select className="rounded-xl border px-3 py-2" value={newEvent.recurrence} onChange={(e) => setNewEvent({ ...newEvent, recurrence: e.target.value })}><option value="none">No repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+                  <select className="rounded-xl border px-3 py-2" value={newEvent.channel} onChange={(e) => setNewEvent({ ...newEvent, channel: e.target.value })}><option value="app">App</option><option value="voice">Voice</option><option value="whatsapp">WhatsApp</option><option value="sms">SMS</option></select>
+                </div>
+                <button className="rounded-xl bg-purple-700 px-4 py-2 font-bold text-white" onClick={onCreateEvent}>Add scheduled event</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section className="mt-5 grid gap-4 lg:grid-cols-3">
+          <LogPanel title="Communications" rows={detail.communications} />
+          <LogPanel title="Consent attempts" rows={detail.consent_attempts} />
+          <LogPanel title="Lifecycle history" rows={detail.lifecycle_events} />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function LogPanel({ title, rows }: { title: string; rows: Array<Record<string, any>> }) {
+  return (
+    <div className="rounded-3xl border p-4">
+      <h3 className="font-black">{title}</h3>
+      <div className="mt-3 max-h-72 overflow-auto text-sm">
+        {rows.length === 0 ? <p className="text-[#7d6b65]">No records yet.</p> : rows.map((row) => (
+          <div key={row.id} className="mb-2 rounded-2xl bg-[#fbf8f5] p-3">
+            <p className="font-bold">{row.purpose ?? row.event_type ?? row.status ?? row.action ?? "Record"}</p>
+            <p className="text-[#7d6b65]">{row.channel ? `${row.channel} - ` : ""}{row.created_at ? new Date(row.created_at).toLocaleString() : ""}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TierSection({ onSave }: { onSave: (tier: string) => void }) {
+  return (
+    <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+      <h2 className="font-serif text-3xl">Tier bundles</h2>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">{tiers.map((tier) => <div key={tier} className="rounded-3xl border p-4"><p className="text-xl font-black capitalize">{tier}</p><p className="mt-2 text-sm text-[#7d6b65]">Controls voice, health, concierge and caregiver entitlements.</p><button className="mt-4 rounded-full bg-purple-50 px-4 py-2 font-bold text-purple-700" onClick={() => onSave(tier)}>Save default bundle</button></div>)}</div>
+    </section>
+  );
+}
+
+function CommunicationsSection({ communications }: { communications: Communication[] }) {
+  return (
+    <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+      <h2 className="font-serif text-3xl">Communication log</h2>
+      <div className="mt-4 grid gap-3">{communications.map((item) => <div key={item.id} className="rounded-3xl border p-4"><p className="font-bold">{item.purpose} - {item.channel}</p><p className="text-sm text-[#7d6b65]">{item.recipient} - {item.status} - {new Date(item.created_at).toLocaleString()}</p></div>)}</div>
+    </section>
+  );
+}
+
+function AnalyticsSection({ summary }: { summary: Record<string, any> | null }) {
+  const groups = [
+    ["Entry points", summary?.byEntryPoint],
+    ["User types", summary?.byUserType],
+    ["Statuses", summary?.byStatus],
+    ["Tiers", summary?.byTier],
+    ["Consent", summary?.byConsent],
+  ];
+  return (
+    <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+      <h2 className="font-serif text-3xl">Analytics snapshot</h2>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">{groups.map(([label, values]) => <div key={label as string} className="rounded-3xl bg-[#fbf8f5] p-4"><p className="font-black">{label as string}</p>{Object.entries((values as Record<string, number>) ?? {}).map(([key, value]) => <p key={key} className="mt-2 flex justify-between"><span>{key}</span><strong>{value}</strong></p>)}</div>)}</div>
+    </section>
   );
 }

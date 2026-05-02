@@ -42,6 +42,27 @@ type AccountForm = {
   timezone: string;
 };
 
+type ScheduledEventItem = {
+  id: string;
+  event_type: string;
+  title: string;
+  description?: string | null;
+  channel: string;
+  agent_slug?: string | null;
+  room_slug?: string | null;
+  scheduled_for?: string | null;
+  display_time?: string | null;
+  timezone: string;
+  recurrence: string;
+  status: string;
+  source: string;
+  read_only?: boolean;
+};
+
+type ScheduledEventsResponse = {
+  events: ScheduledEventItem[];
+};
+
 const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
   es: {
     required: "Obligatorio",
@@ -57,6 +78,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Datos de la cuenta guardados",
     saveError: "No se pudieron guardar los datos de la cuenta",
     defaultName: "Maria",
+    scheduledEvents: "Eventos programados",
+    scheduledEventsHint: "Aqui veras llamadas, recordatorios y sesiones programadas por VYVA.",
+    scheduledEmpty: "No hay eventos programados todavia.",
+    scheduledPause: "Pausar",
+    scheduledResume: "Reanudar",
+    scheduledCancel: "Cancelar",
+    scheduledSaveTime: "Guardar hora",
+    scheduledReadOnly: "Gestionado por otra seccion",
+    scheduledUpcoming: "Proximo",
+    scheduledPaused: "Pausado",
+    scheduledPast: "Pasado",
   },
   en: {
     required: "Required",
@@ -72,6 +104,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Account details saved",
     saveError: "Could not save account details",
     defaultName: "Maria",
+    scheduledEvents: "Scheduled events",
+    scheduledEventsHint: "Calls, reminders and VYVA sessions scheduled for you will appear here.",
+    scheduledEmpty: "No scheduled events yet.",
+    scheduledPause: "Pause",
+    scheduledResume: "Resume",
+    scheduledCancel: "Cancel",
+    scheduledSaveTime: "Save time",
+    scheduledReadOnly: "Managed in another section",
+    scheduledUpcoming: "Upcoming",
+    scheduledPaused: "Paused",
+    scheduledPast: "Past",
   },
   fr: {
     required: "Obligatoire",
@@ -87,6 +130,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Informations du compte enregistrees",
     saveError: "Impossible d'enregistrer les informations du compte",
     defaultName: "Maria",
+    scheduledEvents: "Evenements programmes",
+    scheduledEventsHint: "Les appels, rappels et sessions VYVA programmes apparaitront ici.",
+    scheduledEmpty: "Aucun evenement programme pour le moment.",
+    scheduledPause: "Mettre en pause",
+    scheduledResume: "Reprendre",
+    scheduledCancel: "Annuler",
+    scheduledSaveTime: "Enregistrer l'heure",
+    scheduledReadOnly: "Gere dans une autre section",
+    scheduledUpcoming: "A venir",
+    scheduledPaused: "En pause",
+    scheduledPast: "Passe",
   },
   de: {
     required: "Pflichtfeld",
@@ -102,6 +156,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Kontodaten gespeichert",
     saveError: "Die Kontodaten konnten nicht gespeichert werden",
     defaultName: "Maria",
+    scheduledEvents: "Geplante Ereignisse",
+    scheduledEventsHint: "Anrufe, Erinnerungen und VYVA-Sitzungen erscheinen hier.",
+    scheduledEmpty: "Noch keine geplanten Ereignisse.",
+    scheduledPause: "Pausieren",
+    scheduledResume: "Fortsetzen",
+    scheduledCancel: "Absagen",
+    scheduledSaveTime: "Zeit speichern",
+    scheduledReadOnly: "In einem anderen Bereich verwaltet",
+    scheduledUpcoming: "Bevorstehend",
+    scheduledPaused: "Pausiert",
+    scheduledPast: "Vergangen",
   },
   it: {
     required: "Obbligatorio",
@@ -117,6 +182,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Dati dell'account salvati",
     saveError: "Impossibile salvare i dati dell'account",
     defaultName: "Maria",
+    scheduledEvents: "Eventi programmati",
+    scheduledEventsHint: "Qui appariranno chiamate, promemoria e sessioni VYVA programmate.",
+    scheduledEmpty: "Non ci sono ancora eventi programmati.",
+    scheduledPause: "Pausa",
+    scheduledResume: "Riprendi",
+    scheduledCancel: "Annulla",
+    scheduledSaveTime: "Salva ora",
+    scheduledReadOnly: "Gestito in un'altra sezione",
+    scheduledUpcoming: "In arrivo",
+    scheduledPaused: "In pausa",
+    scheduledPast: "Passato",
   },
   pt: {
     required: "Obrigatorio",
@@ -132,6 +208,17 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     saved: "Dados da conta guardados",
     saveError: "Nao foi possivel guardar os dados da conta",
     defaultName: "Maria",
+    scheduledEvents: "Eventos programados",
+    scheduledEventsHint: "Chamadas, lembretes e sessoes VYVA programadas aparecem aqui.",
+    scheduledEmpty: "Ainda nao ha eventos programados.",
+    scheduledPause: "Pausar",
+    scheduledResume: "Retomar",
+    scheduledCancel: "Cancelar",
+    scheduledSaveTime: "Guardar hora",
+    scheduledReadOnly: "Gerido noutra seccao",
+    scheduledUpcoming: "Proximo",
+    scheduledPaused: "Pausado",
+    scheduledPast: "Passado",
   },
 };
 
@@ -219,6 +306,22 @@ function getDefaultsForCountry(countryCode: string) {
   return COUNTRY_DEFAULTS[countryCode] ?? COUNTRY_DEFAULTS.ES;
 }
 
+function toDatetimeLocal(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatScheduledDate(value?: string | null, fallback?: string | null) {
+  if (fallback) return fallback;
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
+}
+
 export default function AccountSettings() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -247,6 +350,10 @@ export default function AccountSettings() {
 
   const profileQuery = useQuery<ProfileResponse | null>({
     queryKey: ["/api/profile"],
+  });
+
+  const scheduledEventsQuery = useQuery<ScheduledEventsResponse>({
+    queryKey: ["/api/profile/scheduled-events"],
   });
 
   useEffect(() => {
@@ -305,6 +412,24 @@ export default function AccountSettings() {
     },
     onError: () => {
       toast({ title: t("settings.account.photoError", "Could not update photo"), variant: "destructive" });
+    },
+  });
+
+  const scheduledEventMutation = useMutation({
+    mutationFn: async ({ id, action, scheduledFor }: { id: string; action: "pause" | "resume" | "cancel" | "update"; scheduledFor?: string }) => {
+      const url = action === "update" ? `/api/profile/scheduled-events/${id}` : `/api/profile/scheduled-events/${id}/${action}`;
+      const res = await apiFetch(url, {
+        method: action === "update" ? "PATCH" : "POST",
+        body: action === "update" ? JSON.stringify({ scheduled_for: scheduledFor }) : undefined,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/scheduled-events"] });
+    },
+    onError: () => {
+      toast({ title: t("settings.account.saveError", "Could not update scheduled event"), variant: "destructive" });
     },
   });
 
@@ -646,6 +771,33 @@ export default function AccountSettings() {
           </div>
         </div>
 
+        <section
+          className="rounded-[18px] border px-4 py-4"
+          style={{ background: "#fffdf9", borderColor: "#E9D5FF" }}
+        >
+          <div>
+            <h3 className="text-base font-bold text-gray-900">{accountCopy.scheduledEvents}</h3>
+            <p className="mt-1 text-xs" style={{ color: "#7A7290" }}>{accountCopy.scheduledEventsHint}</p>
+          </div>
+          <div className="mt-3 space-y-3">
+            {(scheduledEventsQuery.data?.events ?? []).length === 0 ? (
+              <p className="rounded-2xl bg-purple-50 px-4 py-3 text-sm" style={{ color: "#6B21A8" }}>
+                {accountCopy.scheduledEmpty}
+              </p>
+            ) : (
+              (scheduledEventsQuery.data?.events ?? []).map((event) => (
+                <ScheduledEventCard
+                  key={event.id}
+                  event={event}
+                  labels={accountCopy}
+                  onAction={(action, scheduledFor) => scheduledEventMutation.mutate({ id: event.id, action, scheduledFor })}
+                  disabled={scheduledEventMutation.isPending}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
         <div className="flex flex-col gap-2 pt-2">
           <Button
             onClick={handleSave}
@@ -669,5 +821,78 @@ export default function AccountSettings() {
         </div>
       </div>
     </PhoneFrame>
+  );
+}
+
+function ScheduledEventCard({
+  event,
+  labels,
+  onAction,
+  disabled,
+}: {
+  event: ScheduledEventItem;
+  labels: Record<string, string>;
+  onAction: (action: "pause" | "resume" | "cancel" | "update", scheduledFor?: string) => void;
+  disabled: boolean;
+}) {
+  const [draftTime, setDraftTime] = useState(toDatetimeLocal(event.scheduled_for));
+  const isPaused = event.status === "paused";
+  const isPast = event.status === "completed" || event.status === "cancelled";
+
+  useEffect(() => {
+    setDraftTime(toDatetimeLocal(event.scheduled_for));
+  }, [event.scheduled_for]);
+
+  return (
+    <article className="rounded-2xl border bg-white px-4 py-3" style={{ borderColor: "#EFE3DA" }}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-gray-900">{event.title}</p>
+          {event.description ? <p className="mt-1 text-xs text-gray-500">{event.description}</p> : null}
+          <p className="mt-1 text-xs" style={{ color: "#7A7290" }}>
+            {formatScheduledDate(event.scheduled_for, event.display_time)} - {event.channel} - {event.recurrence}
+          </p>
+        </div>
+        <span className="rounded-full bg-purple-50 px-3 py-1 text-[11px] font-bold" style={{ color: "#6B21A8" }}>
+          {isPaused ? labels.scheduledPaused : isPast ? labels.scheduledPast : labels.scheduledUpcoming}
+        </span>
+      </div>
+
+      {event.read_only ? (
+        <p className="mt-3 rounded-xl bg-[#F7F2EB] px-3 py-2 text-xs text-gray-500">{labels.scheduledReadOnly}</p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <Input type="datetime-local" value={draftTime} onChange={(e) => setDraftTime(e.target.value)} className="h-10" />
+            <Button
+              variant="outline"
+              className="h-10 rounded-xl"
+              disabled={disabled || !draftTime}
+              onClick={() => onAction("update", new Date(draftTime).toISOString())}
+            >
+              {labels.scheduledSaveTime}
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="h-9 rounded-xl"
+              disabled={disabled}
+              onClick={() => onAction(isPaused ? "resume" : "pause")}
+            >
+              {isPaused ? labels.scheduledResume : labels.scheduledPause}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 rounded-xl"
+              disabled={disabled}
+              onClick={() => onAction("cancel")}
+            >
+              {labels.scheduledCancel}
+            </Button>
+          </div>
+        </div>
+      )}
+    </article>
   );
 }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { randomBytes } from "crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
 import {
@@ -11,8 +11,11 @@ import {
   lifecycleEvents,
   organizations,
   profiles,
+  scheduledEventLogs,
+  scheduledEvents,
   tierEntitlements,
   userIntakes,
+  userMedications,
   users,
 } from "../../shared/schema.js";
 
@@ -79,6 +82,30 @@ const orgSchema = z.object({
   default_tier: z.string().min(1).default("trial"),
 });
 
+const bulkRowSchema = z.object({
+  first_name: z.string().optional().default(""),
+  last_name: z.string().optional().default(""),
+  name: z.string().optional().default(""),
+  preferred_name: z.string().optional().default(""),
+  date_of_birth: z.string().optional().default(""),
+  gender: z.string().optional().default("prefer_not_to_say"),
+  phone: z.string().optional().default(""),
+  whatsapp: z.string().optional().default(""),
+  email: z.string().optional().default(""),
+  language: z.string().optional().default("es"),
+  timezone: z.string().optional().default("Europe/Madrid"),
+  user_type: userTypeSchema.optional().default("elder"),
+  tier: z.string().optional().default(""),
+});
+
+const bulkPreviewSchema = z.object({
+  rows: z.array(bulkRowSchema).min(1).max(500),
+});
+
+const bulkImportSchema = bulkPreviewSchema.extend({
+  send_links: z.boolean().optional().default(false),
+});
+
 const tierSchema = z.object({
   tier: z.string().min(1),
   display_name: z.string().min(1),
@@ -90,6 +117,78 @@ const tierSchema = z.object({
   caregiver_dashboard: z.boolean().default(false),
   custom_features: z.record(z.unknown()).optional(),
 });
+
+const profileUpdateSchema = z.object({
+  full_name: z.string().min(1).optional(),
+  preferred_name: z.string().optional().nullable(),
+  date_of_birth: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable().or(z.literal("")),
+  phone_number: z.string().optional().nullable(),
+  whatsapp_number: z.string().optional().nullable(),
+  language: z.string().optional().nullable(),
+  timezone: z.string().optional().nullable(),
+  caregiver_name: z.string().optional().nullable(),
+  caregiver_contact: z.string().optional().nullable(),
+  subscription_tier: z.string().optional(),
+  organization_id: z.string().uuid().optional().nullable(),
+  tier: z.string().optional(),
+});
+
+const scheduledEventAdminSchema = z.object({
+  event_type: z.string().min(1).default("custom"),
+  title: z.string().min(1),
+  description: z.string().optional().nullable(),
+  channel: z.string().min(1).default("app"),
+  agent_id: z.string().optional().nullable(),
+  agent_slug: z.string().optional().nullable(),
+  room_slug: z.string().optional().nullable(),
+  scheduled_for: z.string().min(1),
+  timezone: z.string().min(1).default("Europe/Madrid"),
+  recurrence: z.string().min(1).default("none"),
+  status: z.string().min(1).default("upcoming"),
+  source: z.string().min(1).default("admin"),
+  metadata: z.record(z.unknown()).optional().default({}),
+});
+
+function targetUserIdForIntake(intake: typeof userIntakes.$inferSelect): string | null {
+  return intake.elder_user_id ?? intake.user_id ?? intake.family_user_id ?? null;
+}
+
+function medicationEventsFromRows(rows: Array<typeof userMedications.$inferSelect>) {
+  return rows.flatMap((med) => {
+    const times = med.scheduled_times?.length ? med.scheduled_times : [];
+    return times.map((time, index) => ({
+      id: `medication:${med.id}:${index}`,
+      user_id: med.user_id,
+      event_type: "medication_reminder",
+      title: med.medication_name,
+      description: med.dosage ? `${med.dosage}${med.frequency ? ` - ${med.frequency}` : ""}` : med.frequency ?? "",
+      channel: "app",
+      agent_id: null,
+      agent_slug: null,
+      room_slug: null,
+      scheduled_for: null,
+      display_time: time,
+      timezone: "profile",
+      recurrence: med.frequency ?? "daily",
+      status: med.active ? "recurring" : "paused",
+      source: "medication_schedule",
+      metadata: { medication_id: med.id, read_only: true },
+      created_at: med.created_at,
+      updated_at: med.created_at,
+      read_only: true,
+    }));
+  });
+}
+
+async function scheduledItemsForUser(userId: string | null) {
+  if (!userId) return [];
+  const [events, medications] = await Promise.all([
+    db.select().from(scheduledEvents).where(eq(scheduledEvents.user_id, userId)).orderBy(desc(scheduledEvents.scheduled_for)).limit(100),
+    db.select().from(userMedications).where(eq(userMedications.user_id, userId)).limit(100),
+  ]);
+  return [...events, ...medicationEventsFromRows(medications)];
+}
 
 function normalizePhone(phone: string): string {
   const trimmed = phone.trim();
@@ -110,6 +209,87 @@ function slugify(value: string): string {
 function syntheticEmailForPhone(phone: string): string {
   const normalized = normalizePhone(phone) || randomBytes(6).toString("hex");
   return `phone+${normalized.replace(/^\+/, "")}@vyva.local`;
+}
+
+function splitName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { firstName: parts[0] ?? "", lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function normalizeBulkRow(row: z.infer<typeof bulkRowSchema>, defaultTier: string) {
+  const fromName = splitName(row.name);
+  const firstName = row.first_name.trim() || fromName.firstName;
+  const lastName = row.last_name.trim() || fromName.lastName;
+  const fullName = `${firstName} ${lastName}`.trim() || row.name.trim();
+  const phone = normalizePhone(row.phone);
+  const whatsapp = row.whatsapp.trim() ? normalizePhone(row.whatsapp) : phone;
+  const language = row.language.trim() || "es";
+  const timezone = row.timezone.trim() || "Europe/Madrid";
+  const tier = row.tier.trim() || defaultTier || "trial";
+
+  return {
+    first_name: firstName,
+    last_name: lastName,
+    name: fullName,
+    preferred_name: row.preferred_name.trim(),
+    date_of_birth: row.date_of_birth.trim(),
+    gender: row.gender.trim() || "prefer_not_to_say",
+    phone,
+    whatsapp,
+    email: row.email.trim(),
+    language,
+    timezone,
+    user_type: row.user_type,
+    tier,
+  };
+}
+
+async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bulkRowSchema>[]) {
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+  if (!org) return { error: "Organization not found" as const };
+
+  const normalized = rows.map((row, index) => ({
+    index,
+    values: normalizeBulkRow(row, org.default_tier),
+    errors: [] as string[],
+  }));
+  const seenPhones = new Map<string, number>();
+
+  for (const row of normalized) {
+    if (!row.values.first_name) row.errors.push("First name is required");
+    if (!row.values.last_name) row.errors.push("Last name is required");
+    if (!row.values.phone) row.errors.push("Phone is required");
+    if (row.values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.values.email)) row.errors.push("Email is invalid");
+    if (!["elder", "family", "admin"].includes(row.values.user_type)) row.errors.push("User type must be elder, family, or admin");
+
+    if (row.values.phone) {
+      const firstSeen = seenPhones.get(row.values.phone);
+      if (firstSeen !== undefined) {
+        row.errors.push(`Duplicate phone in file, first seen on row ${firstSeen + 1}`);
+      } else {
+        seenPhones.set(row.values.phone, row.index);
+      }
+
+      const [existing] = await db
+        .select({ id: userIntakes.id })
+        .from(userIntakes)
+        .where(eq(userIntakes.phone, row.values.phone))
+        .limit(1);
+      if (existing) row.errors.push("Phone already exists in lifecycle intakes");
+    }
+  }
+
+  return {
+    organization: org,
+    rows: normalized.map((row) => ({
+      index: row.index,
+      row_number: row.index + 1,
+      valid: row.errors.length === 0,
+      errors: row.errors,
+      values: row.values,
+    })),
+  };
 }
 
 function placeholderPasswordHash(): string {
@@ -245,8 +425,206 @@ adminLifecycleRouter.get("/users", async (req: Request, res: Response) => {
     .orderBy(desc(userIntakes.created_at))
     .limit(200);
 
-  return res.json({ users: rows.map((row) => ({ ...row.intake, organization_name: row.organization_name })) });
+  const profileIds = Array.from(new Set(rows.map((row) => targetUserIdForIntake(row.intake)).filter(Boolean))) as string[];
+  const profileRows = profileIds.length
+    ? await db
+      .select({
+        id: profiles.id,
+        account_status: profiles.account_status,
+        disabled_at: profiles.disabled_at,
+      })
+      .from(profiles)
+      .where(inArray(profiles.id, profileIds))
+    : [];
+  const profileById = new Map(profileRows.map((profile) => [profile.id, profile]));
+
+  return res.json({
+    users: rows.map((row) => {
+      const profile = profileById.get(targetUserIdForIntake(row.intake) ?? "");
+      return {
+        ...row.intake,
+        organization_name: row.organization_name,
+        account_status: profile?.account_status ?? "enabled",
+        disabled_at: profile?.disabled_at ?? null,
+      };
+    }),
+  });
 });
+
+adminLifecycleRouter.get("/users/:id/details", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const [intake] = await db.select().from(userIntakes).where(eq(userIntakes.id, req.params.id)).limit(1);
+  if (!intake) return res.status(404).json({ error: "User intake not found" });
+
+  const userId = targetUserIdForIntake(intake);
+  const [profile] = userId
+    ? await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1)
+    : [];
+  const [communicationRows, lifecycleRows, consentRows, scheduledRows] = await Promise.all([
+    db.select().from(communicationsLog).where(eq(communicationsLog.intake_id, intake.id)).orderBy(desc(communicationsLog.created_at)).limit(100),
+    db.select().from(lifecycleEvents).where(eq(lifecycleEvents.intake_id, intake.id)).orderBy(desc(lifecycleEvents.created_at)).limit(100),
+    db.select().from(consentAttempts).where(eq(consentAttempts.intake_id, intake.id)).orderBy(desc(consentAttempts.created_at)).limit(50),
+    scheduledItemsForUser(userId),
+  ]);
+
+  return res.json({
+    intake,
+    profile: profile ?? null,
+    communications: communicationRows,
+    lifecycle_events: lifecycleRows,
+    consent_attempts: consentRows,
+    scheduled_events: scheduledRows,
+  });
+});
+
+adminLifecycleRouter.patch("/users/:id/profile", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = profileUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid profile update" });
+
+  const [intake] = await db.select().from(userIntakes).where(eq(userIntakes.id, req.params.id)).limit(1);
+  if (!intake) return res.status(404).json({ error: "User intake not found" });
+  const userId = targetUserIdForIntake(intake);
+  if (!userId) return res.status(400).json({ error: "This intake is not linked to a profile yet" });
+
+  const data = parsed.data;
+  const profilePatch: Partial<typeof profiles.$inferInsert> = { updated_at: new Date() };
+  if (data.full_name !== undefined) profilePatch.full_name = data.full_name;
+  if (data.preferred_name !== undefined) profilePatch.preferred_name = data.preferred_name || null;
+  if (data.date_of_birth !== undefined) profilePatch.date_of_birth = data.date_of_birth || null;
+  if (data.email !== undefined) profilePatch.email = data.email || null;
+  if (data.phone_number !== undefined) profilePatch.phone_number = data.phone_number || null;
+  if (data.whatsapp_number !== undefined) profilePatch.whatsapp_number = data.whatsapp_number || null;
+  if (data.language !== undefined) profilePatch.language = data.language || "es";
+  if (data.timezone !== undefined) profilePatch.timezone = data.timezone || "Europe/Madrid";
+  if (data.caregiver_name !== undefined) profilePatch.caregiver_name = data.caregiver_name || null;
+  if (data.caregiver_contact !== undefined) profilePatch.caregiver_contact = data.caregiver_contact || null;
+  if (data.subscription_tier !== undefined || data.tier !== undefined) profilePatch.subscription_tier = data.subscription_tier ?? data.tier;
+
+  const [profile] = await db
+    .update(profiles)
+    .set(profilePatch)
+    .where(eq(profiles.id, userId))
+    .returning();
+
+  const intakePatch: Partial<typeof userIntakes.$inferInsert> = { updated_at: new Date(), last_activity_at: new Date() };
+  if (data.full_name !== undefined) intakePatch.name = data.full_name;
+  if (data.phone_number !== undefined) intakePatch.phone = normalizePhone(data.phone_number ?? intake.phone);
+  if (data.email !== undefined) intakePatch.email = data.email || null;
+  if (data.tier !== undefined || data.subscription_tier !== undefined) intakePatch.tier = data.tier ?? data.subscription_tier;
+  if (data.organization_id !== undefined) intakePatch.organization_id = data.organization_id ?? null;
+
+  const [updatedIntake] = await db.update(userIntakes).set(intakePatch).where(eq(userIntakes.id, intake.id)).returning();
+  await recordEvent({ intakeId: intake.id, userId, eventType: "admin_profile_updated", channel: "admin" });
+
+  return res.json({ intake: updatedIntake, profile });
+});
+
+adminLifecycleRouter.post("/users/:id/disable", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const reason = z.object({ reason: z.string().optional().default("") }).parse(req.body ?? {}).reason;
+  const [intake] = await db.select().from(userIntakes).where(eq(userIntakes.id, req.params.id)).limit(1);
+  if (!intake) return res.status(404).json({ error: "User intake not found" });
+  const userId = targetUserIdForIntake(intake);
+  if (!userId) return res.status(400).json({ error: "This intake is not linked to a profile yet" });
+
+  const [profile] = await db.update(profiles).set({
+    account_status: "disabled",
+    disabled_at: new Date(),
+    disabled_reason: reason || "Disabled by admin",
+    disabled_by: "admin",
+    updated_at: new Date(),
+  }).where(eq(profiles.id, userId)).returning();
+
+  await recordEvent({ intakeId: intake.id, userId, eventType: "user_disabled", channel: "admin", metadata: { reason } });
+  return res.json({ profile });
+});
+
+adminLifecycleRouter.post("/users/:id/enable", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const [intake] = await db.select().from(userIntakes).where(eq(userIntakes.id, req.params.id)).limit(1);
+  if (!intake) return res.status(404).json({ error: "User intake not found" });
+  const userId = targetUserIdForIntake(intake);
+  if (!userId) return res.status(400).json({ error: "This intake is not linked to a profile yet" });
+
+  const [profile] = await db.update(profiles).set({
+    account_status: "enabled",
+    disabled_at: null,
+    disabled_reason: null,
+    disabled_by: null,
+    updated_at: new Date(),
+  }).where(eq(profiles.id, userId)).returning();
+
+  await recordEvent({ intakeId: intake.id, userId, eventType: "user_enabled", channel: "admin" });
+  return res.json({ profile });
+});
+
+adminLifecycleRouter.post("/users/:id/scheduled-events", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = scheduledEventAdminSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid scheduled event" });
+  const [intake] = await db.select().from(userIntakes).where(eq(userIntakes.id, req.params.id)).limit(1);
+  if (!intake) return res.status(404).json({ error: "User intake not found" });
+  const userId = targetUserIdForIntake(intake);
+  if (!userId) return res.status(400).json({ error: "This intake is not linked to a profile yet" });
+  const data = parsed.data;
+  const [event] = await db.insert(scheduledEvents).values({
+    user_id: userId,
+    event_type: data.event_type,
+    title: data.title,
+    description: data.description ?? null,
+    channel: data.channel,
+    agent_id: data.agent_id ?? null,
+    agent_slug: data.agent_slug ?? null,
+    room_slug: data.room_slug ?? null,
+    scheduled_for: new Date(data.scheduled_for),
+    timezone: data.timezone,
+    recurrence: data.recurrence,
+    status: data.status,
+    source: data.source,
+    metadata: data.metadata,
+    created_by: "admin",
+  }).returning();
+  await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: userId, action: "created", status: event.status, created_by: "admin" });
+  await recordEvent({ intakeId: intake.id, userId, eventType: "scheduled_event_created", channel: "admin", metadata: { event_id: event.id } });
+  return res.status(201).json({ event });
+});
+
+adminLifecycleRouter.patch("/scheduled-events/:eventId", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = scheduledEventAdminSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid scheduled event update" });
+  const data = parsed.data;
+  const patch: Partial<typeof scheduledEvents.$inferInsert> = { updated_at: new Date(), updated_by: "admin" };
+  if (data.event_type !== undefined) patch.event_type = data.event_type;
+  if (data.title !== undefined) patch.title = data.title;
+  if (data.description !== undefined) patch.description = data.description ?? null;
+  if (data.channel !== undefined) patch.channel = data.channel;
+  if (data.agent_id !== undefined) patch.agent_id = data.agent_id ?? null;
+  if (data.agent_slug !== undefined) patch.agent_slug = data.agent_slug ?? null;
+  if (data.room_slug !== undefined) patch.room_slug = data.room_slug ?? null;
+  if (data.scheduled_for !== undefined) patch.scheduled_for = new Date(data.scheduled_for);
+  if (data.timezone !== undefined) patch.timezone = data.timezone;
+  if (data.recurrence !== undefined) patch.recurrence = data.recurrence;
+  if (data.status !== undefined) patch.status = data.status;
+  if (data.source !== undefined) patch.source = data.source;
+  if (data.metadata !== undefined) patch.metadata = data.metadata;
+  const [event] = await db.update(scheduledEvents).set(patch).where(eq(scheduledEvents.id, req.params.eventId)).returning();
+  if (!event) return res.status(404).json({ error: "Scheduled event not found" });
+  await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: event.user_id, action: "updated", status: event.status, created_by: "admin" });
+  return res.json({ event });
+});
+
+for (const [action, status] of [["pause", "paused"], ["resume", "upcoming"], ["cancel", "cancelled"]] as const) {
+  adminLifecycleRouter.post(`/scheduled-events/:eventId/${action}`, async (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const [event] = await db.update(scheduledEvents).set({ status, updated_at: new Date(), updated_by: "admin" }).where(eq(scheduledEvents.id, req.params.eventId)).returning();
+    if (!event) return res.status(404).json({ error: "Scheduled event not found" });
+    await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: event.user_id, action, status, created_by: "admin" });
+    return res.json({ event });
+  });
+}
 
 adminLifecycleRouter.post("/intakes", async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
@@ -531,6 +909,181 @@ adminLifecycleRouter.post("/organizations", async (req: Request, res: Response) 
     default_tier: data.default_tier,
   }).returning();
   return res.status(201).json({ organization: org });
+});
+
+adminLifecycleRouter.delete("/organizations/:id", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const [org] = await db
+    .update(organizations)
+    .set({ is_active: false, updated_at: new Date() })
+    .where(eq(organizations.id, req.params.id))
+    .returning();
+
+  if (!org) return res.status(404).json({ error: "Organization not found" });
+
+  await recordEvent({
+    eventType: "organization_archived",
+    metadata: { organization_id: org.id, organization_name: org.name },
+  });
+
+  return res.json({ organization: org });
+});
+
+adminLifecycleRouter.post("/organizations/:id/restore", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const [org] = await db
+    .update(organizations)
+    .set({ is_active: true, updated_at: new Date() })
+    .where(eq(organizations.id, req.params.id))
+    .returning();
+
+  if (!org) return res.status(404).json({ error: "Organization not found" });
+
+  await recordEvent({
+    eventType: "organization_restored",
+    metadata: { organization_id: org.id, organization_name: org.name },
+  });
+
+  return res.json({ organization: org });
+});
+
+adminLifecycleRouter.post("/organizations/:id/bulk-intakes/preview", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = bulkPreviewSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid bulk rows" });
+
+  const preview = await buildBulkPreview(req.params.id, parsed.data.rows);
+  if ("error" in preview) return res.status(404).json({ error: preview.error });
+
+  return res.json({
+    organization: preview.organization,
+    rows: preview.rows,
+    summary: {
+      total: preview.rows.length,
+      valid: preview.rows.filter((row) => row.valid).length,
+      invalid: preview.rows.filter((row) => !row.valid).length,
+    },
+  });
+});
+
+adminLifecycleRouter.post("/organizations/:id/bulk-intakes/import", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = bulkImportSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid bulk rows" });
+
+  const preview = await buildBulkPreview(req.params.id, parsed.data.rows);
+  if ("error" in preview) return res.status(404).json({ error: preview.error });
+
+  const imported = [];
+  const links = [];
+  const skipped = preview.rows.filter((row) => !row.valid);
+
+  for (const row of preview.rows.filter((item) => item.valid)) {
+    const values = row.values;
+    const requiresConsent = values.user_type === "family";
+    const shouldSendLink = parsed.data.send_links && !requiresConsent;
+    const user = await ensurePasswordlessUser({
+      name: values.name,
+      phone: values.phone,
+      email: values.email || null,
+      tier: values.tier,
+      organizationId: preview.organization.id,
+      profile: {
+        first_name: values.first_name,
+        last_name: values.last_name,
+        preferred_name: values.preferred_name,
+        date_of_birth: values.date_of_birth,
+        gender: values.gender,
+        phone_number: values.phone,
+        whatsapp_number: values.whatsapp,
+        email: values.email,
+        language: values.language,
+        timezone: values.timezone,
+      },
+    });
+
+    const [intake] = await db.insert(userIntakes).values({
+      user_id: user.id,
+      elder_user_id: values.user_type === "elder" ? user.id : null,
+      family_user_id: values.user_type === "family" ? user.id : null,
+      name: values.name,
+      phone: values.phone,
+      email: values.email || null,
+      user_type: values.user_type,
+      entry_point: "admin",
+      organization_id: preview.organization.id,
+      tier: values.tier,
+      status: requiresConsent ? "consent_pending" : shouldSendLink ? "link_sent" : "created",
+      journey_step: requiresConsent ? "bulk_import_consent_required" : shouldSendLink ? "bulk_import_link_sent" : "bulk_import_created",
+      consent_status: requiresConsent ? "pending" : "not_required",
+      source_payload: { bulk_import: true, row_number: row.row_number },
+      metadata: {
+        first_name: values.first_name,
+        last_name: values.last_name,
+        preferred_name: values.preferred_name,
+        date_of_birth: values.date_of_birth,
+        gender: values.gender,
+        whatsapp_number: values.whatsapp,
+        language: values.language,
+        timezone: values.timezone,
+        import_source: "organization_csv",
+      },
+      link_sent_at: shouldSendLink ? new Date() : null,
+      last_activity_at: new Date(),
+    }).returning();
+
+    await recordEvent({
+      intakeId: intake.id,
+      userId: user.id,
+      eventType: "bulk_intake_imported",
+      toStatus: intake.status,
+      channel: "admin",
+      metadata: { organization_id: preview.organization.id, row_number: row.row_number },
+    });
+
+    imported.push(intake);
+
+    if (shouldSendLink) {
+      const token = randomBytes(32).toString("base64url");
+      const destination = values.user_type === "family" ? "/caregiver" : "/onboarding";
+      const [link] = await db.insert(accessLinks).values({
+        token,
+        user_id: user.id,
+        intake_id: intake.id,
+        organization_id: preview.organization.id,
+        link_type: values.tier === "unlimited" ? "unlimited" : "trial",
+        tier: values.tier,
+        destination,
+        target_role: values.user_type,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      }).returning();
+      const url = `${publicBaseUrl(req)}/access/${token}`;
+
+      await db.insert(communicationsLog).values({
+        intake_id: intake.id,
+        user_id: user.id,
+        channel: "sms",
+        recipient: values.phone,
+        purpose: "bulk_send_app_link",
+        status: "queued",
+        body: `VYVA: here is your secure link to continue: ${url}`,
+        metadata: { url, organization_id: preview.organization.id },
+      });
+
+      links.push({ intake_id: intake.id, link_id: link.id, url });
+    }
+  }
+
+  return res.status(201).json({
+    imported,
+    links,
+    skipped,
+    summary: {
+      imported: imported.length,
+      skipped: skipped.length,
+      links_queued: links.length,
+    },
+  });
 });
 
 adminLifecycleRouter.get("/tiers", async (req: Request, res: Response) => {

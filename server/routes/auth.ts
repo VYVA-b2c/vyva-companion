@@ -197,6 +197,16 @@ authRouter.post("/access-link/consume", async (req: Request, res: Response) => {
     return res.status(409).json({ error: "This access link is not attached to a user yet." });
   }
 
+  const [profileAccess] = await db
+    .select({ account_status: profiles.account_status })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+
+  if (profileAccess?.account_status === "disabled") {
+    return res.status(403).json({ error: "This account is currently disabled." });
+  }
+
   const now = new Date();
   await db
     .update(accessLinks)

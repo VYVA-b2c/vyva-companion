@@ -1,9 +1,9 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { eq, count } from "drizzle-orm";
+import { desc, eq, count } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
-import { profiles, userMedications } from "../../shared/schema.js";
+import { profiles, scheduledEventLogs, scheduledEvents, userMedications } from "../../shared/schema.js";
 import { mergeIdentityGender, readProfileGender } from "../lib/userPersonalization.js";
 
 const DEMO_USER_ID = "demo-user";
@@ -40,6 +40,50 @@ const profileBodySchema = z.object({
   caregiverName:   z.string().max(150).optional().default(""),
   caregiverContact: z.string().max(50).optional().default(""),
 });
+
+const scheduledEventBodySchema = z.object({
+  event_type: z.string().min(1).default("custom"),
+  title: z.string().min(1).max(160),
+  description: z.string().max(1000).optional().nullable(),
+  channel: z.string().min(1).default("app"),
+  agent_id: z.string().optional().nullable(),
+  agent_slug: z.string().optional().nullable(),
+  room_slug: z.string().optional().nullable(),
+  scheduled_for: z.string().min(1),
+  timezone: z.string().min(1).default("Europe/Madrid"),
+  recurrence: z.string().min(1).default("none"),
+  status: z.string().min(1).default("upcoming"),
+  source: z.string().min(1).default("app"),
+  metadata: z.record(z.unknown()).optional().default({}),
+});
+
+function medicationEventsFromRows(rows: Array<typeof userMedications.$inferSelect>) {
+  return rows.flatMap((med) => {
+    const times = med.scheduled_times?.length ? med.scheduled_times : [];
+    return times.map((time, index) => ({
+      id: `medication:${med.id}:${index}`,
+      user_id: med.user_id,
+      event_type: "medication_reminder",
+      title: med.medication_name,
+      description: med.dosage ? `${med.dosage}${med.frequency ? ` - ${med.frequency}` : ""}` : med.frequency ?? "",
+      channel: "app",
+      agent_id: null,
+      agent_slug: null,
+      room_slug: null,
+      scheduled_for: null,
+      display_time: time,
+      timezone: "profile",
+      recurrence: med.frequency ?? "daily",
+      status: med.active ? "recurring" : "paused",
+      source: "medication_schedule",
+      source_session_id: null,
+      metadata: { medication_id: med.id, read_only: true },
+      created_at: med.created_at,
+      updated_at: med.created_at,
+      read_only: true,
+    }));
+  });
+}
 
 router.get("/", async (req: Request, res: Response) => {
   const userId = resolveUserId(req);
@@ -209,5 +253,101 @@ router.get("/personalisation", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Failed to fetch personalisation data" });
   }
 });
+
+router.get("/scheduled-events", async (req: Request, res: Response) => {
+  const userId = resolveUserId(req);
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  try {
+    const [events, medications] = await Promise.all([
+      db.select().from(scheduledEvents).where(eq(scheduledEvents.user_id, userId)).orderBy(desc(scheduledEvents.scheduled_for)).limit(100),
+      db.select().from(userMedications).where(eq(userMedications.user_id, userId)).limit(100),
+    ]);
+
+    return res.json({ events: [...events, ...medicationEventsFromRows(medications)] });
+  } catch (err) {
+    console.error("[profile GET /scheduled-events]", err);
+    return res.status(500).json({ error: "Failed to fetch scheduled events" });
+  }
+});
+
+router.post("/scheduled-events", async (req: Request, res: Response) => {
+  const userId = resolveUserId(req);
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+  const parsed = scheduledEventBodySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid scheduled event" });
+
+  try {
+    const data = parsed.data;
+    const [event] = await db.insert(scheduledEvents).values({
+      user_id: userId,
+      event_type: data.event_type,
+      title: data.title,
+      description: data.description ?? null,
+      channel: data.channel,
+      agent_id: data.agent_id ?? null,
+      agent_slug: data.agent_slug ?? null,
+      room_slug: data.room_slug ?? null,
+      scheduled_for: new Date(data.scheduled_for),
+      timezone: data.timezone,
+      recurrence: data.recurrence,
+      status: data.status,
+      source: data.source,
+      metadata: data.metadata,
+      created_by: userId,
+    }).returning();
+    await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: userId, action: "created", status: event.status, created_by: userId });
+    return res.status(201).json({ event });
+  } catch (err) {
+    console.error("[profile POST /scheduled-events]", err);
+    return res.status(500).json({ error: "Failed to create scheduled event" });
+  }
+});
+
+router.patch("/scheduled-events/:id", async (req: Request, res: Response) => {
+  const userId = resolveUserId(req);
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+  const parsed = scheduledEventBodySchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid scheduled event update" });
+  if (req.params.id.startsWith("medication:")) return res.status(400).json({ error: "Medication reminders are edited from Medications" });
+
+  const data = parsed.data;
+  const patch: Partial<typeof scheduledEvents.$inferInsert> = { updated_at: new Date(), updated_by: userId };
+  if (data.event_type !== undefined) patch.event_type = data.event_type;
+  if (data.title !== undefined) patch.title = data.title;
+  if (data.description !== undefined) patch.description = data.description ?? null;
+  if (data.channel !== undefined) patch.channel = data.channel;
+  if (data.agent_id !== undefined) patch.agent_id = data.agent_id ?? null;
+  if (data.agent_slug !== undefined) patch.agent_slug = data.agent_slug ?? null;
+  if (data.room_slug !== undefined) patch.room_slug = data.room_slug ?? null;
+  if (data.scheduled_for !== undefined) patch.scheduled_for = new Date(data.scheduled_for);
+  if (data.timezone !== undefined) patch.timezone = data.timezone;
+  if (data.recurrence !== undefined) patch.recurrence = data.recurrence;
+  if (data.status !== undefined) patch.status = data.status;
+  if (data.source !== undefined) patch.source = data.source;
+  if (data.metadata !== undefined) patch.metadata = data.metadata;
+
+  try {
+    const [event] = await db.update(scheduledEvents).set(patch).where(eq(scheduledEvents.id, req.params.id)).returning();
+    if (!event || event.user_id !== userId) return res.status(404).json({ error: "Scheduled event not found" });
+    await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: userId, action: "updated", status: event.status, created_by: userId });
+    return res.json({ event });
+  } catch (err) {
+    console.error("[profile PATCH /scheduled-events]", err);
+    return res.status(500).json({ error: "Failed to update scheduled event" });
+  }
+});
+
+for (const [action, status] of [["pause", "paused"], ["resume", "upcoming"], ["cancel", "cancelled"]] as const) {
+  router.post(`/scheduled-events/:id/${action}`, async (req: Request, res: Response) => {
+    const userId = resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    if (req.params.id.startsWith("medication:")) return res.status(400).json({ error: "Medication reminders are edited from Medications" });
+    const [event] = await db.update(scheduledEvents).set({ status, updated_at: new Date(), updated_by: userId }).where(eq(scheduledEvents.id, req.params.id)).returning();
+    if (!event || event.user_id !== userId) return res.status(404).json({ error: "Scheduled event not found" });
+    await db.insert(scheduledEventLogs).values({ scheduled_event_id: event.id, user_id: userId, action, status, created_by: userId });
+    return res.json({ event });
+  });
+}
 
 export default router;
