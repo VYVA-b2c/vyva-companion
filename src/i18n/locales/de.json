@@ -186,29 +186,29 @@
     "voiceCards": {
       "helper": "Tippen Sie auf eine Karte oder nutzen Sie das Mikrofon.",
       "health": {
-        "title": "Ich sorge für mich",
-        "subtitle": "Ihre Gesundheit, einfach und aktuell",
+        "title": "Meine Gesundheit",
+        "subtitle": "Befinden prüfen",
         "bubble": "Ich bin da, um Ihnen jeden Tag zu helfen.",
         "micLabel": "Über meine Gesundheit sprechen",
         "openLabel": "Wohlbefinden öffnen"
       },
       "cognitive": {
-        "title": "Ich aktiviere meinen Geist",
-        "subtitle": "Übungen zum Denken und Erinnern",
+        "title": "Mein Geist",
+        "subtitle": "Geist aktiv halten",
         "bubble": "Ein kurzer Moment mit mir hält Ihren Geist aktiv.",
         "micLabel": "Gedächtnisübung starten",
         "openLabel": "Aktiven Geist öffnen"
       },
       "social": {
-        "title": "Ich verbinde mich",
-        "subtitle": "Wir reden, und Sie erzählen",
+        "title": "Verbinden",
+        "subtitle": "Kontakt halten",
         "bubble": "Ich höre Ihnen gern zu. Hier ist immer jemand da.",
         "micLabel": "Mit VYVA sprechen",
         "openLabel": "Begleitung öffnen"
       },
       "concierge": {
-        "title": "Ich helfe mit",
-        "subtitle": "Hilfe, Termine und Erledigungen",
+        "title": "Aufgaben erledigen",
+        "subtitle": "Buchen und planen",
         "bubble": "Lassen Sie mich das übernehmen. Ich kümmere mich darum.",
         "micLabel": "Per Sprache um Hilfe bitten",
         "openLabel": "Ihren Helfer öffnen"
@@ -1154,9 +1154,9 @@
     "activityTileSubtitle": "Angebote, Fahrten, Tipps und mehr — für Sie personalisiert",
     "actions": {
       "bookRide": "Taxi buchen",
-      "scheduleAppt": "Termin vereinbaren",
-      "researchTopic": "Thema recherchieren",
-      "findDeals": "Angebote finden",
+      "scheduleAppt": "Termin buchen",
+      "researchTopic": "Thema suchen",
+      "findDeals": "Sparen",
       "getAdvice": "Rat einholen"
     },
     "prompts": {

@@ -186,29 +186,29 @@
     "voiceCards": {
       "helper": "Toca una tarjeta o usa el micrófono para ir directo.",
       "health": {
-        "title": "Me cuido",
-        "subtitle": "Tu salud, simple y al día",
+        "title": "Mi salud",
+        "subtitle": "Revisar mi salud",
         "bubble": "Estoy aquí para ayudarte a sentirte mejor cada día.",
         "micLabel": "Hablar de mi salud",
         "openLabel": "Abrir bienestar"
       },
       "cognitive": {
-        "title": "Activo mi mente",
-        "subtitle": "Ejercicios para pensar y recordar",
+        "title": "Mi mente",
+        "subtitle": "Activar mi mente",
         "bubble": "Un ratito conmigo mantiene tu mente en forma.",
         "micLabel": "Empezar ejercicio mental",
         "openLabel": "Abrir mente ágil"
       },
       "social": {
-        "title": "Conecto",
-        "subtitle": "Charlamos y me cuentas",
+        "title": "Conectar",
+        "subtitle": "Seguir en contacto",
         "bubble": "Me encanta escucharte. Aquí siempre tienes con quién hablar.",
         "micLabel": "Hablar con VYVA",
         "openLabel": "Abrir compañía"
       },
       "concierge": {
-        "title": "Te doy una mano",
-        "subtitle": "Ayudas, citas y trámites contigo",
+        "title": "Resolver tareas",
+        "subtitle": "Reservar y organizar",
         "bubble": "Déjame encargarme. Yo me ocupo de lo difícil.",
         "micLabel": "Pedir ayuda por voz",
         "openLabel": "Abrir tu ayudante"
@@ -1170,8 +1170,8 @@
     "actions": {
       "bookRide": "Reservar taxi",
       "scheduleAppt": "Programar cita",
-      "researchTopic": "Investigar un tema",
-      "findDeals": "Ahorrar y mejorar",
+      "researchTopic": "Investigar",
+      "findDeals": "Ahorrar",
       "getAdvice": "Pedir consejo"
     },
     "prompts": {

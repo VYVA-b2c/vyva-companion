@@ -198,29 +198,29 @@
     "voiceCards": {
       "helper": "Tap a card or use the microphone to go straight there.",
       "health": {
-        "title": "I care for myself",
-        "subtitle": "Your health, simple and up to date",
+        "title": "My health",
+        "subtitle": "Check my wellbeing",
         "bubble": "I'm here to help you feel better every day.",
         "micLabel": "Talk about my health",
         "openLabel": "Open wellbeing"
       },
       "cognitive": {
-        "title": "I wake up my mind",
-        "subtitle": "Exercises to think and remember",
+        "title": "My mind",
+        "subtitle": "Keep mind active",
         "bubble": "A little time with me keeps your mind active.",
         "micLabel": "Start a mental exercise",
         "openLabel": "Open agile mind"
       },
       "social": {
-        "title": "I connect",
-        "subtitle": "We chat and you tell me",
+        "title": "Connect",
+        "subtitle": "Stay in touch",
         "bubble": "I love listening. You always have someone here.",
         "micLabel": "Talk to VYVA",
         "openLabel": "Open companionship"
       },
       "concierge": {
-        "title": "I lend a hand",
-        "subtitle": "Help, appointments and admin with you",
+        "title": "Get help",
+        "subtitle": "Book and arrange",
         "bubble": "Let me handle it. I take care of the difficult bits.",
         "micLabel": "Ask for help by voice",
         "openLabel": "Open your helper"
@@ -1180,10 +1180,10 @@
     "activityTile": "Your AI Concierge",
     "activityTileSubtitle": "Services, savings, plans and support — personalised for you",
     "actions": {
-      "bookRide": "Book a Ride",
+      "bookRide": "Book ride",
       "scheduleAppt": "Schedule Appointment",
-      "researchTopic": "Research a Topic",
-      "findDeals": "Save & Improve",
+      "researchTopic": "Research topic",
+      "findDeals": "Save money",
       "getAdvice": "Get Advice"
     },
     "prompts": {

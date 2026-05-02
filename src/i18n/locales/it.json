@@ -186,29 +186,29 @@
     "voiceCards": {
       "helper": "Tocca una scheda o usa il microfono per andare subito.",
       "health": {
-        "title": "Mi prendo cura di me",
-        "subtitle": "La tua salute, semplice e aggiornata",
+        "title": "Mia salute",
+        "subtitle": "Controlla la salute",
         "bubble": "Sono qui per aiutarti a stare meglio ogni giorno.",
         "micLabel": "Parlare della mia salute",
         "openLabel": "Apri benessere"
       },
       "cognitive": {
-        "title": "Attivo la mente",
-        "subtitle": "Esercizi per pensare e ricordare",
+        "title": "Mia mente",
+        "subtitle": "Mantieni mente attiva",
         "bubble": "Un piccolo momento con me mantiene attiva la mente.",
         "micLabel": "Iniziare un esercizio mentale",
         "openLabel": "Apri mente agile"
       },
       "social": {
-        "title": "Mi connetto",
-        "subtitle": "Parliamo e mi racconti",
+        "title": "Connetti",
+        "subtitle": "Resta in contatto",
         "bubble": "Mi piace ascoltarti. Qui hai sempre qualcuno.",
         "micLabel": "Parla con VYVA",
         "openLabel": "Apri compagnia"
       },
       "concierge": {
-        "title": "Ti do una mano",
-        "subtitle": "Aiuti, appuntamenti e pratiche con te",
+        "title": "Fare cose",
+        "subtitle": "Prenota e organizza",
         "bubble": "Lascia fare a me. Mi occupo delle cose difficili.",
         "micLabel": "Chiedere aiuto con la voce",
         "openLabel": "Apri il tuo aiutante"
@@ -1153,10 +1153,10 @@
     "activityTile": "Il tuo concierge IA",
     "activityTileSubtitle": "Offerte, trasporti, consigli e altro — personalizzato per te",
     "actions": {
-      "bookRide": "Prenota un taxi",
-      "scheduleAppt": "Fissa un appuntamento",
-      "researchTopic": "Ricerca un argomento",
-      "findDeals": "Trova offerte",
+      "bookRide": "Taxi",
+      "scheduleAppt": "Appuntamento",
+      "researchTopic": "Ricerca",
+      "findDeals": "Risparmiare",
       "getAdvice": "Chiedi consiglio"
     },
     "prompts": {

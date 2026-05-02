@@ -186,29 +186,29 @@
     "voiceCards": {
       "helper": "Toque num cartão ou use o microfone para ir direto.",
       "health": {
-        "title": "Cuido de mim",
-        "subtitle": "A sua saúde, simples e em dia",
+        "title": "Minha saúde",
+        "subtitle": "Ver minha saúde",
         "bubble": "Estou aqui para ajudar a sentir-se melhor todos os dias.",
         "micLabel": "Falar da minha saúde",
         "openLabel": "Abrir bem-estar"
       },
       "cognitive": {
-        "title": "Ativo a mente",
-        "subtitle": "Exercícios para pensar e recordar",
+        "title": "Minha mente",
+        "subtitle": "Manter mente ativa",
         "bubble": "Um momento comigo mantém a sua mente ativa.",
         "micLabel": "Começar exercício mental",
         "openLabel": "Abrir mente ativa"
       },
       "social": {
-        "title": "Ligo-me aos outros",
-        "subtitle": "Conversamos e conta-me",
+        "title": "Conectar",
+        "subtitle": "Manter contacto",
         "bubble": "Gosto de o ouvir. Aqui tem sempre alguém.",
         "micLabel": "Falar com VYVA",
         "openLabel": "Abrir companhia"
       },
       "concierge": {
-        "title": "Dou uma ajuda",
-        "subtitle": "Ajuda, consultas e tarefas consigo",
+        "title": "Resolver tarefas",
+        "subtitle": "Reservar e organizar",
         "bubble": "Deixe comigo. Eu trato do mais difícil.",
         "micLabel": "Pedir ajuda por voz",
         "openLabel": "Abrir o seu ajudante"
@@ -1153,10 +1153,10 @@
     "activityTile": "A sua assistente IA",
     "activityTileSubtitle": "Ofertas, transportes, dicas e mais — personalizado para si",
     "actions": {
-      "bookRide": "Reservar táxi",
-      "scheduleAppt": "Marcar consulta",
-      "researchTopic": "Pesquisar um tema",
-      "findDeals": "Encontrar ofertas",
+      "bookRide": "Táxi",
+      "scheduleAppt": "Consulta",
+      "researchTopic": "Pesquisar",
+      "findDeals": "Poupar",
       "getAdvice": "Pedir conselho"
     },
     "prompts": {

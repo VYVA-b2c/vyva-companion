@@ -1774,23 +1774,23 @@ const ConciergeScreen = () => {
         <h2 className="vyva-section-title mb-[10px]">
           {t("concierge.quickActions")}
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {QUICK_ACTIONS.map(({ key, Icon, color, bg }) => (
             <button
               key={key}
               data-testid={`button-concierge-action-${key}`}
               onClick={() => handleQuickAction(key)}
               disabled={chatLoading}
-              className="vyva-tap flex min-h-[118px] flex-col items-start justify-between rounded-[24px] border border-vyva-border bg-white p-[16px] text-left disabled:opacity-50"
-              style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
+              className="vyva-tap flex min-h-[144px] min-w-0 flex-col items-start justify-between rounded-[28px] border border-vyva-border bg-[#FFFCF8] px-4 py-5 text-left transition-transform active:scale-[0.99] disabled:opacity-50"
+              style={{ boxShadow: "0 14px 30px rgba(60,38,20,0.08)" }}
             >
               <div
-                className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center"
+                className="flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-[20px]"
                 style={{ background: bg }}
               >
-                <Icon size={19} style={{ color }} />
+                <Icon size={25} style={{ color }} />
               </div>
-              <span className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
+              <span className="font-body text-[20px] font-extrabold leading-[1.08] text-vyva-text-1 [overflow-wrap:anywhere]">
                 {t(`concierge.actions.${key}`)}
               </span>
             </button>
@@ -3018,107 +3018,6 @@ const ConciergeScreen = () => {
         )}
       </section>
 
-      <section ref={chatSectionRef} className="mt-6 mb-4">
-        <div className="flex items-center justify-between mb-[10px]">
-          <h2 className="font-display italic font-normal text-[18px] text-vyva-text-1">
-            {isSpanish ? "Tambien puedes escribir" : "You can also type"}
-          </h2>
-          {hasRestoredHistory && messages.length > 0 && (
-            <button
-              data-testid="button-concierge-new-conversation"
-              onClick={handleNewConversation}
-              className="flex items-center gap-1 text-[12px] font-medium"
-              style={{ color: "#6B21A8" }}
-            >
-              <Plus size={13} />
-              {t("concierge.newConversation")}
-            </button>
-          )}
-        </div>
-
-        <div
-          ref={scrollRef}
-          className="rounded-[22px] border border-vyva-border bg-white overflow-y-auto p-3 space-y-3 mb-3"
-          style={{ minHeight: messages.length === 0 ? 96 : 140, maxHeight: 320 }}
-        >
-          {messages.length === 0 && !chatLoading && (
-            <div className="flex h-full min-h-[70px] items-center justify-center rounded-[18px] bg-[#FBF8F4] px-4 text-center">
-              <p className="font-body text-[13px] leading-relaxed text-vyva-text-2">
-                {isSpanish
-                  ? "Si prefieres no hablar, escribe aqui y VYVA te ayuda igual."
-                  : "If you prefer not to speak, type here and VYVA will help the same way."}
-              </p>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              data-testid={`concierge-message-${msg.role}-${i}`}
-              className={`flex items-start gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-            >
-              {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full bg-vyva-purple flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-[10px] font-bold">V</span>
-                </div>
-              )}
-              <div
-                className={`rounded-2xl px-4 py-3 max-w-[85%] font-body text-[14px] leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-vyva-purple text-white rounded-tr-sm"
-                    : "bg-vyva-bg-soft text-vyva-text-1 rounded-tl-sm"
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-
-          {chatLoading && (
-            <div className="flex items-start gap-2">
-              <div className="w-7 h-7 rounded-full bg-vyva-purple flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-[10px] font-bold">V</span>
-              </div>
-              <div className="bg-vyva-bg-soft rounded-2xl rounded-tl-sm px-4 py-3">
-                <Loader2 size={16} className="animate-spin text-vyva-purple" />
-              </div>
-            </div>
-          )}
-
-          {chatError && (
-            <div className="flex justify-center">
-              <p className="font-body text-[12px] text-red-500 bg-red-50 rounded-xl px-3 py-2">
-                {chatError}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Input
-            data-testid="input-concierge-chat"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t("concierge.placeholder")}
-            disabled={chatLoading}
-            className="flex-1 rounded-full border-vyva-border font-body text-[14px] h-[44px] px-4 focus-visible:ring-1 focus-visible:ring-vyva-purple"
-          />
-          <Button
-            data-testid="button-concierge-send"
-            onClick={handleSend}
-            disabled={chatLoading || !input.trim()}
-            size="icon"
-            className="rounded-full w-11 h-11 flex-shrink-0 bg-vyva-purple hover:bg-vyva-purple/90 disabled:opacity-40"
-          >
-            {chatLoading ? (
-              <Loader2 size={16} className="animate-spin text-white" />
-            ) : (
-              <Send size={16} className="text-white" />
-            )}
-          </Button>
-        </div>
-      </section>
     </div>
   );
 };

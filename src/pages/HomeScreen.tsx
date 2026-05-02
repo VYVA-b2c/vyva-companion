@@ -47,40 +47,30 @@ const HOME_AGENT_CARDS: HomeAgentCard[] = [
 const HOME_AGENT_THEMES: Record<HomeAgentCard["theme"], {
   iconBg: string;
   iconColor: string;
-  bubbleBg: string;
-  bubbleText: string;
   micColor: string;
   glow: string;
 }> = {
   pink: {
     iconBg: "linear-gradient(135deg, #FFE7E7 0%, #FFF7F2 100%)",
     iconColor: "#E74C43",
-    bubbleBg: "linear-gradient(135deg, #FFE8E7 0%, #FFF3EF 100%)",
-    bubbleText: "#D63B36",
     micColor: "#E74C43",
     glow: "rgba(231,76,67,0.12)",
   },
   purple: {
     iconBg: "linear-gradient(135deg, #ECE4FF 0%, #F8F2FF 100%)",
     iconColor: "#7C3AED",
-    bubbleBg: "linear-gradient(135deg, #EFE7FF 0%, #F8F2FF 100%)",
-    bubbleText: "#7C3AED",
     micColor: "#7C3AED",
     glow: "rgba(124,58,237,0.13)",
   },
   blue: {
     iconBg: "linear-gradient(135deg, #E6F0FF 0%, #F3F8FF 100%)",
     iconColor: "#2F66D0",
-    bubbleBg: "linear-gradient(135deg, #EAF2FF 0%, #F5F9FF 100%)",
-    bubbleText: "#2F66D0",
     micColor: "#2F66D0",
     glow: "rgba(47,102,208,0.12)",
   },
   green: {
     iconBg: "linear-gradient(135deg, #DDF8EA 0%, #F1FBF5 100%)",
     iconColor: "#149A63",
-    bubbleBg: "linear-gradient(135deg, #DFF7EC 0%, #F0FBF6 100%)",
-    bubbleText: "#128857",
     micColor: "#149A63",
     glow: "rgba(20,154,99,0.12)",
   },
@@ -343,10 +333,9 @@ const HomeScreen = () => {
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
             <p className="font-body text-[16px] font-semibold text-vyva-text-2">{t("home.whatNow")}</p>
-            <p className="mt-1 font-body text-[13px] leading-snug text-vyva-text-2">{t("home.voiceCards.helper")}</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           {HOME_AGENT_CARDS.map((card) => {
             const theme = HOME_AGENT_THEMES[card.theme];
             const Icon = card.icon;
@@ -364,41 +353,19 @@ const HomeScreen = () => {
                     handleNavigate(card.path);
                   }
                 }}
-                className="group relative min-h-[194px] overflow-hidden rounded-[32px] border bg-[#FFFCF8] px-5 py-5 text-left transition-transform active:scale-[0.99]"
+                className="group relative min-h-[188px] overflow-visible rounded-[28px] border bg-[#FFFCF8] px-4 py-4 text-left transition-transform active:scale-[0.99]"
                 style={{
                   borderColor: "#EDE2D1",
                   boxShadow: `0 16px 34px ${theme.glow}, 0 2px 10px rgba(43,31,24,0.05)`,
                 }}
               >
-                <div className="relative z-10 flex h-full flex-col">
-                  <div className="flex items-start gap-4">
+                <div className="relative z-10 flex h-full flex-col justify-between gap-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div
-                      className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-[24px]"
+                      className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[20px]"
                       style={{ background: theme.iconBg }}
                     >
-                      <Icon size={36} strokeWidth={2.4} style={{ color: theme.iconColor }} />
-                    </div>
-                    <div
-                      className="relative max-w-[220px] rounded-[24px] px-5 py-4 font-body text-[18px] font-medium leading-snug"
-                      style={{ background: theme.bubbleBg, color: theme.bubbleText }}
-                    >
-                      {t(`home.voiceCards.${card.id}.bubble`)}
-                      <span
-                        className="absolute bottom-[-10px] left-8 h-0 w-0 border-l-[12px] border-r-[12px] border-t-[14px] border-l-transparent border-r-transparent"
-                        style={{ borderTopColor: card.theme === "pink" ? "#FFF3EF" : card.theme === "purple" ? "#F8F2FF" : card.theme === "blue" ? "#F5F9FF" : "#F0FBF6" }}
-                        aria-hidden="true"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-end justify-between gap-4 pt-8">
-                    <div className="min-w-0">
-                      <h2 className="font-body text-[28px] font-extrabold leading-tight text-vyva-text-1">
-                        {t(`home.voiceCards.${card.id}.title`)}
-                      </h2>
-                      <p className="mt-2 font-body text-[17px] leading-snug text-vyva-text-2">
-                        {t(`home.voiceCards.${card.id}.subtitle`)}
-                      </p>
+                      <Icon size={30} strokeWidth={2.5} style={{ color: theme.iconColor }} />
                     </div>
                     <button
                       type="button"
@@ -408,15 +375,24 @@ const HomeScreen = () => {
                       }}
                       aria-label={t(`home.voiceCards.${card.id}.micLabel`)}
                       data-testid={`button-home-agent-voice-${card.id}`}
-                      className={`relative z-20 flex h-[66px] w-[66px] shrink-0 items-center justify-center rounded-full bg-white transition-transform active:scale-95 ${isVoiceActive ? "mic-pulse-listening" : ""}`}
+                      className={`relative z-20 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full bg-white transition-transform active:scale-95 ${isVoiceActive ? "mic-pulse-listening" : ""}`}
                       style={{
                         border: "1px solid #EFE4D5",
                         boxShadow: "0 10px 22px rgba(43,31,24,0.08)",
                         color: theme.micColor,
                       }}
                     >
-                      <Mic size={32} strokeWidth={2.3} />
+                      <Mic size={25} strokeWidth={2.4} />
                     </button>
+                  </div>
+
+                  <div className="min-w-0">
+                    <h2 className="font-body text-[21px] font-extrabold leading-tight text-vyva-text-1 [overflow-wrap:anywhere]">
+                      {t(`home.voiceCards.${card.id}.title`)}
+                    </h2>
+                    <p className="mt-2 font-body text-[14px] font-medium leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">
+                      {t(`home.voiceCards.${card.id}.subtitle`)}
+                    </p>
                   </div>
                 </div>
               </article>

@@ -7,8 +7,8 @@ import {
   UserSearch,
   Video,
   Phone,
-  ChevronDown,
   ChevronRight,
+  ChevronDown,
   X,
   Clock,
   Pill,
@@ -457,10 +457,10 @@ const HealthScreen = () => {
   };
 
   const QUICK_TILES = [
-    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "¿Cómo te encuentras?", action: () => navigate("/health/symptom-check") },
-    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",         action: () => navigate("/meds") },
-    { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Seguimiento en tiempo real", action: () => navigate("/health/vitals") },
-    { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Mis informes", hint: "Resumen de tu salud", action: () => navigate("/informes") },
+    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar síntomas", action: () => navigate("/health/symptom-check") },
+    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => navigate("/meds") },
+    { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    action: () => navigate("/health/vitals") },
+    { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      action: () => navigate("/informes") },
   ];
 
   const VYVA_CAPS = [
@@ -483,26 +483,10 @@ const HealthScreen = () => {
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
         >
-          <div
-            className="mt-[14px] pt-[14px] flex justify-between"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            {[
-              { val: t("health.statNormal"), label: t("health.bloodPressure") },
-              { val: t("health.statGood"),   label: t("health.mood") },
-              { val: "7h 20m",               label: t("health.sleep") },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <p className="font-body text-[17px] font-medium text-white">{s.val}</p>
-                <p className="font-body text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-
           <button
             data-testid="button-hero-revisar"
             onClick={() => navigate("/health/check-in")}
-            className="mt-[14px] min-h-[56px] w-full rounded-full py-[13px] font-body text-[16px] font-semibold transition-all active:scale-95"
+            className="mt-[18px] min-h-[64px] w-full rounded-full py-[15px] font-body text-[18px] font-bold transition-all active:scale-95"
             style={{ background: "rgba(255,255,255,0.18)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.28)" }}
           >
             Revisar cómo me siento
@@ -511,7 +495,7 @@ const HealthScreen = () => {
 
         <button
           onClick={() => navigate("/health/check-ins")}
-          className="vyva-tap mt-4 flex w-full items-center gap-4 rounded-[28px] border border-vyva-border bg-white p-4 text-left shadow-[0_8px_24px_rgba(63,45,35,0.07)]"
+          className="hidden"
           data-testid="button-health-checkin-history"
         >
           <span className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px] bg-[#F5F3FF] text-vyva-purple">
@@ -529,29 +513,29 @@ const HealthScreen = () => {
         </button>
 
         {/* ── 2. Acceso rápido (2×2 grid) ── */}
-        <div className="mt-[22px]">
+        <div className="mt-[20px]">
           <p className="vyva-section-title mb-3">
             Acceso rápido
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             {QUICK_TILES.map((tile) => (
               <button
                 key={tile.id}
                 data-testid={`button-health-quick-${tile.id}`}
                 onClick={tile.action}
-                className="vyva-tap min-w-0 flex flex-col items-center gap-2 rounded-[24px] border border-vyva-border bg-white px-4 py-4 transition-all"
-                style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
+                className="vyva-tap flex min-h-[150px] min-w-0 flex-col items-center justify-center gap-3 rounded-[28px] border border-vyva-border bg-[#FFFCF8] px-3 py-5 text-center transition-transform active:scale-[0.99]"
+                style={{ boxShadow: "0 14px 30px rgba(60,38,20,0.08)" }}
               >
                 <div
-                  className="w-[54px] h-[54px] rounded-[16px] flex items-center justify-center flex-shrink-0"
+                  className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px]"
                   style={{ background: tile.iconBg }}
                 >
-                  <tile.Icon size={26} style={{ color: tile.iconColor }} />
+                  <tile.Icon size={27} style={{ color: tile.iconColor }} />
                 </div>
-                <span className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1 text-center">
+                <span className="font-body text-[18px] font-extrabold leading-[1.08] text-vyva-text-1 [overflow-wrap:anywhere]">
                   {tile.label}
                 </span>
-                <span className="font-body text-[13px] leading-snug text-vyva-text-2 text-center">
+                <span className="font-body text-[14px] font-medium leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">
                   {tile.hint}
                 </span>
               </button>

@@ -170,6 +170,14 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString();
 }
 
+function toDatetimeLocal(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 export default function LifecycleAdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [activeTab, setActiveTab] = useState("users");
@@ -382,6 +390,16 @@ export default function LifecycleAdminPage() {
     if (event.read_only) return;
     await api(`/scheduled-events/${event.id}/${action}`, { method: "POST" });
     if (selectedUser) await openUserDetail(selectedUser.intake);
+  }
+
+  async function updateEventTime(event: ScheduledEvent, scheduledFor: string) {
+    if (!selectedUser || event.read_only || !scheduledFor) return;
+    await api(`/scheduled-events/${event.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ scheduled_for: new Date(scheduledFor).toISOString() }),
+    });
+    await openUserDetail(selectedUser.intake);
+    setMessage("Scheduled event time updated.");
   }
 
   async function handleBulkFile(e: ChangeEvent<HTMLInputElement>, org: Organization) {
@@ -601,7 +619,7 @@ export default function LifecycleAdminPage() {
                     <tbody>{bulkPreview.rows.map((row) => <tr key={row.row_number} className="bg-[#fbf8f5]"><td className="rounded-l-2xl p-3">{row.row_number}</td><td>{row.values.name}</td><td>{row.values.phone}</td><td>{row.valid ? "Valid" : "Fix needed"}</td><td className="rounded-r-2xl p-3 text-red-700">{row.errors.join(", ")}</td></tr>)}</tbody>
                   </table>
                 </div>
-                <button className="mt-4 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={bulkPreview.summary.valid === 0 || bulkPreview.summary.invalid > 0} onClick={importBulk}>Import valid rows</button>
+                <button className="mt-4 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={bulkPreview.summary.valid === 0} onClick={importBulk}>Import valid rows</button>
               </>
             )}
           </section>
@@ -625,6 +643,7 @@ export default function LifecycleAdminPage() {
           setNewEvent={setNewEvent}
           onCreateEvent={createScheduledEventForUser}
           onEventStatus={setEventStatus}
+          onEventTime={updateEventTime}
         />
       )}
     </main>
@@ -656,6 +675,13 @@ function IntakeTable({ users, onView, onSendLink, onTriggerConsent, onToggleEnab
       <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
         <thead><tr className="text-left text-sm uppercase tracking-wide text-[#8b7a73]"><th>Name</th>{!compact && <th>Phone</th>}<th>Type</th><th>Entry</th><th>Tier</th><th>Status</th><th>Account</th><th>Consent</th><th>Org</th><th>Action</th></tr></thead>
         <tbody>
+          {users.length === 0 && (
+            <tr>
+              <td colSpan={compact ? 9 : 10} className="rounded-2xl bg-[#fbf8f5] px-4 py-6 text-center font-bold text-[#7d6b65]">
+                No users match the current filters yet.
+              </td>
+            </tr>
+          )}
           {users.map((user) => (
             <tr key={user.id} className="rounded-2xl bg-[#fbf8f5]">
               <td className="rounded-l-2xl px-3 py-3 font-bold">{user.name}</td>
@@ -683,7 +709,7 @@ function IntakeTable({ users, onView, onSendLink, onTriggerConsent, onToggleEnab
   );
 }
 
-function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus }: {
+function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus, onEventTime }: {
   detail: UserDetail;
   draft: Record<string, any>;
   setDraft: (next: Record<string, any>) => void;
@@ -695,6 +721,7 @@ function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSa
   setNewEvent: (next: typeof emptyScheduledEvent) => void;
   onCreateEvent: () => void;
   onEventStatus: (event: ScheduledEvent, action: "pause" | "resume" | "cancel") => void;
+  onEventTime: (event: ScheduledEvent, scheduledFor: string) => void;
 }) {
   const disabled = detail.profile?.account_status === "disabled" || detail.intake.account_status === "disabled";
   return (
@@ -737,7 +764,32 @@ function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSa
                   <p className="font-bold">{event.title}</p>
                   <p className="text-sm text-[#7d6b65]">{event.event_type} - {event.status} - {event.display_time ?? formatDate(event.scheduled_for)}</p>
                   {event.description && <p className="text-sm">{event.description}</p>}
-                  {!event.read_only && <div className="mt-2 flex gap-2"><button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, event.status === "paused" ? "resume" : "pause")}>{event.status === "paused" ? "Resume" : "Pause"}</button><button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, "cancel")}>Cancel</button></div>}
+                  {!event.read_only && (
+                    <>
+                      <form
+                        className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const scheduledFor = new FormData(e.currentTarget).get("scheduled_for")?.toString() ?? "";
+                          onEventTime(event, scheduledFor);
+                        }}
+                      >
+                        <input
+                          className="rounded-xl border px-3 py-2"
+                          name="scheduled_for"
+                          type="datetime-local"
+                          defaultValue={toDatetimeLocal(event.scheduled_for)}
+                        />
+                        <button className="rounded-xl bg-purple-700 px-4 py-2 text-sm font-bold text-white" type="submit">
+                          Save time
+                        </button>
+                      </form>
+                      <div className="mt-2 flex gap-2">
+                        <button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, event.status === "paused" ? "resume" : "pause")}>{event.status === "paused" ? "Resume" : "Pause"}</button>
+                        <button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => onEventStatus(event, "cancel")}>Cancel</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

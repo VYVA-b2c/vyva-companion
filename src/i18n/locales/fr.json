@@ -186,29 +186,29 @@
     "voiceCards": {
       "helper": "Touchez une carte ou utilisez le micro pour y aller directement.",
       "health": {
-        "title": "Je prends soin de moi",
-        "subtitle": "Votre santé, simple et à jour",
+        "title": "Ma santé",
+        "subtitle": "Vérifier ma santé",
         "bubble": "Je suis là pour vous aider à vous sentir mieux chaque jour.",
         "micLabel": "Parler de ma santé",
         "openLabel": "Ouvrir le bien-être"
       },
       "cognitive": {
-        "title": "J'active mon esprit",
-        "subtitle": "Exercices pour penser et se souvenir",
+        "title": "Mon esprit",
+        "subtitle": "Stimuler mon esprit",
         "bubble": "Un petit moment avec moi garde votre esprit actif.",
         "micLabel": "Commencer un exercice mental",
         "openLabel": "Ouvrir l'esprit agile"
       },
       "social": {
-        "title": "Je me connecte",
-        "subtitle": "On discute et vous me racontez",
+        "title": "Contact",
+        "subtitle": "Rester en lien",
         "bubble": "J'aime vous écouter. Vous avez toujours quelqu'un ici.",
         "micLabel": "Parler avec VYVA",
         "openLabel": "Ouvrir la compagnie"
       },
       "concierge": {
-        "title": "Je donne un coup de main",
-        "subtitle": "Aide, rendez-vous et démarches avec vous",
+        "title": "Mes tâches",
+        "subtitle": "Réserver et organiser",
         "bubble": "Laissez-moi m'en occuper. Je gère le plus difficile.",
         "micLabel": "Demander de l'aide par la voix",
         "openLabel": "Ouvrir votre assistant"
@@ -1168,10 +1168,10 @@
     "activityTile": "Votre conciergerie IA",
     "activityTileSubtitle": "Bons plans, trajets, conseils et plus — personnalisés pour vous",
     "actions": {
-      "bookRide": "Réserver un taxi",
-      "scheduleAppt": "Planifier un rendez-vous",
-      "researchTopic": "Rechercher un sujet",
-      "findDeals": "Trouver des bons plans",
+      "bookRide": "Taxi",
+      "scheduleAppt": "Rendez-vous",
+      "researchTopic": "Rechercher",
+      "findDeals": "Économiser",
       "getAdvice": "Obtenir un conseil"
     },
     "prompts": {
