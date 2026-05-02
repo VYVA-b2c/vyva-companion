@@ -195,6 +195,37 @@
         "hint": "Get help"
       }
     },
+    "voiceCards": {
+      "helper": "Tap a card or use the microphone to go straight there.",
+      "health": {
+        "title": "I care for myself",
+        "subtitle": "Your health, simple and up to date",
+        "bubble": "I'm here to help you feel better every day.",
+        "micLabel": "Talk about my health",
+        "openLabel": "Open wellbeing"
+      },
+      "cognitive": {
+        "title": "I wake up my mind",
+        "subtitle": "Exercises to think and remember",
+        "bubble": "A little time with me keeps your mind active.",
+        "micLabel": "Start a mental exercise",
+        "openLabel": "Open agile mind"
+      },
+      "social": {
+        "title": "I connect",
+        "subtitle": "We chat and you tell me",
+        "bubble": "I love listening. You always have someone here.",
+        "micLabel": "Talk to VYVA",
+        "openLabel": "Open companionship"
+      },
+      "concierge": {
+        "title": "I lend a hand",
+        "subtitle": "Help, appointments and admin with you",
+        "bubble": "Let me handle it. I take care of the difficult bits.",
+        "micLabel": "Ask for help by voice",
+        "openLabel": "Open your helper"
+      }
+    },
     "whatNow": "What shall we do now?"
   },
   "voiceHero": {
@@ -471,6 +502,7 @@
   },
   "health": {
     "voiceSource": "VYVA keeps an eye on your health",
+    "talkToDoctor": "Talk to a Doctor",
     "headlineWithName": "How are you feeling,\n{{name}}?",
     "headline": "How are you feeling?",
     "bloodPressure": "Blood Pressure",

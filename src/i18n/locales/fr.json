@@ -183,6 +183,37 @@
         "hint": "Obtenir de l'aide"
       }
     },
+    "voiceCards": {
+      "helper": "Touchez une carte ou utilisez le micro pour y aller directement.",
+      "health": {
+        "title": "Je prends soin de moi",
+        "subtitle": "Votre santé, simple et à jour",
+        "bubble": "Je suis là pour vous aider à vous sentir mieux chaque jour.",
+        "micLabel": "Parler de ma santé",
+        "openLabel": "Ouvrir le bien-être"
+      },
+      "cognitive": {
+        "title": "J'active mon esprit",
+        "subtitle": "Exercices pour penser et se souvenir",
+        "bubble": "Un petit moment avec moi garde votre esprit actif.",
+        "micLabel": "Commencer un exercice mental",
+        "openLabel": "Ouvrir l'esprit agile"
+      },
+      "social": {
+        "title": "Je me connecte",
+        "subtitle": "On discute et vous me racontez",
+        "bubble": "J'aime vous écouter. Vous avez toujours quelqu'un ici.",
+        "micLabel": "Parler avec VYVA",
+        "openLabel": "Ouvrir la compagnie"
+      },
+      "concierge": {
+        "title": "Je donne un coup de main",
+        "subtitle": "Aide, rendez-vous et démarches avec vous",
+        "bubble": "Laissez-moi m'en occuper. Je gère le plus difficile.",
+        "micLabel": "Demander de l'aide par la voix",
+        "openLabel": "Ouvrir votre assistant"
+      }
+    },
     "whatNow": "Que faisons-nous maintenant ?"
   },
   "voiceHero": {
@@ -459,6 +490,7 @@
   },
   "health": {
     "voiceSource": "VYVA surveille votre santé",
+    "talkToDoctor": "Parler à un médecin",
     "headlineWithName": "Comment vous sentez-vous,\n{{name}} ?",
     "headline": "Comment vous sentez-vous ?",
     "bloodPressure": "Pression artérielle",

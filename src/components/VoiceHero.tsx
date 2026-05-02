@@ -31,11 +31,12 @@ interface VoiceHeroProps {
   subtitle?: React.ReactNode;
   children?: React.ReactNode;
   contextHint?: string;
+  talkLabel?: string;
   onChatClick?: () => void;
   weatherData?: WeatherData | null;
 }
 
-const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, children, contextHint, onChatClick, weatherData }) => {
+const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, children, contextHint, talkLabel, onChatClick, weatherData }) => {
   const { t } = useTranslation();
   const { startVoice, stopVoice, status, isSpeaking, isConnecting, transcript } = useVyvaVoice();
 
@@ -56,7 +57,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
     ? isSpeaking
       ? t("voiceHero.speaking")
       : t("voiceHero.listening")
-    : t("voiceHero.talkToVyva");
+    : talkLabel ?? t("voiceHero.talkToVyva");
 
   const timeOfDay = useMemo((): "morning" | "afternoon" | "evening" => {
     const hour = new Date().getHours();

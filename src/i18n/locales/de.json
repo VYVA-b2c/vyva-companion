@@ -183,6 +183,37 @@
         "hint": "Hilfe anfordern"
       }
     },
+    "voiceCards": {
+      "helper": "Tippen Sie auf eine Karte oder nutzen Sie das Mikrofon.",
+      "health": {
+        "title": "Ich sorge für mich",
+        "subtitle": "Ihre Gesundheit, einfach und aktuell",
+        "bubble": "Ich bin da, um Ihnen jeden Tag zu helfen.",
+        "micLabel": "Über meine Gesundheit sprechen",
+        "openLabel": "Wohlbefinden öffnen"
+      },
+      "cognitive": {
+        "title": "Ich aktiviere meinen Geist",
+        "subtitle": "Übungen zum Denken und Erinnern",
+        "bubble": "Ein kurzer Moment mit mir hält Ihren Geist aktiv.",
+        "micLabel": "Gedächtnisübung starten",
+        "openLabel": "Aktiven Geist öffnen"
+      },
+      "social": {
+        "title": "Ich verbinde mich",
+        "subtitle": "Wir reden, und Sie erzählen",
+        "bubble": "Ich höre Ihnen gern zu. Hier ist immer jemand da.",
+        "micLabel": "Mit VYVA sprechen",
+        "openLabel": "Begleitung öffnen"
+      },
+      "concierge": {
+        "title": "Ich helfe mit",
+        "subtitle": "Hilfe, Termine und Erledigungen",
+        "bubble": "Lassen Sie mich das übernehmen. Ich kümmere mich darum.",
+        "micLabel": "Per Sprache um Hilfe bitten",
+        "openLabel": "Ihren Helfer öffnen"
+      }
+    },
     "whatNow": "Was machen wir jetzt?"
   },
   "voiceHero": {
@@ -444,6 +475,7 @@
   },
   "health": {
     "voiceSource": "VYVA überwacht Ihre Gesundheit",
+    "talkToDoctor": "Mit einem Arzt sprechen",
     "headlineWithName": "Wie fühlen Sie sich,\n{{name}}?",
     "headline": "Wie fühlen Sie sich?",
     "bloodPressure": "Blutdruck",

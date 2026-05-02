@@ -481,6 +481,7 @@ const HealthScreen = () => {
           sourceText={t("health.voiceSource")}
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
+          talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
         >
           <div
             className="mt-[14px] pt-[14px] flex justify-between"
