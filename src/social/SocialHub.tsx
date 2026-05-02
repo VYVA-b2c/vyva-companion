@@ -10,6 +10,7 @@ import {
   formatLiveText,
   getAgentFirstName,
   getRoomBadge,
+  getRoomPickerName,
   getSocialCopy,
   getSocialLanguage,
   getSpeechLangTag,
@@ -25,6 +26,8 @@ type RoomPickerTileProps = {
 
 function RoomPickerTile({ room, language, onSelect }: RoomPickerTileProps) {
   const topic = room.contentTitle || room.topic;
+  const pickerName = getRoomPickerName(room.slug, language, room.name);
+  const participantLabel = room.participantCount.toLocaleString(language);
 
   return (
     <article
@@ -37,29 +40,40 @@ function RoomPickerTile({ room, language, onSelect }: RoomPickerTileProps) {
           onSelect(room);
         }
       }}
-      className="min-h-[205px] cursor-pointer rounded-[30px] border border-[#E6DCCF] bg-white p-5 shadow-[0_18px_42px_rgba(45,31,66,0.08)] transition-transform active:scale-[0.99]"
+      className="min-h-[188px] cursor-pointer overflow-hidden rounded-[28px] border border-[#E6DCCF] bg-white p-4 shadow-[0_18px_42px_rgba(45,31,66,0.08)] transition-transform active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-3">
         <AgentAvatar
           agentSlug={room.agentSlug}
           fullName={room.agentFullName}
           colour={room.agentColour}
-          size={58}
+          size={54}
           title={room.agentFullName}
         />
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#F2EBFF] px-3 py-2 font-body text-[15px] font-bold text-[#6D28D9]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F7F2FF] px-2.5 py-1.5 font-body text-[14px] font-bold text-[#6D28D9]">
           <Users size={17} />
-          {room.participantCount}
+          {participantLabel}
         </span>
       </div>
 
-      <p className="mt-4 font-body text-[15px] font-bold text-[#6D28D9]">
-        {getRoomBadge(room.slug, language)}
-      </p>
-      <h2 className="mt-2 font-body text-[24px] font-bold leading-[1.12] text-[#24172F]">
-        {room.name}
+      <h2
+        className="mt-5 min-w-0 overflow-hidden break-words font-body text-[21px] font-bold leading-[1.12] text-[#24172F]"
+        style={{
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+        }}
+      >
+        {pickerName}
       </h2>
-      <p className="mt-2 font-body text-[17px] leading-[1.35] text-[#7A677F]">
+      <p
+        className="mt-2 min-w-0 overflow-hidden break-words font-body text-[16px] leading-[1.3] text-[#7A677F]"
+        style={{
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+        }}
+      >
         {topic}
       </p>
     </article>

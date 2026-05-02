@@ -246,6 +246,28 @@ const ROOM_BADGES: Record<string, Record<SocialLanguage, string>> = {
   "news-cafe": { es: "Noticias", de: "Nachrichten", en: "News" },
 };
 
+const ROOM_PICKER_NAMES: Record<string, Record<SocialLanguage, string>> = {
+  "garden-corner": { es: "Jardín", de: "Garten", en: "Garden" },
+  "games-room": { es: "Juegos", de: "Spiele", en: "Games" },
+  "kitchen-table": { es: "Cocina", de: "Küche", en: "Kitchen" },
+  "morning-movement": { es: "Movimiento", de: "Bewegung", en: "Movement" },
+  "evening-wind-down": { es: "Calma", de: "Ruhe", en: "Calm" },
+  "music-room": { es: "Música", de: "Musik", en: "Music" },
+  "reading-room": { es: "Lectura", de: "Lesen", en: "Reading" },
+  "memory-lane": { es: "Recuerdos", de: "Erinnerung", en: "Memories" },
+  "morning-circle": { es: "Encuentro", de: "Treffpunkt", en: "Circle" },
+  "news-world-affairs": { es: "Noticias", de: "Nachrichten", en: "News" },
+  "walking-companion": { es: "Paseo", de: "Spaziergang", en: "Walk" },
+  "pen-pals": { es: "Cartas", de: "Briefe", en: "Letters" },
+  "heritage-exchange": { es: "Raíces", de: "Wurzeln", en: "Roots" },
+  "garden-chat": { es: "Jardín", de: "Garten", en: "Garden" },
+  "chess-corner": { es: "Juegos", de: "Spiele", en: "Games" },
+  "music-salon": { es: "Música", de: "Musik", en: "Music" },
+  "book-club": { es: "Lectura", de: "Lesen", en: "Reading" },
+  "walking-club": { es: "Paseo", de: "Spaziergang", en: "Walk" },
+  "news-cafe": { es: "Noticias", de: "Nachrichten", en: "News" },
+};
+
 export function getSocialLanguage(language?: string | null): SocialLanguage {
   if (!language) return "es";
   if (language.startsWith("de")) return "de";
@@ -266,6 +288,10 @@ export function getGreeting(language: SocialLanguage, firstName?: string) {
 
 export function getRoomBadge(slug: string, language: SocialLanguage) {
   return ROOM_BADGES[slug]?.[language] ?? ROOM_BADGES[slug]?.es ?? "Sala";
+}
+
+export function getRoomPickerName(slug: string, language: SocialLanguage, fallbackName: string) {
+  return ROOM_PICKER_NAMES[slug]?.[language] ?? ROOM_PICKER_NAMES[slug]?.es ?? fallbackName;
 }
 
 export function getAgentFirstName(fullName: string) {
