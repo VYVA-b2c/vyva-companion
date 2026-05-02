@@ -18,6 +18,7 @@ import {
   getSocialRoomBySlug,
   getTimeSlotFromDate,
   localizeRoom,
+  resolveSocialRoomSlug,
   socialRoomSeeds,
 } from "../lib/socialRoomsSeed.js";
 
@@ -368,6 +369,7 @@ function toLiveBadge(language: SocialLanguage, participantCount: number) {
 }
 
 function buildAgentReply(slug: string, language: SocialLanguage, userMessage: string) {
+  const canonicalSlug = resolveSocialRoomSlug(slug);
   const lowered = userMessage.toLowerCase();
   const quotedPrompt = language === "de"
     ? "Magst du mir noch ein kleines Detail dazu erzählen?"
@@ -375,7 +377,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
       ? "Would you tell me one small detail about that?"
       : "¿Me cuentas un pequeño detalle más?";
 
-  if (slug === "garden-chat") {
+  if (canonicalSlug === "garden-corner") {
     return language === "de"
       ? `Das klingt liebevoll gepflegt. ${quotedPrompt}`
       : language === "en"
@@ -383,7 +385,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `Suena muy bien cuidado. ${quotedPrompt}`;
   }
 
-  if (slug === "chess-corner") {
+  if (canonicalSlug === "games-room") {
     return language === "de"
       ? `Sehr guter Blick. Im Schach zählt Ruhe oft mehr als Eile. Was war dein erster Gedanke?`
       : language === "en"
@@ -391,7 +393,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `Es una idea muy pensada. En ajedrez, la calma suele valer más que la prisa. ¿Cuál fue tu primera intuición?`;
   }
 
-  if (slug === "kitchen-table") {
+  if (canonicalSlug === "kitchen-table") {
     return language === "de"
       ? `Das klingt köstlich. Ein guter Duft macht jede Küche freundlicher. Welches Gewürz erinnert dich an Zuhause?`
       : language === "en"
@@ -399,7 +401,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `Suena delicioso. Un buen aroma vuelve más cálida cualquier cocina. ¿Qué especia te recuerda a casa?`;
   }
 
-  if (slug === "walking-club") {
+  if (canonicalSlug === "walking-companion") {
     return language === "de"
       ? `Jede Bewegung zählt. Schon ein kurzer Spaziergang kann den Tag öffnen. Wann fühlst du dich am liebsten in Bewegung?`
       : language === "en"
@@ -407,7 +409,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `Todo movimiento cuenta. Incluso un paseo breve puede abrir el día. ¿Cuándo disfrutas más moverte?`;
   }
 
-  if (slug === "music-salon") {
+  if (canonicalSlug === "music-room") {
     return language === "de"
       ? `Musik trägt oft eine Erinnerung mit sich. Magst du eher etwas Ruhiges, Fröhliches oder Klassisches hören?`
       : language === "en"
@@ -415,7 +417,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
         : `La música suele traer un recuerdo consigo. ¿Prefieres algo tranquilo, alegre o clásico hoy?`;
   }
 
-  if (slug === "pen-pals" || slug === "heritage-exchange") {
+  if (canonicalSlug === "reading-room" || canonicalSlug === "memory-lane") {
     return language === "de"
       ? `Das ist ein schöner Gesprächsbeginn. Freundliche Neugier verbindet Menschen. Möchtest du eine passende Verbindung suchen?`
       : language === "en"
@@ -439,6 +441,7 @@ function buildAgentReply(slug: string, language: SocialLanguage, userMessage: st
 }
 
 function buildPromptChips(slug: string, language: SocialLanguage) {
+  const canonicalSlug = resolveSocialRoomSlug(slug);
   const chips: Record<string, Record<SocialLanguage, string[]>> = {
     "garden-chat": {
       es: ["¿Qué planta me recomiendas?", "Tengo hojas amarillas", "¿Cada cuánto riego?"],
@@ -468,10 +471,11 @@ function buildPromptChips(slug: string, language: SocialLanguage) {
     en: ["Explain it simply", "Give me an example", "I want to ask something"],
   };
 
-  return chips[slug]?.[language] ?? fallback[language];
+  return chips[canonicalSlug]?.[language] ?? chips[slug]?.[language] ?? fallback[language];
 }
 
 function buildRoomMembers(slug: string, language: SocialLanguage, count: number) {
+  const canonicalSlug = resolveSocialRoomSlug(slug);
   const offset = slug.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % memberCatalog.length;
   const visibleCount = Math.min(Math.max(count - 1, 2), 4);
   const members = Array.from({ length: visibleCount }, (_, index) => memberCatalog[(offset + index) % memberCatalog.length]);
@@ -505,7 +509,7 @@ function buildRoomMembers(slug: string, language: SocialLanguage, count: number)
     en: ["Is taking part now", "Asked for help", "Is viewing the example", "Shared an idea"],
   };
 
-  const pool = statuses[slug]?.[language] ?? fallbackStatuses[language];
+  const pool = statuses[canonicalSlug]?.[language] ?? statuses[slug]?.[language] ?? fallbackStatuses[language];
 
   return members.map((member, index) => ({
     id: member.id,
@@ -521,6 +525,7 @@ function buildRoomMembers(slug: string, language: SocialLanguage, count: number)
 }
 
 function buildRoomChat(slug: string, language: SocialLanguage, members: Array<{ id: string; name: string }>) {
+  const canonicalSlug = resolveSocialRoomSlug(slug);
   const messages: Record<string, Record<SocialLanguage, string[]>> = {
     "garden-chat": {
       es: ["Yo también tengo geranios en la ventana.", "A mí me ayuda tocar la tierra antes de regar."],
@@ -545,7 +550,7 @@ function buildRoomChat(slug: string, language: SocialLanguage, members: Array<{ 
     en: ["I like how it's being explained.", "I wanted to ask that too."],
   };
 
-  const pool = messages[slug]?.[language] ?? fallback[language];
+  const pool = messages[canonicalSlug]?.[language] ?? messages[slug]?.[language] ?? fallback[language];
   return pool.slice(0, Math.min(pool.length, members.length)).map((text, index) => ({
     id: `${slug}-chat-${index}`,
     authorId: members[index]?.id ?? `member-${index}`,
@@ -557,7 +562,8 @@ function buildRoomChat(slug: string, language: SocialLanguage, members: Array<{ 
 }
 
 async function updateVisitInterests(userId: string, roomSlug: string) {
-  const seed = getSocialRoomBySlug(roomSlug);
+  const canonicalSlug = resolveSocialRoomSlug(roomSlug);
+  const seed = getSocialRoomBySlug(canonicalSlug);
   if (!seed) return;
 
   const existing = await loadUserInterestSnapshot(userId);
@@ -565,9 +571,9 @@ async function updateVisitInterests(userId: string, roomSlug: string) {
   const nextTimes = Array.from(new Set([...existing.preferredTimes, ...seed.timeSlots]));
   const nextCounts = {
     ...existing.roomVisitCounts,
-    [roomSlug]: (existing.roomVisitCounts[roomSlug] ?? 0) + 1,
+    [canonicalSlug]: (existing.roomVisitCounts[canonicalSlug] ?? 0) + 1,
   };
-  const nextLastRooms = [roomSlug, ...existing.lastRooms.filter((value) => value !== roomSlug)].slice(0, 3);
+  const nextLastRooms = [canonicalSlug, ...existing.lastRooms.filter((value) => value !== canonicalSlug)].slice(0, 3);
 
   await persistInterestSnapshot(userId, {
     ...existing,
@@ -600,8 +606,8 @@ router.get("/hub", async (req: Request, res: Response) => {
     .filter(Boolean)
     .sort((a, b) => (b?.heroScore ?? 0) - (a?.heroScore ?? 0));
 
-  const heroRooms = activeRooms.slice(0, 6);
-  const alsoForYou = activeRooms.slice(6, 10);
+  const heroRooms = activeRooms;
+  const alsoForYou: typeof activeRooms = [];
 
   return res.json({
     user: {
@@ -643,7 +649,7 @@ router.get("/rooms/:slug", async (req: Request, res: Response) => {
         createdAt: new Date().toISOString(),
       },
     ],
-    promptChips: buildPromptChips(room.slug, language),
+    promptChips: room.options?.length ? room.options : buildPromptChips(room.slug, language),
     members,
     memberChat,
   });
@@ -658,7 +664,7 @@ router.post("/rooms/:slug/enter", async (req: Request, res: Response) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
 
-  const slug = req.params.slug;
+  const slug = resolveSocialRoomSlug(req.params.slug);
   const room = buildRoomPayload(slug, normalizeLanguage(parsed.data.lang));
   if (!room) return res.status(404).json({ error: "Room not found" });
 

@@ -10,6 +10,12 @@ type CopyShape = {
   featuredNow: string;
   alsoForYou: string;
   allRooms: string;
+  chooseRoom: string;
+  chooseRoomSubtitle: string;
+  viewRoom: string;
+  enterSelectedRoom: string;
+  listenWelcome: string;
+  closeDetails: string;
   listenTo: (name: string) => string;
   enterRoom: (ctaLabel: string) => string;
   tapAvatarHint: (name: string) => string;
@@ -55,14 +61,20 @@ const COPY: Record<SocialLanguage, CopyShape> = {
     subline: (count) => `Tus expertos te esperan · ${count} salas activas`,
     filters: {
       all: "Todas",
-      activity: "Actividad",
-      social: "Social",
+      activity: "Actividades",
+      social: "Conversación",
       useful: "Útil",
       connection: "Conexión",
     },
     featuredNow: "Destacada ahora",
     alsoForYou: "También para ti",
     allRooms: "Todas las salas",
+    chooseRoom: "Elige una sala",
+    chooseRoomSubtitle: "Toca una sala para ver los detalles antes de entrar.",
+    viewRoom: "Ver detalles",
+    enterSelectedRoom: "Entrar en la sala",
+    listenWelcome: "Escuchar bienvenida",
+    closeDetails: "Cerrar",
     listenTo: (name) => `Escuchar a ${name}`,
     enterRoom: (ctaLabel) => ctaLabel,
     tapAvatarHint: (name) => `Toca el avatar para escuchar a ${name}`,
@@ -106,14 +118,20 @@ const COPY: Record<SocialLanguage, CopyShape> = {
     subline: (count) => `Deine Expertinnen warten · ${count} aktive Räume`,
     filters: {
       all: "Alle",
-      activity: "Aktivität",
-      social: "Sozial",
+      activity: "Aktivitäten",
+      social: "Gespräch",
       useful: "Praktisch",
       connection: "Verbindung",
     },
     featuredNow: "Jetzt im Mittelpunkt",
     alsoForYou: "Auch für dich",
     allRooms: "Alle Räume",
+    chooseRoom: "Raum wählen",
+    chooseRoomSubtitle: "Tippe auf einen Raum, um die Details vor dem Betreten zu sehen.",
+    viewRoom: "Details ansehen",
+    enterSelectedRoom: "Raum betreten",
+    listenWelcome: "Begrüßung hören",
+    closeDetails: "Schließen",
     listenTo: (name) => `${name} hören`,
     enterRoom: (ctaLabel) => ctaLabel,
     tapAvatarHint: (name) => `Tippe auf den Avatar, um ${name} zu hören`,
@@ -157,14 +175,20 @@ const COPY: Record<SocialLanguage, CopyShape> = {
     subline: (count) => `Your experts are waiting · ${count} active rooms`,
     filters: {
       all: "All",
-      activity: "Activity",
-      social: "Social",
+      activity: "Activities",
+      social: "Conversation",
       useful: "Useful",
       connection: "Connection",
     },
     featuredNow: "Featured now",
     alsoForYou: "Also for you",
     allRooms: "All rooms",
+    chooseRoom: "Choose a room",
+    chooseRoomSubtitle: "Tap a room to see the details before entering.",
+    viewRoom: "View details",
+    enterSelectedRoom: "Enter room",
+    listenWelcome: "Listen to welcome",
+    closeDetails: "Close",
     listenTo: (name) => `Listen to ${name}`,
     enterRoom: (ctaLabel) => ctaLabel,
     tapAvatarHint: (name) => `Tap the avatar to hear ${name}`,
@@ -203,18 +227,23 @@ const COPY: Record<SocialLanguage, CopyShape> = {
 };
 
 const ROOM_BADGES: Record<string, Record<SocialLanguage, string>> = {
-  "garden-chat": { es: "🌿 Jardín", de: "🌿 Garten", en: "🌿 Garden" },
-  "chess-corner": { es: "♟ Estrategia", de: "♟ Strategie", en: "♟ Strategy" },
-  "creative-studio": { es: "🎨 Creatividad", de: "🎨 Kreativ", en: "🎨 Creative" },
-  "book-club": { es: "📚 Lectura", de: "📚 Lesen", en: "📚 Reading" },
-  "morning-circle": { es: "☀️ Bienestar", de: "☀️ Wohlbefinden", en: "☀️ Wellbeing" },
-  "memory-lane": { es: "🕰️ Recuerdos", de: "🕰️ Erinnerungen", en: "🕰️ Memories" },
-  "evening-wind-down": { es: "🌙 Calma", de: "🌙 Ruhe", en: "🌙 Calm" },
-  "kitchen-table": { es: "🍳 Cocina", de: "🍳 Küche", en: "🍳 Kitchen" },
-  "walking-club": { es: "🚶 Movimiento", de: "🚶 Bewegung", en: "🚶 Movement" },
-  "news-cafe": { es: "☕ Noticias", de: "☕ Nachrichten", en: "☕ News" },
-  "pen-pals": { es: "✉️ Conexión", de: "✉️ Verbindung", en: "✉️ Connection" },
-  "heritage-exchange": { es: "🌍 Cultura", de: "🌍 Kultur", en: "🌍 Culture" },
+  "garden-corner": { es: "Jardín", de: "Garten", en: "Garden" },
+  "games-room": { es: "Juegos", de: "Spiele", en: "Games" },
+  "kitchen-table": { es: "Cocina", de: "Küche", en: "Kitchen" },
+  "morning-movement": { es: "Movimiento", de: "Bewegung", en: "Movement" },
+  "evening-wind-down": { es: "Calma", de: "Ruhe", en: "Calm" },
+  "music-room": { es: "Música", de: "Musik", en: "Music" },
+  "reading-room": { es: "Lectura", de: "Lesen", en: "Reading" },
+  "memory-lane": { es: "Recuerdos", de: "Erinnerungen", en: "Memories" },
+  "morning-circle": { es: "Diario", de: "Täglich", en: "Daily" },
+  "news-world-affairs": { es: "Noticias", de: "Nachrichten", en: "News" },
+  "walking-companion": { es: "Paseo", de: "Spaziergang", en: "Walk" },
+  "garden-chat": { es: "Jardín", de: "Garten", en: "Garden" },
+  "chess-corner": { es: "Juegos", de: "Spiele", en: "Games" },
+  "music-salon": { es: "Música", de: "Musik", en: "Music" },
+  "book-club": { es: "Lectura", de: "Lesen", en: "Reading" },
+  "walking-club": { es: "Paseo", de: "Spaziergang", en: "Walk" },
+  "news-cafe": { es: "Noticias", de: "Nachrichten", en: "News" },
 };
 
 export function getSocialLanguage(language?: string | null): SocialLanguage {
@@ -236,7 +265,7 @@ export function getGreeting(language: SocialLanguage, firstName?: string) {
 }
 
 export function getRoomBadge(slug: string, language: SocialLanguage) {
-  return ROOM_BADGES[slug]?.[language] ?? ROOM_BADGES[slug]?.es ?? "● Sala";
+  return ROOM_BADGES[slug]?.[language] ?? ROOM_BADGES[slug]?.es ?? "Sala";
 }
 
 export function getAgentFirstName(fullName: string) {

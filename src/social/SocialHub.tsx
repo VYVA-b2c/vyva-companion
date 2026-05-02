@@ -1,288 +1,173 @@
-import { Bell } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Users, Volume2, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/contexts/ProfileContext";
+import AgentAvatar from "./AgentAvatar";
 import SocialStyles from "./SocialStyles";
-import HeroCarousel from "./HeroCarousel";
-import RoomCard from "./RoomCard";
-import RoomListRow from "./RoomListRow";
-import { filterRoomsByCategory, getGreeting, getSocialCopy, getSocialLanguage, sortHeroRooms } from "./roomUtils";
+import {
+  filterRoomsByCategory,
+  formatLiveText,
+  getAgentFirstName,
+  getRoomBadge,
+  getSocialCopy,
+  getSocialLanguage,
+  getSpeechLangTag,
+} from "./roomUtils";
 import type { SocialHubResponse, SocialLanguage, SocialRoom, SocialRoomCategory } from "./types";
+import { speak } from "./voiceEngine";
 
-function buildFallbackRooms(language: SocialLanguage): SocialRoom[] {
-  const localized = {
-    garden: {
-      name: language === "en" ? "Garden Corner" : language === "de" ? "Der Gartenchat" : "El Rincón del Jardín",
-      topic:
-        language === "en"
-          ? "Happy plants for a bright window"
-          : language === "de"
-            ? "Fröhliche Pflanzen für ein helles Fenster"
-            : "Plantas alegres para una ventana luminosa",
-      opener:
-        language === "en"
-          ? "Hello, I’m Rosa. Which plant keeps you company at home?"
-          : language === "de"
-            ? "Hallo, ich bin Rosa. Welche Pflanze begleitet dich zu Hause?"
-            : "Hola, soy Rosa. ¿Qué planta te acompaña en casa?",
-      contentTitle:
-        language === "en"
-          ? "Three signs your plant feels happy"
-          : language === "de"
-            ? "Drei Zeichen, dass deine Pflanze zufrieden ist"
-            : "Tres señales de que tu planta está contenta",
-      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
-      cta: language === "en" ? "Ask Rosa" : language === "de" ? "Rosa fragen" : "Preguntar a Rosa",
-      credential:
-        language === "en"
-          ? "Botanist · 40 years gardening"
-          : language === "de"
-            ? "Botanikerin · 40 Jahre Gärtnern"
-            : "Botánica · 40 años cultivando",
-    },
-    chess: {
-      name: language === "en" ? "Chess Corner" : language === "de" ? "Die Schachecke" : "El Club de Ajedrez",
-      topic: language === "en" ? "Mate in one move" : language === "de" ? "Matt in einem Zug" : "Mate en una jugada",
-      opener:
-        language === "en"
-          ? "Hello, I’m Lorenzo. Shall we look for one calm winning move?"
-          : language === "de"
-            ? "Hallo, ich bin Lorenzo. Suchen wir einen ruhigen Gewinnzug?"
-            : "Hola, soy Lorenzo. ¿Buscamos una jugada ganadora con calma?",
-      contentTitle:
-        language === "en"
-          ? "Look for the calmest move"
-          : language === "de"
-            ? "Suche den ruhigsten Zug"
-            : "Busca la jugada más tranquila",
-      liveBadge: language === "en" ? "4 in the room" : language === "de" ? "4 im Raum" : "4 en la sala",
-      cta: language === "en" ? "Analyse with Lorenzo" : language === "de" ? "Mit Lorenzo analysieren" : "Analizar con Lorenzo",
-      credential:
-        language === "en"
-          ? "FIDE Master · National referee"
-          : language === "de"
-            ? "FIDE-Meister · Nationaler Schiedsrichter"
-            : "Maestro FIDE · Árbitro nacional",
-    },
-    music: {
-      name: language === "en" ? "Music Salon" : language === "de" ? "Der Musiksalon" : "El Salón de Música",
-      topic:
-        language === "en"
-          ? "A classical piece with a story"
-          : language === "de"
-            ? "Ein klassisches Stück mit Geschichte"
-            : "Una pieza clásica con historia",
-      opener:
-        language === "en"
-          ? "Hello, I’m Clara. Shall we discover one beautiful piece and the story behind it?"
-          : language === "de"
-            ? "Hallo, ich bin Clara. Entdecken wir ein schönes Stück und seine Geschichte?"
-            : "Hola, soy Clara. ¿Descubrimos una pieza bonita y la historia que guarda?",
-      contentTitle:
-        language === "en"
-          ? "Music to listen to slowly"
-          : language === "de"
-            ? "Musik zum ruhigen Hören"
-            : "Música para escuchar con calma",
-      liveBadge: language === "en" ? "5 in the room" : language === "de" ? "5 im Raum" : "5 en la sala",
-      cta: language === "en" ? "Listen with Clara" : language === "de" ? "Mit Clara hören" : "Escuchar con Clara",
-      credential:
-        language === "en"
-          ? "Musicologist · guided listening"
-          : language === "de"
-            ? "Musikwissenschaftlerin · geführtes Hören"
-            : "Musicóloga · escucha guiada",
-    },
-    kitchen: {
-      name: language === "en" ? "Kitchen Table" : language === "de" ? "Der Küchentisch" : "La Mesa de la Cocina",
-      topic:
-        language === "en"
-          ? "A simple lunch with familiar flavours"
-          : language === "de"
-            ? "Ein einfaches Mittagessen mit vertrauten Aromen"
-            : "Una comida sencilla con sabores de siempre",
-      opener:
-        language === "en"
-          ? "Hello, I’m Lola. What dish makes your kitchen feel like home?"
-          : language === "de"
-            ? "Hallo, ich bin Lola. Welches Gericht lässt deine Küche wie Zuhause fühlen?"
-            : "Hola, soy Lola. ¿Qué plato hace que tu cocina se sienta como casa?",
-      contentTitle:
-        language === "en"
-          ? "One warm idea for today"
-          : language === "de"
-            ? "Eine warme Idee für heute"
-            : "Una idea cálida para hoy",
-      liveBadge: language === "en" ? "6 in the room" : language === "de" ? "6 im Raum" : "6 en la sala",
-      cta: language === "en" ? "Cook with Lola" : language === "de" ? "Mit Lola kochen" : "Cocinar con Lola",
-      credential:
-        language === "en"
-          ? "Chef · Mediterranean cuisine"
-          : language === "de"
-            ? "Köchin · Mediterrane Küche"
-            : "Chef · Cocina mediterránea",
-    },
-    memory: {
-      name: language === "en" ? "Memory Lane" : language === "de" ? "Die Erinnerungsstraße" : "Camino de Recuerdos",
-      topic:
-        language === "en"
-          ? "Which memory comes first today?"
-          : language === "de"
-            ? "Welche Erinnerung kommt dir heute zuerst?"
-            : "¿Qué recuerdo te viene primero hoy?",
-      opener:
-        language === "en"
-          ? "Hello, I’m Sofía. Which memory arrives first when you pause for a moment?"
-          : language === "de"
-            ? "Hallo, ich bin Sofía. Welche Erinnerung kommt zuerst, wenn du kurz innehältst?"
-            : "Hola, soy Sofía. ¿Qué recuerdo llega primero cuando haces una pausa?",
-      contentTitle:
-        language === "en"
-          ? "A gentle memory prompt"
-          : language === "de"
-            ? "Ein sanfter Erinnerungsimpuls"
-            : "Una invitación suave a recordar",
-      liveBadge: language === "en" ? "3 in the room" : language === "de" ? "3 im Raum" : "3 en la sala",
-      cta: language === "en" ? "Remember with Sofía" : language === "de" ? "Mit Sofía erinnern" : "Recordar con Sofía",
-      credential:
-        language === "en"
-          ? "Historian · Oral memory"
-          : language === "de"
-            ? "Historikerin · Mündliche Erinnerung"
-            : "Historiadora · Memoria oral",
-    },
+type RoomPickerTileProps = {
+  room: SocialRoom;
+  language: SocialLanguage;
+  onSelect: (room: SocialRoom) => void;
+};
+
+function RoomPickerTile({ room, language, onSelect }: RoomPickerTileProps) {
+  const topic = room.contentTitle || room.topic;
+
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(room)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(room);
+        }
+      }}
+      className="min-h-[205px] cursor-pointer rounded-[30px] border border-[#E6DCCF] bg-white p-5 shadow-[0_18px_42px_rgba(45,31,66,0.08)] transition-transform active:scale-[0.99]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <AgentAvatar
+          agentSlug={room.agentSlug}
+          fullName={room.agentFullName}
+          colour={room.agentColour}
+          size={58}
+          title={room.agentFullName}
+        />
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#F2EBFF] px-3 py-2 font-body text-[15px] font-bold text-[#6D28D9]">
+          <Users size={17} />
+          {room.participantCount}
+        </span>
+      </div>
+
+      <p className="mt-4 font-body text-[15px] font-bold text-[#6D28D9]">
+        {getRoomBadge(room.slug, language)}
+      </p>
+      <h2 className="mt-2 font-body text-[24px] font-bold leading-[1.12] text-[#24172F]">
+        {room.name}
+      </h2>
+      <p className="mt-2 font-body text-[17px] leading-[1.35] text-[#7A677F]">
+        {topic}
+      </p>
+    </article>
+  );
+}
+
+type RoomDetailSheetProps = {
+  room: SocialRoom;
+  language: SocialLanguage;
+  onClose: () => void;
+  onEnter: (slug: string) => void;
+};
+
+function RoomDetailSheet({ room, language, onClose, onEnter }: RoomDetailSheetProps) {
+  const copy = getSocialCopy(language);
+  const avatarRef = useRef<HTMLButtonElement>(null);
+  const firstName = getAgentFirstName(room.agentFullName);
+  const description = room.contentBody || room.opener || room.topic;
+
+  const handleListen = () => {
+    speak(room.opener || room.topic, {
+      avEl: avatarRef.current,
+      lang: getSpeechLangTag(language),
+    });
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-[rgba(45,31,66,0.35)] px-3 pb-3 md:items-center md:justify-center md:p-6"
+      onClick={onClose}
+    >
+      <section
+        className="w-full max-w-[620px] rounded-t-[38px] border border-[#E6DCCF] bg-[#FFFCF8] p-6 shadow-[0_26px_70px_rgba(45,31,66,0.22)] md:rounded-[38px]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <AgentAvatar
+            ref={avatarRef}
+            agentSlug={room.agentSlug}
+            fullName={room.agentFullName}
+            colour={room.agentColour}
+            size={76}
+            title={copy.listenTo(firstName)}
+            onClick={handleListen}
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={copy.closeDetails}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F4EEE7] text-[#7A677F]"
+          >
+            <X size={24} />
+          </button>
+        </div>
 
-  return [
-    {
-      slug: "garden-chat",
-      name: localized.garden.name,
-      category: "activity",
-      agentSlug: "rosa",
-      agentFullName: "Rosa Villanueva",
-      agentColour: "#059669",
-      agentCredential: localized.garden.credential,
-      ctaLabel: localized.garden.cta,
-      topicTags: ["gardening", "plants"],
-      timeSlots: ["morning", "afternoon"],
-      featured: true,
-      participantCount: 5,
-      sessionDate: today,
-      topic: localized.garden.topic,
-      opener: localized.garden.opener,
-      quote: "",
-      activityType: "advice",
-      contentTag: "",
-      contentTitle: localized.garden.contentTitle,
-      contentBody: "",
-      options: [],
-      liveBadge: localized.garden.liveBadge,
-      heroScore: 90,
-    },
-    {
-      slug: "chess-corner",
-      name: localized.chess.name,
-      category: "activity",
-      agentSlug: "lorenzo",
-      agentFullName: "Lorenzo García",
-      agentColour: "#1E1B4B",
-      agentCredential: localized.chess.credential,
-      ctaLabel: localized.chess.cta,
-      topicTags: ["chess", "strategy"],
-      timeSlots: ["afternoon", "evening"],
-      featured: true,
-      participantCount: 4,
-      sessionDate: today,
-      topic: localized.chess.topic,
-      opener: localized.chess.opener,
-      quote: "",
-      activityType: "quiz",
-      contentTag: "",
-      contentTitle: localized.chess.contentTitle,
-      contentBody: "",
-      options: [],
-      liveBadge: localized.chess.liveBadge,
-      heroScore: 80,
-    },
-    {
-      slug: "music-salon",
-      name: localized.music.name,
-      category: "activity",
-      agentSlug: "clara",
-      agentFullName: "Clara Vidal",
-      agentColour: "#7E22CE",
-      agentCredential: localized.music.credential,
-      ctaLabel: localized.music.cta,
-      topicTags: ["music", "classical"],
-      timeSlots: ["afternoon", "evening"],
-      featured: true,
-      participantCount: 5,
-      sessionDate: today,
-      topic: localized.music.topic,
-      opener: localized.music.opener,
-      quote: "",
-      activityType: "story",
-      contentTag: "",
-      contentTitle: localized.music.contentTitle,
-      contentBody: "",
-      options: [],
-      liveBadge: localized.music.liveBadge,
-      heroScore: 75,
-    },
-    {
-      slug: "kitchen-table",
-      name: localized.kitchen.name,
-      category: "useful",
-      agentSlug: "lola",
-      agentFullName: "Lola Martínez",
-      agentColour: "#C2410C",
-      agentCredential: localized.kitchen.credential,
-      ctaLabel: localized.kitchen.cta,
-      topicTags: ["cooking", "recipes"],
-      timeSlots: ["morning", "afternoon"],
-      featured: false,
-      participantCount: 6,
-      sessionDate: today,
-      topic: localized.kitchen.topic,
-      opener: localized.kitchen.opener,
-      quote: "",
-      activityType: "recipe",
-      contentTag: "",
-      contentTitle: localized.kitchen.contentTitle,
-      contentBody: "",
-      options: [],
-      liveBadge: localized.kitchen.liveBadge,
-      heroScore: 70,
-    },
-    {
-      slug: "memory-lane",
-      name: localized.memory.name,
-      category: "social",
-      agentSlug: "sofia",
-      agentFullName: "Sofía Montoya",
-      agentColour: "#6D6352",
-      agentCredential: localized.memory.credential,
-      ctaLabel: localized.memory.cta,
-      topicTags: ["memories", "storytelling"],
-      timeSlots: ["afternoon", "evening"],
-      featured: false,
-      participantCount: 3,
-      sessionDate: today,
-      topic: localized.memory.topic,
-      opener: localized.memory.opener,
-      quote: "",
-      activityType: "story",
-      contentTag: "",
-      contentTitle: localized.memory.contentTitle,
-      contentBody: "",
-      options: [],
-      liveBadge: localized.memory.liveBadge,
-      heroScore: 60,
-    },
-  ];
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <span className="rounded-full bg-[#F2EBFF] px-4 py-2 font-body text-[17px] font-semibold text-[#6D28D9]">
+            {getRoomBadge(room.slug, language)}
+          </span>
+          <span className="rounded-full bg-white px-4 py-2 font-body text-[17px] font-semibold text-[#6E5A8A]">
+            {formatLiveText(room, language)}
+          </span>
+        </div>
+
+        <h2 className="mt-5 font-display text-[38px] leading-[1.02] text-[#24172F]">
+          {room.name}
+        </h2>
+        <p className="mt-2 font-body text-[22px] font-semibold text-[#5D4777]">
+          {room.agentFullName}
+        </p>
+        <p className="mt-1 font-body text-[18px] text-[#7A677F]">
+          {room.agentCredential}
+        </p>
+
+        <div className="mt-5 rounded-[26px] bg-white p-5">
+          <p className="font-body text-[16px] font-bold uppercase tracking-[0.16em] text-[#6D28D9]">
+            {copy.topicLabel}
+          </p>
+          <p className="mt-2 font-body text-[22px] leading-[1.35] text-[#24172F]">
+            {room.topic}
+          </p>
+          <p className="mt-3 font-body text-[18px] leading-[1.45] text-[#7A677F]">
+            {description}
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <button
+            type="button"
+            onClick={() => onEnter(room.slug)}
+            className="min-h-[64px] rounded-full bg-[#6D28D9] px-6 font-body text-[21px] font-bold text-white shadow-[0_14px_28px_rgba(109,40,217,0.22)]"
+          >
+            {copy.enterSelectedRoom}
+          </button>
+          <button
+            type="button"
+            onClick={handleListen}
+            className="min-h-[64px] rounded-full border border-[#D8C8FB] bg-white px-6 font-body text-[19px] font-bold text-[#6D28D9]"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Volume2 size={22} />
+              {copy.listenWelcome}
+            </span>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 const SocialHub = () => {
@@ -291,6 +176,7 @@ const SocialHub = () => {
   const language = getSocialLanguage(profile?.language);
   const copy = getSocialCopy(language);
   const [category, setCategory] = useState<"all" | SocialRoomCategory>("all");
+  const [selectedRoomSlug, setSelectedRoomSlug] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery<SocialHubResponse>({
     queryKey: [`/api/social/hub?lang=${language}`],
@@ -298,63 +184,33 @@ const SocialHub = () => {
     refetchInterval: 30 * 1000,
   });
 
-  const hubRooms = useMemo(() => {
-    const rooms = data?.listRooms ?? [];
-    return rooms.length ? rooms : buildFallbackRooms(language);
-  }, [data?.listRooms, language]);
-
-  const fallbackHeroRooms = useMemo(() => hubRooms.slice(0, 2), [hubRooms]);
-
-  const fallbackAlsoForYou = useMemo(() => hubRooms.slice(2, 4), [hubRooms]);
-
+  const hubRooms = useMemo(() => data?.listRooms ?? [], [data?.listRooms]);
   const filteredRooms = useMemo(
     () => filterRoomsByCategory(hubRooms, category),
     [category, hubRooms],
   );
-
-  const heroRooms = useMemo(
-    () => {
-      const rooms = data?.heroRooms?.length ? data.heroRooms : fallbackHeroRooms;
-      return sortHeroRooms(filterRoomsByCategory(rooms, category)).slice(0, 6);
-    },
-    [category, data?.heroRooms, fallbackHeroRooms],
-  );
-
-  const alsoForYou = useMemo(
-    () => {
-      const rooms = data?.alsoForYou?.length ? data.alsoForYou : fallbackAlsoForYou;
-      return filterRoomsByCategory(rooms, category);
-    },
-    [category, data?.alsoForYou, fallbackAlsoForYou],
+  const selectedRoom = useMemo(
+    () => hubRooms.find((room) => room.slug === selectedRoomSlug) ?? null,
+    [hubRooms, selectedRoomSlug],
   );
 
   const filters: Array<"all" | SocialRoomCategory> = ["all", "activity", "social", "useful", "connection"];
 
   return (
-    <div className="px-6 pb-10">
+    <div className="px-5 pb-10">
       <SocialStyles />
 
       <header className="pt-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-body text-[18px] tracking-[0.28em] text-[#8E7FAA]">{copy.dayLabel}</p>
-            <h1 className="mt-3 font-display text-[38px] leading-[1.12] text-[#2D1F42]">
-              {getGreeting(language, data?.user.firstName ?? profile?.firstName)}
-            </h1>
-          </div>
-          <button
-            type="button"
-            className="w-[64px] h-[64px] rounded-full border border-[#D9CCFF] bg-white flex items-center justify-center text-[#5B21B6] shadow-[0_10px_24px_rgba(91,33,182,0.08)]"
-          >
-            <Bell size={28} />
-          </button>
-        </div>
-        <p className="mt-4 font-body text-[22px] text-[#6E5A8A]">
-          {copy.subline(data?.activeCount ?? 0)}
+        <p className="font-body text-[18px] tracking-[0.28em] text-[#8E7FAA]">{copy.dayLabel}</p>
+        <h1 className="mt-3 font-display text-[42px] leading-[1.06] text-[#2D1F42]">
+          {copy.chooseRoom}
+        </h1>
+        <p className="mt-3 font-body text-[21px] leading-[1.4] text-[#6E5A8A]">
+          {copy.chooseRoomSubtitle}
         </p>
       </header>
 
-      <div className="mt-6 flex gap-3 overflow-x-auto pb-1">
+      <div className="mt-6 flex gap-3 overflow-x-auto pb-2">
         {filters.map((value) => {
           const active = value === category;
           return (
@@ -362,7 +218,7 @@ const SocialHub = () => {
               key={value}
               type="button"
               onClick={() => setCategory(value)}
-              className="min-h-[64px] whitespace-nowrap rounded-full px-6 font-body text-[22px] font-semibold"
+              className="min-h-[58px] whitespace-nowrap rounded-full px-5 font-body text-[19px] font-semibold"
               style={
                 active
                   ? { background: "#5B21B6", color: "#FFFFFF" }
@@ -375,62 +231,47 @@ const SocialHub = () => {
         })}
       </div>
 
-      <section className="mt-8">
-        <h2 className="font-display text-[34px] text-[#2D1F42]">{copy.featuredNow}</h2>
-        <div className="mt-4">
-          <HeroCarousel
-            rooms={heroRooms}
-            language={language}
-            onEnter={(slug) => navigate(`/social-rooms/${slug}`)}
-          />
-        </div>
-      </section>
+      <main className="mt-6">
+        {isLoading && (
+          <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
+            ...
+          </div>
+        )}
 
-      <section className="mt-10">
-        <h2 className="font-display text-[34px] text-[#2D1F42]">{copy.alsoForYou}</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {(alsoForYou.length ? alsoForYou : filteredRooms.slice(0, 4)).map((room) => (
-            <RoomCard
-              key={room.slug}
-              room={room}
-              language={language}
-              onEnter={(slug) => navigate(`/social-rooms/${slug}`)}
-            />
-          ))}
-        </div>
-      </section>
+        {isError && !filteredRooms.length && (
+          <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
+            {copy.noRooms}
+          </div>
+        )}
 
-      <section className="mt-10">
-        <h2 className="font-display text-[34px] text-[#2D1F42]">{copy.allRooms}</h2>
-        <div className="mt-4 space-y-4">
-          {isLoading && (
-            <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
-              Cargando…
-            </div>
-          )}
-          {isError && !filteredRooms.length && (
-            <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
-              {copy.noRooms}
-            </div>
-          )}
-          {!isLoading && !isError && !filteredRooms.length && (
-            <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
-              {copy.noRooms}
-            </div>
-          )}
+        {!isLoading && !isError && !filteredRooms.length && (
+          <div className="rounded-[28px] bg-white p-6 font-body text-[22px] text-[#6E5A8A]">
+            {copy.noRooms}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
           {filteredRooms.map((room) => (
-            <RoomListRow
+            <RoomPickerTile
               key={room.slug}
               room={room}
               language={language}
-              onEnter={(slug) => navigate(`/social-rooms/${slug}`)}
+              onSelect={(nextRoom) => setSelectedRoomSlug(nextRoom.slug)}
             />
           ))}
         </div>
-      </section>
+      </main>
+
+      {selectedRoom && (
+        <RoomDetailSheet
+          room={selectedRoom}
+          language={language}
+          onClose={() => setSelectedRoomSlug(null)}
+          onEnter={(slug) => navigate(`/social-rooms/${slug}`)}
+        />
+      )}
     </div>
   );
 };
 
 export default SocialHub;
-
