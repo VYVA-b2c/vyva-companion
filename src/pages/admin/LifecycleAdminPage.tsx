@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import AdminMenu from "./AdminMenu";
 
 type Intake = {
   id: string;
@@ -226,7 +227,6 @@ export default function LifecycleAdminPage() {
   const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
   const [bulkPreview, setBulkPreview] = useState<BulkPreviewResponse | null>(null);
   const [sendBulkLinks, setSendBulkLinks] = useState(false);
-  const [homePlanCards, setHomePlanCards] = useState<HomePlanCardAdmin[]>([]);
 
   const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
 
@@ -244,20 +244,18 @@ export default function LifecycleAdminPage() {
     sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
-    const [summaryData, userData, orgData, consentData, commsData, homeCardsData] = await Promise.all([
+    const [summaryData, userData, orgData, consentData, commsData] = await Promise.all([
       api("/summary"),
       api(`/users?${params.toString()}`),
       api("/organizations"),
       api("/consent"),
       api("/communications"),
-      api("/home-plan-cards").catch(() => ({ cards: [] })),
     ]);
     setSummary(summaryData);
     setUsers(userData.users ?? []);
     setOrganizations(orgData.organizations ?? []);
     setConsentAttempts(consentData.attempts ?? []);
     setCommunications(commsData.communications ?? []);
-    setHomePlanCards(homeCardsData.cards ?? []);
   }
 
   useEffect(() => {
@@ -471,31 +469,6 @@ export default function LifecycleAdminPage() {
     await refresh();
   }
 
-  function updateHomePlanCard(cardId: string, patch: Partial<HomePlanCardAdmin>) {
-    setHomePlanCards((cards) => cards.map((card) => (card.card_id === cardId ? { ...card, ...patch } : card)));
-  }
-
-  async function saveHomePlanCard(card: HomePlanCardAdmin) {
-    await api(`/home-plan-cards/${card.card_id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        is_enabled: card.is_enabled,
-        emoji: card.emoji,
-        bg: card.bg,
-        badge_bg: card.badge_bg,
-        badge_text: card.badge_text,
-        route: card.route,
-        base_priority: Number(card.base_priority),
-        condition_keywords: card.condition_keywords,
-        hobby_keywords: card.hobby_keywords,
-        avoid_condition_keywords: card.avoid_condition_keywords,
-        admin_notes: card.admin_notes ?? "",
-      }),
-    });
-    setMessage(`${card.card_id} saved.`);
-    await refresh();
-  }
-
   const visibleOrganizations = organizations.filter((org) => (
     orgFilter === "all" ? true : orgFilter === "active" ? org.is_active : !org.is_active
   ));
@@ -514,6 +487,8 @@ export default function LifecycleAdminPage() {
           </div>
         </div>
 
+        <AdminMenu />
+
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
           {[
             ["Total", summary?.total ?? 0],
@@ -530,9 +505,9 @@ export default function LifecycleAdminPage() {
         </div>
 
         <nav className="mt-5 flex flex-wrap gap-2">
-          {["users", "invites", "consent", "organizations", "home-cards", "tiers", "communications", "analytics"].map((tab) => (
+          {["users", "invites", "consent", "organizations", "tiers", "communications", "analytics"].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-full px-5 py-3 font-bold ${activeTab === tab ? "bg-purple-700 text-white" : "border border-purple-100 bg-white text-purple-700"}`}>
-              {tab === "home-cards" ? "Home cards" : tab[0].toUpperCase() + tab.slice(1)}
+              {tab[0].toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </nav>
@@ -682,9 +657,6 @@ export default function LifecycleAdminPage() {
         )}
 
         {activeTab === "tiers" && <TierSection onSave={saveTier} />}
-        {activeTab === "home-cards" && (
-          <HomeCardsSection cards={homePlanCards} onChange={updateHomePlanCard} onSave={saveHomePlanCard} />
-        )}
         {activeTab === "communications" && <CommunicationsSection communications={communications} />}
         {activeTab === "analytics" && <AnalyticsSection summary={summary} />}
       </section>

@@ -69,6 +69,7 @@ import AccountSettings from "./pages/settings/AccountSettings";
 import NotificationsSettings from "./pages/settings/NotificationsSettings";
 import ProxyPendingPage from "./pages/admin/ProxyPendingPage";
 import LifecycleAdminPage from "./pages/admin/LifecycleAdminPage";
+import HomeCardsAdminPage from "./pages/admin/HomeCardsAdminPage";
 import CaregiverDashboardPage from "./pages/CaregiverDashboardPage";
 import SocialHub from "./social/SocialHub";
 import RoomScreen from "./social/RoomScreen";
@@ -129,6 +130,7 @@ const App = () => (
                 <Route path="/shared/check-in/:token" element={<SharedCheckinReport />} />
                 <Route path="/admin/proxy-pending" element={<ProxyPendingPage />} />
                 <Route path="/admin/lifecycle" element={<LifecycleAdminPage />} />
+                <Route path="/admin/home-cards" element={<HomeCardsAdminPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>
                     <Route path="/onboarding" element={<WelcomeScreen />} />

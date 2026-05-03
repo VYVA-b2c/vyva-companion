@@ -165,6 +165,10 @@ const homePlanCardUpdateSchema = z.object({
   admin_notes: z.string().optional().nullable(),
 });
 
+const homePlanCardCreateSchema = homePlanCardUpdateSchema.extend({
+  card_id: z.string().min(2),
+});
+
 function targetUserIdForIntake(intake: typeof userIntakes.$inferSelect): string | null {
   return intake.elder_user_id ?? intake.user_id ?? intake.family_user_id ?? null;
 }
@@ -429,6 +433,39 @@ adminLifecycleRouter.get("/home-plan-cards", async (req: Request, res: Response)
     return res.status(503).json({
       error: "Home cards are not migrated yet. Run schema/home_plan_cards.sql.",
     });
+  }
+});
+
+adminLifecycleRouter.post("/home-plan-cards", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const parsed = homePlanCardCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  try {
+    const [card] = await db
+      .insert(homePlanCards)
+      .values({
+        card_id: parsed.data.card_id,
+        is_enabled: parsed.data.is_enabled ?? true,
+        emoji: parsed.data.emoji ?? "*",
+        bg: parsed.data.bg ?? "#F4F0FF",
+        badge_bg: parsed.data.badge_bg ?? "#EDE9FE",
+        badge_text: parsed.data.badge_text ?? "#6D28D9",
+        route: parsed.data.route ?? "/",
+        base_priority: parsed.data.base_priority ?? 50,
+        condition_keywords: parsed.data.condition_keywords ?? [],
+        hobby_keywords: parsed.data.hobby_keywords ?? [],
+        avoid_condition_keywords: parsed.data.avoid_condition_keywords ?? [],
+        admin_notes: parsed.data.admin_notes ?? "",
+      })
+      .returning();
+
+    return res.status(201).json({ card });
+  } catch (error) {
+    return res.status(400).json({ error: "Could not create home card. Check that the card ID is unique and the migration has been run." });
   }
 });
 
