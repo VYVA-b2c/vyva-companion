@@ -30,6 +30,7 @@ export interface SpecialistProvider {
   reviewCount?: number | null;
   distanceLabel?: string | null;
   availabilityText?: string | null;
+  openingTimes?: string | null;
   rationale: string;
   score: number;
 }
@@ -202,6 +203,8 @@ function resolveSearchLocation(location?: string): string {
 function buildFallbackProviders(specialties: string[], location: string, language: string): SpecialistProvider[] {
   const primary = specialties[0] ?? "General Practice";
   const secondary = specialties[1] ?? "Internal Medicine";
+  const fallbackAvailability = language.startsWith("es") ? "Consultar online o por telefono" : "Check online or by phone";
+  const regionalDistance = language.startsWith("es") ? "Opcion regional cercana" : "Nearby regional option";
   return [
     {
       name: `${primary} team at QuironSalud Marbella`,
@@ -214,8 +217,9 @@ function buildFallbackProviders(specialties: string[], location: string, languag
       sourceUrl: "https://www.quironsalud.com/marbella",
       reviewScore: null,
       reviewCount: null,
-      distanceLabel: location.includes("Tarifa") ? "Regional option near Marbella" : "Nearby regional option",
-      availabilityText: "Check online or by phone",
+      distanceLabel: location.includes("Tarifa") ? (language.startsWith("es") ? "Opcion regional cerca de Marbella" : "Regional option near Marbella") : regionalDistance,
+      availabilityText: fallbackAvailability,
+      openingTimes: fallbackAvailability,
       rationale: `Good first private-network option for ${primary.toLowerCase()} with appointment routes and hospital support.`,
       score: 82,
     },
@@ -230,12 +234,92 @@ function buildFallbackProviders(specialties: string[], location: string, languag
       sourceUrl: "https://www.doctoralia.es/",
       reviewScore: null,
       reviewCount: null,
-      distanceLabel: "Search by postcode/city",
-      availabilityText: "Often shows online availability",
+      distanceLabel: language.startsWith("es") ? "Buscar por codigo postal o ciudad" : "Search by postcode/city",
+      availabilityText: language.startsWith("es") ? "Suele mostrar disponibilidad online" : "Often shows online availability",
+      openingTimes: fallbackAvailability,
       rationale: `Useful for comparing availability and patient reviews for ${secondary.toLowerCase()}; VYVA should cross-check clinic details.`,
       score: 74,
     },
   ];
+}
+
+type GooglePlaceSearchResult = {
+  name?: string;
+  formatted_address?: string;
+  rating?: number;
+  user_ratings_total?: number;
+  place_id?: string;
+};
+
+type GooglePlaceDetails = {
+  formatted_phone_number?: string;
+  international_phone_number?: string;
+  website?: string;
+  url?: string;
+  opening_hours?: {
+    open_now?: boolean;
+    weekday_text?: string[];
+  };
+};
+
+function summarizeOpeningHours(details: GooglePlaceDetails | null | undefined, language: string): string | null {
+  const hours = details?.opening_hours;
+  if (!hours) return null;
+  if (hours.open_now === true) return language.startsWith("es") ? "Abierto ahora; revise el horario de hoy antes de ir" : "Open now; check today's hours before going";
+  if (hours.open_now === false) return language.startsWith("es") ? "Cerrado ahora; revise el horario de apertura" : "Closed now; check opening hours";
+  if (hours.weekday_text?.length) return hours.weekday_text.slice(0, 2).join(" · ");
+  return null;
+}
+
+async function fetchGooglePlaceDetails(placeId: string, key: string, language: string): Promise<GooglePlaceDetails | null> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("fields", "formatted_phone_number,international_phone_number,website,url,opening_hours");
+  url.searchParams.set("language", language || "es");
+  url.searchParams.set("key", key);
+
+  const response = await fetch(url);
+  if (!response.ok) return null;
+
+  const data = await response.json() as {
+    status?: string;
+    result?: GooglePlaceDetails;
+  };
+
+  if (data.status && data.status !== "OK") return null;
+  return data.result ?? null;
+}
+
+async function fetchGoogleDistanceLabel(origin: string, destination: string, key: string, language: string): Promise<string | null> {
+  const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+  url.searchParams.set("origins", origin);
+  url.searchParams.set("destinations", destination);
+  url.searchParams.set("mode", "driving");
+  url.searchParams.set("language", language || "es");
+  url.searchParams.set("key", key);
+
+  const response = await fetch(url);
+  if (!response.ok) return null;
+
+  const data = await response.json() as {
+    status?: string;
+    rows?: Array<{
+      elements?: Array<{
+        status?: string;
+        distance?: { text?: string };
+        duration?: { text?: string };
+      }>;
+    }>;
+  };
+
+  const element = data.rows?.[0]?.elements?.[0];
+  if (data.status !== "OK" || element?.status !== "OK") return null;
+
+  const distance = element.distance?.text;
+  const duration = element.duration?.text;
+  if (!distance) return null;
+  const byCar = language.startsWith("es") ? "en coche" : "by car";
+  return duration ? `${distance} · ${duration} ${byCar}` : distance;
 }
 
 async function searchGooglePlaces(
@@ -256,35 +340,48 @@ async function searchGooglePlaces(
   if (!response.ok) return [];
   const data = await response.json() as {
     status?: string;
-    results?: Array<{
-      name?: string;
-      formatted_address?: string;
-      rating?: number;
-      user_ratings_total?: number;
-      place_id?: string;
-    }>;
+    results?: GooglePlaceSearchResult[];
   };
 
   if (data.status && !["OK", "ZERO_RESULTS"].includes(data.status)) return [];
 
-  return (data.results ?? []).slice(0, 3).map((place, index) => ({
-    name: place.name ?? "Specialist clinic",
-    specialty: specialties[0] ?? "General Practice",
-    specialtyLabel: specialtyLabel(specialties[0] ?? "General Practice", language),
-    clinicName: place.name ?? undefined,
-    address: place.formatted_address ?? location,
-    bookingUrl: place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : null,
-    sourceName: "Google Places",
-    sourceUrl: "https://maps.google.com/",
-    reviewScore: place.rating ?? null,
-    reviewCount: place.user_ratings_total ?? null,
-    distanceLabel: "Near the requested area",
-    availabilityText: "Call or check website",
-    rationale: index === 0
-      ? "Strong proximity match from local provider search; reviews should be cross-checked before booking."
-      : "Nearby provider match; compare availability and credentials before booking.",
-    score: 70 - index * 5 + Math.round((place.rating ?? 0) * 3),
-  }));
+  const places = (data.results ?? []).slice(0, 3);
+  const details = await Promise.all(
+    places.map((place) => place.place_id ? fetchGooglePlaceDetails(place.place_id, key, language).catch(() => null) : null),
+  );
+  const distances = await Promise.all(
+    places.map((place) => place.formatted_address
+      ? fetchGoogleDistanceLabel(location, place.formatted_address, key, language).catch(() => null)
+      : null),
+  );
+
+  return places.map((place, index) => {
+    const detail = details[index] ?? null;
+    const mapsUrl = place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : null;
+    const openingTimes = summarizeOpeningHours(detail, language);
+    const phone = detail?.international_phone_number ?? detail?.formatted_phone_number ?? null;
+
+    return {
+      name: place.name ?? "Specialist clinic",
+      specialty: specialties[0] ?? "General Practice",
+      specialtyLabel: specialtyLabel(specialties[0] ?? "General Practice", language),
+      clinicName: place.name ?? undefined,
+      phone,
+      address: place.formatted_address ?? location,
+      bookingUrl: detail?.website ?? detail?.url ?? mapsUrl,
+      sourceName: "Google Places",
+      sourceUrl: "https://maps.google.com/",
+      reviewScore: place.rating ?? null,
+      reviewCount: place.user_ratings_total ?? null,
+      distanceLabel: distances[index] ?? `Near ${location}`,
+      availabilityText: openingTimes ?? (language.startsWith("es") ? "Llamar o consultar la web" : "Call or check website"),
+      openingTimes,
+      rationale: index === 0
+        ? "Strong proximity match from local provider search; reviews should be cross-checked before booking."
+        : "Nearby provider match; compare availability and credentials before booking.",
+      score: 70 - index * 5 + Math.round((place.rating ?? 0) * 3),
+    };
+  });
 }
 
 export async function recommendSpecialists(input: SpecialistSearchInput): Promise<SpecialistRecommendationResult> {

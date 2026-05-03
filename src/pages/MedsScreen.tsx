@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Check, Clock, AlertCircle, Calendar, Link as LinkIcon, Mic, ChevronDown, ExternalLink, Zap, Leaf, ShoppingCart, Tag, Sparkles, BarChart2, Pencil, Trash2 } from "lucide-react";
+import { Check, Clock, AlertCircle, Calendar, Link as LinkIcon, Mic, ChevronDown, ExternalLink, Zap, Leaf, ShoppingCart, Sparkles, BarChart2, Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import VoiceHero from "@/components/VoiceHero";
 import VoiceMedsModal, { type MedicationForForm } from "@/components/VoiceMedsModal";
@@ -235,21 +235,6 @@ const MedsScreen = () => {
         { label: t("meds.assistant.order.links.pharmacy2u"), url: "https://www.pharmacy2u.co.uk" },
         { label: t("meds.assistant.order.links.chemistDirect"), url: "https://www.chemistdirect.co.uk" },
         { label: t("meds.assistant.order.links.lloydsPharmacy"), url: "https://www.lloydspharmacy.com" },
-      ],
-    },
-    {
-      id: "prices",
-      icon: Tag,
-      label: t("meds.assistant.prices.label"),
-      sub: t("meds.assistant.prices.sub"),
-      color: "#0A6E8A",
-      bg: "#E0F2FE",
-      type: "links" as const,
-      links: [
-        { label: t("meds.assistant.prices.links.pillSorted"), url: "https://www.pillsorted.com" },
-        { label: t("meds.assistant.prices.links.chemistDirect"), url: "https://www.chemistdirect.co.uk" },
-        { label: t("meds.assistant.prices.links.boots"), url: "https://www.boots.com/online/pharmacy" },
-        { label: t("meds.assistant.prices.links.superdrug"), url: "https://www.superdrug.com/pharmacy" },
       ],
     },
     {

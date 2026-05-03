@@ -7,6 +7,8 @@ import {
   UserSearch,
   Video,
   Phone,
+  MapPin,
+  Share2,
   ChevronRight,
   ChevronDown,
   X,
@@ -54,6 +56,7 @@ type SpecialistProvider = {
   reviewCount?: number | null;
   distanceLabel?: string | null;
   availabilityText?: string | null;
+  openingTimes?: string | null;
   rationale: string;
   score: number;
 };
@@ -139,22 +142,6 @@ function displaySpecialty(provider: SpecialistProvider, language: string): strin
     return SPECIALTY_LABELS_ES[provider.specialty] ?? provider.specialty;
   }
   return provider.specialty;
-}
-
-const DAILY_TIPS = [
-  { emoji: "💧", badge: "Hidratación",  tip: "Bebe un vaso de agua ahora mismo. Tu cuerpo lo agradece y tu energía mejora." },
-  { emoji: "🚶", badge: "Movimiento",   tip: "10 minutos caminando después de comer regulan el azúcar en sangre y mejoran tu digestión." },
-  { emoji: "🫁", badge: "Bienestar",    tip: "5 minutos de respiración profunda activan la relajación y reducen el estrés acumulado." },
-  { emoji: "😴", badge: "Descanso",     tip: "Dormir entre 7 y 8 horas refuerza tu sistema inmune y mejora tu estado de ánimo." },
-  { emoji: "🥗", badge: "Nutrición",    tip: "Incluye verduras de varios colores en tu próxima comida — cada uno aporta nutrientes distintos." },
-  { emoji: "☀️", badge: "Bienestar",    tip: "15 minutos al aire libre mejoran tu vitamina D y elevan tu bienestar emocional." },
-  { emoji: "🧠", badge: "Mente activa", tip: "Un juego de memoria o un crucigrama mantiene tu mente activa y alerta." },
-];
-
-function getDailyTip() {
-  const d = new Date();
-  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  return DAILY_TIPS[seed % DAILY_TIPS.length];
 }
 
 type TFunction = (key: string, fallback?: string) => string;
@@ -258,11 +245,8 @@ const HealthScreen = () => {
   const [fullScreenScan,   setFullScreenScan]   = useState<WoundScan | null>(null);
   const [woundAnalyzing,   setWoundAnalyzing]   = useState(false);
   const [woundResult,      setWoundResult]      = useState<null | { severity: string; resultTitle: string; advice: string }>(null);
-  const [vyvaExpanded,     setVyvaExpanded]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const specialistRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-
-  const dailyTip = getDailyTip();
 
   const headlineText = firstName
     ? `Todo en orden hoy, ${firstName}`
@@ -398,6 +382,47 @@ const HealthScreen = () => {
     },
   });
 
+  const contactSpecialist = (provider: SpecialistProvider) => {
+    if (provider.phone) {
+      window.location.href = `tel:${provider.phone.replace(/\s+/g, "")}`;
+      return;
+    }
+
+    if (provider.bookingUrl) {
+      window.open(provider.bookingUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    bookSpecialistMutation.mutate(provider);
+  };
+
+  const shareSpecialistProvider = async (provider: SpecialistProvider) => {
+    const specialty = displaySpecialty(provider, i18n.language || "es");
+    const location = provider.address ?? provider.clinicName ?? specialistLocation;
+    const opening = provider.openingTimes ?? provider.availabilityText ?? "Horario por confirmar";
+    const distance = provider.distanceLabel ?? "Distancia por confirmar";
+    const lines = [
+      provider.name,
+      specialty,
+      provider.phone ? `Telefono: ${provider.phone}` : "Telefono: no disponible",
+      location ? `Ubicacion: ${location}` : null,
+      `Horario: ${opening}`,
+      `Distancia: ${distance}`,
+      provider.bookingUrl ? `Mas informacion: ${provider.bookingUrl}` : null,
+    ].filter(Boolean).join("\n");
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: provider.name, text: lines });
+      } else {
+        await navigator.clipboard.writeText(lines);
+        toast({ description: "He copiado los datos para compartirlos." });
+      }
+    } catch {
+      toast({ description: "No he podido compartirlo ahora. Intentalo de nuevo." });
+    }
+  };
+
   const compressImage = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -461,15 +486,6 @@ const HealthScreen = () => {
     { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => navigate("/meds") },
     { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    action: () => navigate("/health/vitals") },
     { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      action: () => navigate("/informes") },
-  ];
-
-  const VYVA_CAPS = [
-    { emoji: "💊", label: "Medicación",        action: () => navigate("/meds") },
-    { emoji: "❤️", label: "Signos vitales",     action: () => navigate("/health/vitals") },
-    { emoji: "🩺", label: "Síntomas",           action: () => navigate("/health/symptom-check") },
-    { emoji: "🩹", label: "Piel y heridas",     action: () => fileInputRef.current?.click() },
-    { emoji: "🥗", label: "Nutrición",          action: () => toast({ description: "Nutrición — próximamente" }) },
-    { emoji: "📚", label: "Información médica", action: () => navigate("/chat") },
   ];
 
   return (
@@ -859,7 +875,7 @@ const HealthScreen = () => {
                     />
                     <button
                       data-testid="button-run-specialist-search"
-                      onClick={runSpecialistSearch}
+                      onClick={() => runSpecialistSearch()}
                       disabled={specialistMutation.isPending}
                       className="vyva-primary-action w-full"
                       style={{ background: "#7C3AED", color: "#FFFFFF" }}
@@ -881,98 +897,79 @@ const HealthScreen = () => {
                           Esto no es un diagnostico. Si los sintomas son graves o repentinos, llama a emergencias o a tu medico.
                         </p>
                       </div>
-                      {specialistResult.providers.map((spec, i) => (
-                        <div key={`${spec.name}-${i}`} className="flex items-start gap-3 rounded-[12px] px-[14px] py-[11px]" style={{ background: "#F9F6F2", border: "1px solid #EDE5DB" }}>
-                          <div className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#EDE9FE" }}>
-                            <UserSearch size={16} style={{ color: "#7C3AED" }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-body text-[14px] font-semibold text-vyva-text-1">{spec.name}</p>
-                            <p className="font-body text-[12px] font-medium" style={{ color: "#7C3AED" }}>{displaySpecialty(spec, i18n.language || "es")}</p>
-                            <p className="font-body text-[12px] text-vyva-text-2 leading-snug">{spec.address ?? spec.clinicName}</p>
-                            <div className="flex items-center gap-1 mt-[4px]">
-                              <Star size={10} fill="#F59E0B" style={{ color: "#F59E0B" }} />
-                              <span className="font-body text-[12px] text-vyva-text-2">
-                                {spec.reviewScore ? `${spec.reviewScore} · ` : ""}{spec.availabilityText ?? "Consultar disponibilidad"}
-                              </span>
+                      {specialistResult.providers.map((spec, i) => {
+                        const location = spec.address ?? spec.clinicName ?? specialistLocation;
+                        const opening = spec.openingTimes ?? spec.availabilityText ?? "Horario por confirmar";
+                        const distance = spec.distanceLabel ?? "Distancia por confirmar";
+
+                        return (
+                        <div key={`${spec.name}-${i}`} className="rounded-[16px] px-[14px] py-[13px]" style={{ background: "#F9F6F2", border: "1px solid #EDE5DB" }}>
+                          <div className="flex items-start gap-3">
+                            <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#EDE9FE" }}>
+                              <UserSearch size={17} style={{ color: "#7C3AED" }} />
                             </div>
-                            <p className="font-body text-[11px] text-vyva-text-2 leading-snug mt-[5px]">{spec.rationale}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-body text-[16px] font-semibold text-vyva-text-1 leading-tight">{spec.name}</p>
+                              <p className="font-body text-[13px] font-semibold mt-[2px]" style={{ color: "#7C3AED" }}>{displaySpecialty(spec, i18n.language || "es")}</p>
+                            </div>
                           </div>
-                          <button
-                            data-testid={`button-book-specialist-${i}`}
-                            onClick={() => bookSpecialistMutation.mutate(spec)}
-                            disabled={bookSpecialistMutation.isPending}
-                            className="px-[12px] py-[6px] rounded-full font-body text-[12px] font-semibold flex-shrink-0 disabled:opacity-60"
-                            style={{ background: "#EDE9FE", color: "#7C3AED" }}
-                          >
-                            Reservar
-                          </button>
+
+                          <div className="mt-[10px] grid gap-2">
+                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                              <Phone size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
+                              <span>{spec.phone ?? "Telefono no disponible"}</span>
+                            </div>
+                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                              <MapPin size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
+                              <span>{location}</span>
+                            </div>
+                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                              <Clock size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
+                              <span>{opening}</span>
+                            </div>
+                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                              <MapPin size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#059669" }} />
+                              <span>{distance}</span>
+                            </div>
+                            {spec.reviewScore && (
+                              <div className="flex items-center gap-1 font-body text-[12px] text-vyva-text-2">
+                                <Star size={12} fill="#F59E0B" style={{ color: "#F59E0B" }} />
+                                <span>{spec.reviewScore}{spec.reviewCount ? ` (${spec.reviewCount})` : ""}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-[12px] grid grid-cols-2 gap-2">
+                            <button
+                              data-testid={`button-book-specialist-${i}`}
+                              onClick={() => contactSpecialist(spec)}
+                              disabled={bookSpecialistMutation.isPending}
+                              className="min-h-[44px] rounded-full font-body text-[14px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                              style={{ background: "#7C3AED", color: "#FFFFFF" }}
+                            >
+                              <Phone size={15} />
+                              Contactar
+                            </button>
+                            <button
+                              data-testid={`button-share-specialist-${i}`}
+                              onClick={() => shareSpecialistProvider(spec)}
+                              className="min-h-[44px] rounded-full font-body text-[14px] font-semibold flex items-center justify-center gap-2"
+                              style={{ background: "#FFFFFF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
+                            >
+                              <Share2 size={15} />
+                              Compartir
+                            </button>
+                          </div>
+
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               )}
             </div>
           </div>
-        </div>
-
-        {/* ── 4. Hoy para ti ── */}
-        <div className="mt-[24px]">
-          <p className="font-body text-[15px] font-semibold tracking-wider text-vyva-text-2 mb-3">
-            Hoy para ti
-          </p>
-          <div
-            className="rounded-[22px] px-[20px] py-[20px] flex flex-col gap-3"
-            style={{ background: "#F5F3FF", border: "1px solid rgba(124,58,237,0.10)", boxShadow: "0 2px 12px rgba(124,58,237,0.07)" }}
-          >
-            <div className="flex items-center justify-between">
-              <span
-                className="font-body text-[12px] font-semibold px-[10px] py-[4px] rounded-full"
-                style={{ background: "#EDE9FE", color: "#6D28D9" }}
-              >
-                {dailyTip.badge}
-              </span>
-              <span className="text-[28px]" aria-hidden="true">{dailyTip.emoji}</span>
-            </div>
-            <p className="font-body text-[16px] font-semibold text-vyva-text-1 leading-[1.4]">
-              {dailyTip.tip}
-            </p>
-          </div>
-        </div>
-
-        {/* ── 5. VYVA puede ayudarte con ── */}
-        <div className="mt-[16px]">
-          <button
-            data-testid="button-vyva-capabilities"
-            onClick={() => setVyvaExpanded((v) => !v)}
-            className="w-full flex items-center justify-between px-[20px] py-[16px] rounded-[20px] transition-all active:scale-[0.98]"
-            style={{ background: "#FFFFFF", border: "1px solid #EDE5DB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
-          >
-            <p className="font-body text-[15px] font-semibold text-vyva-text-1">VYVA puede ayudarte con</p>
-            <ChevronDown
-              size={18}
-              className="text-vyva-text-2 transition-transform flex-shrink-0"
-              style={{ transform: vyvaExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-            />
-          </button>
-
-          {vyvaExpanded && (
-            <div className="mt-[8px] grid grid-cols-2 gap-[8px]">
-              {VYVA_CAPS.map((cap) => (
-                <button
-                  key={cap.label}
-                  data-testid={`button-vyva-cap-${cap.label}`}
-                  onClick={cap.action}
-                  className="flex items-center gap-[10px] bg-white rounded-[16px] px-[14px] py-[12px] border border-vyva-border transition-all active:scale-[0.975]"
-                  style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}
-                >
-                  <span className="text-[20px]" aria-hidden="true">{cap.emoji}</span>
-                  <span className="font-body text-[13px] font-medium text-vyva-text-1 text-left leading-tight">{cap.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
       </div>
