@@ -644,7 +644,7 @@ const HealthScreen = () => {
   };
 
   const QUICK_TILES = [
-    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar síntomas", action: () => navigate("/health/symptom-check") },
+    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar cómo me siento", action: () => navigate("/health/symptom-check") },
     { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => navigate("/meds") },
     { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    action: () => navigate("/health/vitals") },
     { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      action: () => navigate("/informes") },
@@ -660,16 +660,7 @@ const HealthScreen = () => {
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
-        >
-          <button
-            data-testid="button-hero-revisar"
-            onClick={() => navigate("/health/check-in")}
-            className="mt-[18px] min-h-[64px] w-full rounded-full py-[15px] font-body text-[18px] font-bold transition-all active:scale-95"
-            style={{ background: "rgba(255,255,255,0.18)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.28)" }}
-          >
-            Revisar cómo me siento
-          </button>
-        </VoiceHero>
+        />
 
         <button
           onClick={() => navigate("/health/check-ins")}
