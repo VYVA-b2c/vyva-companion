@@ -1,4 +1,7 @@
 import { Router } from "express";
+import { desc, eq } from "drizzle-orm";
+import { db } from "../db.js";
+import { homePlanCards } from "../../shared/schema.js";
 
 type HomePlanRequest = {
   refreshIndex?: number;
@@ -179,9 +182,42 @@ function rotate<T>(items: T[], refreshIndex: number, pageSize: number): T[] {
   return Array.from({ length: pageSize }, (_, offset) => items[(start + offset) % items.length]);
 }
 
+function cardFromRow(row: typeof homePlanCards.$inferSelect): HomePlanCard {
+  return {
+    id: row.card_id,
+    emoji: row.emoji,
+    bg: row.bg,
+    badgeBg: row.badge_bg,
+    badgeText: row.badge_text,
+    route: row.route,
+    basePriority: row.base_priority,
+    conditionKeywords: row.condition_keywords ?? [],
+    hobbyKeywords: row.hobby_keywords ?? [],
+    avoidConditionKeywords: row.avoid_condition_keywords ?? [],
+  };
+}
+
+async function loadCardCatalog(): Promise<{ cards: HomePlanCard[]; source: string }> {
+  try {
+    const rows = await db
+      .select()
+      .from(homePlanCards)
+      .where(eq(homePlanCards.is_enabled, true))
+      .orderBy(desc(homePlanCards.base_priority));
+
+    if (rows.length > 0) {
+      return { cards: rows.map(cardFromRow), source: "admin_curated_profile_rules" };
+    }
+  } catch {
+    // The migration may not be applied yet. Keep the app useful with safe defaults.
+  }
+
+  return { cards: CARD_CATALOG, source: "curated_profile_rules" };
+}
+
 const homePlanRouter = Router();
 
-homePlanRouter.post("/personal-plan", (req, res) => {
+homePlanRouter.post("/personal-plan", async (req, res) => {
   const body = (req.body ?? {}) as HomePlanRequest;
   const request: Required<HomePlanRequest> = {
     refreshIndex: Number(body.refreshIndex ?? 0),
@@ -191,7 +227,8 @@ homePlanRouter.post("/personal-plan", (req, res) => {
     chatNavigationCount: Number(body.chatNavigationCount ?? 0),
   };
 
-  const ranked = [...CARD_CATALOG]
+  const catalog = await loadCardCatalog();
+  const ranked = [...catalog.cards]
     .map((card) => ({ card, score: scoreCard(card, request) }))
     .sort((a, b) => b.score - a.score)
     .map(({ card }) => {
@@ -200,7 +237,7 @@ homePlanRouter.post("/personal-plan", (req, res) => {
     });
 
   res.json({
-    source: "curated_profile_rules",
+    source: catalog.source,
     generatedAt: new Date().toISOString(),
     cards: rotate(ranked, request.refreshIndex, PAGE_SIZE),
   });

@@ -1164,6 +1164,28 @@ export const insertUtilityReviewRunSchema = createInsertSchema(utilityReviewRuns
 export type InsertUtilityReviewRun = z.infer<typeof insertUtilityReviewRunSchema>;
 export type UtilityReviewRun = typeof utilityReviewRuns.$inferSelect;
 
+export const homePlanCards = pgTable("home_plan_cards", {
+  id:                       uuid("id").primaryKey().defaultRandom(),
+  card_id:                  text("card_id").notNull().unique(),
+  is_enabled:               boolean("is_enabled").notNull().default(true),
+  emoji:                    text("emoji").notNull().default("*"),
+  bg:                       text("bg").notNull().default("#F4F0FF"),
+  badge_bg:                 text("badge_bg").notNull().default("#EDE9FE"),
+  badge_text:               text("badge_text").notNull().default("#6D28D9"),
+  route:                    text("route").notNull().default("/"),
+  base_priority:            integer("base_priority").notNull().default(50),
+  condition_keywords:       text("condition_keywords").array().notNull().default([]),
+  hobby_keywords:           text("hobby_keywords").array().notNull().default([]),
+  avoid_condition_keywords: text("avoid_condition_keywords").array().notNull().default([]),
+  admin_notes:              text("admin_notes"),
+  created_at:               timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:               timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertHomePlanCardSchema = createInsertSchema(homePlanCards).omit({ id: true, created_at: true, updated_at: true });
+export type InsertHomePlanCard = z.infer<typeof insertHomePlanCardSchema>;
+export type HomePlanCardRow = typeof homePlanCards.$inferSelect;
+
 
 // ============================================================
 // SCHEMA EXPORT
@@ -1209,4 +1231,5 @@ export const schema = {
   scheduledEvents,
   scheduledEventLogs,
   utilityReviewRuns,
+  homePlanCards,
 };

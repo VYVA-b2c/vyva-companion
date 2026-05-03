@@ -84,6 +84,23 @@ type UserDetail = {
   scheduled_events: ScheduledEvent[];
 };
 
+type HomePlanCardAdmin = {
+  id: string;
+  card_id: string;
+  is_enabled: boolean;
+  emoji: string;
+  bg: string;
+  badge_bg: string;
+  badge_text: string;
+  route: string;
+  base_priority: number;
+  condition_keywords: string[];
+  hobby_keywords: string[];
+  avoid_condition_keywords: string[];
+  admin_notes?: string | null;
+  updated_at?: string;
+};
+
 const ADMIN_KEY_STORAGE = "vyva_admin_lifecycle_key";
 const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
@@ -178,6 +195,17 @@ function toDatetimeLocal(value?: string | null) {
   return local.toISOString().slice(0, 16);
 }
 
+function keywordsToText(values?: string[]) {
+  return (values ?? []).join(", ");
+}
+
+function textToKeywords(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function LifecycleAdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [activeTab, setActiveTab] = useState("users");
@@ -198,6 +226,7 @@ export default function LifecycleAdminPage() {
   const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
   const [bulkPreview, setBulkPreview] = useState<BulkPreviewResponse | null>(null);
   const [sendBulkLinks, setSendBulkLinks] = useState(false);
+  const [homePlanCards, setHomePlanCards] = useState<HomePlanCardAdmin[]>([]);
 
   const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
 
@@ -215,18 +244,20 @@ export default function LifecycleAdminPage() {
     sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
-    const [summaryData, userData, orgData, consentData, commsData] = await Promise.all([
+    const [summaryData, userData, orgData, consentData, commsData, homeCardsData] = await Promise.all([
       api("/summary"),
       api(`/users?${params.toString()}`),
       api("/organizations"),
       api("/consent"),
       api("/communications"),
+      api("/home-plan-cards").catch(() => ({ cards: [] })),
     ]);
     setSummary(summaryData);
     setUsers(userData.users ?? []);
     setOrganizations(orgData.organizations ?? []);
     setConsentAttempts(consentData.attempts ?? []);
     setCommunications(commsData.communications ?? []);
+    setHomePlanCards(homeCardsData.cards ?? []);
   }
 
   useEffect(() => {
@@ -440,6 +471,31 @@ export default function LifecycleAdminPage() {
     await refresh();
   }
 
+  function updateHomePlanCard(cardId: string, patch: Partial<HomePlanCardAdmin>) {
+    setHomePlanCards((cards) => cards.map((card) => (card.card_id === cardId ? { ...card, ...patch } : card)));
+  }
+
+  async function saveHomePlanCard(card: HomePlanCardAdmin) {
+    await api(`/home-plan-cards/${card.card_id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        is_enabled: card.is_enabled,
+        emoji: card.emoji,
+        bg: card.bg,
+        badge_bg: card.badge_bg,
+        badge_text: card.badge_text,
+        route: card.route,
+        base_priority: Number(card.base_priority),
+        condition_keywords: card.condition_keywords,
+        hobby_keywords: card.hobby_keywords,
+        avoid_condition_keywords: card.avoid_condition_keywords,
+        admin_notes: card.admin_notes ?? "",
+      }),
+    });
+    setMessage(`${card.card_id} saved.`);
+    await refresh();
+  }
+
   const visibleOrganizations = organizations.filter((org) => (
     orgFilter === "all" ? true : orgFilter === "active" ? org.is_active : !org.is_active
   ));
@@ -474,9 +530,9 @@ export default function LifecycleAdminPage() {
         </div>
 
         <nav className="mt-5 flex flex-wrap gap-2">
-          {["users", "invites", "consent", "organizations", "tiers", "communications", "analytics"].map((tab) => (
+          {["users", "invites", "consent", "organizations", "home-cards", "tiers", "communications", "analytics"].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-full px-5 py-3 font-bold ${activeTab === tab ? "bg-purple-700 text-white" : "border border-purple-100 bg-white text-purple-700"}`}>
-              {tab[0].toUpperCase() + tab.slice(1)}
+              {tab === "home-cards" ? "Home cards" : tab[0].toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </nav>
@@ -626,6 +682,9 @@ export default function LifecycleAdminPage() {
         )}
 
         {activeTab === "tiers" && <TierSection onSave={saveTier} />}
+        {activeTab === "home-cards" && (
+          <HomeCardsSection cards={homePlanCards} onChange={updateHomePlanCard} onSave={saveHomePlanCard} />
+        )}
         {activeTab === "communications" && <CommunicationsSection communications={communications} />}
         {activeTab === "analytics" && <AnalyticsSection summary={summary} />}
       </section>
@@ -832,6 +891,81 @@ function LogPanel({ title, rows }: { title: string; rows: Array<Record<string, a
         ))}
       </div>
     </div>
+  );
+}
+
+function HomeCardsSection({ cards, onChange, onSave }: {
+  cards: HomePlanCardAdmin[];
+  onChange: (cardId: string, patch: Partial<HomePlanCardAdmin>) => void;
+  onSave: (card: HomePlanCardAdmin) => void;
+}) {
+  return (
+    <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-3xl">Home suggestions</h2>
+          <p className="mt-2 max-w-3xl text-sm text-[#7d6b65]">
+            This is the curated card pool behind “Today for you”. VYVA still chooses which cards each user sees based on profile signals.
+          </p>
+        </div>
+        <span className="rounded-full bg-purple-50 px-4 py-2 text-sm font-bold text-purple-700">{cards.length} cards</span>
+      </div>
+
+      {cards.length === 0 ? (
+        <div className="mt-5 rounded-3xl bg-[#fbf8f5] p-5">
+          <p className="font-bold">Home cards are not active yet.</p>
+          <p className="mt-1 text-sm text-[#7d6b65]">Run the migration: schema/home_plan_cards.sql.</p>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          {cards.map((card) => (
+            <article key={card.card_id} className="rounded-3xl border border-[#eadfd5] bg-[#fbf8f5] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="break-words text-xl font-black">{card.card_id}</p>
+                  <p className="text-sm text-[#7d6b65]">{card.route}</p>
+                </div>
+                <label className="flex items-center gap-2 rounded-full bg-white px-4 py-2 font-bold text-purple-700">
+                  <input type="checkbox" checked={card.is_enabled} onChange={(e) => onChange(card.card_id, { is_enabled: e.target.checked })} />
+                  Enabled
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <Field label="Emoji"><input className="w-full rounded-2xl border px-4 py-3" value={card.emoji} onChange={(e) => onChange(card.card_id, { emoji: e.target.value })} /></Field>
+                <Field label="Priority"><input className="w-full rounded-2xl border px-4 py-3" type="number" value={card.base_priority} onChange={(e) => onChange(card.card_id, { base_priority: Number(e.target.value) })} /></Field>
+                <Field label="Route"><input className="w-full rounded-2xl border px-4 py-3" value={card.route} onChange={(e) => onChange(card.card_id, { route: e.target.value })} /></Field>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <Field label="Background"><input className="w-full rounded-2xl border px-4 py-3" value={card.bg} onChange={(e) => onChange(card.card_id, { bg: e.target.value })} /></Field>
+                <Field label="Badge background"><input className="w-full rounded-2xl border px-4 py-3" value={card.badge_bg} onChange={(e) => onChange(card.card_id, { badge_bg: e.target.value })} /></Field>
+                <Field label="Badge text"><input className="w-full rounded-2xl border px-4 py-3" value={card.badge_text} onChange={(e) => onChange(card.card_id, { badge_text: e.target.value })} /></Field>
+              </div>
+
+              <div className="mt-3 grid gap-3">
+                <Field label="Condition keywords">
+                  <textarea className="min-h-20 w-full rounded-2xl border px-4 py-3" value={keywordsToText(card.condition_keywords)} onChange={(e) => onChange(card.card_id, { condition_keywords: textToKeywords(e.target.value) })} />
+                </Field>
+                <Field label="Hobby keywords">
+                  <textarea className="min-h-20 w-full rounded-2xl border px-4 py-3" value={keywordsToText(card.hobby_keywords)} onChange={(e) => onChange(card.card_id, { hobby_keywords: textToKeywords(e.target.value) })} />
+                </Field>
+                <Field label="Avoid if user has">
+                  <textarea className="min-h-20 w-full rounded-2xl border px-4 py-3" value={keywordsToText(card.avoid_condition_keywords)} onChange={(e) => onChange(card.card_id, { avoid_condition_keywords: textToKeywords(e.target.value) })} />
+                </Field>
+                <Field label="Admin notes" optional>
+                  <textarea className="min-h-20 w-full rounded-2xl border px-4 py-3" value={card.admin_notes ?? ""} onChange={(e) => onChange(card.card_id, { admin_notes: e.target.value })} />
+                </Field>
+              </div>
+
+              <button className="mt-4 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => onSave(card)}>
+                Save card
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

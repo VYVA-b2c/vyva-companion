@@ -8,6 +8,7 @@ import {
   accessLinks,
   communicationsLog,
   consentAttempts,
+  homePlanCards,
   lifecycleEvents,
   organizations,
   profiles,
@@ -148,6 +149,20 @@ const scheduledEventAdminSchema = z.object({
   status: z.string().min(1).default("upcoming"),
   source: z.string().min(1).default("admin"),
   metadata: z.record(z.unknown()).optional().default({}),
+});
+
+const homePlanCardUpdateSchema = z.object({
+  is_enabled: z.boolean().optional(),
+  emoji: z.string().min(1).optional(),
+  bg: z.string().min(1).optional(),
+  badge_bg: z.string().min(1).optional(),
+  badge_text: z.string().min(1).optional(),
+  route: z.string().min(1).optional(),
+  base_priority: z.coerce.number().int().min(0).max(200).optional(),
+  condition_keywords: z.array(z.string()).optional(),
+  hobby_keywords: z.array(z.string()).optional(),
+  avoid_condition_keywords: z.array(z.string()).optional(),
+  admin_notes: z.string().optional().nullable(),
 });
 
 function targetUserIdForIntake(intake: typeof userIntakes.$inferSelect): string | null {
@@ -402,6 +417,40 @@ adminLifecycleRouter.get("/summary", async (req: Request, res: Response) => {
     byTier: by("tier"),
     byConsent: by("consent_status"),
   });
+});
+
+adminLifecycleRouter.get("/home-plan-cards", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  try {
+    const rows = await db.select().from(homePlanCards).orderBy(desc(homePlanCards.base_priority));
+    return res.json({ cards: rows });
+  } catch (error) {
+    return res.status(503).json({
+      error: "Home cards are not migrated yet. Run schema/home_plan_cards.sql.",
+    });
+  }
+});
+
+adminLifecycleRouter.patch("/home-plan-cards/:cardId", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const parsed = homePlanCardUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const [card] = await db
+    .update(homePlanCards)
+    .set({ ...parsed.data, updated_at: new Date() })
+    .where(eq(homePlanCards.card_id, req.params.cardId))
+    .returning();
+
+  if (!card) {
+    return res.status(404).json({ error: "Home card not found" });
+  }
+
+  return res.json({ card });
 });
 
 adminLifecycleRouter.get("/users", async (req: Request, res: Response) => {
