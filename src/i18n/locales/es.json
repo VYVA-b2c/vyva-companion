@@ -94,6 +94,7 @@
     "quickAccess": "Acceso rápido",
     "todayForYou": {
       "sectionTitle": "Hoy para ti",
+      "refreshLabel": "Actualizar sugerencias",
       "cards": {
         "breathing": {
           "badge": "Respiración",

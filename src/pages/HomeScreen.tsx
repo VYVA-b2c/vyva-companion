@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Heart, Brain, Users, ConciergeBell, Mic, type LucideIcon } from "lucide-react";
+import { Heart, Brain, Users, ConciergeBell, Mic, RefreshCw, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import VoiceHero from "@/components/VoiceHero";
 import VoiceCallOverlay from "@/components/VoiceCallOverlay";
@@ -111,6 +111,8 @@ const HomeScreen = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [todayKey, setTodayKey] = useState(todayDateString);
+  const [todayRefreshIndex, setTodayRefreshIndex] = useState(0);
+  const [isRefreshingTodayCards, setIsRefreshingTodayCards] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -141,6 +143,13 @@ const HomeScreen = () => {
     };
     return personaliseCardOrder(dateSorted, pData);
   }, [todayKey, personalisationData]);
+
+  const visibleTodayCards = useMemo(() => {
+    if (orderedCards.length === 0) return [];
+    const cardCount = Math.min(3, orderedCards.length);
+    const start = (todayRefreshIndex * cardCount) % orderedCards.length;
+    return Array.from({ length: cardCount }, (_, offset) => orderedCards[(start + offset) % orderedCards.length]);
+  }, [orderedCards, todayRefreshIndex]);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,6 +319,14 @@ const HomeScreen = () => {
     navigate(path);
   };
 
+  const handleRefreshTodayCards = () => {
+    setTodayRefreshIndex((current) => current + 1);
+    setIsRefreshingTodayCards(true);
+    pauseAndResume();
+    carouselRef.current?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    window.setTimeout(() => setIsRefreshingTodayCards(false), 550);
+  };
+
   const handleCardVoice = (card: HomeAgentCard) => {
     if (isVoiceActive) {
       stopVoice();
@@ -402,7 +419,26 @@ const HomeScreen = () => {
       </div>
 
       <div className="mt-[18px]">
-        <SectionHeader title={t("home.todayForYou.sectionTitle")} />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="vyva-section-title">
+            {t("home.todayForYou.sectionTitle")}
+          </p>
+          <button
+            type="button"
+            onClick={handleRefreshTodayCards}
+            aria-label={t("home.todayForYou.refreshLabel")}
+            title={t("home.todayForYou.refreshLabel")}
+            data-testid="button-refresh-today-for-you"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5D8F7] bg-white text-[#7B24D4] shadow-[0_8px_20px_rgba(92,44,145,0.10)] transition-transform active:scale-95"
+          >
+            <RefreshCw
+              size={20}
+              strokeWidth={2.4}
+              className={isRefreshingTodayCards ? "animate-spin" : ""}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
         <div
           ref={carouselRef}
           className="grid grid-cols-1 gap-3"
@@ -411,7 +447,7 @@ const HomeScreen = () => {
           onMouseDown={pauseAndResume}
           onTouchStart={pauseAndResume}
         >
-          {orderedCards.slice(0, 3).map((card) => (
+          {visibleTodayCards.map((card) => (
             <div
               key={card.id}
               data-testid={`card-today-for-you-${card.id}`}
