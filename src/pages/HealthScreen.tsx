@@ -366,6 +366,7 @@ const HealthScreen = () => {
   const headlineText = firstName
     ? `Todo en orden hoy, ${firstName}`
     : "Todo en orden hoy";
+  const specialistLanguage = activeLanguage(profile?.language) || "es";
 
   const profileLocation = useMemo(() => {
     const parts = [
@@ -387,11 +388,11 @@ const HealthScreen = () => {
   });
 
   const specialistExamples = useMemo(() => {
-    const allExamples = deriveSpecialistExamples(personalisationData?.conditions, i18n.language || profile?.language || "es");
+    const allExamples = deriveSpecialistExamples(personalisationData?.conditions, specialistLanguage);
     const pageSize = 4;
     const start = (specialistExamplePage * pageSize) % allExamples.length;
     return [...allExamples.slice(start), ...allExamples.slice(0, start)].slice(0, pageSize);
-  }, [personalisationData?.conditions, i18n.language, profile?.language, specialistExamplePage]);
+  }, [personalisationData?.conditions, specialistLanguage, specialistExamplePage]);
 
   useEffect(() => {
     if (!specialistLocationEdited && profileLocation && !specialistLocation.trim()) {
@@ -423,7 +424,7 @@ const HealthScreen = () => {
         body: JSON.stringify({
           condition,
           location,
-          language: i18n.language || "es",
+          language: specialistLanguage,
           urgency: "routine",
         }),
       });
@@ -470,7 +471,7 @@ const HealthScreen = () => {
     }
 
     const recognition = new Recognition();
-    recognition.lang = i18n.language?.startsWith("en") ? "en-US" : i18n.language?.startsWith("de") ? "de-DE" : "es-ES";
+    recognition.lang = specialistLanguage === "en" ? "en-US" : specialistLanguage === "de" ? "de-DE" : "es-ES";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
@@ -500,7 +501,7 @@ const HealthScreen = () => {
 
   const bookSpecialistMutation = useMutation({
     mutationFn: async (provider: SpecialistProvider) => {
-      const specialty = displaySpecialty(provider, i18n.language || "es");
+      const specialty = displaySpecialty(provider, specialistLanguage);
       const res = await apiFetch("/api/concierge/actions/trigger", {
         method: "POST",
         body: JSON.stringify({
@@ -521,7 +522,7 @@ const HealthScreen = () => {
             booking_url: provider.bookingUrl ?? "",
             source_name: provider.sourceName,
           },
-          language: i18n.language || "es",
+          language: specialistLanguage,
           trigger_source: "user_request",
           auto_start: false,
         }),
@@ -559,7 +560,7 @@ const HealthScreen = () => {
   };
 
   const shareSpecialistProvider = async (provider: SpecialistProvider) => {
-    const specialty = displaySpecialty(provider, i18n.language || "es");
+    const specialty = displaySpecialty(provider, specialistLanguage);
     const location = provider.address ?? provider.clinicName ?? specialistLocation;
     const lines = [
       provider.name,
@@ -1088,7 +1089,7 @@ const HealthScreen = () => {
                           Especialidades recomendadas
                         </p>
                         <p className="font-body text-[14px] font-semibold text-vyva-text-1">
-                          {specialistResult.matchedSpecialties.map((specialty) => displaySpecialtyText(specialty, i18n.language || "es")).join(", ")}
+                          {specialistResult.matchedSpecialties.map((specialty) => displaySpecialtyText(specialty, specialistLanguage)).join(", ")}
                         </p>
                         <p className="font-body text-[11px] text-vyva-text-2 leading-snug mt-[6px]">
                           Esto no es un diagnostico. Si los sintomas son graves o repentinos, llama a emergencias o a tu medico.
@@ -1106,7 +1107,7 @@ const HealthScreen = () => {
                             data-testid="button-open-specialist-maps-search"
                             onClick={() => {
                               const query = specialistResult.mapsSearchUrl
-                                ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displaySpecialtyText(specialistResult.matchedSpecialties[0] ?? "medico", i18n.language || "es")} ${specialistLocation || profileLocation}`)}`;
+                                ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displaySpecialtyText(specialistResult.matchedSpecialties[0] ?? "medico", specialistLanguage)} ${specialistLocation || profileLocation}`)}`;
                               window.open(query, "_blank", "noopener,noreferrer");
                             }}
                             className="mt-[12px] min-h-[44px] rounded-full px-[16px] font-body text-[14px] font-semibold flex items-center justify-center gap-2"
@@ -1128,7 +1129,7 @@ const HealthScreen = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-body text-[16px] font-semibold text-vyva-text-1 leading-tight">{spec.name}</p>
-                              <p className="font-body text-[13px] font-semibold mt-[2px]" style={{ color: "#7C3AED" }}>{displaySpecialty(spec, i18n.language || "es")}</p>
+                              <p className="font-body text-[13px] font-semibold mt-[2px]" style={{ color: "#7C3AED" }}>{displaySpecialty(spec, specialistLanguage)}</p>
                             </div>
                           </div>
 
