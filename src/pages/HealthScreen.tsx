@@ -28,6 +28,7 @@ import {
   Mic,
   Square,
   RefreshCw,
+  ChevronUp,
 } from "lucide-react";
 import VoiceHero from "@/components/VoiceHero";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -123,7 +124,35 @@ const MOCK_SPECIALISTS: Record<string, { name: string; rating: number; waitN: nu
   ],
 };
 const SPECIALTIES = Object.keys(MOCK_SPECIALISTS);
-const DEFAULT_SPECIALIST_EXAMPLES = ["dolor de rodilla", "problemas de memoria", "diabetes", "mancha en la piel"];
+const DEFAULT_SPECIALIST_EXAMPLES_ES = [
+  "dolor de rodilla",
+  "problemas de memoria",
+  "diabetes",
+  "mancha en la piel",
+  "falta de aire",
+  "presión alta",
+  "dolor de cadera",
+  "herida que no cura",
+  "revisar la vista",
+  "problemas urinarios",
+  "ánimo bajo",
+  "tiroides",
+];
+
+const DEFAULT_SPECIALIST_EXAMPLES_EN = [
+  "knee pain",
+  "memory problems",
+  "diabetes",
+  "skin mark",
+  "shortness of breath",
+  "high blood pressure",
+  "hip pain",
+  "wound not healing",
+  "eye check",
+  "urinary problems",
+  "low mood",
+  "thyroid",
+];
 
 const SPECIALTY_LABELS_ES: Record<string, string> = {
   Dermatology: "Dermatología",
@@ -222,8 +251,8 @@ function deriveSpecialistExamples(conditions: string[] | undefined, language: st
   if (matches(["depression", "anxiety", "mood", "ansiedad", "depresion", "animo"])) suggestions.push(localizedSpecialistPrompt("mood", language));
 
   const defaults = activeLanguage(language) === "es"
-    ? DEFAULT_SPECIALIST_EXAMPLES
-    : ["knee pain", "memory problems", "diabetes", "skin mark"];
+    ? DEFAULT_SPECIALIST_EXAMPLES_ES
+    : DEFAULT_SPECIALIST_EXAMPLES_EN;
 
   return uniqueValues([...suggestions, ...defaults]);
 }
@@ -422,6 +451,15 @@ const HealthScreen = () => {
     specialistRecognitionRef.current?.stop();
     specialistRecognitionRef.current = null;
     setSpecialistVoiceListening(false);
+  };
+
+  const resetSpecialistSearch = () => {
+    stopSpecialistVoice();
+    setSpecialistCondition("");
+    setSpecialistResult(null);
+    setSpecialistExamplePage(0);
+    setSpecialistLocationEdited(false);
+    setSpecialistLocation(profileLocation || "");
   };
 
   const startSpecialistVoice = () => {
@@ -940,18 +978,36 @@ const HealthScreen = () => {
                 <button
                   data-testid="button-find-specialist"
                   onClick={() => { setSpecialistOpen((v) => !v); setSpecialistResult(null); }}
-                  className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all"
+                  className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all inline-flex items-center gap-2"
                   style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
                 >
-                  Ver opciones
+                  {specialistOpen ? (
+                    <>
+                      Ocultar
+                      <ChevronUp size={16} />
+                    </>
+                  ) : (
+                    "Ver opciones"
+                  )}
                 </button>
               </div>
 
               {specialistOpen && (
                 <div className="px-[18px] pb-[16px]" style={{ borderTop: "1px solid #F5F3FF" }}>
-                  <p className="pt-[14px] font-body text-[15px] leading-relaxed text-vyva-text-2">
-                    Describe la condicion o preocupacion. VYVA buscara el tipo de especialista adecuado y opciones cercanas.
-                  </p>
+                  <div className="flex items-start justify-between gap-3 pt-[14px]">
+                    <p className="font-body text-[15px] leading-relaxed text-vyva-text-2">
+                      Describe la condicion o preocupacion. VYVA buscara el tipo de especialista adecuado y opciones cercanas.
+                    </p>
+                    <button
+                      data-testid="button-reset-specialist-search"
+                      type="button"
+                      onClick={resetSpecialistSearch}
+                      className="vyva-tap flex-shrink-0 rounded-full px-[10px] py-[6px] font-body text-[12px] font-semibold"
+                      style={{ background: "#FFFFFF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
+                    >
+                      Reiniciar
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between gap-2 pt-[12px] pb-[8px]">
                     <p className="font-body text-[12px] font-semibold uppercase tracking-wide" style={{ color: "#7C3AED" }}>
                       Sugerencias para ti
