@@ -27,6 +27,7 @@ import { allergiesVoiceParseHandler } from "./routes/allergiesVoiceParse.js";
 import { addressVoiceParseHandler } from "./routes/addressVoiceParse.js";
 import activityRouter from "./routes/activity.js";
 import profileRouter from "./routes/profile.js";
+import homePlanRouter from "./routes/homePlan.js";
 import weatherRouter from "./routes/weather.js";
 import triageRouter from "./routes/triage.js";
 import companionsRouter from "./routes/companions.js";
@@ -45,7 +46,7 @@ import { getGooglePlacesApiKey, getGooglePlacesApiKeySource } from "./lib/google
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
 const PORT = parseInt(process.env.PORT || "5000", 10);
-const SERVER_BUILD_ID = "specialists-no-fallback-2026-05-03";
+const SERVER_BUILD_ID = "home-personal-plan-2026-05-03";
 
 app.use(cors());
 
@@ -92,6 +93,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/admin/lifecycle", adminLifecycleRouter);
 app.use("/api/activity", authMiddleware, activityRouter);
 app.use("/api/profile", authMiddleware, profileRouter);
+app.use("/api/home", authMiddleware, homePlanRouter);
 app.use("/api/weather", authMiddleware, weatherRouter);
 app.use("/api/triage", authMiddleware, triageRouter);
 app.use("/api/companions", authMiddleware, companionsRouter);

@@ -95,8 +95,38 @@
     "todayForYou": {
       "sectionTitle": "Aujourd'hui pour vous",
       "refreshLabel": "Actualiser les suggestions",
-      "cards": {
-        "breathing": {
+        "cards": {
+          "symptomCheck": {
+            "badge": "Symptômes",
+            "title": "Vérifier symptômes",
+            "text": "Répondez à quelques questions si quelque chose vous inquiète.",
+            "cta": "Commencer"
+          },
+          "specialistFinder": {
+            "badge": "Santé",
+            "title": "Trouver spécialiste",
+            "text": "Trouvez des médecins proches selon votre besoin.",
+            "cta": "Chercher"
+          },
+          "gamesRoom": {
+            "badge": "Jeux",
+            "title": "Salle de jeux",
+            "text": "Choisissez un jeu calme pour garder l'esprit actif.",
+            "cta": "Jouer"
+          },
+          "musicSalon": {
+            "badge": "Musique",
+            "title": "Salon musical",
+            "text": "Discutez avec le guide musical et découvrez quelque chose.",
+            "cta": "Entrer"
+          },
+          "billReview": {
+            "badge": "Économies",
+            "title": "Vérifier factures",
+            "text": "Voyez si vous pouvez payer moins pour vos services.",
+            "cta": "Vérifier"
+          },
+          "breathing": {
           "badge": "Respiration",
           "title": "Respirez et détendez-vous",
           "text": "Un exercice de respiration profonde pour calmer votre esprit en 3 minutes.",

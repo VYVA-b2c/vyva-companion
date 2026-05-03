@@ -95,8 +95,38 @@
     "todayForYou": {
       "sectionTitle": "Hoy para ti",
       "refreshLabel": "Actualizar sugerencias",
-      "cards": {
-        "breathing": {
+        "cards": {
+          "symptomCheck": {
+            "badge": "Síntomas",
+            "title": "Revisa síntomas",
+            "text": "Responde unas preguntas si algo te preocupa hoy.",
+            "cta": "Empezar"
+          },
+          "specialistFinder": {
+            "badge": "Salud",
+            "title": "Buscar especialista",
+            "text": "Encuentra médicos cercanos según tu necesidad.",
+            "cta": "Buscar"
+          },
+          "gamesRoom": {
+            "badge": "Juegos",
+            "title": "Sala de juegos",
+            "text": "Elige un juego tranquilo para activar la mente.",
+            "cta": "Jugar"
+          },
+          "musicSalon": {
+            "badge": "Música",
+            "title": "Salón musical",
+            "text": "Charla con la guía musical y descubre algo bonito.",
+            "cta": "Entrar"
+          },
+          "billReview": {
+            "badge": "Ahorro",
+            "title": "Revisar facturas",
+            "text": "Comprueba si puedes pagar menos por servicios.",
+            "cta": "Revisar"
+          },
+          "breathing": {
           "badge": "Respiración",
           "title": "Respira y relájate",
           "text": "Un ejercicio de respiración profunda para calmar tu mente en 3 minutos.",

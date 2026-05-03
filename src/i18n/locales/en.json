@@ -95,8 +95,38 @@
     "todayForYou": {
       "sectionTitle": "Today for you",
       "refreshLabel": "Refresh suggestions",
-      "cards": {
-        "breathing": {
+        "cards": {
+          "symptomCheck": {
+            "badge": "Symptoms",
+            "title": "Check symptoms",
+            "text": "Answer a few guided questions if something worries you today.",
+            "cta": "Start"
+          },
+          "specialistFinder": {
+            "badge": "Health",
+            "title": "Find a specialist",
+            "text": "Find nearby doctors based on what you need.",
+            "cta": "Search"
+          },
+          "gamesRoom": {
+            "badge": "Games",
+            "title": "Games room",
+            "text": "Choose a calm game to keep your mind active.",
+            "cta": "Play"
+          },
+          "musicSalon": {
+            "badge": "Music",
+            "title": "Music salon",
+            "text": "Chat with the music guide and discover something lovely.",
+            "cta": "Enter"
+          },
+          "billReview": {
+            "badge": "Savings",
+            "title": "Review bills",
+            "text": "Check if you could pay less for important services.",
+            "cta": "Review"
+          },
+          "breathing": {
           "badge": "Breathing",
           "title": "Breathe and relax",
           "text": "A gentle deep breathing exercise to calm your mind in 3 minutes.",

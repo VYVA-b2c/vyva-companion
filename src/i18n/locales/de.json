@@ -95,8 +95,38 @@
     "todayForYou": {
       "sectionTitle": "Heute für Sie",
       "refreshLabel": "Vorschläge aktualisieren",
-      "cards": {
-        "breathing": {
+        "cards": {
+          "symptomCheck": {
+            "badge": "Symptome",
+            "title": "Symptome prüfen",
+            "text": "Beantworten Sie einige Fragen, wenn Sie etwas beunruhigt.",
+            "cta": "Starten"
+          },
+          "specialistFinder": {
+            "badge": "Gesundheit",
+            "title": "Facharzt finden",
+            "text": "Finden Sie nahe Ärzte passend zu Ihrem Bedarf.",
+            "cta": "Suchen"
+          },
+          "gamesRoom": {
+            "badge": "Spiele",
+            "title": "Spielzimmer",
+            "text": "Wählen Sie ein ruhiges Spiel für einen aktiven Geist.",
+            "cta": "Spielen"
+          },
+          "musicSalon": {
+            "badge": "Musik",
+            "title": "Musiksalon",
+            "text": "Sprechen Sie mit dem Musikführer und entdecken Sie etwas.",
+            "cta": "Eintreten"
+          },
+          "billReview": {
+            "badge": "Sparen",
+            "title": "Rechnungen prüfen",
+            "text": "Prüfen Sie, ob Sie für Dienste weniger zahlen können.",
+            "cta": "Prüfen"
+          },
+          "breathing": {
           "badge": "Atmung",
           "title": "Atmen und entspannen",
           "text": "Eine sanfte Atemübung, um Ihren Geist in 3 Minuten zu beruhigen.",

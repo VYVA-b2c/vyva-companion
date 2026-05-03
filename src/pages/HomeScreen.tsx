@@ -7,6 +7,7 @@ import VoiceHero from "@/components/VoiceHero";
 import VoiceCallOverlay from "@/components/VoiceCallOverlay";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { useProfile } from "@/contexts/ProfileContext";
+import { apiFetch } from "@/lib/queryClient";
 import {
   personaliseCardOrder,
   getChatNavigationCount,
@@ -77,6 +78,11 @@ const HOME_AGENT_THEMES: Record<HomeAgentCard["theme"], {
 };
 
 const HOY_CARDS: HoyCard[] = [
+  { id: "symptomCheck", emoji: "🩺", bg: "#FFF7ED", badgeBg: "#FFEDD5", badgeText: "#C2410C", route: "/health/symptom-check" },
+  { id: "specialistFinder", emoji: "👩‍⚕️", bg: "#F4F0FF", badgeBg: "#EDE9FE", badgeText: "#6D28D9", route: "/health" },
+  { id: "gamesRoom", emoji: "♟️", bg: "#F0FDF4", badgeBg: "#DCFCE7", badgeText: "#15803D", route: "/social-rooms/games-room" },
+  { id: "musicSalon", emoji: "🎼", bg: "#EEF4FF", badgeBg: "#DBEAFE", badgeText: "#1D4ED8", route: "/social-rooms/music-salon" },
+  { id: "billReview", emoji: "⚡", bg: "#F0FDFA", badgeBg: "#CCFBF1", badgeText: "#0F766E", route: "/concierge" },
   { id: "breathing",  emoji: "🫁", bg: "#EEF4FF", badgeBg: "#DBEAFE", badgeText: "#1D4ED8", route: "/health" },
   { id: "chatPrompt", emoji: "💬", bg: "#F4F0FF", badgeBg: "#EDE9FE", badgeText: "#6D28D9", route: "/chat" },
   { id: "brainGame",  emoji: "🧠", bg: "#FFF7ED", badgeBg: "#FFEDD5", badgeText: "#C2410C", route: "/activities" },
@@ -85,7 +91,7 @@ const HOY_CARDS: HoyCard[] = [
   { id: "wordGame",   emoji: "📝", bg: "#F0FDF4", badgeBg: "#DCFCE7", badgeText: "#15803D", route: "/activities" },
   { id: "concierge",  emoji: "🛎️", bg: "#F0FDFA", badgeBg: "#CCFBF1", badgeText: "#0F766E", route: "/concierge" },
   { id: "meds",       emoji: "💊", bg: "#FDF4FF", badgeBg: "#FAE8FF", badgeText: "#86198F", route: "/meds" },
-  { id: "social",     emoji: "🤝", bg: "#FFFBEB", badgeBg: "#FEF3C7", badgeText: "#B45309", route: "/companions" },
+  { id: "social",     emoji: "🤝", bg: "#FFFBEB", badgeBg: "#FEF3C7", badgeText: "#B45309", route: "/social-rooms" },
 ];
 
 function dateSeededCardOrder(): HoyCard[] {
@@ -150,6 +156,32 @@ const HomeScreen = () => {
     const start = (todayRefreshIndex * cardCount) % orderedCards.length;
     return Array.from({ length: cardCount }, (_, offset) => orderedCards[(start + offset) % orderedCards.length]);
   }, [orderedCards, todayRefreshIndex]);
+
+  const { data: personalPlanData, isFetching: isFetchingPersonalPlan } = useQuery<{
+    cards: HoyCard[];
+    source: string;
+    generatedAt: string;
+  }>({
+    queryKey: ["/api/home/personal-plan", todayKey, todayRefreshIndex, personalisationData],
+    queryFn: async () => {
+      const response = await apiFetch("/api/home/personal-plan", {
+        method: "POST",
+        body: JSON.stringify({
+          refreshIndex: todayRefreshIndex,
+          conditions: personalisationData?.conditions ?? [],
+          hobbies: personalisationData?.hobbies ?? [],
+          hasMedications: personalisationData?.hasMedications ?? false,
+          chatNavigationCount: getChatNavigationCount(),
+        }),
+      });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    retry: false,
+  });
+
+  const displayedTodayCards = personalPlanData?.cards?.length ? personalPlanData.cards : visibleTodayCards;
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -434,7 +466,7 @@ const HomeScreen = () => {
             <RefreshCw
               size={20}
               strokeWidth={2.4}
-              className={isRefreshingTodayCards ? "animate-spin" : ""}
+              className={(isRefreshingTodayCards || isFetchingPersonalPlan) ? "animate-spin" : ""}
               aria-hidden="true"
             />
           </button>
@@ -447,7 +479,7 @@ const HomeScreen = () => {
           onMouseDown={pauseAndResume}
           onTouchStart={pauseAndResume}
         >
-          {visibleTodayCards.map((card) => (
+          {displayedTodayCards.map((card) => (
             <div
               key={card.id}
               data-testid={`card-today-for-you-${card.id}`}
