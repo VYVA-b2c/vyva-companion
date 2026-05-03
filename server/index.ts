@@ -44,7 +44,7 @@ import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedChe
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
 const PORT = parseInt(process.env.PORT || "5000", 10);
-const SERVER_BUILD_ID = "bill-reader-v2-2026-04-30";
+const SERVER_BUILD_ID = "specialists-no-fallback-2026-05-03";
 
 app.use(cors());
 
