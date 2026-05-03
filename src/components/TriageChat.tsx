@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Mic, Square } from "lucide-react";
 import { apiFetch } from "@/lib/queryClient";
 import i18n from "@/i18n";
 
@@ -27,22 +27,53 @@ interface TriageResponse {
 
 interface TriageChatProps {
   bpm: number | null;
+  autoStartVoice?: boolean;
+  onVoiceAutoStarted?: () => void;
   onComplete: (summary: TriageSummary) => void;
 }
 
 const CHAR_DELAY_MS = 18;
 
-export default function TriageChat({ bpm, onComplete }: TriageChatProps) {
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
+const speechLangFor = (language: string) => {
+  const base = language.split("-")[0];
+  const map: Record<string, string> = {
+    es: "es-ES",
+    en: "en-US",
+    fr: "fr-FR",
+    de: "de-DE",
+    it: "it-IT",
+    pt: "pt-PT",
+    cy: "en-GB",
+  };
+  return map[base] ?? "en-US";
+};
+
+export default function TriageChat({
+  bpm,
+  autoStartVoice = false,
+  onVoiceAutoStarted,
+  onComplete,
+}: TriageChatProps) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [initiated, setInitiated] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [animatingIdx, setAnimatingIdx] = useState<number | null>(null);
   const [animatedText, setAnimatedText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const animTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recRef = useRef<SpeechRecognition | null>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -72,6 +103,59 @@ export default function TriageChat({ bpm, onComplete }: TriageChatProps) {
     },
     [scrollToBottom]
   );
+
+  const startListening = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceError(t("health.symptomCheck.chat.voiceUnsupported"));
+      return;
+    }
+
+    try {
+      recRef.current?.stop();
+      const rec = new SR();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = speechLangFor(i18n.language ?? "en");
+
+      rec.onstart = () => {
+        setIsListening(true);
+        setVoiceError(null);
+      };
+
+      rec.onresult = (event) => {
+        const text = Array.from(event.results)
+          .map((result) => result[0]?.transcript ?? "")
+          .join(" ")
+          .trim();
+        setInput(text);
+      };
+
+      rec.onerror = () => {
+        setVoiceError(t("health.symptomCheck.chat.voiceError"));
+        setIsListening(false);
+        recRef.current = null;
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+        recRef.current = null;
+        inputRef.current?.focus();
+      };
+
+      recRef.current = rec;
+      rec.start();
+    } catch {
+      setVoiceError(t("health.symptomCheck.chat.voiceError"));
+      setIsListening(false);
+      recRef.current = null;
+    }
+  }, [t]);
+
+  const stopListening = useCallback(() => {
+    recRef.current?.stop();
+    setIsListening(false);
+  }, []);
 
   const sendToApi = useCallback(
     async (history: ChatMessage[]) => {
@@ -130,8 +214,18 @@ export default function TriageChat({ bpm, onComplete }: TriageChatProps) {
   useEffect(() => {
     return () => {
       if (animTimerRef.current) clearInterval(animTimerRef.current);
+      recRef.current?.stop();
     };
   }, []);
+
+  useEffect(() => {
+    if (!autoStartVoice || loading || animatingIdx !== null || messages.length === 0) return;
+    const timer = setTimeout(() => {
+      startListening();
+      onVoiceAutoStarted?.();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [autoStartVoice, loading, animatingIdx, messages.length, startListening, onVoiceAutoStarted]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -235,38 +329,63 @@ export default function TriageChat({ bpm, onComplete }: TriageChatProps) {
       </div>
 
       <div
-        className="px-4 py-3 flex items-center gap-3"
+        className="px-4 py-3 flex flex-col gap-2"
         style={{
           borderTop: "1px solid hsl(var(--vyva-border))",
           background: "white",
           paddingBottom: "max(12px, env(safe-area-inset-bottom))",
         }}
       >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={loading || animatingIdx !== null}
-          placeholder={t("health.symptomCheck.chat.placeholder")}
-          data-testid="input-triage-message"
-          className="flex-1 rounded-full px-4 py-[10px] font-body text-[15px] text-vyva-text-1 outline-none"
-          style={{
-            background: "hsl(var(--vyva-cream))",
-            border: "1.5px solid hsl(var(--vyva-border))",
-          }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || loading || animatingIdx !== null}
-          data-testid="button-triage-send"
-          aria-label={t("health.symptomCheck.chat.send")}
-          className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-95 disabled:opacity-40"
-          style={{ background: "hsl(var(--vyva-purple))" }}
-        >
-          <Send size={16} className="text-white" />
-        </button>
+        {voiceError && (
+          <p className="font-body text-[12px] text-center" style={{ color: "#B91C1C" }}>
+            {voiceError}
+          </p>
+        )}
+        {isListening && (
+          <p className="font-body text-[12px] text-center font-semibold" style={{ color: "hsl(var(--vyva-purple))" }}>
+            {t("health.symptomCheck.chat.listening")}
+          </p>
+        )}
+        <div className="flex items-center gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={loading || animatingIdx !== null}
+            placeholder={t("health.symptomCheck.chat.placeholder")}
+            data-testid="input-triage-message"
+            className="flex-1 rounded-full px-4 py-[10px] font-body text-[15px] text-vyva-text-1 outline-none"
+            style={{
+              background: "hsl(var(--vyva-cream))",
+              border: "1.5px solid hsl(var(--vyva-border))",
+            }}
+          />
+          <button
+            onClick={isListening ? stopListening : startListening}
+            disabled={!isListening && (loading || animatingIdx !== null)}
+            data-testid="button-triage-voice"
+            aria-label={t(isListening ? "health.symptomCheck.chat.voiceStop" : "health.symptomCheck.chat.voiceStart")}
+            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-95 disabled:opacity-40"
+            style={{
+              background: isListening ? "#FEE2E2" : "hsl(var(--vyva-purple-light))",
+              color: isListening ? "#B91C1C" : "hsl(var(--vyva-purple))",
+            }}
+          >
+            {isListening ? <Square size={16} /> : <Mic size={17} />}
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || loading || animatingIdx !== null}
+            data-testid="button-triage-send"
+            aria-label={t("health.symptomCheck.chat.send")}
+            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: "hsl(var(--vyva-purple))" }}
+          >
+            <Send size={16} className="text-white" />
+          </button>
+        </div>
       </div>
     </div>
   );

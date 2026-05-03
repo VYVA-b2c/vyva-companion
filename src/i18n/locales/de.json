@@ -520,7 +520,8 @@
         "step2Desc": "Chatten Sie mit VYVA über Ihr Befinden",
         "step3Title": "Bericht erhalten",
         "step3Desc": "Erhalten Sie eine Zusammenfassung, die Sie mit Ihrem Arzt teilen können",
-        "startBtn": "Gesundheits-Check starten"
+        "startBtn": "Gesundheits-Check starten",
+        "voiceBtn": "Per Sprache antworten"
       },
       "scan": {
         "title": "Vitalzeichen-Scan",
@@ -537,6 +538,11 @@
         "placeholder": "Schreiben Sie, wie Sie sich fühlen…",
         "thinking": "VYVA denkt nach…",
         "send": "Senden",
+        "voiceStart": "Per Sprache antworten",
+        "voiceStop": "Sprache stoppen",
+        "listening": "Ich höre zu...",
+        "voiceUnsupported": "Sprache ist in diesem Browser nicht verfügbar. Sie können hier schreiben.",
+        "voiceError": "Das Mikrofon konnte nicht gestartet werden. Sie können Ihre Antwort schreiben.",
         "errorMsg": "Es tut mir leid, ich hatte Schwierigkeiten, das zu verstehen. Könnten Sie es erneut versuchen?"
       },
       "report": {

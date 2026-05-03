@@ -520,7 +520,8 @@
         "step2Desc": "Chatta con VYVA su come ti senti",
         "step3Title": "Ottieni il tuo rapporto",
         "step3Desc": "Ricevi un riepilogo da condividere con il tuo medico",
-        "startBtn": "Inizia il controllo sanitario"
+        "startBtn": "Inizia il controllo sanitario",
+        "voiceBtn": "Rispondi a voce"
       },
       "scan": {
         "title": "Scansione dei segni vitali",
@@ -537,6 +538,11 @@
         "placeholder": "Scrivi come ti senti…",
         "thinking": "VYVA sta pensando…",
         "send": "Invia",
+        "voiceStart": "Rispondi a voce",
+        "voiceStop": "Ferma voce",
+        "listening": "Sto ascoltando...",
+        "voiceUnsupported": "La voce non è disponibile in questo browser. Puoi scrivere qui.",
+        "voiceError": "Non ho potuto attivare il microfono. Puoi scrivere la risposta.",
         "errorMsg": "Mi dispiace, ho avuto difficoltà a capire. Potresti riprovare?"
       },
       "report": {

@@ -547,7 +547,8 @@
         "step2Desc": "Chat with VYVA about how you're feeling",
         "step3Title": "Get your report",
         "step3Desc": "Receive a summary you can share with your doctor",
-        "startBtn": "Start Health Check"
+        "startBtn": "Start Health Check",
+        "voiceBtn": "Answer by voice"
       },
       "scan": {
         "title": "Vitals Scan",
@@ -564,6 +565,11 @@
         "placeholder": "Type how you're feeling…",
         "thinking": "VYVA is thinking…",
         "send": "Send",
+        "voiceStart": "Answer by voice",
+        "voiceStop": "Stop voice",
+        "listening": "Listening...",
+        "voiceUnsupported": "Voice is not available in this browser. You can type here.",
+        "voiceError": "I could not start the microphone. You can type your answer.",
         "errorMsg": "I'm sorry, I had trouble understanding that. Could you try again?"
       },
       "report": {

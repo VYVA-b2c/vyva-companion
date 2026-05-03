@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Heart, MessageSquare, FileText, Share2, Copy, CheckCircle, AlertTriangle, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, MessageSquare, FileText, Share2, Copy, CheckCircle, AlertTriangle, Eye, Mic } from "lucide-react";
 import VitalsScan from "@/components/VitalsScan";
 import TriageChat from "@/components/TriageChat";
 import { useToast } from "@/hooks/use-toast";
@@ -38,22 +38,30 @@ function StepDots({ current }: { current: Step }) {
   );
 }
 
-function IntroScreen({ onStart }: { onStart: () => void }) {
+function IntroScreen({
+  onStart,
+  onStartChat,
+  onStartVoice,
+}: {
+  onStart: () => void;
+  onStartChat: () => void;
+  onStartVoice: () => void;
+}) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col items-center justify-center flex-1 px-6 text-center gap-6">
+    <div className="flex flex-col items-center flex-1 px-6 py-6 text-center gap-5">
       <div
-        className="w-24 h-24 rounded-full flex items-center justify-center"
+        className="w-20 h-20 rounded-full flex items-center justify-center"
         style={{
           background: "linear-gradient(135deg, hsl(var(--vyva-purple)) 0%, #7C3AED 100%)",
           boxShadow: "0 8px 32px rgba(91,18,160,0.30)",
         }}
       >
-        <Heart size={40} className="text-white" />
+        <Heart size={34} className="text-white" />
       </div>
 
       <div>
-        <h1 className="font-body text-[24px] font-bold text-vyva-text-1 mb-2">
+        <h1 className="font-body text-[24px] font-bold text-vyva-text-1 mb-2 leading-tight">
           {t("health.symptomCheck.intro.title")}
         </h1>
         <p className="font-body text-[15px] text-vyva-text-2 leading-relaxed">
@@ -61,15 +69,51 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
         </p>
       </div>
 
+      <div className="w-full grid grid-cols-1 gap-3">
+        <button
+          onClick={onStart}
+          data-testid="button-symptom-check-start"
+          className="w-full rounded-full py-[16px] font-body text-[18px] font-bold text-white transition-all active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, hsl(var(--vyva-purple)) 0%, #7C3AED 100%)",
+            boxShadow: "0 4px 18px rgba(91,18,160,0.35)",
+          }}
+        >
+          {t("health.symptomCheck.intro.startBtn")}
+        </button>
+
+        <button
+          onClick={onStartVoice}
+          data-testid="button-symptom-check-voice-start"
+          className="w-full rounded-full py-[14px] flex items-center justify-center gap-2 font-body text-[16px] font-bold transition-all active:scale-95"
+          style={{
+            background: "white",
+            color: "hsl(var(--vyva-purple))",
+            border: "1.5px solid hsl(var(--vyva-purple-light))",
+          }}
+        >
+          <Mic size={18} />
+          {t("health.symptomCheck.intro.voiceBtn")}
+        </button>
+      </div>
+
       <div className="w-full flex flex-col gap-3">
         {(["vitals", "chat", "report"] as const).map((key, i) => {
           const icons = [Heart, MessageSquare, FileText];
           const Icon = icons[i];
+          const handleClick = key === "chat" ? onStartChat : onStart;
           return (
-            <div
+            <button
               key={key}
-              className="flex items-center gap-4 rounded-[16px] p-4 text-left"
-              style={{ background: "hsl(var(--vyva-warm))", border: "1px solid hsl(var(--vyva-border))" }}
+              type="button"
+              onClick={handleClick}
+              data-testid={`button-symptom-check-${key}`}
+              className="w-full flex items-center gap-4 rounded-[16px] p-4 text-left transition-all active:scale-[0.99]"
+              style={{
+                background: "hsl(var(--vyva-warm))",
+                border: "1px solid hsl(var(--vyva-border))",
+                boxShadow: "0 2px 8px rgba(24,14,38,0.04)",
+              }}
             >
               <div
                 className="w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0"
@@ -77,30 +121,19 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
               >
                 <Icon size={18} style={{ color: "hsl(var(--vyva-purple))" }} />
               </div>
-              <div>
-                <p className="font-body text-[14px] font-semibold text-vyva-text-1">
+              <div className="min-w-0 flex-1">
+                <p className="font-body text-[15px] font-bold text-vyva-text-1">
                   {t(`health.symptomCheck.intro.step${i + 1}Title`)}
                 </p>
-                <p className="font-body text-[12px] text-vyva-text-3">
+                <p className="font-body text-[13px] text-vyva-text-3 leading-snug">
                   {t(`health.symptomCheck.intro.step${i + 1}Desc`)}
                 </p>
               </div>
-            </div>
+              <ChevronRight size={20} className="flex-shrink-0" style={{ color: "hsl(var(--vyva-purple))" }} />
+            </button>
           );
         })}
       </div>
-
-      <button
-        onClick={onStart}
-        data-testid="button-symptom-check-start"
-        className="w-full rounded-full py-[15px] font-body text-[16px] font-semibold text-white transition-all active:scale-95"
-        style={{
-          background: "linear-gradient(135deg, hsl(var(--vyva-purple)) 0%, #7C3AED 100%)",
-          boxShadow: "0 4px 18px rgba(91,18,160,0.35)",
-        }}
-      >
-        {t("health.symptomCheck.intro.startBtn")}
-      </button>
     </div>
   );
 }
@@ -303,6 +336,8 @@ export default function SymptomCheckScreen() {
   const [bpm, setBpm] = useState<number | null>(null);
   const [respiratoryRate, setRespiratoryRate] = useState<number | null>(null);
   const [chatStartTime, setChatStartTime] = useState<number | null>(null);
+  const [chatEntryMode, setChatEntryMode] = useState<"vitals" | "direct">("vitals");
+  const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [summary, setSummary] = useState<TriageSummary | null>(null);
 
   const stepTitle: Record<Step, string> = {
@@ -318,7 +353,7 @@ export default function SymptomCheckScreen() {
     } else if (step === "vitals") {
       setStep("intro");
     } else if (step === "chat") {
-      setStep("vitals");
+      setStep(chatEntryMode === "direct" ? "intro" : "vitals");
     } else {
       navigate("/health");
     }
@@ -328,6 +363,15 @@ export default function SymptomCheckScreen() {
     setBpm(detectedBpm);
     setRespiratoryRate(detectedResp);
     setChatStartTime(Date.now());
+    setChatEntryMode("vitals");
+    setAutoStartVoice(false);
+    setStep("chat");
+  };
+
+  const startChatDirectly = (withVoice = false) => {
+    setChatStartTime(Date.now());
+    setChatEntryMode("direct");
+    setAutoStartVoice(withVoice);
     setStep("chat");
   };
 
@@ -392,7 +436,11 @@ export default function SymptomCheckScreen() {
 
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
         {step === "intro" && (
-          <IntroScreen onStart={() => setStep("vitals")} />
+          <IntroScreen
+            onStart={() => setStep("vitals")}
+            onStartChat={() => startChatDirectly(false)}
+            onStartVoice={() => startChatDirectly(true)}
+          />
         )}
 
         {step === "vitals" && (
@@ -400,7 +448,12 @@ export default function SymptomCheckScreen() {
         )}
 
         {step === "chat" && (
-          <TriageChat bpm={bpm} onComplete={handleChatComplete} />
+          <TriageChat
+            bpm={bpm}
+            autoStartVoice={autoStartVoice}
+            onVoiceAutoStarted={() => setAutoStartVoice(false)}
+            onComplete={handleChatComplete}
+          />
         )}
 
         {step === "report" && summary && (

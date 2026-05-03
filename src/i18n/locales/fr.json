@@ -535,7 +535,8 @@
         "step2Desc": "Discutez avec VYVA de votre état de santé",
         "step3Title": "Obtenez votre rapport",
         "step3Desc": "Recevez un résumé à partager avec votre médecin",
-        "startBtn": "Commencer le bilan de santé"
+        "startBtn": "Commencer le bilan de santé",
+        "voiceBtn": "Répondre par voix"
       },
       "scan": {
         "title": "Scan des constantes vitales",
@@ -552,6 +553,11 @@
         "placeholder": "Décrivez comment vous vous sentez…",
         "thinking": "VYVA réfléchit…",
         "send": "Envoyer",
+        "voiceStart": "Répondre par voix",
+        "voiceStop": "Arrêter la voix",
+        "listening": "J'écoute...",
+        "voiceUnsupported": "La voix n'est pas disponible dans ce navigateur. Vous pouvez écrire ici.",
+        "voiceError": "Je n'ai pas pu activer le micro. Vous pouvez écrire votre réponse.",
         "errorMsg": "Je suis désolé, j'ai eu du mal à comprendre. Pourriez-vous réessayer ?"
       },
       "report": {
