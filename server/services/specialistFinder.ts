@@ -1,3 +1,5 @@
+import { getGooglePlacesApiKey } from "../lib/googlePlacesKey.js";
+
 export type SpecialistUrgency = "routine" | "soon" | "urgent";
 
 export interface SpecialistSearchInput {
@@ -390,7 +392,7 @@ async function searchGooglePlaces(
   location: string,
   language: string,
 ): Promise<SpecialistProvider[]> {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  const key = getGooglePlacesApiKey();
   if (!key) return [];
 
   const places: GooglePlaceSearchResult[] = [];

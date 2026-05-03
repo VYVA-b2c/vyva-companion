@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import OpenAI from "openai";
 import { db } from "../db.js";
 import { profiles, companionProfiles, socialUserInterests } from "../../shared/schema.js";
+import { getGooglePlacesApiKey } from "../lib/googlePlacesKey.js";
 
 const router = Router();
 const DEMO_USER_ID = "demo-user";
@@ -530,7 +531,7 @@ async function searchGooglePlaces(
   context: OfferProfileContext,
   locale: string,
 ): Promise<PlaceCandidate[]> {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  const key = getGooglePlacesApiKey();
   const place = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
   if (!key || !place) return [];
 

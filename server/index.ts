@@ -40,6 +40,7 @@ import specialistsRouter from "./routes/specialists.js";
 import offersRouter, { analyzeOfferDocumentHandler } from "./routes/offers.js";
 import utilitiesRouter from "./routes/utilities.js";
 import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedCheckinReportHandler } from "./routes/checkins.js";
+import { getGooglePlacesApiKey, getGooglePlacesApiKeySource } from "./lib/googlePlacesKey.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const app = express();
@@ -117,6 +118,8 @@ app.get("/api/debug-runtime", (_req, res) => {
     build: SERVER_BUILD_ID,
     cwd: process.cwd(),
     node_env: process.env.NODE_ENV ?? null,
+    google_places_configured: Boolean(getGooglePlacesApiKey()),
+    google_places_source: getGooglePlacesApiKeySource(),
     checkins_direct_routes: true,
     bill_reader_route: true,
     json_limit: "20mb",
@@ -128,15 +131,15 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/config/places-key", (_req, res) => {
-  const key = process.env.GOOGLE_PLACES_API_KEY ?? "";
+  const key = getGooglePlacesApiKey();
   if (!key) {
     return res.status(404).json({ error: "Google Places API key is not configured on the server." });
   }
-  return res.json({ key });
+  return res.json({ configured: true, source: getGooglePlacesApiKeySource() });
 });
 
 app.post("/api/places/autocomplete", async (req, res) => {
-  const key = process.env.GOOGLE_PLACES_API_KEY ?? "";
+  const key = getGooglePlacesApiKey();
   if (!key) return res.status(503).json({ error: "Places API key not configured" });
 
   try {
@@ -163,7 +166,7 @@ app.post("/api/places/autocomplete", async (req, res) => {
 });
 
 app.get("/api/places/details/:placeId", async (req, res) => {
-  const key = process.env.GOOGLE_PLACES_API_KEY ?? "";
+  const key = getGooglePlacesApiKey();
   if (!key) return res.status(503).json({ error: "Places API key not configured" });
 
   try {
@@ -185,7 +188,7 @@ app.get("/api/places/details/:placeId", async (req, res) => {
 });
 
 app.get("/api/places/staticmap", async (req, res) => {
-  const key = process.env.GOOGLE_PLACES_API_KEY ?? "";
+  const key = getGooglePlacesApiKey();
   if (!key) return res.status(503).json({ error: "Places API key not configured" });
 
   const { lat, lng, zoom = "15", size = "400x160" } = req.query as Record<string, string>;

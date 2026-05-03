@@ -10,6 +10,7 @@ import {
   activityLogs,
 } from "../../shared/schema.js";
 import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
+import { getGooglePlacesApiKey } from "../lib/googlePlacesKey.js";
 
 const DEMO_USER_ID = "demo-user";
 
@@ -1820,7 +1821,7 @@ async function searchActionPlace(
   context: UserProfileContext,
   locale: string,
 ): Promise<RecommendationResolvedPlace | null> {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  const key = getGooglePlacesApiKey();
   const terms = card.action_payload?.search_terms?.filter(Boolean) ?? [];
   const place = [context.city, context.region, context.countryCode].filter(Boolean).join(", ");
   if (!key || !terms.length || !place) return null;
