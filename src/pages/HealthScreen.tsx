@@ -51,6 +51,7 @@ type SpecialistProvider = {
   phone?: string | null;
   address?: string;
   bookingUrl?: string | null;
+  mapsUrl?: string | null;
   sourceName: string;
   reviewScore?: number | null;
   reviewCount?: number | null;
@@ -66,6 +67,7 @@ type SpecialistRecommendation = {
   matchedSpecialties: string[];
   safetyNote: string;
   providers: SpecialistProvider[];
+  mapsSearchUrl?: string;
   nextStep: string;
 };
 
@@ -393,22 +395,26 @@ const HealthScreen = () => {
       return;
     }
 
+    if (provider.mapsUrl) {
+      window.open(provider.mapsUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     bookSpecialistMutation.mutate(provider);
   };
 
   const shareSpecialistProvider = async (provider: SpecialistProvider) => {
     const specialty = displaySpecialty(provider, i18n.language || "es");
     const location = provider.address ?? provider.clinicName ?? specialistLocation;
-    const opening = provider.openingTimes ?? provider.availabilityText ?? "Horario por confirmar";
-    const distance = provider.distanceLabel ?? "Distancia por confirmar";
     const lines = [
       provider.name,
       specialty,
-      provider.phone ? `Telefono: ${provider.phone}` : "Telefono: no disponible",
+      provider.phone ? `Telefono: ${provider.phone}` : null,
       location ? `Ubicacion: ${location}` : null,
-      `Horario: ${opening}`,
-      `Distancia: ${distance}`,
+      provider.openingTimes ? `Horario: ${provider.openingTimes}` : null,
+      provider.distanceLabel ? `Distancia: ${provider.distanceLabel}` : null,
       provider.bookingUrl ? `Mas informacion: ${provider.bookingUrl}` : null,
+      provider.mapsUrl ? `Google Maps: ${provider.mapsUrl}` : null,
     ].filter(Boolean).join("\n");
 
     try {
@@ -897,10 +903,31 @@ const HealthScreen = () => {
                           Esto no es un diagnostico. Si los sintomas son graves o repentinos, llama a emergencias o a tu medico.
                         </p>
                       </div>
-                      {specialistResult.providers.map((spec, i) => {
+                      {specialistResult.providers.length === 0 ? (
+                        <div className="rounded-[16px] px-[14px] py-[14px]" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+                          <p className="font-body text-[16px] font-semibold leading-tight text-vyva-text-1">
+                            No he encontrado proveedores verificados con datos suficientes ahora mismo.
+                          </p>
+                          <p className="mt-2 font-body text-[13px] leading-snug text-vyva-text-2">
+                            Puedes probar otra ciudad o abrir Google Maps para buscar opciones cerca.
+                          </p>
+                          <button
+                            data-testid="button-open-specialist-maps-search"
+                            onClick={() => {
+                              const query = specialistResult.mapsSearchUrl
+                                ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${specialistResult.matchedSpecialties[0] ?? "medico"} ${specialistLocation}`)}`;
+                              window.open(query, "_blank", "noopener,noreferrer");
+                            }}
+                            className="mt-[12px] min-h-[44px] rounded-full px-[16px] font-body text-[14px] font-semibold flex items-center justify-center gap-2"
+                            style={{ background: "#7C3AED", color: "#FFFFFF" }}
+                          >
+                            <MapPin size={15} />
+                            Abrir Google Maps
+                          </button>
+                        </div>
+                      ) : specialistResult.providers.map((spec, i) => {
                         const location = spec.address ?? spec.clinicName ?? specialistLocation;
-                        const opening = spec.openingTimes ?? spec.availabilityText ?? "Horario por confirmar";
-                        const distance = spec.distanceLabel ?? "Distancia por confirmar";
+                        const actionColumns = spec.mapsUrl ? "grid-cols-3" : "grid-cols-2";
 
                         return (
                         <div key={`${spec.name}-${i}`} className="rounded-[16px] px-[14px] py-[13px]" style={{ background: "#F9F6F2", border: "1px solid #EDE5DB" }}>
@@ -915,22 +942,28 @@ const HealthScreen = () => {
                           </div>
 
                           <div className="mt-[10px] grid gap-2">
-                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
-                              <Phone size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
-                              <span>{spec.phone ?? "Telefono no disponible"}</span>
-                            </div>
+                            {spec.phone && (
+                              <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                                <Phone size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
+                                <span>{spec.phone}</span>
+                              </div>
+                            )}
                             <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
                               <MapPin size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
                               <span>{location}</span>
                             </div>
-                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
-                              <Clock size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
-                              <span>{opening}</span>
-                            </div>
-                            <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
-                              <MapPin size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#059669" }} />
-                              <span>{distance}</span>
-                            </div>
+                            {spec.openingTimes && (
+                              <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                                <Clock size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#7C3AED" }} />
+                                <span>{spec.openingTimes}</span>
+                              </div>
+                            )}
+                            {spec.distanceLabel && (
+                              <div className="flex items-start gap-2 font-body text-[13px] text-vyva-text-2 leading-snug">
+                                <MapPin size={14} className="mt-[2px] flex-shrink-0" style={{ color: "#059669" }} />
+                                <span>{spec.distanceLabel}</span>
+                              </div>
+                            )}
                             {spec.reviewScore && (
                               <div className="flex items-center gap-1 font-body text-[12px] text-vyva-text-2">
                                 <Star size={12} fill="#F59E0B" style={{ color: "#F59E0B" }} />
@@ -939,7 +972,7 @@ const HealthScreen = () => {
                             )}
                           </div>
 
-                          <div className="mt-[12px] grid grid-cols-2 gap-2">
+                          <div className={`mt-[12px] grid ${actionColumns} gap-2`}>
                             <button
                               data-testid={`button-book-specialist-${i}`}
                               onClick={() => contactSpecialist(spec)}
@@ -950,6 +983,17 @@ const HealthScreen = () => {
                               <Phone size={15} />
                               Contactar
                             </button>
+                            {spec.mapsUrl && (
+                              <button
+                                data-testid={`button-map-specialist-${i}`}
+                                onClick={() => window.open(spec.mapsUrl!, "_blank", "noopener,noreferrer")}
+                                className="min-h-[44px] rounded-full font-body text-[14px] font-semibold flex items-center justify-center gap-2"
+                                style={{ background: "#F0FDF4", color: "#047857", border: "1px solid #BBF7D0" }}
+                              >
+                                <MapPin size={15} />
+                                Mapa
+                              </button>
+                            )}
                             <button
                               data-testid={`button-share-specialist-${i}`}
                               onClick={() => shareSpecialistProvider(spec)}

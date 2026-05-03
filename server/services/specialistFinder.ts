@@ -24,6 +24,7 @@ export interface SpecialistProvider {
   phone?: string | null;
   address?: string;
   bookingUrl?: string | null;
+  mapsUrl?: string | null;
   sourceName: string;
   sourceUrl?: string;
   reviewScore?: number | null;
@@ -41,6 +42,7 @@ export interface SpecialistRecommendationResult {
   safetyNote: string;
   sourcesChecked: SpecialistSource[];
   providers: SpecialistProvider[];
+  mapsSearchUrl?: string;
   nextStep: string;
 }
 
@@ -200,47 +202,8 @@ function resolveSearchLocation(location?: string): string {
   return trimmed || "Marbella, Malaga, Spain";
 }
 
-function buildFallbackProviders(specialties: string[], location: string, language: string): SpecialistProvider[] {
-  const primary = specialties[0] ?? "General Practice";
-  const secondary = specialties[1] ?? "Internal Medicine";
-  const fallbackAvailability = language.startsWith("es") ? "Consultar online o por telefono" : "Check online or by phone";
-  const regionalDistance = language.startsWith("es") ? "Opcion regional cercana" : "Nearby regional option";
-  return [
-    {
-      name: `${primary} team at QuironSalud Marbella`,
-      specialty: primary,
-      specialtyLabel: specialtyLabel(primary, language),
-      clinicName: "Hospital QuironSalud Marbella",
-      address: "Marbella, Malaga",
-      bookingUrl: "https://www.quironsalud.com/marbella",
-      sourceName: "QuironSalud",
-      sourceUrl: "https://www.quironsalud.com/marbella",
-      reviewScore: null,
-      reviewCount: null,
-      distanceLabel: location.includes("Tarifa") ? (language.startsWith("es") ? "Opcion regional cerca de Marbella" : "Regional option near Marbella") : regionalDistance,
-      availabilityText: fallbackAvailability,
-      openingTimes: fallbackAvailability,
-      rationale: `Good first private-network option for ${primary.toLowerCase()} with appointment routes and hospital support.`,
-      score: 82,
-    },
-    {
-      name: `${secondary} options on Doctoralia`,
-      specialty: secondary,
-      specialtyLabel: specialtyLabel(secondary, language),
-      clinicName: "Doctoralia verified marketplace results",
-      address: location,
-      bookingUrl: "https://www.doctoralia.es/",
-      sourceName: "Doctoralia",
-      sourceUrl: "https://www.doctoralia.es/",
-      reviewScore: null,
-      reviewCount: null,
-      distanceLabel: language.startsWith("es") ? "Buscar por codigo postal o ciudad" : "Search by postcode/city",
-      availabilityText: language.startsWith("es") ? "Suele mostrar disponibilidad online" : "Often shows online availability",
-      openingTimes: fallbackAvailability,
-      rationale: `Useful for comparing availability and patient reviews for ${secondary.toLowerCase()}; VYVA should cross-check clinic details.`,
-      score: 74,
-    },
-  ];
+function buildMapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 type GooglePlaceSearchResult = {
@@ -290,6 +253,71 @@ async function fetchGooglePlaceDetails(placeId: string, key: string, language: s
   return data.result ?? null;
 }
 
+function normalizePhoneCandidate(raw: string): string | null {
+  const decoded = decodeURIComponent(raw).replace(/^tel:/i, "").trim();
+  const compact = decoded.replace(/^00/, "+").replace(/[^\d+]/g, "");
+  const match = compact.match(/^(?:\+34)?([6789]\d{8})$/);
+  if (!match) return null;
+
+  const digits = match[1];
+  const grouped = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  return compact.startsWith("+34") ? `+34 ${grouped}` : grouped;
+}
+
+async function fetchPhoneFromWebsite(website?: string | null): Promise<string | null> {
+  if (!website) return null;
+
+  let target: URL;
+  try {
+    target = new URL(website);
+  } catch {
+    return null;
+  }
+
+  if (!["http:", "https:"].includes(target.protocol)) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(target, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; VYVA/1.0; +https://vyva.app)",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    if (!response.ok) return null;
+    const html = (await response.text()).slice(0, 250_000);
+
+    const telMatches = Array.from(html.matchAll(/href=["']\s*tel:([^"']+)["']/gi));
+    for (const match of telMatches) {
+      const phone = normalizePhoneCandidate(match[1]);
+      if (phone) return phone;
+    }
+
+    const telephoneMatches = Array.from(html.matchAll(/["']telephone["']\s*:\s*["']([^"']+)["']/gi));
+    for (const match of telephoneMatches) {
+      const phone = normalizePhoneCandidate(match[1]);
+      if (phone) return phone;
+    }
+
+    const visibleMatches = Array.from(html.matchAll(/(?:\+34[\s().-]*)?[6789](?:[\s().-]*\d){8}/g));
+    for (const match of visibleMatches) {
+      const phone = normalizePhoneCandidate(match[0]);
+      if (phone) return phone;
+    }
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return null;
+}
+
 async function fetchGoogleDistanceLabel(origin: string, destination: string, key: string, language: string): Promise<string | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
   url.searchParams.set("origins", origin);
@@ -322,15 +350,25 @@ async function fetchGoogleDistanceLabel(origin: string, destination: string, key
   return duration ? `${distance} · ${duration} ${byCar}` : distance;
 }
 
-async function searchGooglePlaces(
-  specialties: string[],
-  location: string,
-  language: string,
-): Promise<SpecialistProvider[]> {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
-  if (!key) return [];
+function buildPlaceSearchQueries(specialties: string[], location: string, language: string): string[] {
+  const labels = specialties.slice(0, 2).map((specialty) => specialtyLabel(specialty, language));
+  const templates = language.startsWith("es")
+    ? [
+        (label: string) => `${label} ${location}`,
+        (label: string) => `medico ${label} ${location}`,
+        (label: string) => `clinica ${label} ${location}`,
+        (label: string) => `especialista ${label} ${location}`,
+      ]
+    : [
+        (label: string) => `${label} doctor ${location}`,
+        (label: string) => `${label} clinic ${location}`,
+        (label: string) => `${label} specialist ${location}`,
+      ];
 
-  const query = `${specialties[0]} specialist doctor ${location}`;
+  return Array.from(new Set(labels.flatMap((label) => templates.map((template) => template(label))))).slice(0, 8);
+}
+
+async function fetchGoogleTextSearch(query: string, key: string, language: string): Promise<GooglePlaceSearchResult[]> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
   url.searchParams.set("query", query);
   url.searchParams.set("language", language || "es");
@@ -344,22 +382,49 @@ async function searchGooglePlaces(
   };
 
   if (data.status && !["OK", "ZERO_RESULTS"].includes(data.status)) return [];
+  return data.results ?? [];
+}
 
-  const places = (data.results ?? []).slice(0, 3);
+async function searchGooglePlaces(
+  specialties: string[],
+  location: string,
+  language: string,
+): Promise<SpecialistProvider[]> {
+  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  if (!key) return [];
+
+  const places: GooglePlaceSearchResult[] = [];
+  const seen = new Set<string>();
+  for (const query of buildPlaceSearchQueries(specialties, location, language)) {
+    const results = await fetchGoogleTextSearch(query, key, language).catch(() => []);
+    for (const place of results) {
+      const identity = place.place_id ?? `${normalize(place.name ?? "")}|${normalize(place.formatted_address ?? "")}`;
+      if (!identity || seen.has(identity)) continue;
+      seen.add(identity);
+      places.push(place);
+      if (places.length >= 5) break;
+    }
+    if (places.length >= 5) break;
+  }
+
+  const selectedPlaces = places.slice(0, 3);
   const details = await Promise.all(
-    places.map((place) => place.place_id ? fetchGooglePlaceDetails(place.place_id, key, language).catch(() => null) : null),
+    selectedPlaces.map((place) => place.place_id ? fetchGooglePlaceDetails(place.place_id, key, language).catch(() => null) : null),
+  );
+  const websitePhones = await Promise.all(
+    details.map((detail) => detail?.website ? fetchPhoneFromWebsite(detail.website).catch(() => null) : null),
   );
   const distances = await Promise.all(
-    places.map((place) => place.formatted_address
+    selectedPlaces.map((place) => place.formatted_address
       ? fetchGoogleDistanceLabel(location, place.formatted_address, key, language).catch(() => null)
       : null),
   );
 
-  return places.map((place, index) => {
+  return selectedPlaces.map((place, index) => {
     const detail = details[index] ?? null;
-    const mapsUrl = place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : null;
+    const mapsUrl = detail?.url ?? (place.place_id ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name ?? "Google")}&query_place_id=${place.place_id}` : null);
     const openingTimes = summarizeOpeningHours(detail, language);
-    const phone = detail?.international_phone_number ?? detail?.formatted_phone_number ?? null;
+    const phone = detail?.international_phone_number ?? detail?.formatted_phone_number ?? websitePhones[index] ?? null;
 
     return {
       name: place.name ?? "Specialist clinic",
@@ -369,16 +434,17 @@ async function searchGooglePlaces(
       phone,
       address: place.formatted_address ?? location,
       bookingUrl: detail?.website ?? detail?.url ?? mapsUrl,
+      mapsUrl,
       sourceName: "Google Places",
       sourceUrl: "https://maps.google.com/",
       reviewScore: place.rating ?? null,
       reviewCount: place.user_ratings_total ?? null,
-      distanceLabel: distances[index] ?? `Near ${location}`,
-      availabilityText: openingTimes ?? (language.startsWith("es") ? "Llamar o consultar la web" : "Call or check website"),
+      distanceLabel: distances[index] ?? null,
+      availabilityText: openingTimes,
       openingTimes,
-      rationale: index === 0
-        ? "Strong proximity match from local provider search; reviews should be cross-checked before booking."
-        : "Nearby provider match; compare availability and credentials before booking.",
+      rationale: language.startsWith("es")
+        ? "Resultado verificado en Google Places; conviene revisar disponibilidad antes de contactar."
+        : "Verified Google Places result; check availability before contacting.",
       score: 70 - index * 5 + Math.round((place.rating ?? 0) * 3),
     };
   });
@@ -389,10 +455,11 @@ export async function recommendSpecialists(input: SpecialistSearchInput): Promis
   const specialties = matchSpecialties(condition);
   const location = resolveSearchLocation(input.location);
   const language = input.language?.trim() || "es";
+  const firstSpecialty = specialties[0] ?? "General Practice";
+  const mapsSearchUrl = buildMapsSearchUrl(`${specialtyLabel(firstSpecialty, language)} ${location}`);
 
   const liveProviders = await searchGooglePlaces(specialties, location, language).catch(() => []);
-  const providers = liveProviders.length ? liveProviders : buildFallbackProviders(specialties, location, language);
-  const ranked = providers.sort((a, b) => b.score - a.score).slice(0, 3);
+  const ranked = liveProviders.sort((a, b) => b.score - a.score).slice(0, 3);
 
   return {
     condition,
@@ -400,6 +467,7 @@ export async function recommendSpecialists(input: SpecialistSearchInput): Promis
     safetyNote: SAFETY_NOTE,
     sourcesChecked: SPECIALIST_SOURCES,
     providers: ranked,
+    mapsSearchUrl,
     nextStep: "Ask the user which option they prefer, then hand off to Concierge to book the appointment.",
   };
 }
