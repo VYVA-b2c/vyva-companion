@@ -298,6 +298,7 @@ const HealthScreen = () => {
       return;
     }
     setSpecialistCondition(trimmedCondition);
+    setSpecialistResult(null);
     specialistMutation.mutate({ condition: trimmedCondition, location: specialistLocation });
   };
 
