@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, CSSProperties } from "react";
+import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -27,6 +27,7 @@ import {
   Star,
   Mic,
   Square,
+  RefreshCw,
 } from "lucide-react";
 import VoiceHero from "@/components/VoiceHero";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -122,28 +123,109 @@ const MOCK_SPECIALISTS: Record<string, { name: string; rating: number; waitN: nu
   ],
 };
 const SPECIALTIES = Object.keys(MOCK_SPECIALISTS);
-const SPECIALIST_EXAMPLES = ["dolor de rodilla", "problemas de memoria", "diabetes", "mancha en la piel"];
+const DEFAULT_SPECIALIST_EXAMPLES = ["dolor de rodilla", "problemas de memoria", "diabetes", "mancha en la piel"];
 
 const SPECIALTY_LABELS_ES: Record<string, string> = {
-  Dermatology: "Dermatologia",
-  Neurology: "Neurologia",
-  Geriatrics: "Geriatria",
-  Neuropsychology: "Neuropsicologia",
-  Endocrinology: "Endocrinologia",
-  Cardiology: "Cardiologia",
-  "Traumatology / Orthopaedics": "Traumatologia / Ortopedia",
+  Dermatology: "Dermatología",
+  Dermatologia: "Dermatología",
+  Neurology: "Neurología",
+  Geriatrics: "Geriatría",
+  Neuropsychology: "Neuropsicología",
+  Endocrinology: "Endocrinología",
+  Cardiology: "Cardiología",
+  "Traumatology / Orthopaedics": "Traumatología / Ortopedia",
   Physiotherapy: "Fisioterapia",
-  Rheumatology: "Reumatologia",
+  Rheumatology: "Reumatología",
   "Internal Medicine": "Medicina interna",
   "General Practice": "Medicina general",
+  "Wound Care Nursing": "Enfermería de heridas",
+  Pulmonology: "Neumología",
+  Gastroenterology: "Digestivo",
+  Urology: "Urología",
+  Gynaecology: "Ginecología",
+  Gynecology: "Ginecología",
+  Ophthalmology: "Oftalmología",
+  Podiatry: "Podología",
+  Psychology: "Psicología",
+  Psychiatry: "Psiquiatría",
 };
 
-function displaySpecialty(provider: SpecialistProvider, language: string): string {
-  if (provider.specialtyLabel) return provider.specialtyLabel;
-  if (language.split("-")[0].toLowerCase() === "es") {
-    return SPECIALTY_LABELS_ES[provider.specialty] ?? provider.specialty;
+function activeLanguage(language?: string): string {
+  return (language || "es").split("-")[0].toLowerCase();
+}
+
+function displaySpecialtyText(specialty: string, language: string): string {
+  if (activeLanguage(language) === "es") {
+    return SPECIALTY_LABELS_ES[specialty] ?? specialty;
   }
-  return provider.specialty;
+  return specialty;
+}
+
+function displaySpecialty(provider: SpecialistProvider, language: string): string {
+  return displaySpecialtyText(provider.specialtyLabel ?? provider.specialty, language);
+}
+
+function normalizeForMatching(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function uniqueValues(values: string[]): string[] {
+  return values.filter((value, index, array) => array.indexOf(value) === index);
+}
+
+function localizedSpecialistPrompt(key: string, language: string): string {
+  const isSpanish = activeLanguage(language) === "es";
+  const prompts: Record<string, { es: string; en: string }> = {
+    knee: { es: "dolor de rodilla", en: "knee pain" },
+    hip: { es: "dolor de cadera", en: "hip pain" },
+    falls: { es: "caídas frecuentes", en: "frequent falls" },
+    memory: { es: "problemas de memoria", en: "memory problems" },
+    diabetes: { es: "diabetes", en: "diabetes" },
+    skin: { es: "mancha en la piel", en: "skin mark" },
+    wound: { es: "herida que no cura", en: "wound not healing" },
+    breathing: { es: "falta de aire", en: "shortness of breath" },
+    heart: { es: "control del corazón", en: "heart check" },
+    pressure: { es: "presión alta", en: "high blood pressure" },
+    thyroid: { es: "tiroides", en: "thyroid" },
+    stomach: { es: "dolor de estómago", en: "stomach pain" },
+    urinary: { es: "problemas urinarios", en: "urinary problems" },
+    vision: { es: "revisar la vista", en: "eye check" },
+    mood: { es: "ánimo bajo", en: "low mood" },
+  };
+
+  return prompts[key]?.[isSpanish ? "es" : "en"] ?? key;
+}
+
+function deriveSpecialistExamples(conditions: string[] | undefined, language: string): string[] {
+  const normalizedConditions = (conditions ?? []).map(normalizeForMatching);
+  const matches = (keywords: string[]) =>
+    normalizedConditions.some((condition) => keywords.some((keyword) => condition.includes(keyword)));
+  const suggestions: string[] = [];
+
+  if (matches(["arthritis", "arthrosis", "osteoarthritis", "rodilla", "knee", "joint"])) suggestions.push(localizedSpecialistPrompt("knee", language));
+  if (matches(["hip", "cadera"])) suggestions.push(localizedSpecialistPrompt("hip", language));
+  if (matches(["fall", "falls", "caida", "caidas", "mobility", "balance"])) suggestions.push(localizedSpecialistPrompt("falls", language));
+  if (matches(["memory", "memoria", "dementia", "alzheimer", "cognitive"])) suggestions.push(localizedSpecialistPrompt("memory", language));
+  if (matches(["diabetes", "glucose", "glucosa", "sugar"])) suggestions.push(localizedSpecialistPrompt("diabetes", language));
+  if (matches(["skin", "piel", "dermat", "lunar", "eczema", "psoriasis"])) suggestions.push(localizedSpecialistPrompt("skin", language));
+  if (matches(["wound", "ulcer", "herida", "ulcera"])) suggestions.push(localizedSpecialistPrompt("wound", language));
+  if (matches(["asthma", "asma", "copd", "epoc", "breathing", "respir", "pulmonary", "lung"])) suggestions.push(localizedSpecialistPrompt("breathing", language));
+  if (matches(["heart", "cardiac", "corazon", "cardio", "angina", "arrhythmia"])) suggestions.push(localizedSpecialistPrompt("heart", language));
+  if (matches(["hypertension", "blood pressure", "presion"])) suggestions.push(localizedSpecialistPrompt("pressure", language));
+  if (matches(["thyroid", "tiroides"])) suggestions.push(localizedSpecialistPrompt("thyroid", language));
+  if (matches(["digest", "stomach", "colon", "intestin", "estomago"])) suggestions.push(localizedSpecialistPrompt("stomach", language));
+  if (matches(["urinary", "urine", "prostate", "urinario", "vejiga", "prostata"])) suggestions.push(localizedSpecialistPrompt("urinary", language));
+  if (matches(["vision", "eye", "vista", "ojo", "cataract"])) suggestions.push(localizedSpecialistPrompt("vision", language));
+  if (matches(["depression", "anxiety", "mood", "ansiedad", "depresion", "animo"])) suggestions.push(localizedSpecialistPrompt("mood", language));
+
+  const defaults = activeLanguage(language) === "es"
+    ? DEFAULT_SPECIALIST_EXAMPLES
+    : ["knee pain", "memory problems", "diabetes", "skin mark"];
+
+  return uniqueValues([...suggestions, ...defaults]);
 }
 
 type TFunction = (key: string, fallback?: string) => string;
@@ -231,7 +313,7 @@ const ScanFullScreenModal = ({
 
 const HealthScreen = () => {
   const { t, i18n } = useTranslation();
-  const { firstName } = useProfile();
+  const { firstName, profile } = useProfile();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -239,7 +321,9 @@ const HealthScreen = () => {
   const [specialistOpen,   setSpecialistOpen]   = useState(false);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
   const [specialistCondition, setSpecialistCondition] = useState("");
-  const [specialistLocation, setSpecialistLocation] = useState("Tarifa, Cadiz");
+  const [specialistLocation, setSpecialistLocation] = useState("");
+  const [specialistLocationEdited, setSpecialistLocationEdited] = useState(false);
+  const [specialistExamplePage, setSpecialistExamplePage] = useState(0);
   const [specialistResult, setSpecialistResult] = useState<SpecialistRecommendation | null>(null);
   const [specialistVoiceListening, setSpecialistVoiceListening] = useState(false);
   const [historialOpen,    setHistorialOpen]    = useState(false);
@@ -253,6 +337,38 @@ const HealthScreen = () => {
   const headlineText = firstName
     ? `Todo en orden hoy, ${firstName}`
     : "Todo en orden hoy";
+
+  const profileLocation = useMemo(() => {
+    const parts = [
+      profile?.postalCode,
+      profile?.cityState,
+      profile?.country,
+    ].map((part) => part?.trim()).filter(Boolean);
+    return uniqueValues(parts as string[]).join(", ");
+  }, [profile?.postalCode, profile?.cityState, profile?.country]);
+
+  const { data: personalisationData } = useQuery<{
+    conditions: string[];
+    hobbies: string[];
+    hasMedications: boolean;
+  }>({
+    queryKey: ["/api/profile/personalisation"],
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+
+  const specialistExamples = useMemo(() => {
+    const allExamples = deriveSpecialistExamples(personalisationData?.conditions, i18n.language || profile?.language || "es");
+    const pageSize = 4;
+    const start = (specialistExamplePage * pageSize) % allExamples.length;
+    return [...allExamples.slice(start), ...allExamples.slice(0, start)].slice(0, pageSize);
+  }, [personalisationData?.conditions, i18n.language, profile?.language, specialistExamplePage]);
+
+  useEffect(() => {
+    if (!specialistLocationEdited && profileLocation && !specialistLocation.trim()) {
+      setSpecialistLocation(profileLocation);
+    }
+  }, [profileLocation, specialistLocation, specialistLocationEdited]);
 
   const { data: pastScans = [], isLoading: pastScansLoading } = useQuery<WoundScan[]>({
     queryKey: ["/api/wound-scan/history"],
@@ -272,7 +388,7 @@ const HealthScreen = () => {
   const specialistMutation = useMutation({
     mutationFn: async (input?: { condition?: string; location?: string }) => {
       const condition = input?.condition ?? specialistCondition;
-      const location = input?.location ?? specialistLocation;
+      const location = input?.location ?? (specialistLocation.trim() || profileLocation || "Tarifa, Cadiz");
       const res = await apiFetch("/api/specialists/recommendations", {
         method: "POST",
         body: JSON.stringify({
@@ -299,7 +415,7 @@ const HealthScreen = () => {
     }
     setSpecialistCondition(trimmedCondition);
     setSpecialistResult(null);
-    specialistMutation.mutate({ condition: trimmedCondition, location: specialistLocation });
+    specialistMutation.mutate({ condition: trimmedCondition, location: specialistLocation.trim() || profileLocation || "Tarifa, Cadiz" });
   };
 
   const stopSpecialistVoice = () => {
@@ -836,8 +952,23 @@ const HealthScreen = () => {
                   <p className="pt-[14px] font-body text-[15px] leading-relaxed text-vyva-text-2">
                     Describe la condicion o preocupacion. VYVA buscara el tipo de especialista adecuado y opciones cercanas.
                   </p>
-                  <div className="flex flex-wrap gap-2 pt-[12px] pb-[10px]">
-                    {SPECIALIST_EXAMPLES.map((example) => (
+                  <div className="flex items-center justify-between gap-2 pt-[12px] pb-[8px]">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-wide" style={{ color: "#7C3AED" }}>
+                      Sugerencias para ti
+                    </p>
+                    <button
+                      data-testid="button-refresh-specialist-examples"
+                      type="button"
+                      onClick={() => setSpecialistExamplePage((page) => page + 1)}
+                      className="vyva-tap inline-flex items-center gap-1 rounded-full px-[10px] py-[6px] font-body text-[12px] font-semibold"
+                      style={{ background: "#FFFFFF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
+                    >
+                      <RefreshCw size={13} />
+                      Más
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pb-[10px]">
+                    {specialistExamples.map((example) => (
                       <button
                         key={example}
                         data-testid={`chip-specialist-example-${example}`}
@@ -875,8 +1006,11 @@ const HealthScreen = () => {
                     <input
                       data-testid="input-specialist-location"
                       value={specialistLocation}
-                      onChange={(e) => setSpecialistLocation(e.target.value)}
-                      placeholder="Ciudad o zona"
+                      onChange={(e) => {
+                        setSpecialistLocationEdited(true);
+                        setSpecialistLocation(e.target.value);
+                      }}
+                      placeholder={profileLocation || "Ciudad o zona"}
                       className="w-full rounded-[16px] px-[16px] py-[13px] font-body text-[16px] outline-none"
                       style={{ border: "1px solid #EDE5DB", background: "#FFFFFF", color: "#2F2925" }}
                     />
@@ -898,7 +1032,7 @@ const HealthScreen = () => {
                           Especialidades recomendadas
                         </p>
                         <p className="font-body text-[14px] font-semibold text-vyva-text-1">
-                          {specialistResult.matchedSpecialties.join(", ")}
+                          {specialistResult.matchedSpecialties.map((specialty) => displaySpecialtyText(specialty, i18n.language || "es")).join(", ")}
                         </p>
                         <p className="font-body text-[11px] text-vyva-text-2 leading-snug mt-[6px]">
                           Esto no es un diagnostico. Si los sintomas son graves o repentinos, llama a emergencias o a tu medico.
@@ -916,7 +1050,7 @@ const HealthScreen = () => {
                             data-testid="button-open-specialist-maps-search"
                             onClick={() => {
                               const query = specialistResult.mapsSearchUrl
-                                ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${specialistResult.matchedSpecialties[0] ?? "medico"} ${specialistLocation}`)}`;
+                                ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displaySpecialtyText(specialistResult.matchedSpecialties[0] ?? "medico", i18n.language || "es")} ${specialistLocation || profileLocation}`)}`;
                               window.open(query, "_blank", "noopener,noreferrer");
                             }}
                             className="mt-[12px] min-h-[44px] rounded-full px-[16px] font-body text-[14px] font-semibold flex items-center justify-center gap-2"
