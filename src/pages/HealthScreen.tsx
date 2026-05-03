@@ -656,7 +656,6 @@ const HealthScreen = () => {
 
         {/* ── 1. Hero ── */}
         <VoiceHero
-          sourceText={t("health.voiceSource")}
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
