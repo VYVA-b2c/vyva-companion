@@ -124,23 +124,23 @@ const DoctorChoiceScreen = () => {
             </h1>
           </div>
         </div>
+
+        {status === "connected" && !hasMicrophone ? (
+          <button
+            type="button"
+            onClick={handleStartMicrophone}
+            className="vyva-tap mt-6 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border border-vyva-border bg-white px-5 font-body text-[20px] font-extrabold text-vyva-purple shadow-sm"
+          >
+            <Mic size={24} />
+            {t("health.doctorChoice.talkNow", "Hablar ahora")}
+          </button>
+        ) : null}
       </section>
 
       {lastError ? (
         <div className="mt-4 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] px-5 py-4 font-body text-[16px] font-semibold text-[#9A3412]">
           {t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")}
         </div>
-      ) : null}
-
-      {status === "connected" && !hasMicrophone ? (
-        <button
-          type="button"
-          onClick={handleStartMicrophone}
-          className="vyva-tap mt-4 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border border-vyva-border bg-white px-5 font-body text-[20px] font-extrabold text-vyva-purple shadow-sm"
-        >
-          <Mic size={24} />
-          {t("health.doctorChoice.talkNow", "Hablar ahora")}
-        </button>
       ) : null}
 
       <div className="mt-5 flex flex-col gap-4">
