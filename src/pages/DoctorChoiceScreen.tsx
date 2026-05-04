@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ const DoctorChoiceScreen = () => {
     status,
     isConnecting,
     isSpeaking,
+    hasMicrophone,
     lastError,
   } = useVyvaVoice();
 
@@ -25,10 +26,21 @@ const DoctorChoiceScreen = () => {
     "Presenta estas dos opciones de forma breve y amable: hablar con un medico ahora, o hacer primero un triaje rapido. No des consejos medicos. Pide al usuario que toque una opcion en la pantalla."
   );
 
+  const startDoctorAgent = useCallback(
+    (withMicrophone = false) => {
+      hasIntroducedRef.current = false;
+      startVoice("doctor choice", undefined, {
+        agentId: DOCTOR_AGENT_ID,
+        skipMicrophone: !withMicrophone,
+      }).catch(() => {});
+    },
+    [startVoice],
+  );
+
   useEffect(() => {
-    startVoice("doctor choice", undefined, { agentId: DOCTOR_AGENT_ID }).catch(() => {});
+    startDoctorAgent(false);
     return () => stopVoice();
-  }, [startVoice, stopVoice]);
+  }, [startDoctorAgent, stopVoice]);
 
   useEffect(() => {
     if (status !== "connected" || hasIntroducedRef.current) return;
@@ -50,11 +62,17 @@ const DoctorChoiceScreen = () => {
 
   const handleVoiceToggle = () => {
     if (status === "idle") {
-      hasIntroducedRef.current = false;
-      startVoice("doctor choice", undefined, { agentId: DOCTOR_AGENT_ID }).catch(() => {});
+      startDoctorAgent(false);
     } else {
       stopVoice();
     }
+  };
+
+  const handleStartMicrophone = () => {
+    stopVoice();
+    window.setTimeout(() => {
+      startDoctorAgent(true);
+    }, 150);
   };
 
   const voiceStatus = lastError
@@ -64,7 +82,9 @@ const DoctorChoiceScreen = () => {
       : isSpeaking
         ? t("health.doctorChoice.voiceSpeaking", "El asistente medico esta hablando...")
         : status === "connected"
-          ? t("health.doctorChoice.voiceReady", "Asistente medico activo.")
+          ? hasMicrophone
+            ? t("health.doctorChoice.voiceReadyListening", "Asistente medico activo. Puede hablar.")
+            : t("health.doctorChoice.voiceReady", "Asistente medico activo.")
           : t("health.doctorChoice.voiceStopped", "Voz pausada. Puede tocar una opcion.");
 
   return (
@@ -118,6 +138,17 @@ const DoctorChoiceScreen = () => {
       >
         {voiceStatus}
       </div>
+
+      {status === "connected" && !hasMicrophone ? (
+        <button
+          type="button"
+          onClick={handleStartMicrophone}
+          className="vyva-tap mt-4 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border border-vyva-border bg-white px-5 font-body text-[20px] font-extrabold text-vyva-purple shadow-sm"
+        >
+          <Mic size={24} />
+          {t("health.doctorChoice.talkNow", "Hablar ahora")}
+        </button>
+      ) : null}
 
       <div className="mt-5 flex flex-col gap-4">
         <button
