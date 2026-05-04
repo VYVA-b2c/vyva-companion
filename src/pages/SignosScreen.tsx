@@ -392,6 +392,7 @@ const SignosScreen = () => {
         headline="Monitorización activa"
         subtitle={subtitleText}
         contextHint="signos vitales monitorización"
+        talkLabel="Scan my Vitals"
       >
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/15">
           <div className="flex items-center gap-1.5">
