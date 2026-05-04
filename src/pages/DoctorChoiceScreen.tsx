@@ -1,55 +1,94 @@
-import { useEffect } from "react";
-import { ArrowLeft, ChevronRight, HeartPulse, Stethoscope, Volume2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useTtsReadout } from "@/hooks/useVyvaVoice";
+import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
-const voiceLang = (language: string) => {
-  if (language.startsWith("en")) return "en-US";
-  if (language.startsWith("de")) return "de-DE";
-  return "es-ES";
-};
+const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
 const DoctorChoiceScreen = () => {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
-  const { speakText, stopTts, isTtsSpeaking } = useTtsReadout();
+  const { t } = useTranslation();
+  const hasIntroducedRef = useRef(false);
+  const {
+    startVoice,
+    stopVoice,
+    sendText,
+    status,
+    isConnecting,
+    isSpeaking,
+    lastError,
+  } = useVyvaVoice();
 
   const promptText = t(
     "health.doctorChoice.voicePrompt",
-    "Puedes elegir hablar con un médico ahora, o hacer primero un triaje breve para orientar mejor la consulta."
+    "Presenta estas dos opciones de forma breve y amable: hablar con un medico ahora, o hacer primero un triaje rapido. No des consejos medicos. Pide al usuario que toque una opcion en la pantalla."
   );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      speakText(promptText, voiceLang(i18n.language));
-    }, 450);
+    startVoice("doctor choice", undefined, { agentId: DOCTOR_AGENT_ID }).catch(() => {});
+    return () => stopVoice();
+  }, [startVoice, stopVoice]);
 
-    return () => {
-      window.clearTimeout(timer);
-      stopTts();
-    };
-  }, [i18n.language, promptText, speakText, stopTts]);
+  useEffect(() => {
+    if (status !== "connected" || hasIntroducedRef.current) return;
+    hasIntroducedRef.current = true;
+    window.setTimeout(() => {
+      sendText(promptText, { invisibleInTranscript: true });
+    }, 250);
+  }, [promptText, sendText, status]);
+
+  const handleDirect = () => {
+    stopVoice();
+    navigate("/health?doctor=1");
+  };
+
+  const handleTriage = () => {
+    stopVoice();
+    navigate("/health/symptom-check");
+  };
+
+  const handleVoiceToggle = () => {
+    if (status === "idle") {
+      hasIntroducedRef.current = false;
+      startVoice("doctor choice", undefined, { agentId: DOCTOR_AGENT_ID }).catch(() => {});
+    } else {
+      stopVoice();
+    }
+  };
+
+  const voiceStatus = lastError
+    ? t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")
+    : isConnecting
+      ? t("health.doctorChoice.voiceConnecting", "Conectando con el asistente medico...")
+      : isSpeaking
+        ? t("health.doctorChoice.voiceSpeaking", "El asistente medico esta hablando...")
+        : status === "connected"
+          ? t("health.doctorChoice.voiceReady", "Asistente medico activo.")
+          : t("health.doctorChoice.voiceStopped", "Voz pausada. Puede tocar una opcion.");
 
   return (
     <div className="vyva-page pb-[120px]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => navigate("/health")}
+          onClick={() => {
+            stopVoice();
+            navigate("/health");
+          }}
           className="vyva-tap inline-flex items-center gap-2 rounded-full bg-[#FFFDF9] px-5 py-3 font-body text-[16px] font-bold text-vyva-text-1 shadow-sm"
         >
           <ArrowLeft size={20} />
-          {t("common.back", "Atrás")}
+          {t("common.back", "Atras")}
         </button>
 
         <button
           type="button"
-          onClick={() => isTtsSpeaking ? stopTts() : speakText(promptText, voiceLang(i18n.language))}
+          onClick={handleVoiceToggle}
           className="vyva-tap inline-flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#F5F3FF] text-vyva-purple shadow-sm"
-          aria-label={isTtsSpeaking ? t("common.stop", "Parar") : t("common.listen", "Escuchar")}
+          aria-label={status === "idle" ? t("common.start", "Iniciar") : t("common.stop", "Parar")}
         >
-          {isTtsSpeaking ? <X size={21} /> : <Volume2 size={22} />}
+          {status === "idle" ? <Mic size={22} /> : <X size={21} />}
         </button>
       </div>
 
@@ -60,19 +99,30 @@ const DoctorChoiceScreen = () => {
           </div>
           <div className="min-w-0">
             <p className="font-body text-[14px] font-extrabold uppercase tracking-[0.14em] text-vyva-purple">
-              {t("health.doctorChoice.kicker", "Ayuda médica")}
+              {t("health.doctorChoice.kicker", "Ayuda medica")}
             </p>
             <h1 className="mt-1 font-display text-[38px] leading-[1.05] text-vyva-text-1">
-              {t("health.doctorChoice.title", "Elige una opción")}
+              {t("health.doctorChoice.title", "Elige una opcion")}
             </h1>
           </div>
         </div>
       </section>
 
+      <div
+        className="mt-4 rounded-[24px] border px-5 py-4 font-body text-[16px] font-semibold"
+        style={{
+          background: lastError ? "#FFF7ED" : "#F5F3FF",
+          borderColor: lastError ? "#FDBA74" : "#DDD6FE",
+          color: lastError ? "#9A3412" : "#6B21A8",
+        }}
+      >
+        {voiceStatus}
+      </div>
+
       <div className="mt-5 flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => navigate("/health?doctor=1")}
+          onClick={handleDirect}
           className="vyva-tap flex min-h-[120px] items-center gap-4 rounded-[28px] border border-[#BBF7D0] bg-[#F0FDF4] p-5 text-left shadow-vyva-card"
         >
           <span className="flex h-[62px] w-[62px] flex-shrink-0 items-center justify-center rounded-[20px] bg-white">
@@ -80,7 +130,7 @@ const DoctorChoiceScreen = () => {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-body text-[22px] font-extrabold leading-tight text-vyva-text-1">
-              {t("health.doctorChoice.directTitle", "Hablar con un médico")}
+              {t("health.doctorChoice.directTitle", "Hablar con un medico")}
             </span>
             <span className="mt-2 block font-body text-[17px] leading-snug text-vyva-text-2">
               {t("health.doctorChoice.directSubtitle", "Llamada o videollamada")}
@@ -91,7 +141,7 @@ const DoctorChoiceScreen = () => {
 
         <button
           type="button"
-          onClick={() => navigate("/health/symptom-check")}
+          onClick={handleTriage}
           className="vyva-tap flex min-h-[120px] items-center gap-4 rounded-[28px] border border-vyva-border bg-[#FFFFFF] p-5 text-left shadow-vyva-card"
         >
           <span className="flex h-[62px] w-[62px] flex-shrink-0 items-center justify-center rounded-[20px] bg-[#F5F3FF]">
@@ -102,7 +152,7 @@ const DoctorChoiceScreen = () => {
               {t("health.doctorChoice.triageTitle", "Hacer triaje primero")}
             </span>
             <span className="mt-2 block font-body text-[17px] leading-snug text-vyva-text-2">
-              {t("health.doctorChoice.triageSubtitle", "Preguntas rápidas")}
+              {t("health.doctorChoice.triageSubtitle", "Preguntas rapidas")}
             </span>
           </span>
           <ChevronRight size={26} className="flex-shrink-0 text-vyva-purple" />
