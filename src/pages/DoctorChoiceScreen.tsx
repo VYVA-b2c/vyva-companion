@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +9,7 @@ const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
 const DoctorChoiceScreen = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const hasIntroducedRef = useRef(false);
   const {
     startVoice,
@@ -33,6 +33,24 @@ const DoctorChoiceScreen = () => {
     "health.doctorChoice.voicePrompt",
     "Presenta estas dos opciones de forma breve y amable: hablar con un medico ahora, o hacer primero un triaje rapido. No des consejos medicos. Pide al usuario que toque una opcion en la pantalla."
   );
+  const stopCallFallback = useMemo(() => {
+    const language = i18n.language?.slice(0, 2);
+    switch (language) {
+      case "en":
+        return "Stop call";
+      case "de":
+        return "Anruf beenden";
+      case "fr":
+        return "Terminer l'appel";
+      case "it":
+        return "Termina chiamata";
+      case "pt":
+        return "Terminar chamada";
+      case "es":
+      default:
+        return "Terminar llamada";
+    }
+  }, [i18n.language]);
 
   const startDoctorAgent = useCallback(
     (withMicrophone = false) => {
@@ -85,6 +103,17 @@ const DoctorChoiceScreen = () => {
   };
 
   const isVoiceLive = isConnecting || isSpeaking || status === "connected";
+  const shouldStopCallFromHero = isConnecting || isSpeaking || (status === "connected" && hasMicrophone);
+  const heroVoiceLabel = shouldStopCallFromHero
+    ? t("health.doctorChoice.stopCall", stopCallFallback)
+    : heroMessage?.ctaLabel ?? t("health.doctorChoice.talkNow", "Hablar ahora");
+  const handleHeroVoiceAction = () => {
+    if (shouldStopCallFromHero) {
+      stopVoice();
+      return;
+    }
+    handleStartMicrophone();
+  };
 
   return (
     <div className="vyva-page pb-[120px]">
@@ -143,16 +172,19 @@ const DoctorChoiceScreen = () => {
           </div>
         </div>
 
-        {status === "connected" && !hasMicrophone ? (
-          <button
-            type="button"
-            onClick={handleStartMicrophone}
-            className="vyva-tap mt-6 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border border-vyva-border bg-white px-5 font-body text-[20px] font-extrabold text-vyva-purple shadow-sm"
-          >
-            <Mic size={24} />
-            {heroMessage?.ctaLabel ?? t("health.doctorChoice.talkNow", "Hablar ahora")}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={handleHeroVoiceAction}
+          aria-label={heroVoiceLabel}
+          className={`vyva-tap mt-6 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border px-5 font-body text-[20px] font-extrabold shadow-sm transition ${
+            shouldStopCallFromHero
+              ? "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412]"
+              : "border-vyva-border bg-white text-vyva-purple"
+          }`}
+        >
+          {shouldStopCallFromHero ? <X size={24} /> : <Mic size={24} />}
+          {heroVoiceLabel}
+        </button>
       </section>
 
       {lastError ? (

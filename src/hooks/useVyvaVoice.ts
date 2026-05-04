@@ -289,9 +289,8 @@ export function useVyvaVoice() {
             throw new Error("no URL or token");
           }
         } catch (err) {
-          if (!activeAgentId) throw err;
-          console.warn("[VYVA] Token fetch failed, trying public connection:", err);
-          wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${activeAgentId}`;
+          console.error("[VYVA] Token fetch failed:", err);
+          throw err;
         }
 
         const audioCtx = new AudioContext({ sampleRate: 16000 });
@@ -429,6 +428,7 @@ export function useVyvaVoice() {
         };
 
         ws.onerror = () => {
+          setLastError("Voice connection failed");
           setVoiceStatus("idle");
           setIsConnecting(false);
           setIsSpeaking(false);

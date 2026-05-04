@@ -293,7 +293,7 @@ async function signedUrlNoOverride(
   metadata: Record<string, unknown> = {},
 ) {
   const resp = await fetch(
-    `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${encodeURIComponent(agent_id)}`,
+    `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agent_id)}`,
     { headers: { "xi-api-key": apiKey } }
   );
 
