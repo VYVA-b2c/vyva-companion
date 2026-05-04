@@ -55,6 +55,7 @@ import HobbiesSection from "./pages/onboarding/sections/HobbiesSection";
 import MedicationsSection from "./pages/onboarding/sections/MedicationsSection";
 
 import PrivacySettings from "./pages/settings/PrivacySettings";
+import DoctorChoiceScreen from "./pages/DoctorChoiceScreen";
 import SymptomCheckScreen from "./pages/SymptomCheckScreen";
 import CheckHowIFeelScreen from "./pages/CheckHowIFeelScreen";
 import CheckinHistoryScreen from "./pages/CheckinHistoryScreen";
@@ -153,6 +154,7 @@ const App = () => (
                   <Route path="/" element={<AppShell><HomeScreen /></AppShell>} />
                   <Route path="/chat" element={<AppShell><ChatScreen /></AppShell>} />
                   <Route path="/health" element={<AppShell><HealthScreen /></AppShell>} />
+                  <Route path="/health/doctor" element={<AppShell><DoctorChoiceScreen /></AppShell>} />
                   <Route path="/health/check-in" element={<AppShell><CheckHowIFeelScreen /></AppShell>} />
                   <Route path="/health/check-ins" element={<AppShell><CheckinHistoryScreen /></AppShell>} />
                   <Route path="/health/symptom-check" element={<AppShell><SymptomCheckScreen /></AppShell>} />

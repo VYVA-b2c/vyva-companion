@@ -32,11 +32,12 @@ interface VoiceHeroProps {
   children?: React.ReactNode;
   contextHint?: string;
   talkLabel?: string;
+  onTalkClick?: () => void;
   onChatClick?: () => void;
   weatherData?: WeatherData | null;
 }
 
-const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, children, contextHint, talkLabel, onChatClick, weatherData }) => {
+const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, children, contextHint, talkLabel, onTalkClick, onChatClick, weatherData }) => {
   const { t } = useTranslation();
   const { startVoice, stopVoice, status, isSpeaking, isConnecting, transcript } = useVyvaVoice();
 
@@ -46,6 +47,8 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
   const handleTalk = () => {
     if (isActive) {
       stopVoice();
+    } else if (onTalkClick) {
+      onTalkClick();
     } else {
       startVoice(contextHint);
     }

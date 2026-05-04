@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Stethoscope,
   Camera,
@@ -344,6 +344,7 @@ const HealthScreen = () => {
   const { t, i18n } = useTranslation();
   const { firstName, profile } = useProfile();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   const [seeDoctorOpen,    setSeeDoctorOpen]    = useState(false);
@@ -498,6 +499,18 @@ const HealthScreen = () => {
   useEffect(() => () => {
     specialistRecognitionRef.current?.stop();
   }, []);
+
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has("doctor")) return;
+
+    setSeeDoctorOpen(true);
+    window.setTimeout(() => {
+      document.getElementById("health-see-doctor-card")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 80);
+  }, [location.search]);
 
   const bookSpecialistMutation = useMutation({
     mutationFn: async (provider: SpecialistProvider) => {
@@ -659,6 +672,7 @@ const HealthScreen = () => {
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
+          onTalkClick={() => navigate("/health/doctor")}
         />
 
         <button
@@ -722,6 +736,7 @@ const HealthScreen = () => {
 
             {/* Ver a un médico */}
             <div
+              id="health-see-doctor-card"
               className="vyva-card overflow-hidden"
               style={{ background: "#FFFFFF", border: "1px solid #EDE5DB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
             >
