@@ -267,7 +267,10 @@ export async function conversationTokenHandler(req: Request, res: Response) {
     });
   }
 
-  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+  const ELEVENLABS_API_KEY =
+    process.env.ELEVENLABS_API_KEY ||
+    process.env.VITE_ELEVENLABS_API_KEY ||
+    process.env.ELEVENLABS_CONVAI_API_KEY;
   if (!ELEVENLABS_API_KEY) {
     return res.status(500).json({ error: "Missing ElevenLabs API key" });
   }

@@ -82,6 +82,7 @@ type StartVoiceOptions = {
   agentSlug?: string;
   roomSlug?: string;
   skipMicrophone?: boolean;
+  autoStartListening?: boolean;
 };
 
 type SendTextOptions = {
@@ -236,6 +237,7 @@ export function useVyvaVoice() {
       const shouldResolveAgentOnServer = Boolean(options?.agentSlug || options?.roomSlug);
       const activeAgentId = options?.agentId ?? (shouldResolveAgentOnServer ? undefined : VYVA_AGENT_ID);
       const skipMicrophone = options?.skipMicrophone ?? false;
+      const autoStartListening = options?.autoStartListening ?? false;
 
       if (!activeAgentId && !shouldResolveAgentOnServer) {
         const greeting = contextHint ?? "Listening...";
@@ -325,6 +327,11 @@ export function useVyvaVoice() {
             srcRef.current = src;
             processorRef.current = processor;
             micGainRef.current = micGain;
+
+            if (autoStartListening) {
+              isUserStreamingRef.current = true;
+              setIsUserSpeaking(true);
+            }
           }
         };
 

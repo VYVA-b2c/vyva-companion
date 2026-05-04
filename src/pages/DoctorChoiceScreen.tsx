@@ -40,6 +40,7 @@ const DoctorChoiceScreen = () => {
       startVoice("doctor choice", undefined, {
         agentId: DOCTOR_AGENT_ID,
         skipMicrophone: !withMicrophone,
+        autoStartListening: withMicrophone,
       }).catch(() => {});
     },
     [startVoice],
