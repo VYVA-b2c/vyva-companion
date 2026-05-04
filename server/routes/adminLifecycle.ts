@@ -8,6 +8,7 @@ import {
   accessLinks,
   communicationsLog,
   consentAttempts,
+  heroMessages,
   homePlanCards,
   lifecycleEvents,
   organizations,
@@ -168,6 +169,33 @@ const homePlanCardUpdateSchema = z.object({
 const homePlanCardCreateSchema = homePlanCardUpdateSchema.extend({
   card_id: z.string().min(2),
 });
+
+const supportedHeroLanguageSchema = z.enum(["es", "en", "de", "fr", "it", "pt"]);
+const heroCopySchema = z.object({
+  sourceText: z.string().optional(),
+  headline: z.string().min(1),
+  headlineWithName: z.string().optional(),
+  subtitle: z.string().optional(),
+  ctaLabel: z.string().optional(),
+  contextHint: z.string().optional(),
+});
+
+const heroMessageCreateSchema = z.object({
+  message_id: z.string().min(2),
+  surface: z.string().min(1),
+  reason: z.string().min(1).default("evergreen"),
+  priority: z.coerce.number().int().min(0).max(200).default(10),
+  cooldown_hours: z.coerce.number().int().min(0).max(720).default(8),
+  periods: z.array(z.string()).optional().default([]),
+  safety_levels: z.array(z.string()).optional().default([]),
+  event_types: z.array(z.string()).optional().default([]),
+  activity_types: z.array(z.string()).optional().default([]),
+  copy: z.record(supportedHeroLanguageSchema, heroCopySchema),
+  is_enabled: z.boolean().optional().default(true),
+  admin_notes: z.string().optional().nullable(),
+});
+
+const heroMessageUpdateSchema = heroMessageCreateSchema.omit({ message_id: true }).partial();
 
 function targetUserIdForIntake(intake: typeof userIntakes.$inferSelect): string | null {
   return intake.elder_user_id ?? intake.user_id ?? intake.family_user_id ?? null;
@@ -488,6 +516,100 @@ adminLifecycleRouter.patch("/home-plan-cards/:cardId", async (req: Request, res:
   }
 
   return res.json({ card });
+});
+
+adminLifecycleRouter.get("/hero-messages", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  try {
+    const rows = await db.select().from(heroMessages).orderBy(desc(heroMessages.priority));
+    return res.json({ messages: rows });
+  } catch (error) {
+    return res.status(503).json({
+      error: "Hero messages are not migrated yet. Run schema/hero_messages.sql.",
+    });
+  }
+});
+
+adminLifecycleRouter.post("/hero-messages", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const parsed = heroMessageCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const existing = await db
+    .select()
+    .from(heroMessages)
+    .where(eq(heroMessages.message_id, parsed.data.message_id))
+    .limit(1);
+
+  if (existing[0]) {
+    const [message] = await db
+      .update(heroMessages)
+      .set({
+        surface: parsed.data.surface,
+        reason: parsed.data.reason,
+        priority: parsed.data.priority,
+        cooldown_hours: parsed.data.cooldown_hours,
+        periods: parsed.data.periods,
+        safety_levels: parsed.data.safety_levels,
+        event_types: parsed.data.event_types,
+        activity_types: parsed.data.activity_types,
+        copy: parsed.data.copy,
+        is_enabled: parsed.data.is_enabled,
+        admin_notes: parsed.data.admin_notes ?? "",
+        updated_at: new Date(),
+      })
+      .where(eq(heroMessages.message_id, parsed.data.message_id))
+      .returning();
+    return res.json({ message });
+  }
+
+  try {
+    const [message] = await db
+      .insert(heroMessages)
+      .values({
+        message_id: parsed.data.message_id,
+        surface: parsed.data.surface,
+        reason: parsed.data.reason,
+        priority: parsed.data.priority,
+        cooldown_hours: parsed.data.cooldown_hours,
+        periods: parsed.data.periods,
+        safety_levels: parsed.data.safety_levels,
+        event_types: parsed.data.event_types,
+        activity_types: parsed.data.activity_types,
+        copy: parsed.data.copy,
+        is_enabled: parsed.data.is_enabled,
+        admin_notes: parsed.data.admin_notes ?? "",
+      })
+      .returning();
+    return res.status(201).json({ message });
+  } catch (error) {
+    return res.status(400).json({ error: "Could not save hero message. Check the migration and message ID." });
+  }
+});
+
+adminLifecycleRouter.patch("/hero-messages/:messageId", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const parsed = heroMessageUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const [message] = await db
+    .update(heroMessages)
+    .set({ ...parsed.data, updated_at: new Date() })
+    .where(eq(heroMessages.message_id, req.params.messageId))
+    .returning();
+
+  if (!message) {
+    return res.status(404).json({ error: "Hero message not found" });
+  }
+
+  return res.json({ message });
 });
 
 adminLifecycleRouter.get("/users", async (req: Request, res: Response) => {

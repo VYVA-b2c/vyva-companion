@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { Mic, MessageCircle, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
+import { type HeroSurface } from "@/lib/heroMessages";
+import { type UseHeroMessageOptions, useHeroMessage } from "@/hooks/useHeroMessage";
 import VoiceCallOverlay from "@/components/VoiceCallOverlay";
 import VyvaAvatar from "@/components/VyvaAvatar";
 
@@ -26,6 +28,8 @@ interface WeatherData {
 }
 
 interface VoiceHeroProps {
+  heroSurface?: HeroSurface;
+  heroContext?: UseHeroMessageOptions;
   sourceText?: string;
   headline: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -37,9 +41,48 @@ interface VoiceHeroProps {
   weatherData?: WeatherData | null;
 }
 
-const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, children, contextHint, talkLabel, onTalkClick, onChatClick, weatherData }) => {
+const headlineClampStyle: React.CSSProperties = {
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 2,
+  overflow: "hidden",
+  overflowWrap: "anywhere",
+};
+
+const homeHeadlineClampStyle: React.CSSProperties = {
+  ...headlineClampStyle,
+  WebkitLineClamp: 3,
+};
+
+const VoiceHero: React.FC<VoiceHeroProps> = ({
+  heroSurface,
+  heroContext,
+  sourceText,
+  headline,
+  subtitle,
+  children,
+  contextHint,
+  talkLabel,
+  onTalkClick,
+  onChatClick,
+  weatherData,
+}) => {
   const { t } = useTranslation();
   const { startVoice, stopVoice, status, isSpeaking, isConnecting, transcript } = useVyvaVoice();
+  const dynamicHero = useHeroMessage(heroSurface, {
+    ...heroContext,
+    fallbackHeadline: typeof headline === "string" ? headline : heroContext?.fallbackHeadline,
+    fallbackSubtitle: typeof subtitle === "string" ? subtitle : heroContext?.fallbackSubtitle,
+    fallbackSourceText: sourceText,
+    fallbackCtaLabel: talkLabel,
+    fallbackContextHint: contextHint,
+  });
+
+  const resolvedSourceText = dynamicHero?.sourceText ?? sourceText;
+  const resolvedHeadline = dynamicHero?.headline ?? headline;
+  const resolvedSubtitle = dynamicHero?.subtitle ?? subtitle;
+  const resolvedContextHint = dynamicHero?.contextHint ?? contextHint;
+  const resolvedTalkLabel = dynamicHero?.ctaLabel ?? talkLabel;
 
   const isActive = status === "connected";
   const showOverlay = isActive || isConnecting;
@@ -50,7 +93,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
     } else if (onTalkClick) {
       onTalkClick();
     } else {
-      startVoice(contextHint);
+      startVoice(resolvedContextHint);
     }
   };
 
@@ -60,7 +103,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
     ? isSpeaking
       ? t("voiceHero.speaking")
       : t("voiceHero.listening")
-    : talkLabel ?? t("voiceHero.talkToVyva");
+    : resolvedTalkLabel ?? t("voiceHero.talkToVyva");
 
   const timeOfDay = useMemo((): "morning" | "afternoon" | "evening" => {
     const hour = new Date().getHours();
@@ -112,8 +155,11 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
             {/* Left column — text + CTA */}
             <div className="flex-[0_0_58%] flex flex-col gap-0 px-[22px] pt-[26px] pb-[16px] min-w-0">
               {/* Headline */}
-              <h1 className="mb-auto max-w-[12ch] font-display text-[30px] font-normal italic leading-[1.08] text-white">
-                {headline}
+              <h1
+                className="mb-auto max-w-[12ch] min-w-0 font-display text-[30px] font-normal italic leading-[1.08] text-white"
+                style={homeHeadlineClampStyle}
+              >
+                {resolvedHeadline}
               </h1>
 
               {/* CTA button */}
@@ -140,7 +186,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
                   <Mic size={17} style={{ color: "#6B21A8" }} />
                 )}
                 <span
-                  className="font-body text-[16px] font-semibold"
+                  className="min-w-0 max-w-full text-center font-body text-[16px] font-semibold leading-tight"
                   style={{ color: isActive ? "#ffffff" : "#6B21A8" }}
                 >
                   {statusLabel}
@@ -183,12 +229,12 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
 
         {/* Source row */}
         <div className="flex items-center justify-between mb-4">
-          {sourceText ? (
-            <div className="flex items-center gap-2">
+          {resolvedSourceText ? (
+            <div className="flex min-w-0 items-center gap-2">
               <div className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.18)" }}>
                 <Mic size={16} className="text-white" />
               </div>
-              <span className="font-body text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>{sourceText}</span>
+              <span className="min-w-0 break-words font-body text-[13px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.85)" }}>{resolvedSourceText}</span>
             </div>
           ) : <div />}
           <div className="flex items-center gap-2">
@@ -212,11 +258,19 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
         </div>
 
         {/* Headline */}
-        <h1 className="font-display text-[28px] font-normal italic leading-[1.22] text-white">
-          {headline}
+        <h1
+          className="min-w-0 font-display text-[28px] font-normal italic leading-[1.22] text-white"
+          style={headlineClampStyle}
+        >
+          {resolvedHeadline}
         </h1>
-        {subtitle && (
-          <p className="mt-2 font-body text-[16px] leading-relaxed" style={{ color: "rgba(255,255,255,0.76)" }}>{subtitle}</p>
+        {resolvedSubtitle && (
+          <p
+            className="mt-2 min-w-0 break-words font-body text-[16px] leading-relaxed"
+            style={{ ...headlineClampStyle, WebkitLineClamp: 2, color: "rgba(255,255,255,0.76)" }}
+          >
+            {resolvedSubtitle}
+          </p>
         )}
 
         {/* Screen-specific content */}
@@ -238,7 +292,7 @@ const VoiceHero: React.FC<VoiceHeroProps> = ({ sourceText, headline, subtitle, c
           ) : (
             <Mic size={18} style={{ color: "rgba(255,255,255,0.7)" }} />
           )}
-          <span className="font-body text-[17px] font-semibold text-white">{statusLabel}</span>
+          <span className="min-w-0 max-w-full text-center font-body text-[17px] font-semibold leading-tight text-white">{statusLabel}</span>
         </button>
       </div>
     </>

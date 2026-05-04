@@ -1186,6 +1186,28 @@ export const insertHomePlanCardSchema = createInsertSchema(homePlanCards).omit({
 export type InsertHomePlanCard = z.infer<typeof insertHomePlanCardSchema>;
 export type HomePlanCardRow = typeof homePlanCards.$inferSelect;
 
+export const heroMessages = pgTable("hero_messages", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  message_id:     text("message_id").notNull().unique(),
+  surface:        text("surface").notNull(),
+  reason:         text("reason").notNull().default("evergreen"),
+  priority:       integer("priority").notNull().default(10),
+  cooldown_hours: integer("cooldown_hours").notNull().default(8),
+  periods:        text("periods").array().notNull().default([]),
+  safety_levels:  text("safety_levels").array().notNull().default([]),
+  event_types:    text("event_types").array().notNull().default([]),
+  activity_types: text("activity_types").array().notNull().default([]),
+  copy:           jsonb("copy").notNull().default({}),
+  is_enabled:     boolean("is_enabled").notNull().default(true),
+  admin_notes:    text("admin_notes"),
+  created_at:     timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:     timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertHeroMessageSchema = createInsertSchema(heroMessages).omit({ id: true, created_at: true, updated_at: true });
+export type InsertHeroMessage = z.infer<typeof insertHeroMessageSchema>;
+export type HeroMessageRow = typeof heroMessages.$inferSelect;
+
 
 // ============================================================
 // SCHEMA EXPORT
@@ -1232,4 +1254,5 @@ export const schema = {
   scheduledEventLogs,
   utilityReviewRuns,
   homePlanCards,
+  heroMessages,
 };

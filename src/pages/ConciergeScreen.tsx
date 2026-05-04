@@ -1652,6 +1652,7 @@ const ConciergeScreen = () => {
   return (
     <div className="vyva-page">
       <VoiceHero
+        heroSurface="concierge"
         sourceText={t("concierge.voiceSource")}
         headline={t("concierge.headline")}
         subtitle={t("concierge.subtitle")}

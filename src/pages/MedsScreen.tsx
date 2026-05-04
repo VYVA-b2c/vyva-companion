@@ -278,6 +278,7 @@ const MedsScreen = () => {
   return (
     <div className="px-[22px]">
       <VoiceHero
+        heroSurface="meds"
         sourceText={t("meds.voiceSource")}
         headline={<span style={{ opacity: headlineVisible ? 1 : 0, transition: "opacity 0.28s ease, transform 0.28s ease", display: "inline-block", transform: headlineVisible ? "translateY(0)" : "translateY(6px)" }}>{currentHeadline}</span>}
         subtitle={todayData && displayMeds.length === 0 ? t("meds.noMedsScheduled") : t("meds.takenToday", { taken: takenCount, total: displayMeds.length })}

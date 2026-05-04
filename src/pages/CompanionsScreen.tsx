@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { queryClient, apiFetch } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useHeroMessage } from "@/hooks/useHeroMessage";
 
 // ─── Static data ───────────────────────────────────────────────────────────────
 
@@ -395,24 +396,12 @@ function InterestPicker({
 
 function HeroBanner() {
   const { t } = useTranslation();
-  const messages = t("community.bannerMessages", { returnObjects: true }) as string[];
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
-    const interval = setInterval(() => {
-      setVisible(false);
-      timeout = setTimeout(() => {
-        setIndex((i) => (i + 1) % messages.length);
-        setVisible(true);
-      }, 400);
-    }, 5000);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, []);
+  const heroMessage = useHeroMessage("companions", {
+    fallbackHeadline: "Conecta hoy",
+    fallbackSourceText: "Mi comunidad",
+    fallbackCtaLabel: t("common.explore", "Explorar"),
+    fallbackContextHint: "community",
+  });
 
   return (
     <div
@@ -432,19 +421,22 @@ function HeroBanner() {
         className="font-body text-[12px] font-semibold tracking-widest uppercase"
         style={{ color: "rgba(255,255,255,0.5)" }}
       >
-        Mi comunidad
+        {heroMessage?.sourceText ?? "Mi comunidad"}
       </span>
 
       <p
         data-testid="text-community-message"
-        className="font-display italic font-normal text-[26px] text-white leading-tight"
+        className="min-w-0 break-words font-display italic font-normal text-[26px] text-white leading-tight"
         style={{
-          opacity: visible ? 1 : 0,
-          transition: "opacity 0.4s ease",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+          overflow: "hidden",
+          overflowWrap: "anywhere",
           minHeight: "64px",
         }}
       >
-        {messages[index]}
+        {heroMessage?.headline ?? "Conecta hoy"}
       </p>
 
       <div className="flex items-center justify-between mt-1">
@@ -456,7 +448,7 @@ function HeroBanner() {
             className="w-[6px] h-[6px] rounded-full flex-shrink-0"
             style={{ background: "#4ADE80" }}
           />
-          Activo
+          {t("common.active", "Activo")}
         </span>
         <button
           data-testid="button-explorar-community"
@@ -467,7 +459,7 @@ function HeroBanner() {
             background: "transparent",
           }}
         >
-          Explorar
+          {heroMessage?.ctaLabel ?? t("common.explore", "Explorar")}
         </button>
       </div>
     </div>

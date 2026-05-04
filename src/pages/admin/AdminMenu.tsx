@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 const adminItems = [
   { label: "Lifecycle", path: "/admin/lifecycle", description: "Users, invites, consent and orgs" },
   { label: "Home cards", path: "/admin/home-cards", description: "Personalized Today cards" },
+  { label: "Hero messages", path: "/admin/hero-messages", description: "Banner copy and rules" },
   { label: "Proxy pending", path: "/admin/proxy-pending", description: "Caregiver proxy requests" },
 ];
 
@@ -10,7 +11,7 @@ export default function AdminMenu() {
   const location = useLocation();
 
   return (
-    <nav className="mx-auto mt-5 grid max-w-7xl gap-3 md:grid-cols-3">
+    <nav className="mx-auto mt-5 grid max-w-7xl gap-3 md:grid-cols-4">
       {adminItems.map((item) => {
         const active = location.pathname === item.path;
         return (

@@ -50,6 +50,7 @@ const ActivitiesScreen = () => {
   return (
     <div className="px-[22px] pb-5">
       <VoiceHero
+        heroSurface="brain"
         sourceText={t("brain.voiceSource")}
         headline={<>{t("brain.headline")}</>}
         subtitle={t("brain.subtitle", { streak: margaret.streak })}

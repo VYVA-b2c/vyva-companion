@@ -389,6 +389,7 @@ const SignosScreen = () => {
       </div>
 
       <VoiceHero
+        heroSurface="vitals"
         headline="Monitorización activa"
         subtitle={subtitleText}
         contextHint="signos vitales monitorización"

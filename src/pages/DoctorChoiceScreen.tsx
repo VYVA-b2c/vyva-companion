@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useHeroMessage } from "@/hooks/useHeroMessage";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
 const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
@@ -20,6 +21,13 @@ const DoctorChoiceScreen = () => {
     hasMicrophone,
     lastError,
   } = useVyvaVoice();
+  const heroMessage = useHeroMessage("doctor", {
+    fallbackHeadline: t("health.doctorChoice.title", "Elige una opcion"),
+    fallbackSourceText: t("health.doctorChoice.kicker", "Ayuda medica"),
+    fallbackCtaLabel: t("health.doctorChoice.talkNow", "Hablar ahora"),
+    fallbackContextHint: "doctor choice",
+    safetyLevel: "medical",
+  });
 
   const promptText = t(
     "health.doctorChoice.voicePrompt",
@@ -110,7 +118,7 @@ const DoctorChoiceScreen = () => {
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
               <p className="font-body text-[14px] font-extrabold uppercase tracking-[0.14em] text-vyva-purple">
-                {t("health.doctorChoice.kicker", "Ayuda medica")}
+                {heroMessage?.sourceText ?? t("health.doctorChoice.kicker", "Ayuda medica")}
               </p>
               {isVoiceLive ? (
                 <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-[#ECFDF5] px-3 py-2 font-body text-[13px] font-extrabold text-[#0A7C4E]">
@@ -119,8 +127,17 @@ const DoctorChoiceScreen = () => {
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-1 font-display text-[38px] leading-[1.05] text-vyva-text-1">
-              {t("health.doctorChoice.title", "Elige una opcion")}
+            <h1
+              className="mt-1 min-w-0 break-words font-display text-[38px] leading-[1.05] text-vyva-text-1"
+              style={{
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: 2,
+                overflow: "hidden",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {heroMessage?.headline ?? t("health.doctorChoice.title", "Elige una opcion")}
             </h1>
           </div>
         </div>
@@ -132,7 +149,7 @@ const DoctorChoiceScreen = () => {
             className="vyva-tap mt-6 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border border-vyva-border bg-white px-5 font-body text-[20px] font-extrabold text-vyva-purple shadow-sm"
           >
             <Mic size={24} />
-            {t("health.doctorChoice.talkNow", "Hablar ahora")}
+            {heroMessage?.ctaLabel ?? t("health.doctorChoice.talkNow", "Hablar ahora")}
           </button>
         ) : null}
       </section>

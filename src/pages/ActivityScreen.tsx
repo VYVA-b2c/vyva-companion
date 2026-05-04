@@ -182,6 +182,7 @@ const ActivityScreen = () => {
   return (
     <div className="px-[22px]">
       <VoiceHero
+        heroSurface="activity"
         sourceText={t("activity.voiceSource")}
         headline={<>{headlineText}</>}
         contextHint="daily movement"

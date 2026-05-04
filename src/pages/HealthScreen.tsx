@@ -669,6 +669,7 @@ const HealthScreen = () => {
 
         {/* ── 1. Hero ── */}
         <VoiceHero
+          heroSurface="health"
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}

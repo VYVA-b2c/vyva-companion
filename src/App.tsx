@@ -71,6 +71,7 @@ import NotificationsSettings from "./pages/settings/NotificationsSettings";
 import ProxyPendingPage from "./pages/admin/ProxyPendingPage";
 import LifecycleAdminPage from "./pages/admin/LifecycleAdminPage";
 import HomeCardsAdminPage from "./pages/admin/HomeCardsAdminPage";
+import HeroMessagesAdminPage from "./pages/admin/HeroMessagesAdminPage";
 import CaregiverDashboardPage from "./pages/CaregiverDashboardPage";
 import SocialHub from "./social/SocialHub";
 import RoomScreen from "./social/RoomScreen";
@@ -132,6 +133,7 @@ const App = () => (
                 <Route path="/admin/proxy-pending" element={<ProxyPendingPage />} />
                 <Route path="/admin/lifecycle" element={<LifecycleAdminPage />} />
                 <Route path="/admin/home-cards" element={<HomeCardsAdminPage />} />
+                <Route path="/admin/hero-messages" element={<HeroMessagesAdminPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>
                     <Route path="/onboarding" element={<WelcomeScreen />} />
