@@ -75,17 +75,7 @@ const DoctorChoiceScreen = () => {
     }, 150);
   };
 
-  const voiceStatus = lastError
-    ? t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")
-    : isConnecting
-      ? t("health.doctorChoice.voiceConnecting", "Conectando con el asistente medico...")
-      : isSpeaking
-        ? t("health.doctorChoice.voiceSpeaking", "El asistente medico esta hablando...")
-        : status === "connected"
-          ? hasMicrophone
-            ? t("health.doctorChoice.voiceReadyListening", "Asistente medico activo. Puede hablar.")
-            : t("health.doctorChoice.voiceReady", "Asistente medico activo.")
-          : t("health.doctorChoice.voiceStopped", "Voz pausada. Puede tocar una opcion.");
+  const isVoiceLive = isConnecting || isSpeaking || status === "connected";
 
   return (
     <div className="vyva-page pb-[120px]">
@@ -113,14 +103,22 @@ const DoctorChoiceScreen = () => {
       </div>
 
       <section className="rounded-[32px] border border-vyva-border bg-[#FFFCF8] p-6 shadow-vyva-card">
-        <div className="mb-5 flex items-center gap-4">
+        <div className="flex items-start gap-4">
           <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-[24px] bg-[#F0FDF4]">
             <Stethoscope size={34} className="text-[#0A7C4E]" />
           </div>
-          <div className="min-w-0">
-            <p className="font-body text-[14px] font-extrabold uppercase tracking-[0.14em] text-vyva-purple">
-              {t("health.doctorChoice.kicker", "Ayuda medica")}
-            </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-body text-[14px] font-extrabold uppercase tracking-[0.14em] text-vyva-purple">
+                {t("health.doctorChoice.kicker", "Ayuda medica")}
+              </p>
+              {isVoiceLive ? (
+                <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-[#ECFDF5] px-3 py-2 font-body text-[13px] font-extrabold text-[#0A7C4E]">
+                  <span className="h-2 w-2 rounded-full bg-[#10B981]" />
+                  {t("common.live", "En vivo")}
+                </span>
+              ) : null}
+            </div>
             <h1 className="mt-1 font-display text-[38px] leading-[1.05] text-vyva-text-1">
               {t("health.doctorChoice.title", "Elige una opcion")}
             </h1>
@@ -128,16 +126,11 @@ const DoctorChoiceScreen = () => {
         </div>
       </section>
 
-      <div
-        className="mt-4 rounded-[24px] border px-5 py-4 font-body text-[16px] font-semibold"
-        style={{
-          background: lastError ? "#FFF7ED" : "#F5F3FF",
-          borderColor: lastError ? "#FDBA74" : "#DDD6FE",
-          color: lastError ? "#9A3412" : "#6B21A8",
-        }}
-      >
-        {voiceStatus}
-      </div>
+      {lastError ? (
+        <div className="mt-4 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] px-5 py-4 font-body text-[16px] font-semibold text-[#9A3412]">
+          {t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")}
+        </div>
+      ) : null}
 
       {status === "connected" && !hasMicrophone ? (
         <button
