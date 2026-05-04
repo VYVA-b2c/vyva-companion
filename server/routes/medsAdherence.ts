@@ -24,13 +24,44 @@ function adherencePct(taken: number, scheduled: number): number {
   return Math.round((taken / scheduled) * 100);
 }
 
-/** How many doses/day a medication expects (defaults to 1 if no schedule stored). */
 function dosesPerDay(scheduledTimes: string[] | null | undefined): number {
   return scheduledTimes && scheduledTimes.length > 0 ? scheduledTimes.length : 1;
 }
 
-// ─── GET /today ─────────────────────────────────────────────────────────────
-// Returns the user's active medications plus whether each was taken today.
+function takenDoseCount(rows: Array<{ status: string }>): number {
+  return rows.filter((row) => row.status === "taken").length;
+}
+
+function dateKeyFor(value: Date | string): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function previousDate(dateStr: string): string {
+  const prev = new Date(`${dateStr}T00:00:00.000Z`);
+  prev.setUTCDate(prev.getUTCDate() - 1);
+  return prev.toISOString().slice(0, 10);
+}
+
+function maxDateKey(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
+function activeDaysInWindow(
+  medicationCreatedAt: Date | string | undefined,
+  windowStart: string,
+  windowEnd: string
+): number {
+  const medicationStart = medicationCreatedAt
+    ? dateKeyFor(medicationCreatedAt)
+    : windowStart;
+  const effectiveStart = maxDateKey(windowStart, medicationStart);
+  if (effectiveStart > windowEnd) return 0;
+
+  const start = new Date(`${effectiveStart}T00:00:00.000Z`);
+  const end = new Date(`${windowEnd}T00:00:00.000Z`);
+  return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+
 router.get("/today", requireUser, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const todayStart = new Date(todayDateString() + "T00:00:00.000Z");
@@ -52,18 +83,30 @@ router.get("/today", requireUser, async (req: Request, res: Response) => {
         ),
     ]);
 
-    const takenNames = new Set(
-      todayLogs.filter((l) => l.status === "taken").map((l) => l.medication_name)
-    );
+    const takenCountsByName = new Map<string, number>();
+    for (const log of todayLogs) {
+      if (log.status !== "taken") continue;
+      takenCountsByName.set(
+        log.medication_name,
+        (takenCountsByName.get(log.medication_name) ?? 0) + 1
+      );
+    }
 
-    const medications = meds.map((m) => ({
-      id: m.id,
-      medication_name: m.medication_name,
-      dosage: m.dosage ?? null,
-      frequency: m.frequency ?? null,
-      scheduled_times: m.scheduled_times ?? [],
-      takenToday: takenNames.has(m.medication_name),
-    }));
+    const medications = meds.map((m) => {
+      const scheduledCountToday = dosesPerDay(m.scheduled_times);
+      const takenCountToday = takenCountsByName.get(m.medication_name) ?? 0;
+
+      return {
+        id: m.id,
+        medication_name: m.medication_name,
+        dosage: m.dosage ?? null,
+        frequency: m.frequency ?? null,
+        scheduled_times: m.scheduled_times ?? [],
+        takenCountToday,
+        scheduledCountToday,
+        takenToday: takenCountToday >= scheduledCountToday,
+      };
+    });
 
     return res.json({ medications });
   } catch (err) {
@@ -72,14 +115,15 @@ router.get("/today", requireUser, async (req: Request, res: Response) => {
   }
 });
 
-// ─── GET / ──────────────────────────────────────────────────────────────────
-// Adherence report (7-day / 30-day summary + per-medication breakdown).
 router.get("/", requireUser, async (req: Request, res: Response) => {
   const userId = req.user!.id;
 
   try {
     const sevenDayStart = daysAgo(6);
     const thirtyDayStart = daysAgo(29);
+    const today = todayDateString();
+    const sevenDayStartDate = dateKeyFor(sevenDayStart);
+    const thirtyDayStartDate = dateKeyFor(thirtyDayStart);
 
     const [adherenceRows, medRows] = await Promise.all([
       db
@@ -97,35 +141,35 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
         .where(and(eq(userMedications.user_id, userId), eq(userMedications.active, true))),
     ]);
 
-    // Show data as long as the user has active medications OR any adherence logs.
     const hasLogs = medRows.length > 0 || adherenceRows.length > 0;
-
     const rowsLast30 = adherenceRows;
-    const rowsLast7 = adherenceRows.filter(
-      (r) => new Date(r.created_at) >= sevenDayStart
-    );
+    const rowsLast7 = adherenceRows.filter((r) => new Date(r.created_at) >= sevenDayStart);
 
     const taken30 = rowsLast30.filter((r) => r.status === "taken").length;
     const taken7 = rowsLast7.filter((r) => r.status === "taken").length;
 
-    // Derive schedule-based expected dose counts from user_medications.
-    const totalDosesPerDay = medRows.reduce(
-      (sum, m) => sum + dosesPerDay(m.scheduled_times),
+    const scheduled7FromMedRows = medRows.reduce(
+      (sum, m) =>
+        sum +
+        dosesPerDay(m.scheduled_times) *
+          activeDaysInWindow(m.created_at, sevenDayStartDate, today),
       0
     );
-    // Fall back to raw log counts when there are no active medications in the table.
-    const scheduled7 =
-      medRows.length > 0 ? totalDosesPerDay * 7 : rowsLast7.length;
-    const scheduled30 =
-      medRows.length > 0 ? totalDosesPerDay * 30 : rowsLast30.length;
+    const scheduled30FromMedRows = medRows.reduce(
+      (sum, m) =>
+        sum +
+        dosesPerDay(m.scheduled_times) *
+          activeDaysInWindow(m.created_at, thirtyDayStartDate, today),
+      0
+    );
+
+    const scheduled7 = medRows.length > 0 ? scheduled7FromMedRows : rowsLast7.length;
+    const scheduled30 = medRows.length > 0 ? scheduled30FromMedRows : rowsLast30.length;
 
     const weekPct = adherencePct(taken7, scheduled7);
     const monthPct = adherencePct(taken30, scheduled30);
 
     const medNamesFromDb = medRows.map((m) => m.medication_name);
-    // Only include currently-active medications in the report.
-    // Historical adherence rows for deleted meds are kept in the DB for data
-    // integrity, but must not appear in the per-medication report breakdown.
     const allMedNames = Array.from(new Set(medNamesFromDb));
 
     const sevenDayDates: string[] = [];
@@ -133,43 +177,43 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
       sevenDayDates.push(daysAgo(i).toISOString().slice(0, 10));
     }
 
-    const today = todayDateString();
-
     const perMedication = allMedNames.map((name) => {
       const medRow = medRows.find((m) => m.medication_name === name);
       const dosage = medRow?.dosage ?? "";
       const dpd = dosesPerDay(medRow?.scheduled_times);
+      const medStartDate = medRow?.created_at ? dateKeyFor(medRow.created_at) : null;
+      const activeDaysInWeek = activeDaysInWindow(medRow?.created_at, sevenDayStartDate, today);
 
       const medRows7 = rowsLast7.filter((r) => r.medication_name === name);
       const takenCount = medRows7.filter((r) => r.status === "taken").length;
-      // Use schedule-based scheduled count (doses/day × 7 days).
-      const scheduledCount = medRow ? dpd * 7 : medRows7.length;
+      const scheduledCount = medRow ? dpd * activeDaysInWeek : medRows7.length;
 
       const allMedRows30 = rowsLast30.filter((r) => r.medication_name === name);
-
-      const byDate = new Map<string, string[]>();
+      const takenCountsByDate = new Map<string, number>();
       for (const row of allMedRows30) {
-        const dateKey = new Date(row.created_at).toISOString().slice(0, 10);
-        if (!byDate.has(dateKey)) byDate.set(dateKey, []);
-        byDate.get(dateKey)!.push(row.status);
+        if (row.status !== "taken") continue;
+        const dateKey = dateKeyFor(row.created_at);
+        takenCountsByDate.set(dateKey, (takenCountsByDate.get(dateKey) ?? 0) + 1);
       }
 
       const dailyStatus = sevenDayDates.map((dateStr) => {
-        const statuses = byDate.get(dateStr);
-        if (!statuses || statuses.length === 0) return "none";
-        if (statuses.some((s) => s === "taken")) return "taken";
+        if (medStartDate && dateStr < medStartDate) return "none";
+
+        const takenOnDate = takenCountsByDate.get(dateStr) ?? 0;
+        if (takenOnDate >= dpd) return "taken";
+        if (dateStr === today && takenOnDate === 0) return "none";
         return "missed";
       });
 
       let streak = 0;
       let checkDate = today;
       for (;;) {
-        const statuses = byDate.get(checkDate);
-        if (statuses && statuses.some((s) => s === "taken")) {
+        if (medStartDate && checkDate < medStartDate) break;
+
+        const takenOnDate = takenCountsByDate.get(checkDate) ?? 0;
+        if (takenOnDate >= dpd) {
           streak++;
-          const prev = new Date(`${checkDate}T00:00:00.000Z`);
-          prev.setUTCDate(prev.getUTCDate() - 1);
-          checkDate = prev.toISOString().slice(0, 10);
+          checkDate = previousDate(checkDate);
         } else {
           break;
         }
@@ -198,8 +242,6 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
   }
 });
 
-// ─── PATCH /:id ─────────────────────────────────────────────────────────────
-// Update dosage and/or frequency of a medication belonging to the current user.
 const patchMedSchema = z.object({
   dosage: z.string().optional(),
   frequency: z.string().optional(),
@@ -242,8 +284,6 @@ router.patch("/:id", requireUser, async (req: Request, res: Response) => {
   }
 });
 
-// ─── DELETE /:id ─────────────────────────────────────────────────────────────
-// Soft-delete: sets active=false for the medication belonging to the current user.
 router.delete("/:id", requireUser, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const { id } = req.params;
@@ -266,7 +306,6 @@ router.delete("/:id", requireUser, async (req: Request, res: Response) => {
   }
 });
 
-// ─── POST /confirm ───────────────────────────────────────────────────────────
 router.post("/confirm", requireUser, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const { medication_name, scheduled_time } = req.body as {
@@ -284,12 +323,51 @@ router.post("/confirm", requireUser, async (req: Request, res: Response) => {
       : "anytime";
 
   try {
+    const medName = medication_name.trim();
+    const todayStart = new Date(todayDateString() + "T00:00:00.000Z");
+
+    const [medRow, todayRows] = await Promise.all([
+      db
+        .select()
+        .from(userMedications)
+        .where(
+          and(
+            eq(userMedications.user_id, userId),
+            eq(userMedications.medication_name, medName),
+            eq(userMedications.active, true)
+          )
+        )
+        .then((rows) => rows[0]),
+      db
+        .select()
+        .from(medicationAdherence)
+        .where(
+          and(
+            eq(medicationAdherence.user_id, userId),
+            eq(medicationAdherence.medication_name, medName),
+            gte(medicationAdherence.created_at, todayStart)
+          )
+        ),
+    ]);
+
+    const scheduledCountToday = dosesPerDay(medRow?.scheduled_times);
+    const takenCountToday = takenDoseCount(todayRows);
+
+    if (medRow && takenCountToday >= scheduledCountToday) {
+      return res.status(409).json({ error: "Dose already fully confirmed for today" });
+    }
+
+    const nextScheduledTime =
+      medRow?.scheduled_times?.[takenCountToday] ??
+      medRow?.scheduled_times?.[0] ??
+      scheduledTime;
+
     const [row] = await db
       .insert(medicationAdherence)
       .values({
         user_id: userId,
-        medication_name: medication_name.trim(),
-        scheduled_time: scheduledTime,
+        medication_name: medName,
+        scheduled_time: nextScheduledTime,
         status: "taken",
         confirmed_by: "user",
         confirmed_taken_at: new Date(),

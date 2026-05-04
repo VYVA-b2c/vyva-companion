@@ -35,7 +35,8 @@ type DisplayMed = {
   id: string;           // unique key (DB uuid or mock name key)
   displayName: string;  // localised / raw name to show in the UI
   displayNote: string;  // dosage + frequency or schedule note
-  takenInitially: boolean; // taken status from the source (DB or mock)
+  takenCountToday: number; // number of confirmed doses already recorded today
+  scheduledCountToday: number; // number of doses expected today
   nameForApi: string;   // canonical English name sent to /confirm
   scheduledTimeForApi: string; // first scheduled time or "anytime"
   rawDosage: string;    // original dosage from DB, used to seed the edit form
@@ -49,6 +50,8 @@ type DbMed = {
   frequency: string | null;
   scheduled_times: string[];
   takenToday: boolean;
+  takenCountToday: number;
+  scheduledCountToday: number;
 };
 
 type TodayResponse = { medications: DbMed[] };
@@ -70,7 +73,8 @@ const MedsScreen = () => {
         id: m.id,
         displayName: m.medication_name,
         displayNote: [m.dosage, m.frequency?.replace("_", " ")].filter(Boolean).join(" · "),
-        takenInitially: m.takenToday,
+        takenCountToday: m.takenCountToday,
+        scheduledCountToday: m.scheduledCountToday,
         nameForApi: m.medication_name,
         scheduledTimeForApi: m.scheduled_times?.[0] ?? "anytime",
         rawDosage: m.dosage ?? "",
@@ -90,7 +94,7 @@ const MedsScreen = () => {
     }
   })();
 
-  const [confirmedMeds, setConfirmedMeds] = useState<Set<string>>(new Set());
+  const [confirmedDoseCounts, setConfirmedDoseCounts] = useState<Map<string, number>>(new Map());
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
   const [voiceAddedMeds, setVoiceAddedMeds] = useState<MedicationForForm[]>([]);
   const [headlineIndex, setHeadlineIndex] = useState(0);
@@ -158,16 +162,30 @@ const MedsScreen = () => {
           scheduled_time: med.scheduledTimeForApi,
         }),
       });
-      if (!res.ok) throw new Error("Failed to confirm dose");
+      if (!res.ok) {
+        const error = new Error("Failed to confirm dose") as Error & { status?: number };
+        error.status = res.status;
+        throw error;
+      }
       return res.json();
     },
     onSuccess: (_data, med) => {
-      setConfirmedMeds((prev) => new Set([...prev, med.id]));
+      setConfirmedDoseCounts((prev) => {
+        const next = new Map(prev);
+        next.set(med.id, (next.get(med.id) ?? 0) + 1);
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/meds/adherence-report"] });
       queryClient.invalidateQueries({ queryKey: ["/api/meds/adherence-report/today"] });
       toast({ title: t("meds.taken"), description: med.displayName });
     },
-    onError: () => {
+    onError: (error) => {
+      const err = error as Error & { status?: number };
+      if (err.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["/api/meds/adherence-report/today"] });
+        toast({ title: t("meds.taken"), description: t("meds.allTaken") });
+        return;
+      }
       toast({ title: "Could not confirm dose", variant: "destructive" });
     },
   });
@@ -178,10 +196,30 @@ const MedsScreen = () => {
 
   const [expandedLinks, setExpandedLinks] = useState<Set<string>>(new Set());
 
-  const isMedTaken = (med: DisplayMed) =>
-    med.takenInitially || confirmedMeds.has(med.id);
+  useEffect(() => {
+    setConfirmedDoseCounts(new Map());
+  }, [todayData]);
 
-  const takenCount = displayMeds.filter(isMedTaken).length;
+  const effectiveTakenCount = (med: DisplayMed) =>
+    Math.min(
+      med.scheduledCountToday,
+      med.takenCountToday + (confirmedDoseCounts.get(med.id) ?? 0)
+    );
+
+  const remainingDoseCount = (med: DisplayMed) =>
+    Math.max(0, med.scheduledCountToday - effectiveTakenCount(med));
+
+  const isMedTaken = (med: DisplayMed) =>
+    remainingDoseCount(med) === 0;
+
+  const totalScheduledDoseCount = displayMeds.reduce(
+    (sum, med) => sum + med.scheduledCountToday,
+    0
+  );
+  const totalTakenDoseCount = displayMeds.reduce(
+    (sum, med) => sum + effectiveTakenCount(med),
+    0
+  );
   const rawHeadlines = t("meds.headlines", { returnObjects: true });
   const headlines = Array.isArray(rawHeadlines) && rawHeadlines.length > 0 ? rawHeadlines as string[] : [];
   const currentHeadline = headlines.length > 0 ? headlines[headlineIndex] : t("meds.headline");
@@ -275,17 +313,26 @@ const MedsScreen = () => {
     });
   }
 
+  async function confirmAllRemainingDoses(meds: DisplayMed[]) {
+    for (const med of meds) {
+      const remaining = remainingDoseCount(med);
+      for (let doseIndex = 0; doseIndex < remaining; doseIndex += 1) {
+        await confirmMutation.mutateAsync(med);
+      }
+    }
+  }
+
   return (
     <div className="px-[22px]">
       <VoiceHero
         heroSurface="meds"
         sourceText={t("meds.voiceSource")}
         headline={<span style={{ opacity: headlineVisible ? 1 : 0, transition: "opacity 0.28s ease, transform 0.28s ease", display: "inline-block", transform: headlineVisible ? "translateY(0)" : "translateY(6px)" }}>{currentHeadline}</span>}
-        subtitle={todayData && displayMeds.length === 0 ? t("meds.noMedsScheduled") : t("meds.takenToday", { taken: takenCount, total: displayMeds.length })}
+        subtitle={todayData && displayMeds.length === 0 ? t("meds.noMedsScheduled") : t("meds.takenToday", { taken: totalTakenDoseCount, total: totalScheduledDoseCount })}
         contextHint="medication reminder"
       >
         <div className="w-full h-[6px] rounded-full mt-3" style={{ background: "rgba(255,255,255,0.15)" }}>
-          <div className="h-full rounded-full transition-all" style={{ width: `${displayMeds.length > 0 ? (takenCount / displayMeds.length) * 100 : 0}%`, background: "#34D399" }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${totalScheduledDoseCount > 0 ? (totalTakenDoseCount / totalScheduledDoseCount) * 100 : 0}%`, background: "#34D399" }} />
         </div>
       </VoiceHero>
 
@@ -349,6 +396,8 @@ const MedsScreen = () => {
         ) : (
           displayMeds.map((med, i) => {
             const taken = isMedTaken(med);
+            const takenDoseCount = effectiveTakenCount(med);
+            const showDoseProgress = med.scheduledCountToday > 1;
             return (
               <div key={med.id} className="flex items-center gap-[14px] px-[18px] py-[14px] border-b border-vyva-border last:border-b-0" style={{ minHeight: 64 }}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: taken ? "#ECFDF5" : "#FEF3C7" }}>
@@ -357,6 +406,11 @@ const MedsScreen = () => {
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-[15px] font-medium text-vyva-text-1">{med.displayName}</p>
                   <p className="font-body text-[13px] text-vyva-text-2">{med.displayNote}</p>
+                  {showDoseProgress && (
+                    <p className="font-body text-[12px] text-vyva-text-2 mt-1">
+                      {takenDoseCount}/{med.scheduledCountToday}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {taken ? (
@@ -366,6 +420,13 @@ const MedsScreen = () => {
                       data-testid={`status-med-taken-${i}`}
                     >
                       {t("meds.taken")}
+                    </span>
+                  ) : showDoseProgress && takenDoseCount > 0 ? (
+                    <span
+                      className="font-body text-[13px] font-medium px-2.5 py-0.5 rounded-full"
+                      style={{ background: "#FEF3C7", color: "#92400E" }}
+                    >
+                      {takenDoseCount}/{med.scheduledCountToday}
                     </span>
                   ) : (
                     <button
@@ -421,7 +482,11 @@ const MedsScreen = () => {
         <div className="px-[18px] py-[14px] flex flex-col gap-3">
           {(() => {
             const pendingMeds = displayMeds.filter((m) => !isMedTaken(m));
-            if (!todayLoading && displayMeds.length > 0 && pendingMeds.length === 0) {
+            const totalRemainingDoseCount = pendingMeds.reduce(
+              (sum, med) => sum + remainingDoseCount(med),
+              0
+            );
+            if (!todayLoading && displayMeds.length > 0 && totalRemainingDoseCount === 0) {
               return (
                 <div
                   className="w-full flex items-center justify-center gap-2 rounded-full py-[15px] px-[20px] font-body text-[16px] font-medium min-h-[56px]"
@@ -437,9 +502,9 @@ const MedsScreen = () => {
               <button
                 data-testid="button-confirm-all-meds"
                 onClick={() => {
-                  pendingMeds.forEach((m) => confirmMutation.mutate(m));
+                  void confirmAllRemainingDoses(pendingMeds);
                 }}
-                disabled={confirmMutation.isPending || todayLoading}
+                disabled={confirmMutation.isPending || todayLoading || totalRemainingDoseCount === 0}
                 className="w-full flex items-center justify-center gap-2 rounded-full py-[15px] px-[20px] font-body text-[16px] font-medium text-white min-h-[56px] transition-opacity disabled:opacity-60"
                 style={{ background: "#6B21A8" }}
               >
