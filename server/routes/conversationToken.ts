@@ -237,9 +237,9 @@ function resolveSocialAgentId(agentSlug?: string, roomSlug?: string) {
   const keys = fixedAgentId ? explicitSlugKeys : [...explicitSlugKeys, ...DEFAULT_AGENT_ENV_KEYS];
 
   return {
-    agentId: readFirstEnv(keys) ?? fixedAgentId,
+    agentId: fixedAgentId ?? readFirstEnv(keys),
     resolvedSlug,
-    source: "slug",
+    source: fixedAgentId ? "fixed-slug" : "slug",
     expectedKeys: keys,
   };
 }
