@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck, Flame, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type DailyStatus = "taken" | "missed" | "none";
@@ -74,6 +74,16 @@ function PctRing({ pct, label }: { pct: number; label: string }) {
   );
 }
 
+function miniStatTone(value: number, positiveWhenHigh = true) {
+  if ((positiveWhenHigh && value >= 1) || (!positiveWhenHigh && value === 0)) {
+    return { bg: "#ECFDF5", color: "#0A7C4E" };
+  }
+  if ((positiveWhenHigh && value === 0) || (!positiveWhenHigh && value <= 1)) {
+    return { bg: "#FEF3C7", color: "#C9890A" };
+  }
+  return { bg: "#FEF2F2", color: "#DC2626" };
+}
+
 function SkeletonRow() {
   return (
     <div className="px-[18px] py-[16px] border-b border-vyva-border last:border-b-0 animate-pulse">
@@ -97,8 +107,66 @@ const AdherenceReportScreen = () => {
     ? (rawDayLabels as string[])
     : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  const medications = data?.perMedication ?? [];
+  const medicationsNeedingAttention = medications.filter((med) =>
+    med.dailyStatus.includes("missed")
+  );
+  const todayCompletedCount = medications.filter(
+    (med) => med.dailyStatus[med.dailyStatus.length - 1] === "taken"
+  ).length;
+  const todayStillDueCount = medications.filter(
+    (med) => med.dailyStatus[med.dailyStatus.length - 1] === "none"
+  ).length;
+  const onTrackCount = medications.length - medicationsNeedingAttention.length;
+  const bestStreak = medications.reduce((best, med) => Math.max(best, med.streak), 0);
+  const attentionNames = medicationsNeedingAttention.slice(0, 3).map((med) => med.name);
+  const sortedMedications = [...medications].sort((a, b) => {
+    const aMissed = a.dailyStatus.filter((status) => status === "missed").length;
+    const bMissed = b.dailyStatus.filter((status) => status === "missed").length;
+    if (aMissed !== bMissed) return bMissed - aMissed;
+    return a.name.localeCompare(b.name);
+  });
+
+  const summaryTone =
+    medicationsNeedingAttention.length === 0
+      ? {
+          icon: ShieldCheck,
+          iconBg: "#ECFDF5",
+          iconColor: "#0A7C4E",
+          title: t("meds.adherence.overviewAllTaken"),
+          subtitle: t("meds.adherence.overviewAllTakenSub"),
+        }
+      : medicationsNeedingAttention.length <= 2
+        ? {
+            icon: TriangleAlert,
+            iconBg: "#FEF3C7",
+            iconColor: "#C9890A",
+            title: t("meds.adherence.overviewSomeMissed"),
+            subtitle: t("meds.adherence.overviewSomeMissedSub", {
+              count: medicationsNeedingAttention.length,
+            }),
+          }
+        : {
+            icon: TriangleAlert,
+            iconBg: "#FEF2F2",
+            iconColor: "#DC2626",
+            title: t("meds.adherence.overviewManyMissed"),
+            subtitle: t("meds.adherence.overviewManyMissedSub", {
+              count: medicationsNeedingAttention.length,
+            }),
+          };
+  const SummaryIcon = summaryTone.icon;
+
   function handleShare() {
     if (!data) return;
+
+    const attentionLine =
+      medicationsNeedingAttention.length > 0
+        ? t("meds.adherence.shareNeedsAttention", {
+            count: medicationsNeedingAttention.length,
+            names: attentionNames.join(", "),
+          })
+        : t("meds.adherence.shareAllOnTrack");
 
     const medsText = data.perMedication
       .map((m) =>
@@ -115,6 +183,7 @@ const AdherenceReportScreen = () => {
     const text = t("meds.adherence.shareFormat", {
       week: data.weekPct,
       month: data.monthPct,
+      attention: attentionLine,
       meds: medsText,
     });
 
@@ -207,6 +276,99 @@ const AdherenceReportScreen = () => {
         {!isLoading && !isError && hasData && data && (
           <>
             <div
+              className="bg-white rounded-[24px] border border-vyva-border overflow-hidden mb-[14px]"
+              style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+            >
+              <div className="px-[18px] py-[16px] bg-[linear-gradient(135deg,#F8F4EC_0%,#FFFFFF_100%)] border-b border-vyva-border">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-11 h-11 rounded-[14px] flex items-center justify-center flex-shrink-0"
+                    style={{ background: summaryTone.iconBg }}
+                  >
+                    <SummaryIcon size={22} style={{ color: summaryTone.iconColor }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body text-[12px] font-semibold uppercase tracking-[0.12em] text-vyva-text-2 mb-1">
+                      {t("meds.adherence.overviewTitle")}
+                    </p>
+                    <p className="font-body text-[20px] font-bold text-vyva-text-1 leading-tight">
+                      {summaryTone.title}
+                    </p>
+                    <p className="font-body text-[14px] text-vyva-text-2 mt-1">
+                      {summaryTone.subtitle}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 px-[18px] py-[16px]">
+                <div className="rounded-[18px] px-3 py-3" style={{ background: miniStatTone(onTrackCount).bg }}>
+                  <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: miniStatTone(onTrackCount).color }}>
+                    {t("meds.adherence.statOnTrack")}
+                  </p>
+                  <p className="font-body text-[24px] font-bold mt-1" style={{ color: miniStatTone(onTrackCount).color }}>
+                    {onTrackCount}
+                  </p>
+                </div>
+                <div className="rounded-[18px] px-3 py-3" style={{ background: miniStatTone(medicationsNeedingAttention.length, false).bg }}>
+                  <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: miniStatTone(medicationsNeedingAttention.length, false).color }}>
+                    {t("meds.adherence.statNeedsAttention")}
+                  </p>
+                  <p className="font-body text-[24px] font-bold mt-1" style={{ color: miniStatTone(medicationsNeedingAttention.length, false).color }}>
+                    {medicationsNeedingAttention.length}
+                  </p>
+                </div>
+                <div className="rounded-[18px] px-3 py-3" style={{ background: "#F5F3FF" }}>
+                  <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#6B21A8" }}>
+                    {t("meds.adherence.statBestStreak")}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Flame size={16} style={{ color: "#6B21A8" }} />
+                    <p className="font-body text-[24px] font-bold" style={{ color: "#6B21A8" }}>
+                      {bestStreak}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-[18px] pb-[16px]">
+                <div className="rounded-[18px] border border-vyva-border bg-[#FCFBF8] px-4 py-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.08em] text-vyva-text-2">
+                        {t("meds.adherence.todayTitle")}
+                      </p>
+                      <p className="font-body text-[15px] text-vyva-text-1 mt-1">
+                        {todayStillDueCount > 0
+                          ? t("meds.adherence.todayNeedsAttention", { count: todayStillDueCount })
+                          : t("meds.adherence.todayAllCovered")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full px-3 py-1 text-[12px] font-medium" style={{ background: "#ECFDF5", color: "#0A7C4E" }}>
+                        {t("meds.adherence.todayDone", { count: todayCompletedCount })}
+                      </span>
+                      <span className="rounded-full px-3 py-1 text-[12px] font-medium" style={{ background: todayStillDueCount > 0 ? "#FEF3C7" : "#F3F4F6", color: todayStillDueCount > 0 ? "#C9890A" : "#6B7280" }}>
+                        {t("meds.adherence.todayLeft", { count: todayStillDueCount })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {attentionNames.length > 0 && (
+                    <div className="mt-3 border-t border-vyva-border pt-3">
+                      <p className="font-body text-[12px] font-semibold uppercase tracking-[0.08em] text-vyva-text-2 mb-1">
+                        {t("meds.adherence.attentionTitle")}
+                      </p>
+                      <p className="font-body text-[14px] text-vyva-text-1">
+                        {t("meds.adherence.attentionSubtitle", { names: attentionNames.join(", ") })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div
               className="bg-white rounded-[20px] border border-vyva-border overflow-hidden mb-[14px]"
               style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
             >
@@ -227,11 +389,19 @@ const AdherenceReportScreen = () => {
                 <div className="px-[18px] py-[13px] border-b border-vyva-border" style={{ background: "#F5EFE4" }}>
                   <span className="font-body text-[14px] font-medium text-vyva-text-1">{t("meds.adherence.perMedication")}</span>
                 </div>
-                {data.perMedication.map((med, i) => {
+                {sortedMedications.map((med, i) => {
                   const streakLabel =
                     med.streak === 0
                       ? t("meds.adherence.streakZero")
                       : t("meds.adherence.streak", { days: med.streak });
+                  const missedCount = med.dailyStatus.filter((status) => status === "missed").length;
+                  const adherencePct = med.scheduled > 0 ? Math.round((med.taken / med.scheduled) * 100) : 0;
+                  const pctTone =
+                    adherencePct >= 80
+                      ? { bg: "#ECFDF5", color: "#0A7C4E", bar: "#0A7C4E" }
+                      : adherencePct >= 50
+                        ? { bg: "#FEF3C7", color: "#C9890A", bar: "#C9890A" }
+                        : { bg: "#FEF2F2", color: "#DC2626", bar: "#DC2626" };
 
                   return (
                     <div
@@ -246,18 +416,41 @@ const AdherenceReportScreen = () => {
                             <p className="font-body text-[13px] text-vyva-text-2 mt-0.5">{med.dosage}</p>
                           )}
                         </div>
-                        <span
-                          className="font-body text-[12px] font-medium px-2.5 py-1 rounded-full flex-shrink-0"
-                          style={{ background: "#EDE9FE", color: "#6B21A8" }}
-                        >
-                          {streakLabel}
-                        </span>
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          <span
+                            className="font-body text-[12px] font-medium px-2.5 py-1 rounded-full"
+                            style={{ background: "#EDE9FE", color: "#6B21A8" }}
+                          >
+                            {streakLabel}
+                          </span>
+                          <span
+                            className="font-body text-[12px] font-semibold px-2.5 py-1 rounded-full"
+                            style={{ background: pctTone.bg, color: pctTone.color }}
+                          >
+                            {adherencePct}%
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="font-body text-[13px] text-vyva-text-2">
                           {med.taken} {t("meds.adherence.taken")} / {med.scheduled} {t("meds.adherence.scheduled")}
                         </span>
+                        {missedCount > 0 && (
+                          <span className="font-body text-[12px] font-medium" style={{ color: "#DC2626" }}>
+                            {missedCount} {t("meds.adherence.statusMissed").toLowerCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="w-full h-[8px] rounded-full mb-4" style={{ background: "#F3F4F6" }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, adherencePct)}%`,
+                            background: pctTone.bar,
+                          }}
+                        />
                       </div>
 
                       <div>
