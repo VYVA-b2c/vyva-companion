@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { Conversation } from "@elevenlabs/client";
+import type { Conversation as ElevenConversation, DisconnectionDetails, PartialOptions } from "@elevenlabs/client";
 import { apiFetch } from "@/lib/queryClient";
 
 type TtsSegment = {
@@ -91,44 +93,20 @@ type SendTextOptions = {
 
 const VYVA_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID ?? "agent_0401knfndsypfmqa31ssw82h364m";
 
-function uint8ToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-function base64ToUint8(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function float32ToInt16Bytes(f32: Float32Array): Uint8Array {
-  const i16 = new Int16Array(f32.length);
-  for (let i = 0; i < f32.length; i++) {
-    const s = Math.max(-1, Math.min(1, f32[i]));
-    i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-  }
-  return new Uint8Array(i16.buffer);
-}
-
-function makeSilenceChunk(frameCount = 2048): string {
-  return uint8ToBase64(new Uint8Array(frameCount * 2));
-}
-
-function int16BytesToFloat32(bytes: Uint8Array): Float32Array {
-  const i16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
-  const f32 = new Float32Array(i16.length);
-  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 0x7fff;
-  return f32;
-}
-
 function normalizeTranscriptText(text: string) {
   return text
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function formatDisconnectDetails(details: DisconnectionDetails) {
+  if (details.reason === "user") return null;
+
+  const closeCode = "closeCode" in details && details.closeCode ? ` code ${details.closeCode}` : "";
+  const closeReason = "closeReason" in details && details.closeReason ? `: ${details.closeReason}` : "";
+  const message = details.reason === "error" ? details.message : "Agent ended the session";
+  return `Voice session closed (${details.reason}${closeCode})${closeReason}. ${message}`;
 }
 
 export function useVyvaVoice() {
@@ -141,84 +119,87 @@ export function useVyvaVoice() {
   const [hasMicrophone, setHasMicrophone] = useState(false);
   const systemPromptRef = useRef<string | undefined>(undefined);
   const statusRef = useRef<"idle" | "connecting" | "connected">("idle");
-
-  const wsRef = useRef<WebSocket | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const micGainRef = useRef<GainNode | null>(null);
-  const srcRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const nextPlayTimeRef = useRef<number>(0);
-  const pendingChunksRef = useRef<number>(0);
-  const outputSampleRateRef = useRef<number>(16000);
-  const isUserStreamingRef = useRef(false);
-  const playbackNodesRef = useRef<AudioBufferSourceNode[]>([]);
+  const conversationRef = useRef<ElevenConversation | null>(null);
+  const userClosingRef = useRef(false);
+  const shouldMuteOnConnectRef = useRef(true);
   const hiddenOutgoingMessagesRef = useRef<string[]>([]);
+
   const setVoiceStatus = useCallback((nextStatus: "idle" | "connecting" | "connected") => {
     statusRef.current = nextStatus;
     setStatus(nextStatus);
   }, []);
 
   const interruptAgentAudio = useCallback(() => {
-    playbackNodesRef.current.forEach((node) => {
-      try {
-        node.onended = null;
-        node.stop();
-      } catch {}
-    });
-    playbackNodesRef.current = [];
-    pendingChunksRef.current = 0;
     setIsSpeaking(false);
-    if (audioCtxRef.current) {
-      nextPlayTimeRef.current = audioCtxRef.current.currentTime;
-    }
-  }, []);
-
-  const sendSilenceTail = useCallback(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    const silenceChunk = makeSilenceChunk();
-    for (let i = 0; i < 10; i++) {
-      ws.send(JSON.stringify({ user_audio_chunk: silenceChunk }));
-    }
   }, []);
 
   const teardown = useCallback(() => {
-    interruptAgentAudio();
-    if (wsRef.current) {
-      wsRef.current.onopen = null;
-      wsRef.current.onmessage = null;
-      wsRef.current.onerror = null;
-      wsRef.current.onclose = null;
-      if (wsRef.current.readyState < WebSocket.CLOSING) wsRef.current.close();
-      wsRef.current = null;
+    const conversation = conversationRef.current;
+    conversationRef.current = null;
+    if (conversation) {
+      void conversation.endSession().catch(() => {});
     }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-    }
-    try {
-      processorRef.current?.disconnect();
-      micGainRef.current?.disconnect();
-      srcRef.current?.disconnect();
-    } catch {}
-    processorRef.current = null;
-    micGainRef.current = null;
-    srcRef.current = null;
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close().catch(() => {});
-      audioCtxRef.current = null;
-    }
-    nextPlayTimeRef.current = 0;
-    pendingChunksRef.current = 0;
-    isUserStreamingRef.current = false;
     hiddenOutgoingMessagesRef.current = [];
     setHasMicrophone(false);
+    setIsSpeaking(false);
     setIsUserSpeaking(false);
-  }, [interruptAgentAudio]);
+  }, []);
 
   useEffect(() => () => { teardown(); }, [teardown]);
+
+  const fetchSessionOptions = useCallback(
+    async (
+      activeAgentId: string | undefined,
+      shouldResolveAgentOnServer: boolean,
+      systemPrompt: string | undefined,
+      options: StartVoiceOptions | undefined,
+    ): Promise<PartialOptions> => {
+      try {
+        const res = await apiFetch("/api/elevenlabs-conversation-token", {
+          method: "POST",
+          body: JSON.stringify({
+            ...(activeAgentId ? { agent_id: activeAgentId } : {}),
+            ...(options?.agentSlug ? { agent_slug: options.agentSlug } : {}),
+            ...(options?.roomSlug ? { room_slug: options.roomSlug } : {}),
+            ...(systemPrompt ? { prompt_override: systemPrompt } : {}),
+          }),
+        });
+        if (!res.ok) {
+          const errorText = await res.text();
+          let message = errorText || "token fetch failed";
+          try {
+            const parsed = JSON.parse(errorText) as {
+              error?: string;
+              detail?: string;
+              expected_keys?: string[];
+            };
+            message = parsed.error || parsed.detail || message;
+            if (parsed.expected_keys?.[0]) {
+              message = `${message} (${parsed.expected_keys[0]})`;
+            }
+          } catch {}
+          throw new Error(message);
+        }
+
+        const data = (await res.json()) as { signed_url?: string; token?: string };
+        if (data.signed_url) return { signedUrl: data.signed_url };
+        if (data.token && activeAgentId) {
+          return {
+            signedUrl: `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${activeAgentId}&token=${data.token}`,
+          };
+        }
+        throw new Error("no URL or token");
+      } catch (err) {
+        if (!activeAgentId || shouldResolveAgentOnServer) {
+          console.error("[VYVA] Token fetch failed:", err);
+          throw err;
+        }
+        console.warn("[VYVA] Token fetch failed, trying public connection:", err);
+        return { agentId: activeAgentId, connectionType: "websocket" };
+      }
+    },
+    [],
+  );
 
   const startVoice = useCallback(
     async (
@@ -237,6 +218,8 @@ export function useVyvaVoice() {
       const activeAgentId = options?.agentId ?? (shouldResolveAgentOnServer ? undefined : VYVA_AGENT_ID);
       const skipMicrophone = options?.skipMicrophone ?? false;
       const autoStartListening = options?.autoStartListening ?? false;
+      userClosingRef.current = false;
+      shouldMuteOnConnectRef.current = !autoStartListening;
 
       if (!activeAgentId && !shouldResolveAgentOnServer) {
         const greeting = contextHint ?? "Listening...";
@@ -248,197 +231,86 @@ export function useVyvaVoice() {
       }
 
       try {
-        const stream = skipMicrophone ? null : await navigator.mediaDevices.getUserMedia({ audio: true });
-        micStreamRef.current = stream;
-        setHasMicrophone(Boolean(stream));
+        const sessionOptions = await fetchSessionOptions(
+          activeAgentId,
+          shouldResolveAgentOnServer,
+          systemPrompt,
+          options,
+        );
 
-        let wsUrl: string;
-        try {
-          const res = await apiFetch("/api/elevenlabs-conversation-token", {
-            method: "POST",
-            body: JSON.stringify({
-              ...(activeAgentId ? { agent_id: activeAgentId } : {}),
-              ...(options?.agentSlug ? { agent_slug: options.agentSlug } : {}),
-              ...(options?.roomSlug ? { room_slug: options.roomSlug } : {}),
-              ...(systemPrompt ? { prompt_override: systemPrompt } : {}),
-            }),
-          });
-          if (!res.ok) {
-            const errorText = await res.text();
-            let message = errorText || "token fetch failed";
-            try {
-              const parsed = JSON.parse(errorText) as {
-                error?: string;
-                detail?: string;
-                expected_keys?: string[];
-              };
-              message = parsed.error || parsed.detail || message;
-              if (parsed.expected_keys?.[0]) {
-                message = `${message} (${parsed.expected_keys[0]})`;
-              }
-            } catch {}
-            throw new Error(message);
-          }
-          const data = (await res.json()) as { signed_url?: string; token?: string };
-          if (data.signed_url) {
-            wsUrl = data.signed_url;
-          } else if (data.token && activeAgentId) {
-            wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${activeAgentId}&token=${data.token}`;
-          } else {
-            throw new Error("no URL or token");
-          }
-        } catch (err) {
-          console.error("[VYVA] Token fetch failed:", err);
-          throw err;
-        }
-
-        const audioCtx = new AudioContext({ sampleRate: 16000 });
-        audioCtxRef.current = audioCtx;
-
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          ws.send(
-            JSON.stringify({
-              type: "conversation_initiation_client_data",
-              conversation_config_override: { tts: { encoding: "pcm_16000" } },
-            })
-          );
-
-          if (stream) {
-            const src = audioCtx.createMediaStreamSource(stream);
-            const processor = audioCtx.createScriptProcessor(2048, 1, 1);
-            const micGain = audioCtx.createGain();
-            micGain.gain.value = 0;
-
-            processor.onaudioprocess = (e) => {
-              if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !isUserStreamingRef.current) return;
-              const f32 = e.inputBuffer.getChannelData(0);
-              const bytes = float32ToInt16Bytes(f32);
-              wsRef.current.send(JSON.stringify({ user_audio_chunk: uint8ToBase64(bytes) }));
-            };
-
-            src.connect(processor);
-            processor.connect(micGain);
-            micGain.connect(audioCtx.destination);
-            srcRef.current = src;
-            processorRef.current = processor;
-            micGainRef.current = micGain;
-
-            if (autoStartListening) {
-              isUserStreamingRef.current = true;
+        const conversation = await Conversation.startSession({
+          ...sessionOptions,
+          textOnly: skipMicrophone,
+          overrides: systemPrompt
+            ? { agent: { prompt: { prompt: systemPrompt } } }
+            : undefined,
+          onConversationCreated: (createdConversation) => {
+            conversationRef.current = createdConversation;
+            if (!skipMicrophone && shouldMuteOnConnectRef.current) {
+              createdConversation.setMicMuted(true);
+            }
+          },
+          onConnect: () => {
+            setVoiceStatus("connected");
+            setIsConnecting(false);
+            setHasMicrophone(!skipMicrophone);
+            if (!skipMicrophone && autoStartListening) {
               setIsUserSpeaking(true);
             }
-          }
-        };
-
-        ws.onmessage = (event) => {
-          let msg: Record<string, unknown>;
-          try {
-            msg = JSON.parse(event.data as string);
-          } catch {
-            return;
-          }
-
-          switch (msg.type) {
-            case "conversation_initiation_metadata": {
-              const meta = msg.conversation_initiation_metadata_event as Record<string, unknown> | undefined;
-              const fmt = meta?.agent_output_audio_format as string | undefined;
-              const match = fmt?.match(/(\d+)$/);
-              outputSampleRateRef.current = match ? parseInt(match[1]) : 16000;
-              nextPlayTimeRef.current = audioCtxRef.current?.currentTime ?? 0;
-              setVoiceStatus("connected");
+          },
+          onDisconnect: (details) => {
+            const message = formatDisconnectDetails(details);
+            conversationRef.current = null;
+            setVoiceStatus("idle");
+            setIsConnecting(false);
+            setIsSpeaking(false);
+            setIsUserSpeaking(false);
+            setHasMicrophone(false);
+            if (!userClosingRef.current && message) {
+              console.warn("[VYVA] Voice session closed:", details);
+              setLastError(message);
+            }
+            userClosingRef.current = false;
+          },
+          onError: (message, context) => {
+            console.error("[VYVA] Voice session error:", message, context);
+            setLastError(message);
+          },
+          onStatusChange: ({ status }) => {
+            if (status === "connecting") {
+              setIsConnecting(true);
+              setVoiceStatus("connecting");
+            } else if (status === "connected") {
               setIsConnecting(false);
-              break;
+              setVoiceStatus("connected");
+            } else if (status === "disconnected") {
+              setIsConnecting(false);
+              setVoiceStatus("idle");
             }
-
-            case "audio": {
-              const ev = msg.audio_event as Record<string, unknown> | undefined;
-              const b64 = ev?.audio_base_64 as string | undefined;
-              if (!b64 || !audioCtxRef.current) break;
-
-              if (audioCtxRef.current.state === "suspended") {
-                void audioCtxRef.current.resume().catch(() => {});
+          },
+          onModeChange: ({ mode }) => {
+            setIsSpeaking(mode === "speaking");
+          },
+          onInterruption: () => {
+            setIsSpeaking(false);
+          },
+          onMessage: ({ role, source, message }) => {
+            if (!message?.trim()) return;
+            if (role === "user" || source === "user") {
+              const normalized = normalizeTranscriptText(message);
+              const hiddenIndex = hiddenOutgoingMessagesRef.current.findIndex((entry) => entry === normalized);
+              if (hiddenIndex !== -1) {
+                hiddenOutgoingMessagesRef.current.splice(hiddenIndex, 1);
+                return;
               }
-
-              setIsSpeaking(true);
-              pendingChunksRef.current++;
-
-              const pcmBytes = base64ToUint8(b64);
-              const f32 = int16BytesToFloat32(pcmBytes);
-              const sr = outputSampleRateRef.current;
-              const buf = audioCtxRef.current.createBuffer(1, f32.length, sr);
-              buf.copyToChannel(f32, 0);
-
-              const node = audioCtxRef.current.createBufferSource();
-              node.buffer = buf;
-              node.connect(audioCtxRef.current.destination);
-              playbackNodesRef.current.push(node);
-
-              const startAt = Math.max(audioCtxRef.current.currentTime, nextPlayTimeRef.current);
-              node.start(startAt);
-              nextPlayTimeRef.current = startAt + buf.duration;
-
-              node.onended = () => {
-                playbackNodesRef.current = playbackNodesRef.current.filter((entry) => entry !== node);
-                pendingChunksRef.current = Math.max(0, pendingChunksRef.current - 1);
-                if (pendingChunksRef.current === 0) setIsSpeaking(false);
-              };
-              break;
+              setTranscript((p) => [...p, { from: "user", text: message, timestamp: Date.now() }]);
+              return;
             }
+            setTranscript((p) => [...p, { from: "vyva", text: message, timestamp: Date.now() }]);
+          },
+        });
 
-            case "agent_response": {
-              const ev = msg.agent_response_event as Record<string, unknown> | undefined;
-              const text = ev?.agent_response as string | undefined;
-              if (text) setTranscript((p) => [...p, { from: "vyva", text, timestamp: Date.now() }]);
-              break;
-            }
-
-            case "user_transcript": {
-              const ev = msg.user_transcription_event as Record<string, unknown> | undefined;
-              const text = ev?.user_transcript as string | undefined;
-              if (text) {
-                const normalized = normalizeTranscriptText(text);
-                const hiddenIndex = hiddenOutgoingMessagesRef.current.findIndex((entry) => entry === normalized);
-                if (hiddenIndex !== -1) {
-                  hiddenOutgoingMessagesRef.current.splice(hiddenIndex, 1);
-                  break;
-                }
-                setTranscript((p) => [...p, { from: "user", text, timestamp: Date.now() }]);
-              }
-              break;
-            }
-
-            case "interruption": {
-              interruptAgentAudio();
-              break;
-            }
-
-            case "ping": {
-              const ev = msg.ping_event as Record<string, unknown> | undefined;
-              wsRef.current?.send(JSON.stringify({ type: "pong", event_id: ev?.event_id }));
-              break;
-            }
-
-            default:
-              break;
-          }
-        };
-
-        ws.onerror = () => {
-          setLastError("Voice connection failed");
-          setVoiceStatus("idle");
-          setIsConnecting(false);
-          setIsSpeaking(false);
-          teardown();
-        };
-
-        ws.onclose = () => {
-          setVoiceStatus("idle");
-          setIsSpeaking(false);
-          teardown();
-        };
+        conversationRef.current = conversation;
       } catch (err) {
         console.error("[VYVA] Failed to start session:", err);
         setLastError(err instanceof Error ? err.message : "Unable to start voice session");
@@ -447,29 +319,23 @@ export function useVyvaVoice() {
         teardown();
       }
     },
-    [setVoiceStatus, teardown]
+    [fetchSessionOptions, setVoiceStatus, teardown]
   );
 
   const beginUserTurn = useCallback(async () => {
-    if (status !== "connected" || !audioCtxRef.current) return false;
-    if (audioCtxRef.current.state === "suspended") {
-      await audioCtxRef.current.resume();
-    }
-    interruptAgentAudio();
-    isUserStreamingRef.current = true;
+    if (statusRef.current !== "connected" || !conversationRef.current) return false;
+    conversationRef.current.setMicMuted(false);
     setIsUserSpeaking(true);
     return true;
-  }, [interruptAgentAudio, status]);
+  }, []);
 
   const endUserTurn = useCallback(() => {
-    if (isUserStreamingRef.current) {
-      sendSilenceTail();
-    }
-    isUserStreamingRef.current = false;
+    conversationRef.current?.setMicMuted(true);
     setIsUserSpeaking(false);
-  }, [sendSilenceTail]);
+  }, []);
 
   const stopVoice = useCallback(() => {
+    userClosingRef.current = true;
     teardown();
     setVoiceStatus("idle");
     setIsSpeaking(false);
@@ -481,7 +347,7 @@ export function useVyvaVoice() {
   const sendText = useCallback(
     (text: string, options?: SendTextOptions) => {
       const trimmed = text.trim();
-      if (!trimmed || status !== "connected" || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      if (!trimmed || statusRef.current !== "connected" || !conversationRef.current) {
         return false;
       }
 
@@ -489,23 +355,23 @@ export function useVyvaVoice() {
         hiddenOutgoingMessagesRef.current.push(normalizeTranscriptText(trimmed));
       }
 
-      wsRef.current.send(JSON.stringify({ type: "user_message", text: trimmed }));
+      conversationRef.current.sendUserMessage(trimmed);
       return true;
     },
-    [status]
+    []
   );
 
   const sendContextUpdate = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || status !== "connected" || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      if (!trimmed || statusRef.current !== "connected" || !conversationRef.current) {
         return false;
       }
 
-      wsRef.current.send(JSON.stringify({ type: "contextual_update", text: trimmed }));
+      conversationRef.current.sendContextualUpdate(trimmed);
       return true;
     },
-    [status]
+    []
   );
 
   return {

@@ -102,6 +102,12 @@ const DoctorChoiceScreen = () => {
             "health.doctorChoice.voiceAgentMissing",
             "El agente del medico no esta configurado todavia.",
           )
+        : normalizedError.includes("voice session closed")
+          ? t(
+              "health.doctorChoice.voiceClosedDebug",
+              "La sesion de voz se cerro: {{reason}}",
+              { reason: lastError },
+            )
         : t(
             "health.doctorChoice.voiceError",
             "La voz no se ha podido iniciar. Puede tocar una opcion.",
