@@ -6,15 +6,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
+import { apiFetch } from "@/lib/queryClient";
 
 const DOCTOR_AGENT_SLUG = "doctor";
 const FALLBACK_DOCTOR_USER_ID = "vyva-local-user";
+type VoiceDynamicVariables = Record<string, string | number | boolean>;
 
 function createDoctorConversationId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   return `doctor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function fetchDoctorContextVariables(): Promise<VoiceDynamicVariables> {
+  const res = await apiFetch("/api/profile/doctor-context");
+  if (!res.ok) {
+    throw new Error(`Doctor context failed: ${res.status}`);
+  }
+
+  const data = await res.json() as { dynamicVariables?: VoiceDynamicVariables };
+  return data.dynamicVariables ?? {};
 }
 
 const DoctorChoiceScreen = () => {
@@ -80,15 +92,26 @@ const DoctorChoiceScreen = () => {
     attemptedStartRef.current = true;
     startListeningWhenReadyRef.current = true;
     setVoiceError(null);
+    let doctorContext: VoiceDynamicVariables = {};
+    try {
+      doctorContext = await fetchDoctorContextVariables();
+    } catch (error) {
+      console.warn("[DoctorChoice] Starting doctor voice without profile context:", error);
+      doctorContext = {
+        health_context: "The user's health profile could not be loaded before this call.",
+      };
+    }
     await startVoice(undefined, undefined, {
       agentSlug: DOCTOR_AGENT_SLUG,
       dynamicVariables: {
+        ...doctorContext,
         first_name: firstName?.trim() || profile?.firstName?.trim() || "there",
         user_id: user?.id ?? FALLBACK_DOCTOR_USER_ID,
         conversation_id: createDoctorConversationId(),
+        language: i18n.language?.slice(0, 2) || "en",
       },
     });
-  }, [firstName, profile?.firstName, startVoice, user?.id]);
+  }, [firstName, i18n.language, profile?.firstName, startVoice, user?.id]);
 
   const stopDoctorVoice = useCallback(() => {
     userStoppedRef.current = true;
