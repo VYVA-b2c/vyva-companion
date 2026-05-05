@@ -7,6 +7,33 @@ import { useHeroMessage } from "@/hooks/useHeroMessage";
 
 const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
+type ElevenStatus = "disconnected" | "connecting" | "connected" | "disconnecting";
+type ElevenMode = "speaking" | "listening";
+
+function readElevenStatus(value: unknown): ElevenStatus | undefined {
+  if (typeof value === "string") return value as ElevenStatus;
+  if (typeof value === "object" && value && "status" in value) {
+    const status = (value as { status?: unknown }).status;
+    return typeof status === "string" ? (status as ElevenStatus) : undefined;
+  }
+  return undefined;
+}
+
+function readElevenMode(value: unknown): ElevenMode | undefined {
+  if (typeof value === "string") return value as ElevenMode;
+  if (typeof value === "object" && value && "mode" in value) {
+    const mode = (value as { mode?: unknown }).mode;
+    return typeof mode === "string" ? (mode as ElevenMode) : undefined;
+  }
+  return undefined;
+}
+
+function readAgentToolName(value: unknown) {
+  if (typeof value !== "object" || !value || !("tool_name" in value)) return undefined;
+  const toolName = (value as { tool_name?: unknown }).tool_name;
+  return typeof toolName === "string" ? toolName : undefined;
+}
+
 const DoctorChoiceScreen = () => {
   return (
     <ConversationProvider>
@@ -40,7 +67,8 @@ const DoctorChoiceContent = () => {
       setCallActive(true);
       setCallStarting(false);
     },
-    onDisconnect: () => {
+    onDisconnect: (details) => {
+      console.warn("[doctorVoice] disconnected", details);
       setCallActive(false);
       setCallStarting(false);
     },
@@ -51,19 +79,33 @@ const DoctorChoiceContent = () => {
       setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
     },
     onStatusChange: (nextStatus) => {
-      console.info("[doctorVoice] status", nextStatus);
-      if (nextStatus === "connected") {
+      const normalizedStatus = readElevenStatus(nextStatus);
+      console.info("[doctorVoice] status", normalizedStatus, nextStatus);
+      if (normalizedStatus === "connected") {
         setVoiceError(null);
         setCallActive(true);
         setCallStarting(false);
       }
-      if (nextStatus === "disconnected") {
+      if (normalizedStatus === "disconnected") {
         setCallActive(false);
         setCallStarting(false);
       }
     },
     onModeChange: (nextMode) => {
-      console.info("[doctorVoice] mode", nextMode);
+      const normalizedMode = readElevenMode(nextMode);
+      console.info("[doctorVoice] mode", normalizedMode, nextMode);
+    },
+    onAgentToolResponse: (toolResponse) => {
+      const toolName = readAgentToolName(toolResponse);
+      console.warn("[doctorVoice] agent tool response", toolName, toolResponse);
+      if (toolName === "end_call") {
+        setVoiceError(
+          t(
+            "health.doctorChoice.agentEndedCall",
+            "El agente ha cerrado la llamada. Revise la configuracion end_call en ElevenLabs.",
+          ),
+        );
+      }
     },
   });
   const heroMessage = useHeroMessage("doctor", {
@@ -159,8 +201,8 @@ const DoctorChoiceContent = () => {
         setCallStarting(false);
         promptDoctorListening(400);
       },
-      onDisconnect: () => {
-        console.warn("[doctorVoice] disconnected");
+      onDisconnect: (details) => {
+        console.warn("[doctorVoice] session disconnected", details);
         setCallActive(false);
         setCallStarting(false);
       },
@@ -171,22 +213,36 @@ const DoctorChoiceContent = () => {
         setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
       },
       onStatusChange: (nextStatus) => {
-        console.info("[doctorVoice] session status", nextStatus);
-        if (nextStatus === "connected") {
+        const normalizedStatus = readElevenStatus(nextStatus);
+        console.info("[doctorVoice] session status", normalizedStatus, nextStatus);
+        if (normalizedStatus === "connected") {
           setVoiceError(null);
           setCallActive(true);
           setCallStarting(false);
           promptDoctorListening(300);
         }
-        if (nextStatus === "disconnected") {
+        if (normalizedStatus === "disconnected") {
           setCallActive(false);
           setCallStarting(false);
         }
       },
       onModeChange: (nextMode) => {
-        console.info("[doctorVoice] session mode", nextMode);
-        if (nextMode === "listening") {
+        const normalizedMode = readElevenMode(nextMode);
+        console.info("[doctorVoice] session mode", normalizedMode, nextMode);
+        if (normalizedMode === "listening") {
           promptDoctorListening(120);
+        }
+      },
+      onAgentToolResponse: (toolResponse) => {
+        const toolName = readAgentToolName(toolResponse);
+        console.warn("[doctorVoice] session agent tool response", toolName, toolResponse);
+        if (toolName === "end_call") {
+          setVoiceError(
+            t(
+              "health.doctorChoice.agentEndedCall",
+              "El agente ha cerrado la llamada. Revise la configuracion end_call en ElevenLabs.",
+            ),
+          );
         }
       },
     });
@@ -317,7 +373,7 @@ const DoctorChoiceContent = () => {
 
       {voiceError ? (
         <div className="mt-4 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] px-5 py-4 font-body text-[16px] font-semibold text-[#9A3412]">
-          {t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")}
+          {voiceError}
         </div>
       ) : null}
 
