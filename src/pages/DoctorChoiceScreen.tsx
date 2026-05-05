@@ -14,15 +14,19 @@ const DoctorChoiceScreen = () => {
   const {
     startVoice,
     stopVoice,
+    beginUserTurn,
+    endUserTurn,
     status,
     isSpeaking,
     isUserSpeaking,
     isConnecting,
+    hasMicrophone,
     lastError,
   } = useVyvaVoice();
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const userStoppedRef = useRef(false);
   const attemptedStartRef = useRef(false);
+  const startListeningWhenReadyRef = useRef(false);
   const autoStartRequested = Boolean((location.state as { autoStartVoice?: boolean } | null)?.autoStartVoice);
 
   const heroMessage = useHeroMessage("doctor", {
@@ -62,18 +66,20 @@ const DoctorChoiceScreen = () => {
   const startDoctorVoice = useCallback(async () => {
     userStoppedRef.current = false;
     attemptedStartRef.current = true;
+    startListeningWhenReadyRef.current = true;
     setVoiceError(null);
     await startVoice(undefined, undefined, {
       agentId: DOCTOR_AGENT_ID,
-      autoStartListening: true,
     });
   }, [startVoice]);
 
   const stopDoctorVoice = useCallback(() => {
     userStoppedRef.current = true;
+    startListeningWhenReadyRef.current = false;
+    endUserTurn();
     stopVoice();
     setVoiceError(null);
-  }, [stopVoice]);
+  }, [endUserTurn, stopVoice]);
 
   const handleHeroVoiceAction = useCallback(() => {
     if (isVoiceLive) {
@@ -121,6 +127,12 @@ const DoctorChoiceScreen = () => {
     if (!autoStartRequested || attemptedStartRef.current || isVoiceLive) return;
     void startDoctorVoice();
   }, [autoStartRequested, isVoiceLive, startDoctorVoice]);
+
+  useEffect(() => {
+    if (status !== "connected" || !startListeningWhenReadyRef.current || !hasMicrophone) return;
+    startListeningWhenReadyRef.current = false;
+    void beginUserTurn();
+  }, [beginUserTurn, hasMicrophone, status]);
 
   useEffect(() => () => stopVoice(), [stopVoice]);
 
