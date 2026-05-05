@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
-const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
+const DOCTOR_AGENT_SLUG = "doctor";
 
 const DoctorChoiceScreen = () => {
   const navigate = useNavigate();
@@ -69,7 +69,7 @@ const DoctorChoiceScreen = () => {
     startListeningWhenReadyRef.current = true;
     setVoiceError(null);
     await startVoice(undefined, undefined, {
-      agentId: DOCTOR_AGENT_ID,
+      agentSlug: DOCTOR_AGENT_SLUG,
     });
   }, [startVoice]);
 

@@ -145,7 +145,14 @@ const TOP_LEVEL_AGENT_ENV_KEYS: Record<string, string[]> = {
   "main-vyva": ["ELEVENLABS_MAIN_VYVA_AGENT_ID", "ELEVENLABS_AGENT_VYVA", "ELEVENLABS_AGENT_ID"],
   health: ["ELEVENLABS_HEALTH_ASSISTANT_AGENT_ID"],
   "health-assistant": ["ELEVENLABS_HEALTH_ASSISTANT_AGENT_ID"],
+  doctor: ["ELEVENLABS_DOCTOR_AGENT_ID", "ELEVENLABS_MEDICAL_DOCTOR_AGENT_ID", "ELEVENLABS_HEALTH_DOCTOR_AGENT_ID"],
+  "medical-doctor": ["ELEVENLABS_DOCTOR_AGENT_ID", "ELEVENLABS_MEDICAL_DOCTOR_AGENT_ID", "ELEVENLABS_HEALTH_DOCTOR_AGENT_ID"],
   concierge: ["ELEVENLABS_CONCIERGE_AGENT_ID"],
+};
+
+const FIXED_AGENT_IDS: Record<string, string> = {
+  doctor: "agent_9201knfm6ep0fpp958kdyt0hev1b",
+  "medical-doctor": "agent_9201knfm6ep0fpp958kdyt0hev1b",
 };
 
 const DEFAULT_AGENT_ENV_KEYS = [
@@ -228,7 +235,7 @@ function resolveSocialAgentId(agentSlug?: string, roomSlug?: string) {
   ];
 
   return {
-    agentId: readFirstEnv(keys),
+    agentId: readFirstEnv(keys) ?? FIXED_AGENT_IDS[resolvedSlug],
     resolvedSlug,
     source: "slug",
     expectedKeys: keys,
