@@ -37,3 +37,41 @@ export async function verifyToken(token: string): Promise<string | null> {
     return null;
   }
 }
+
+const MEDICAL_PROFILE_AUDIENCE = "elevenlabs-medical-profile";
+
+export async function signMedicalProfileToolToken(
+  userId: string,
+  conversationId: string,
+): Promise<string> {
+  return new SignJWT({
+    sub: userId,
+    conversation_id: conversationId,
+    token_type: "medical_profile_tool",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setAudience(MEDICAL_PROFILE_AUDIENCE)
+    .setExpirationTime("15m")
+    .sign(JWT_SECRET);
+}
+
+export async function verifyMedicalProfileToolToken(
+  token: string,
+): Promise<{ userId: string; conversationId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET, {
+      audience: MEDICAL_PROFILE_AUDIENCE,
+    });
+    if (
+      payload.token_type !== "medical_profile_tool" ||
+      typeof payload.sub !== "string" ||
+      typeof payload.conversation_id !== "string"
+    ) {
+      return null;
+    }
+    return { userId: payload.sub, conversationId: payload.conversation_id };
+  } catch {
+    return null;
+  }
+}

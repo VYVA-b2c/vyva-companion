@@ -19,8 +19,9 @@ function createDoctorConversationId() {
   return `doctor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function fetchDoctorContextVariables(): Promise<VoiceDynamicVariables> {
-  const res = await apiFetch("/api/profile/doctor-context");
+async function fetchDoctorContextVariables(conversationId: string): Promise<VoiceDynamicVariables> {
+  const params = new URLSearchParams({ conversation_id: conversationId });
+  const res = await apiFetch(`/api/profile/doctor-context?${params.toString()}`);
   if (!res.ok) {
     throw new Error(`Doctor context failed: ${res.status}`);
   }
@@ -92,9 +93,10 @@ const DoctorChoiceScreen = () => {
     attemptedStartRef.current = true;
     startListeningWhenReadyRef.current = true;
     setVoiceError(null);
+    const conversationId = createDoctorConversationId();
     let doctorContext: VoiceDynamicVariables = {};
     try {
-      doctorContext = await fetchDoctorContextVariables();
+      doctorContext = await fetchDoctorContextVariables(conversationId);
     } catch (error) {
       console.warn("[DoctorChoice] Starting doctor voice without profile context:", error);
       doctorContext = {
@@ -107,7 +109,7 @@ const DoctorChoiceScreen = () => {
         ...doctorContext,
         first_name: firstName?.trim() || profile?.firstName?.trim() || "there",
         user_id: user?.id ?? FALLBACK_DOCTOR_USER_ID,
-        conversation_id: createDoctorConversationId(),
+        conversation_id: conversationId,
         language: i18n.language?.slice(0, 2) || "en",
       },
     });
