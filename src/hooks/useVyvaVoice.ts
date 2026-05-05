@@ -154,6 +154,8 @@ export function useVyvaVoice() {
   const isUserStreamingRef = useRef(false);
   const playbackNodesRef = useRef<AudioBufferSourceNode[]>([]);
   const hiddenOutgoingMessagesRef = useRef<string[]>([]);
+  const activityIntervalRef = useRef<number | null>(null);
+  const lastUserActivityPingRef = useRef(0);
 
   const setVoiceStatus = useCallback((nextStatus: "idle" | "connecting" | "connected") => {
     statusRef.current = nextStatus;
@@ -185,7 +187,36 @@ export function useVyvaVoice() {
     }
   }, []);
 
+  const stopUserActivityHeartbeat = useCallback(() => {
+    if (activityIntervalRef.current !== null) {
+      window.clearInterval(activityIntervalRef.current);
+      activityIntervalRef.current = null;
+    }
+  }, []);
+
+  const sendUserActivity = useCallback((force = false) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+
+    const now = Date.now();
+    if (!force && now - lastUserActivityPingRef.current < 5000) {
+      return false;
+    }
+
+    lastUserActivityPingRef.current = now;
+    ws.send(JSON.stringify({ type: "user_activity" }));
+    return true;
+  }, []);
+
+  const startUserActivityHeartbeat = useCallback(() => {
+    stopUserActivityHeartbeat();
+    activityIntervalRef.current = window.setInterval(() => {
+      void sendUserActivity(true);
+    }, 15000);
+  }, [sendUserActivity, stopUserActivityHeartbeat]);
+
   const teardown = useCallback(() => {
+    stopUserActivityHeartbeat();
     interruptAgentAudio();
     if (wsRef.current) {
       wsRef.current.onopen = null;
@@ -215,11 +246,32 @@ export function useVyvaVoice() {
     pendingChunksRef.current = 0;
     isUserStreamingRef.current = false;
     hiddenOutgoingMessagesRef.current = [];
+    lastUserActivityPingRef.current = 0;
     setHasMicrophone(false);
     setIsUserSpeaking(false);
-  }, [interruptAgentAudio]);
+  }, [interruptAgentAudio, stopUserActivityHeartbeat]);
 
   useEffect(() => () => { teardown(); }, [teardown]);
+
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    const signalUserActivity = () => {
+      void sendUserActivity();
+    };
+
+    window.addEventListener("pointerdown", signalUserActivity, { passive: true });
+    window.addEventListener("touchstart", signalUserActivity, { passive: true });
+    window.addEventListener("keydown", signalUserActivity);
+    window.addEventListener("scroll", signalUserActivity, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", signalUserActivity);
+      window.removeEventListener("touchstart", signalUserActivity);
+      window.removeEventListener("keydown", signalUserActivity);
+      window.removeEventListener("scroll", signalUserActivity);
+    };
+  }, [sendUserActivity, status]);
 
   const startVoice = useCallback(
     async (
@@ -351,6 +403,8 @@ export function useVyvaVoice() {
               nextPlayTimeRef.current = audioCtxRef.current?.currentTime ?? 0;
               setVoiceStatus("connected");
               setIsConnecting(false);
+              startUserActivityHeartbeat();
+              void sendUserActivity(true);
               break;
             }
 
