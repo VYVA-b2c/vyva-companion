@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck, Flame, ShieldCheck, TriangleAlert, Sparkles, Clock3, Target } from "lucide-react";
+import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck, Flame, ShieldCheck, TriangleAlert, Sparkles, Clock3, Target, LockKeyhole, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ApiError } from "@/lib/queryClient";
 
 type DailyStatus = "taken" | "missed" | "none";
 
@@ -98,9 +99,10 @@ const AdherenceReportScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data, isLoading, isError, refetch } = useQuery<AdherenceReport>({
+  const { data, isLoading, isError, refetch, error } = useQuery<AdherenceReport, ApiError>({
     queryKey: ["/api/meds/adherence-report"],
   });
+  const isAuthError = error instanceof ApiError && (error.status === 401 || error.status === 403);
 
   const rawDayLabels = t("meds.adherence.dayLabels", { returnObjects: true });
   const dayLabels: string[] = Array.isArray(rawDayLabels)
@@ -300,6 +302,7 @@ const AdherenceReportScreen = () => {
   }
 
   const hasData = data && data.hasLogs;
+  const ErrorIcon = isAuthError ? LockKeyhole : AlertCircle;
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF8F5" }}>
@@ -349,17 +352,27 @@ const AdherenceReportScreen = () => {
 
         {isError && (
           <div className="bg-white rounded-[20px] border border-vyva-border flex flex-col items-center gap-4 px-[24px] py-[40px] text-center" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-            <AlertCircle size={40} style={{ color: "#DC2626" }} />
-            <p className="font-body text-[17px] font-semibold text-vyva-text-1">{t("meds.adherence.errorTitle")}</p>
-            <p className="font-body text-[14px] text-vyva-text-2">{t("meds.adherence.errorSub")}</p>
+            <ErrorIcon size={40} style={{ color: isAuthError ? "#6B21A8" : "#DC2626" }} />
+            <p className="font-body text-[17px] font-semibold text-vyva-text-1">
+              {isAuthError ? t("meds.adherence.authTitle") : t("meds.adherence.errorTitle")}
+            </p>
+            <p className="font-body text-[14px] text-vyva-text-2">
+              {isAuthError ? t("meds.adherence.authSub") : t("meds.adherence.errorSub")}
+            </p>
             <button
               data-testid="button-adherence-retry"
-              onClick={() => refetch()}
+              onClick={() => {
+                if (isAuthError) {
+                  navigate("/login");
+                  return;
+                }
+                refetch();
+              }}
               className="flex items-center gap-2 px-6 py-3 rounded-full font-body text-[15px] font-medium text-white min-h-[48px]"
               style={{ background: "#6B21A8" }}
             >
-              <RefreshCw size={16} />
-              {t("meds.adherence.retry")}
+              {isAuthError ? <LogIn size={16} /> : <RefreshCw size={16} />}
+              {isAuthError ? t("meds.adherence.signIn") : t("meds.adherence.retry")}
             </button>
           </div>
         )}
