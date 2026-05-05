@@ -1,26 +1,49 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
-import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
 const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
 const DoctorChoiceScreen = () => {
+  return (
+    <ConversationProvider>
+      <DoctorChoiceContent />
+    </ConversationProvider>
+  );
+};
+
+const DoctorChoiceContent = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const hasIntroducedRef = useRef(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [callActive, setCallActive] = useState(false);
+  const [callStarting, setCallStarting] = useState(false);
   const {
-    startVoice,
-    stopVoice,
-    sendText,
+    startSession,
+    endSession,
     status,
-    isConnecting,
     isSpeaking,
-    hasMicrophone,
-    lastError,
-  } = useVyvaVoice();
+    isListening,
+  } = useConversation({
+    onConnect: () => {
+      setVoiceError(null);
+      setCallActive(true);
+      setCallStarting(false);
+    },
+    onDisconnect: () => {
+      setCallActive(false);
+      setCallStarting(false);
+    },
+    onError: (message) => {
+      const readableMessage = typeof message === "string" ? message : "";
+      setCallActive(false);
+      setCallStarting(false);
+      setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
+    },
+  });
   const heroMessage = useHeroMessage("doctor", {
     fallbackHeadline: t("health.doctorChoice.title", "Elige una opcion"),
     fallbackSourceText: t("health.doctorChoice.kicker", "Ayuda medica"),
@@ -29,10 +52,6 @@ const DoctorChoiceScreen = () => {
     safetyLevel: "medical",
   });
 
-  const promptText = t(
-    "health.doctorChoice.voicePrompt",
-    "Presenta estas dos opciones de forma breve y amable: hablar con un medico ahora, o hacer primero un triaje rapido. No des consejos medicos. Pide al usuario que toque una opcion en la pantalla."
-  );
   const stopCallFallback = useMemo(() => {
     const language = i18n.language?.slice(0, 2);
     switch (language) {
@@ -52,67 +71,84 @@ const DoctorChoiceScreen = () => {
     }
   }, [i18n.language]);
 
-  const startDoctorAgent = useCallback(
-    (withMicrophone = false) => {
-      hasIntroducedRef.current = false;
-      startVoice("doctor choice", undefined, {
-        agentId: DOCTOR_AGENT_ID,
-        skipMicrophone: !withMicrophone,
-        autoStartListening: withMicrophone,
-      }).catch(() => {});
-    },
-    [startVoice],
-  );
-
-  useEffect(() => {
-    startDoctorAgent(false);
-    return () => stopVoice();
-  }, [startDoctorAgent, stopVoice]);
-
-  useEffect(() => {
-    if (status !== "connected" || hasIntroducedRef.current) return;
-    hasIntroducedRef.current = true;
-    window.setTimeout(() => {
-      sendText(promptText, { invisibleInTranscript: true });
-    }, 250);
-  }, [promptText, sendText, status]);
+  const stopDoctorSession = () => {
+    endSession();
+    setCallActive(false);
+    setCallStarting(false);
+  };
 
   const handleDirect = () => {
-    stopVoice();
+    stopDoctorSession();
     navigate("/health?doctor=1");
   };
 
   const handleTriage = () => {
-    stopVoice();
+    stopDoctorSession();
     navigate("/health/symptom-check");
   };
 
-  const handleVoiceToggle = () => {
-    if (status === "idle") {
-      startDoctorAgent(false);
-    } else {
-      stopVoice();
+  const startDoctorSession = (options: { signedUrl?: string; agentId?: string }) => {
+    startSession({
+      ...options,
+      onConnect: () => {
+        setVoiceError(null);
+        setCallActive(true);
+        setCallStarting(false);
+      },
+      onDisconnect: () => {
+        setCallActive(false);
+        setCallStarting(false);
+      },
+      onError: (message) => {
+        const readableMessage = typeof message === "string" ? message : "";
+        setCallActive(false);
+        setCallStarting(false);
+        setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
+      },
+    });
+    // Keep the UI in call mode while the ElevenLabs session remains alive.
+    setCallActive(true);
+    setCallStarting(false);
+  };
+
+  const handleStartDoctorAgent = async () => {
+    setVoiceError(null);
+    setCallStarting(true);
+    try {
+      const response = await fetch("/api/elevenlabs-conversation-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent_id: DOCTOR_AGENT_ID }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.signed_url) {
+        throw new Error(data?.error || "Unable to start doctor voice session");
+      }
+      startDoctorSession({ signedUrl: data.signed_url });
+    } catch (error) {
+      console.warn("[doctorVoice] Signed URL unavailable; trying direct ElevenLabs agent session.", error);
+      try {
+        startDoctorSession({ agentId: DOCTOR_AGENT_ID });
+      } catch (fallbackError) {
+        console.error("[doctorVoice] Direct ElevenLabs agent session failed.", fallbackError);
+        setCallActive(false);
+        setCallStarting(false);
+        setVoiceError(t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
+      }
     }
   };
 
-  const handleStartMicrophone = () => {
-    stopVoice();
-    window.setTimeout(() => {
-      startDoctorAgent(true);
-    }, 150);
-  };
-
-  const isVoiceLive = isConnecting || isSpeaking || status === "connected";
-  const shouldStopCallFromHero = isConnecting || isSpeaking || (status === "connected" && hasMicrophone);
+  const isVoiceLive = callActive || callStarting || status === "connecting" || status === "connected" || isSpeaking || isListening;
+  const shouldStopCallFromHero = callActive || callStarting || status === "connecting" || status === "connected";
   const heroVoiceLabel = shouldStopCallFromHero
     ? t("health.doctorChoice.stopCall", stopCallFallback)
     : heroMessage?.ctaLabel ?? t("health.doctorChoice.talkNow", "Hablar ahora");
   const handleHeroVoiceAction = () => {
     if (shouldStopCallFromHero) {
-      stopVoice();
+      stopDoctorSession();
       return;
     }
-    handleStartMicrophone();
+    void handleStartDoctorAgent();
   };
 
   return (
@@ -121,7 +157,7 @@ const DoctorChoiceScreen = () => {
         <button
           type="button"
           onClick={() => {
-            stopVoice();
+            stopDoctorSession();
             navigate("/health");
           }}
           className="vyva-tap inline-flex items-center gap-2 rounded-full bg-[#FFFDF9] px-5 py-3 font-body text-[16px] font-bold text-vyva-text-1 shadow-sm"
@@ -132,11 +168,11 @@ const DoctorChoiceScreen = () => {
 
         <button
           type="button"
-          onClick={handleVoiceToggle}
+          onClick={handleHeroVoiceAction}
           className="vyva-tap inline-flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#F5F3FF] text-vyva-purple shadow-sm"
-          aria-label={status === "idle" ? t("common.start", "Iniciar") : t("common.stop", "Parar")}
+          aria-label={shouldStopCallFromHero ? t("common.stop", "Parar") : t("common.start", "Iniciar")}
         >
-          {status === "idle" ? <Mic size={22} /> : <X size={21} />}
+          {shouldStopCallFromHero ? <X size={21} /> : <Mic size={22} />}
         </button>
       </div>
 
@@ -187,7 +223,7 @@ const DoctorChoiceScreen = () => {
         </button>
       </section>
 
-      {lastError ? (
+      {voiceError ? (
         <div className="mt-4 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] px-5 py-4 font-body text-[16px] font-semibold text-[#9A3412]">
           {t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion.")}
         </div>
