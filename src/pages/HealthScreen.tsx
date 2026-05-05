@@ -673,7 +673,7 @@ const HealthScreen = () => {
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
-          onTalkClick={() => navigate("/health/doctor")}
+          onTalkClick={() => navigate("/health/doctor", { state: { autoStartVoice: true } })}
         />
 
         <button

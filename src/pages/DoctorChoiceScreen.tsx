@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
@@ -9,6 +9,7 @@ const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
 const DoctorChoiceScreen = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, i18n } = useTranslation();
   const {
     startVoice,
@@ -22,6 +23,7 @@ const DoctorChoiceScreen = () => {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const userStoppedRef = useRef(false);
   const attemptedStartRef = useRef(false);
+  const autoStartRequested = Boolean((location.state as { autoStartVoice?: boolean } | null)?.autoStartVoice);
 
   const heroMessage = useHeroMessage("doctor", {
     fallbackHeadline: t("health.doctorChoice.title", "Elige una opcion"),
@@ -83,16 +85,28 @@ const DoctorChoiceScreen = () => {
 
   useEffect(() => {
     if (!lastError) return;
+    const normalizedError = lastError.toLowerCase();
+    const friendlyMessage = normalizedError.includes("missing elevenlabs api key")
+      ? t(
+          "health.doctorChoice.voiceSetupError",
+          "La voz del medico no esta configurada todavia en este entorno.",
+        )
+      : normalizedError.includes("no elevenlabs agent configured")
+        ? t(
+            "health.doctorChoice.voiceAgentMissing",
+            "El agente del medico no esta configurado todavia.",
+          )
+        : t(
+            "health.doctorChoice.voiceError",
+            "La voz no se ha podido iniciar. Puede tocar una opcion.",
+          );
     setVoiceError(
-      t(
-        "health.doctorChoice.voiceError",
-        "La voz no se ha podido iniciar. Puede tocar una opcion.",
-      ),
+      friendlyMessage,
     );
   }, [lastError, t]);
 
   useEffect(() => {
-    if (!attemptedStartRef.current || userStoppedRef.current) return;
+    if (!attemptedStartRef.current || userStoppedRef.current || lastError) return;
     if (status === "idle" && !isConnecting && !isSpeaking && !isUserSpeaking) {
       setVoiceError(
         t(
@@ -101,13 +115,18 @@ const DoctorChoiceScreen = () => {
         ),
       );
     }
-  }, [isConnecting, isSpeaking, isUserSpeaking, status, t]);
+  }, [isConnecting, isSpeaking, isUserSpeaking, lastError, status, t]);
+
+  useEffect(() => {
+    if (!autoStartRequested || attemptedStartRef.current || isVoiceLive) return;
+    void startDoctorVoice();
+  }, [autoStartRequested, isVoiceLive, startDoctorVoice]);
 
   useEffect(() => () => stopVoice(), [stopVoice]);
 
   const handleDirect = () => {
-    stopDoctorVoice();
-    navigate("/health?doctor=1");
+    if (isVoiceLive) return;
+    void startDoctorVoice();
   };
 
   const handleTriage = () => {
