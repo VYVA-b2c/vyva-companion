@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -21,13 +21,20 @@ const DoctorChoiceContent = () => {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [callActive, setCallActive] = useState(false);
   const [callStarting, setCallStarting] = useState(false);
+  const lastModeRef = useRef<"speaking" | "listening" | null>(null);
+  const activityTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const {
     startSession,
     endSession,
     status,
+    mode,
     isSpeaking,
     isListening,
+    isMuted,
+    setMuted,
+    sendUserActivity,
   } = useConversation({
+    micMuted: false,
     onConnect: () => {
       setVoiceError(null);
       setCallActive(true);
@@ -42,6 +49,21 @@ const DoctorChoiceContent = () => {
       setCallActive(false);
       setCallStarting(false);
       setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
+    },
+    onStatusChange: (nextStatus) => {
+      console.info("[doctorVoice] status", nextStatus);
+      if (nextStatus === "connected") {
+        setVoiceError(null);
+        setCallActive(true);
+        setCallStarting(false);
+      }
+      if (nextStatus === "disconnected") {
+        setCallActive(false);
+        setCallStarting(false);
+      }
+    },
+    onModeChange: (nextMode) => {
+      console.info("[doctorVoice] mode", nextMode);
     },
   });
   const heroMessage = useHeroMessage("doctor", {
@@ -71,7 +93,48 @@ const DoctorChoiceContent = () => {
     }
   }, [i18n.language]);
 
+  const clearActivityTimer = useCallback(() => {
+    if (activityTimerRef.current) {
+      window.clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
+    }
+  }, []);
+
+  const promptDoctorListening = useCallback(
+    (delay = 250) => {
+      clearActivityTimer();
+      activityTimerRef.current = window.setTimeout(() => {
+        if (!callActive && status !== "connected") return;
+        try {
+          setMuted(false);
+          sendUserActivity();
+        } catch (error) {
+          console.warn("[doctorVoice] Unable to refresh listening state.", error);
+        }
+      }, delay);
+    },
+    [callActive, clearActivityTimer, sendUserActivity, setMuted, status],
+  );
+
+  useEffect(() => {
+    return () => clearActivityTimer();
+  }, [clearActivityTimer]);
+
+  useEffect(() => {
+    if (!callActive && status !== "connected") return;
+    if (isMuted) setMuted(false);
+  }, [callActive, isMuted, setMuted, status]);
+
+  useEffect(() => {
+    const previousMode = lastModeRef.current;
+    lastModeRef.current = mode;
+    if ((callActive || status === "connected") && mode === "listening" && previousMode === "speaking") {
+      promptDoctorListening(180);
+    }
+  }, [callActive, mode, promptDoctorListening, status]);
+
   const stopDoctorSession = () => {
+    clearActivityTimer();
     endSession();
     setCallActive(false);
     setCallStarting(false);
@@ -94,8 +157,10 @@ const DoctorChoiceContent = () => {
         setVoiceError(null);
         setCallActive(true);
         setCallStarting(false);
+        promptDoctorListening(400);
       },
       onDisconnect: () => {
+        console.warn("[doctorVoice] disconnected");
         setCallActive(false);
         setCallStarting(false);
       },
@@ -105,10 +170,37 @@ const DoctorChoiceContent = () => {
         setCallStarting(false);
         setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
       },
+      onStatusChange: (nextStatus) => {
+        console.info("[doctorVoice] session status", nextStatus);
+        if (nextStatus === "connected") {
+          setVoiceError(null);
+          setCallActive(true);
+          setCallStarting(false);
+          promptDoctorListening(300);
+        }
+        if (nextStatus === "disconnected") {
+          setCallActive(false);
+          setCallStarting(false);
+        }
+      },
+      onModeChange: (nextMode) => {
+        console.info("[doctorVoice] session mode", nextMode);
+        if (nextMode === "listening") {
+          promptDoctorListening(120);
+        }
+      },
     });
     // Keep the UI in call mode while the ElevenLabs session remains alive.
     setCallActive(true);
     setCallStarting(false);
+    window.setTimeout(() => {
+      try {
+        setMuted(false);
+        sendUserActivity();
+      } catch (error) {
+        console.warn("[doctorVoice] Initial listening refresh failed.", error);
+      }
+    }, 650);
   };
 
   const handleStartDoctorAgent = async () => {
