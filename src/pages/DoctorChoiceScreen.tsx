@@ -1,116 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
+import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
 const DOCTOR_AGENT_ID = "agent_9201knfm6ep0fpp958kdyt0hev1b";
 
-type ElevenStatus = "disconnected" | "connecting" | "connected" | "disconnecting";
-type ElevenMode = "speaking" | "listening";
-
-function readElevenStatus(value: unknown): ElevenStatus | undefined {
-  if (typeof value === "string") return value as ElevenStatus;
-  if (typeof value === "object" && value && "status" in value) {
-    const status = (value as { status?: unknown }).status;
-    return typeof status === "string" ? (status as ElevenStatus) : undefined;
-  }
-  return undefined;
-}
-
-function readElevenMode(value: unknown): ElevenMode | undefined {
-  if (typeof value === "string") return value as ElevenMode;
-  if (typeof value === "object" && value && "mode" in value) {
-    const mode = (value as { mode?: unknown }).mode;
-    return typeof mode === "string" ? (mode as ElevenMode) : undefined;
-  }
-  return undefined;
-}
-
-function readAgentToolName(value: unknown) {
-  if (typeof value !== "object" || !value || !("tool_name" in value)) return undefined;
-  const toolName = (value as { tool_name?: unknown }).tool_name;
-  return typeof toolName === "string" ? toolName : undefined;
-}
-
 const DoctorChoiceScreen = () => {
-  return (
-    <ConversationProvider>
-      <DoctorChoiceContent />
-    </ConversationProvider>
-  );
-};
-
-const DoctorChoiceContent = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [callActive, setCallActive] = useState(false);
-  const [callStarting, setCallStarting] = useState(false);
-  const lastModeRef = useRef<"speaking" | "listening" | null>(null);
-  const activityTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const manualStopRef = useRef(false);
-  const reconnectAttemptsRef = useRef(0);
   const {
-    startSession,
-    endSession,
+    startVoice,
+    stopVoice,
     status,
-    mode,
     isSpeaking,
-    isListening,
-    isMuted,
-    setMuted,
-    sendUserActivity,
-  } = useConversation({
-    micMuted: false,
-    onConnect: () => {
-      setVoiceError(null);
-      setCallActive(true);
-      setCallStarting(false);
-    },
-    onDisconnect: (details) => {
-      console.warn("[doctorVoice] disconnected", details);
-      setCallActive(false);
-      setCallStarting(false);
-    },
-    onError: (message) => {
-      const readableMessage = typeof message === "string" ? message : "";
-      setCallActive(false);
-      setCallStarting(false);
-      setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
-    },
-    onStatusChange: (nextStatus) => {
-      const normalizedStatus = readElevenStatus(nextStatus);
-      console.info("[doctorVoice] status", normalizedStatus, nextStatus);
-      if (normalizedStatus === "connected") {
-        setVoiceError(null);
-        setCallActive(true);
-        setCallStarting(false);
-      }
-      if (normalizedStatus === "disconnected") {
-        setCallActive(false);
-        setCallStarting(false);
-      }
-    },
-    onModeChange: (nextMode) => {
-      const normalizedMode = readElevenMode(nextMode);
-      console.info("[doctorVoice] mode", normalizedMode, nextMode);
-    },
-    onAgentToolResponse: (toolResponse) => {
-      const toolName = readAgentToolName(toolResponse);
-      console.warn("[doctorVoice] agent tool response", toolName, toolResponse);
-      if (toolName === "end_call") {
-        setVoiceError(
-          t(
-            "health.doctorChoice.agentEndedCall",
-            "El agente ha cerrado la llamada. Revise la configuracion end_call en ElevenLabs.",
-          ),
-        );
-      }
-    },
-  });
+    isUserSpeaking,
+    isConnecting,
+    lastError,
+  } = useVyvaVoice();
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const userStoppedRef = useRef(false);
+  const attemptedStartRef = useRef(false);
+
   const heroMessage = useHeroMessage("doctor", {
     fallbackHeadline: t("health.doctorChoice.title", "Elige una opcion"),
     fallbackSourceText: t("health.doctorChoice.kicker", "Ayuda medica"),
@@ -138,206 +50,74 @@ const DoctorChoiceContent = () => {
     }
   }, [i18n.language]);
 
-  const clearActivityTimer = useCallback(() => {
-    if (activityTimerRef.current) {
-      window.clearTimeout(activityTimerRef.current);
-      activityTimerRef.current = null;
-    }
-  }, []);
+  const isVoiceLive =
+    status === "connecting" ||
+    status === "connected" ||
+    isConnecting ||
+    isSpeaking ||
+    isUserSpeaking;
 
-  const clearReconnectTimer = useCallback(() => {
-    if (reconnectTimerRef.current) {
-      window.clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-  }, []);
+  const startDoctorVoice = useCallback(async () => {
+    userStoppedRef.current = false;
+    attemptedStartRef.current = true;
+    setVoiceError(null);
+    await startVoice(undefined, undefined, {
+      agentId: DOCTOR_AGENT_ID,
+      autoStartListening: true,
+    });
+  }, [startVoice]);
 
-  const promptDoctorListening = useCallback(
-    (delay = 250) => {
-      clearActivityTimer();
-      activityTimerRef.current = window.setTimeout(() => {
-        if (!callActive && status !== "connected") return;
-        try {
-          setMuted(false);
-          sendUserActivity();
-        } catch (error) {
-          console.warn("[doctorVoice] Unable to refresh listening state.", error);
-        }
-      }, delay);
-    },
-    [callActive, clearActivityTimer, sendUserActivity, setMuted, status],
-  );
+  const stopDoctorVoice = useCallback(() => {
+    userStoppedRef.current = true;
+    stopVoice();
+    setVoiceError(null);
+  }, [stopVoice]);
+
+  const handleHeroVoiceAction = useCallback(() => {
+    if (isVoiceLive) {
+      stopDoctorVoice();
+      return;
+    }
+    void startDoctorVoice();
+  }, [isVoiceLive, startDoctorVoice, stopDoctorVoice]);
 
   useEffect(() => {
-    return () => {
-      clearActivityTimer();
-      clearReconnectTimer();
-    };
-  }, [clearActivityTimer, clearReconnectTimer]);
+    if (!lastError) return;
+    setVoiceError(
+      t(
+        "health.doctorChoice.voiceError",
+        "La voz no se ha podido iniciar. Puede tocar una opcion.",
+      ),
+    );
+  }, [lastError, t]);
 
   useEffect(() => {
-    if (!callActive && status !== "connected") return;
-    if (isMuted) setMuted(false);
-  }, [callActive, isMuted, setMuted, status]);
-
-  useEffect(() => {
-    const previousMode = lastModeRef.current;
-    lastModeRef.current = mode;
-    if ((callActive || status === "connected") && mode === "listening" && previousMode === "speaking") {
-      promptDoctorListening(180);
+    if (!attemptedStartRef.current || userStoppedRef.current) return;
+    if (status === "idle" && !isConnecting && !isSpeaking && !isUserSpeaking) {
+      setVoiceError(
+        t(
+          "health.doctorChoice.voiceDropped",
+          "La conversacion se ha cortado. Toca otra vez para seguir.",
+        ),
+      );
     }
-  }, [callActive, mode, promptDoctorListening, status]);
+  }, [isConnecting, isSpeaking, isUserSpeaking, status, t]);
 
-  const stopDoctorSession = () => {
-    manualStopRef.current = true;
-    reconnectAttemptsRef.current = 0;
-    clearActivityTimer();
-    clearReconnectTimer();
-    endSession();
-    setCallActive(false);
-    setCallStarting(false);
-  };
+  useEffect(() => () => stopVoice(), [stopVoice]);
 
   const handleDirect = () => {
-    stopDoctorSession();
+    stopDoctorVoice();
     navigate("/health?doctor=1");
   };
 
   const handleTriage = () => {
-    stopDoctorSession();
+    stopDoctorVoice();
     navigate("/health/symptom-check");
   };
 
-  const startDoctorSession = useCallback((options: { signedUrl?: string; agentId?: string }) => {
-    manualStopRef.current = false;
-    clearReconnectTimer();
-    startSession({
-      ...options,
-      onConnect: () => {
-        setVoiceError(null);
-        setCallActive(true);
-        setCallStarting(false);
-        reconnectAttemptsRef.current = 0;
-        promptDoctorListening(400);
-      },
-      onDisconnect: (details) => {
-        console.warn("[doctorVoice] session disconnected", details);
-        const disconnectReason =
-          typeof details === "object" && details && "reason" in details
-            ? String((details as { reason?: unknown }).reason ?? "")
-            : "";
-        if (!manualStopRef.current && disconnectReason === "agent" && reconnectAttemptsRef.current < 2) {
-          reconnectAttemptsRef.current += 1;
-          setCallActive(true);
-          setCallStarting(true);
-          setVoiceError(
-            t("health.doctorChoice.reconnecting", "El medico sigue contigo. Reconectando..."),
-          );
-          clearReconnectTimer();
-          reconnectTimerRef.current = window.setTimeout(() => {
-            void handleStartDoctorAgent(true);
-          }, 500);
-          return;
-        }
-        setCallActive(false);
-        setCallStarting(false);
-      },
-      onError: (message) => {
-        const readableMessage = typeof message === "string" ? message : "";
-        setCallActive(false);
-        setCallStarting(false);
-        setVoiceError(readableMessage || t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
-      },
-      onStatusChange: (nextStatus) => {
-        const normalizedStatus = readElevenStatus(nextStatus);
-        console.info("[doctorVoice] session status", normalizedStatus, nextStatus);
-        if (normalizedStatus === "connected") {
-          setVoiceError(null);
-          setCallActive(true);
-          setCallStarting(false);
-          promptDoctorListening(300);
-        }
-        if (normalizedStatus === "disconnected") {
-          setCallActive(false);
-          setCallStarting(false);
-        }
-      },
-      onModeChange: (nextMode) => {
-        const normalizedMode = readElevenMode(nextMode);
-        console.info("[doctorVoice] session mode", normalizedMode, nextMode);
-        if (normalizedMode === "listening") {
-          promptDoctorListening(120);
-        }
-      },
-      onAgentToolResponse: (toolResponse) => {
-        const toolName = readAgentToolName(toolResponse);
-        console.warn("[doctorVoice] session agent tool response", toolName, toolResponse);
-        if (toolName === "end_call") {
-          setVoiceError(
-            t(
-              "health.doctorChoice.agentEndedCall",
-              "El medico ha intentado cerrar la llamada. VYVA intentara mantener la conversacion abierta.",
-            ),
-          );
-        }
-      },
-    });
-    // Keep the UI in call mode while the ElevenLabs session remains alive.
-    setCallActive(true);
-    setCallStarting(false);
-    window.setTimeout(() => {
-      try {
-        setMuted(false);
-        sendUserActivity();
-      } catch (error) {
-        console.warn("[doctorVoice] Initial listening refresh failed.", error);
-      }
-    }, 650);
-  }, [clearReconnectTimer, promptDoctorListening, sendUserActivity, setMuted, startSession, t]);
-
-  const handleStartDoctorAgent = useCallback(async (isReconnect = false) => {
-    setVoiceError(null);
-    setCallStarting(true);
-    try {
-      const response = await fetch("/api/elevenlabs-conversation-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent_id: DOCTOR_AGENT_ID }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.signed_url) {
-        throw new Error(data?.error || "Unable to start doctor voice session");
-      }
-      startDoctorSession({ signedUrl: data.signed_url });
-    } catch (error) {
-      console.warn("[doctorVoice] Signed URL unavailable; trying direct ElevenLabs agent session.", error);
-      try {
-        startDoctorSession({ agentId: DOCTOR_AGENT_ID });
-      } catch (fallbackError) {
-        console.error("[doctorVoice] Direct ElevenLabs agent session failed.", fallbackError);
-        setCallActive(false);
-        setCallStarting(false);
-        setVoiceError(
-          isReconnect
-            ? t("health.doctorChoice.reconnectFailed", "La llamada se ha cortado. Toca de nuevo para seguir.")
-            : t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."),
-        );
-      }
-    }
-  }, [startDoctorSession, t]);
-
-  const isVoiceLive = callActive || callStarting || status === "connecting" || status === "connected" || isSpeaking || isListening;
-  const shouldStopCallFromHero = callActive || callStarting || status === "connecting" || status === "connected";
-  const heroVoiceLabel = shouldStopCallFromHero
+  const heroVoiceLabel = isVoiceLive
     ? t("health.doctorChoice.stopCall", stopCallFallback)
     : heroMessage?.ctaLabel ?? t("health.doctorChoice.talkNow", "Hablar ahora");
-  const handleHeroVoiceAction = () => {
-    if (shouldStopCallFromHero) {
-      stopDoctorSession();
-      return;
-    }
-    void handleStartDoctorAgent();
-  };
 
   return (
     <div className="vyva-page pb-[120px]">
@@ -345,7 +125,7 @@ const DoctorChoiceContent = () => {
         <button
           type="button"
           onClick={() => {
-            stopDoctorSession();
+            stopDoctorVoice();
             navigate("/health");
           }}
           className="vyva-tap inline-flex items-center gap-2 rounded-full bg-[#FFFDF9] px-5 py-3 font-body text-[16px] font-bold text-vyva-text-1 shadow-sm"
@@ -356,11 +136,14 @@ const DoctorChoiceContent = () => {
 
         <button
           type="button"
-          onClick={handleHeroVoiceAction}
+          onClick={() => {
+            stopDoctorVoice();
+            navigate("/health");
+          }}
           className="vyva-tap inline-flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#F5F3FF] text-vyva-purple shadow-sm"
-          aria-label={shouldStopCallFromHero ? t("common.stop", "Parar") : t("common.start", "Iniciar")}
+          aria-label={t("common.close", "Cerrar")}
         >
-          {shouldStopCallFromHero ? <X size={21} /> : <Mic size={22} />}
+          <X size={21} />
         </button>
       </div>
 
@@ -401,12 +184,12 @@ const DoctorChoiceContent = () => {
           onClick={handleHeroVoiceAction}
           aria-label={heroVoiceLabel}
           className={`vyva-tap mt-6 inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-full border px-5 font-body text-[20px] font-extrabold shadow-sm transition ${
-            shouldStopCallFromHero
+            isVoiceLive
               ? "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412]"
               : "border-vyva-border bg-white text-vyva-purple"
           }`}
         >
-          {shouldStopCallFromHero ? <X size={24} /> : <Mic size={24} />}
+          {isVoiceLive ? <X size={24} /> : <Mic size={24} />}
           {heroVoiceLabel}
         </button>
       </section>
