@@ -50,6 +50,9 @@ const DoctorChoiceContent = () => {
   const [callStarting, setCallStarting] = useState(false);
   const lastModeRef = useRef<"speaking" | "listening" | null>(null);
   const activityTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const manualStopRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
   const {
     startSession,
     endSession,
@@ -142,6 +145,13 @@ const DoctorChoiceContent = () => {
     }
   }, []);
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
   const promptDoctorListening = useCallback(
     (delay = 250) => {
       clearActivityTimer();
@@ -159,8 +169,11 @@ const DoctorChoiceContent = () => {
   );
 
   useEffect(() => {
-    return () => clearActivityTimer();
-  }, [clearActivityTimer]);
+    return () => {
+      clearActivityTimer();
+      clearReconnectTimer();
+    };
+  }, [clearActivityTimer, clearReconnectTimer]);
 
   useEffect(() => {
     if (!callActive && status !== "connected") return;
@@ -176,7 +189,10 @@ const DoctorChoiceContent = () => {
   }, [callActive, mode, promptDoctorListening, status]);
 
   const stopDoctorSession = () => {
+    manualStopRef.current = true;
+    reconnectAttemptsRef.current = 0;
     clearActivityTimer();
+    clearReconnectTimer();
     endSession();
     setCallActive(false);
     setCallStarting(false);
@@ -192,17 +208,37 @@ const DoctorChoiceContent = () => {
     navigate("/health/symptom-check");
   };
 
-  const startDoctorSession = (options: { signedUrl?: string; agentId?: string }) => {
+  const startDoctorSession = useCallback((options: { signedUrl?: string; agentId?: string }) => {
+    manualStopRef.current = false;
+    clearReconnectTimer();
     startSession({
       ...options,
       onConnect: () => {
         setVoiceError(null);
         setCallActive(true);
         setCallStarting(false);
+        reconnectAttemptsRef.current = 0;
         promptDoctorListening(400);
       },
       onDisconnect: (details) => {
         console.warn("[doctorVoice] session disconnected", details);
+        const disconnectReason =
+          typeof details === "object" && details && "reason" in details
+            ? String((details as { reason?: unknown }).reason ?? "")
+            : "";
+        if (!manualStopRef.current && disconnectReason === "agent" && reconnectAttemptsRef.current < 2) {
+          reconnectAttemptsRef.current += 1;
+          setCallActive(true);
+          setCallStarting(true);
+          setVoiceError(
+            t("health.doctorChoice.reconnecting", "El medico sigue contigo. Reconectando..."),
+          );
+          clearReconnectTimer();
+          reconnectTimerRef.current = window.setTimeout(() => {
+            void handleStartDoctorAgent(true);
+          }, 500);
+          return;
+        }
         setCallActive(false);
         setCallStarting(false);
       },
@@ -240,7 +276,7 @@ const DoctorChoiceContent = () => {
           setVoiceError(
             t(
               "health.doctorChoice.agentEndedCall",
-              "El agente ha cerrado la llamada. Revise la configuracion end_call en ElevenLabs.",
+              "El medico ha intentado cerrar la llamada. VYVA intentara mantener la conversacion abierta.",
             ),
           );
         }
@@ -257,9 +293,9 @@ const DoctorChoiceContent = () => {
         console.warn("[doctorVoice] Initial listening refresh failed.", error);
       }
     }, 650);
-  };
+  }, [clearReconnectTimer, promptDoctorListening, sendUserActivity, setMuted, startSession, t]);
 
-  const handleStartDoctorAgent = async () => {
+  const handleStartDoctorAgent = useCallback(async (isReconnect = false) => {
     setVoiceError(null);
     setCallStarting(true);
     try {
@@ -281,10 +317,14 @@ const DoctorChoiceContent = () => {
         console.error("[doctorVoice] Direct ElevenLabs agent session failed.", fallbackError);
         setCallActive(false);
         setCallStarting(false);
-        setVoiceError(t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."));
+        setVoiceError(
+          isReconnect
+            ? t("health.doctorChoice.reconnectFailed", "La llamada se ha cortado. Toca de nuevo para seguir.")
+            : t("health.doctorChoice.voiceError", "La voz no se ha podido iniciar. Puede tocar una opcion."),
+        );
       }
     }
-  };
+  }, [startDoctorSession, t]);
 
   const isVoiceLive = callActive || callStarting || status === "connecting" || status === "connected" || isSpeaking || isListening;
   const shouldStopCallFromHero = callActive || callStarting || status === "connecting" || status === "connected";
