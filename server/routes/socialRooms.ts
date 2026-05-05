@@ -67,6 +67,10 @@ function resolveUserId(req: Request): string | null {
   return null;
 }
 
+function resolvePublicUserId(req: Request): string {
+  return req.user?.id ?? DEMO_USER_ID;
+}
+
 function normalizeLanguage(raw?: string | null): SocialLanguage {
   if (!raw) return "es";
   if (raw.startsWith("de")) return "de";
@@ -585,8 +589,7 @@ async function updateVisitInterests(userId: string, roomSlug: string) {
 }
 
 router.get("/hub", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+  const userId = resolvePublicUserId(req);
 
   const profile = await loadProfileSummary(userId);
   const language = normalizeLanguage((req.query.lang as string | undefined) ?? profile.language);
@@ -626,9 +629,6 @@ router.get("/hub", async (req: Request, res: Response) => {
 });
 
 router.get("/rooms/:slug", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
-
   const language = normalizeLanguage(req.query.lang as string | undefined);
   const room = buildRoomPayload(req.params.slug, language);
   if (!room) return res.status(404).json({ error: "Room not found" });
