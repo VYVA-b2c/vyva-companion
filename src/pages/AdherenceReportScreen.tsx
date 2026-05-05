@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck, Flame, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ArrowLeft, BarChart2, Copy, AlertCircle, RefreshCw, ClipboardCheck, Flame, ShieldCheck, TriangleAlert, Sparkles, Clock3, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type DailyStatus = "taken" | "missed" | "none";
@@ -111,21 +111,81 @@ const AdherenceReportScreen = () => {
   const medicationsNeedingAttention = medications.filter((med) =>
     med.dailyStatus.includes("missed")
   );
+  const todayStillDueMeds = medications.filter(
+    (med) => med.dailyStatus[med.dailyStatus.length - 1] === "none"
+  );
   const todayCompletedCount = medications.filter(
     (med) => med.dailyStatus[med.dailyStatus.length - 1] === "taken"
   ).length;
-  const todayStillDueCount = medications.filter(
-    (med) => med.dailyStatus[med.dailyStatus.length - 1] === "none"
-  ).length;
+  const todayStillDueCount = todayStillDueMeds.length;
   const onTrackCount = medications.length - medicationsNeedingAttention.length;
   const bestStreak = medications.reduce((best, med) => Math.max(best, med.streak), 0);
   const attentionNames = medicationsNeedingAttention.slice(0, 3).map((med) => med.name);
+  const medicationInsights = medications.map((med) => {
+    const missedCount = med.dailyStatus.filter((status) => status === "missed").length;
+    const adherencePct = med.scheduled > 0 ? Math.round((med.taken / med.scheduled) * 100) : 0;
+    return { ...med, missedCount, adherencePct };
+  });
+  const mostMissedMedication = [...medicationInsights].sort((a, b) => {
+    if (a.missedCount !== b.missedCount) return b.missedCount - a.missedCount;
+    return a.name.localeCompare(b.name);
+  })[0];
+  const strongestMedication = [...medicationInsights].sort((a, b) => {
+    if (a.streak !== b.streak) return b.streak - a.streak;
+    if (a.adherencePct !== b.adherencePct) return b.adherencePct - a.adherencePct;
+    return a.name.localeCompare(b.name);
+  })[0];
   const sortedMedications = [...medications].sort((a, b) => {
     const aMissed = a.dailyStatus.filter((status) => status === "missed").length;
     const bMissed = b.dailyStatus.filter((status) => status === "missed").length;
     if (aMissed !== bMissed) return bMissed - aMissed;
     return a.name.localeCompare(b.name);
   });
+
+  const insights = [
+    {
+      icon: Clock3,
+      iconBg: "#FEF3C7",
+      iconColor: "#C9890A",
+      title: t("meds.adherence.insightNextStepTitle"),
+      body:
+        todayStillDueMeds.length === 1
+          ? t("meds.adherence.insightNextStepSingle", { name: todayStillDueMeds[0].name })
+          : todayStillDueMeds.length > 1
+            ? t("meds.adherence.insightNextStepMultiple", { count: todayStillDueMeds.length })
+            : medicationsNeedingAttention.length > 0
+              ? t("meds.adherence.insightNextStepReview", { name: attentionNames[0] })
+              : t("meds.adherence.insightNextStepClear"),
+    },
+    {
+      icon: Sparkles,
+      iconBg: "#ECFDF5",
+      iconColor: "#0A7C4E",
+      title: t("meds.adherence.insightHabitTitle"),
+      body:
+        strongestMedication?.streak > 0
+          ? t("meds.adherence.insightHabitBody", {
+              name: strongestMedication.name,
+              streak: strongestMedication.streak,
+            })
+          : strongestMedication
+            ? t("meds.adherence.insightHabitBodyNoStreak", { name: strongestMedication.name })
+            : t("meds.adherence.insightHabitBodyEmpty"),
+    },
+    {
+      icon: Target,
+      iconBg: "#F5F3FF",
+      iconColor: "#6B21A8",
+      title: t("meds.adherence.insightFocusTitle"),
+      body:
+        mostMissedMedication && mostMissedMedication.missedCount > 0
+          ? t("meds.adherence.insightFocusBody", {
+              name: mostMissedMedication.name,
+              count: mostMissedMedication.missedCount,
+            })
+          : t("meds.adherence.insightFocusBodyClear"),
+    },
+  ];
 
   const summaryTone =
     medicationsNeedingAttention.length === 0
@@ -157,7 +217,7 @@ const AdherenceReportScreen = () => {
           };
   const SummaryIcon = summaryTone.icon;
 
-  function handleShare() {
+  async function handleShare() {
     if (!data) return;
 
     const attentionLine =
@@ -168,36 +228,75 @@ const AdherenceReportScreen = () => {
           })
         : t("meds.adherence.shareAllOnTrack");
 
-    const medsText = data.perMedication
+    const medsText = sortedMedications
       .map((m) =>
-        t("meds.adherence.shareFormatMed", {
+        `- ${t("meds.adherence.shareFormatMed", {
           name: m.name,
           dosage: m.dosage || t("meds.adherence.dosageFallback"),
           taken: m.taken,
           scheduled: m.scheduled,
           streak: m.streak,
-        })
+        })}`
       )
       .join("\n");
 
-    const text = t("meds.adherence.shareFormat", {
-      week: data.weekPct,
-      month: data.monthPct,
-      attention: attentionLine,
-      meds: medsText,
-    });
+    const insightLines = insights
+      .map((item) => `- ${item.title}: ${item.body}`)
+      .join("\n");
 
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        toast({
-          title: t("meds.adherence.shareCopied"),
-          description: t("meds.adherence.shareCopiedDesc"),
+    const todayLine =
+      todayStillDueCount > 0
+        ? t("meds.adherence.todayNeedsAttention", { count: todayStillDueCount })
+        : t("meds.adherence.todayAllCovered");
+
+    const text = [
+      t("meds.adherence.title"),
+      "",
+      `${t("meds.adherence.thisWeek")}: ${data.weekPct}%`,
+      `${t("meds.adherence.last30Days")}: ${data.monthPct}%`,
+      `${t("meds.adherence.todayTitle")}: ${todayLine}`,
+      `${t("meds.adherence.attentionTitle")}: ${attentionLine}`,
+      "",
+      `${t("meds.adherence.insightsTitle")}:`,
+      insightLines,
+      "",
+      `${t("meds.adherence.perMedication")}:`,
+      medsText,
+      "",
+      t("meds.adherence.shareFooter"),
+    ].join("\n");
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: t("meds.adherence.shareTitle"),
+          text,
         });
-      })
-      .catch(() => {
-        toast({ title: t("meds.adherence.shareCopied"), description: text });
+        toast({
+          title: t("meds.adherence.shareShared"),
+          description: t("meds.adherence.shareSharedDesc"),
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: t("meds.adherence.shareCopied"),
+        description: t("meds.adherence.shareCopiedDesc"),
       });
+    } catch {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          toast({
+            title: t("meds.adherence.shareCopied"),
+            description: t("meds.adherence.shareCopiedDesc"),
+          });
+        })
+        .catch(() => {
+          toast({ title: t("meds.adherence.shareCopied"), description: text });
+        });
+    }
   }
 
   const hasData = data && data.hasLogs;
@@ -378,6 +477,43 @@ const AdherenceReportScreen = () => {
               <div className="flex justify-around px-[18px] py-[24px]">
                 <PctRing pct={data.weekPct} label={t("meds.adherence.thisWeek")} />
                 <PctRing pct={data.monthPct} label={t("meds.adherence.last30Days")} />
+              </div>
+            </div>
+
+            <div
+              className="bg-white rounded-[20px] border border-vyva-border overflow-hidden mb-[14px]"
+              style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}
+            >
+              <div className="px-[18px] py-[13px] border-b border-vyva-border" style={{ background: "#F5EFE4" }}>
+                <span className="font-body text-[14px] font-medium text-vyva-text-1">
+                  {t("meds.adherence.insightsTitle")}
+                </span>
+              </div>
+              <div className="px-[18px] py-[16px] flex flex-col gap-3">
+                {insights.map((item, index) => {
+                  const InsightIcon = item.icon;
+                  return (
+                    <div
+                      key={index}
+                      className="rounded-[18px] border border-vyva-border bg-[#FCFBF8] px-4 py-4 flex items-start gap-3"
+                    >
+                      <div
+                        className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0"
+                        style={{ background: item.iconBg }}
+                      >
+                        <InsightIcon size={18} style={{ color: item.iconColor }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-body text-[13px] font-semibold text-vyva-text-1">
+                          {item.title}
+                        </p>
+                        <p className="font-body text-[14px] text-vyva-text-2 mt-1">
+                          {item.body}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
