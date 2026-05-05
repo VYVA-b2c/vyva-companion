@@ -224,18 +224,20 @@ function resolveSocialAgentId(agentSlug?: string, roomSlug?: string) {
     };
   }
 
-  const keys = [
+  const fixedAgentId = FIXED_AGENT_IDS[resolvedSlug];
+  const slugKey = envSlug(resolvedSlug);
+  const explicitSlugKeys = [
     ...(TOP_LEVEL_AGENT_ENV_KEYS[resolvedSlug] ?? []),
     ...(SOCIAL_AGENT_ENV_KEYS[resolvedSlug] ?? []),
-    `ELEVENLABS_AGENT_${resolvedSlug.toUpperCase()}`,
-    `ELEVENLABS_SOCIAL_AGENT_${resolvedSlug.toUpperCase()}`,
-    `VITE_ELEVENLABS_AGENT_${resolvedSlug.toUpperCase()}`,
-    `VITE_ELEVENLABS_SOCIAL_AGENT_${resolvedSlug.toUpperCase()}`,
-    ...DEFAULT_AGENT_ENV_KEYS,
+    `ELEVENLABS_AGENT_${slugKey}`,
+    `ELEVENLABS_SOCIAL_AGENT_${slugKey}`,
+    `VITE_ELEVENLABS_AGENT_${slugKey}`,
+    `VITE_ELEVENLABS_SOCIAL_AGENT_${slugKey}`,
   ];
+  const keys = fixedAgentId ? explicitSlugKeys : [...explicitSlugKeys, ...DEFAULT_AGENT_ENV_KEYS];
 
   return {
-    agentId: readFirstEnv(keys) ?? FIXED_AGENT_IDS[resolvedSlug],
+    agentId: readFirstEnv(keys) ?? fixedAgentId,
     resolvedSlug,
     source: "slug",
     expectedKeys: keys,

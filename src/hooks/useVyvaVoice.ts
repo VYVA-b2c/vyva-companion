@@ -85,6 +85,7 @@ type StartVoiceOptions = {
   roomSlug?: string;
   skipMicrophone?: boolean;
   autoStartListening?: boolean;
+  dynamicVariables?: Record<string, string | number | boolean>;
 };
 
 type SendTextOptions = {
@@ -241,6 +242,7 @@ export function useVyvaVoice() {
         const conversation = await Conversation.startSession({
           ...sessionOptions,
           textOnly: skipMicrophone,
+          dynamicVariables: options?.dynamicVariables,
           overrides: systemPrompt
             ? { agent: { prompt: { prompt: systemPrompt } } }
             : undefined,

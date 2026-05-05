@@ -2,15 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, HeartPulse, Mic, Stethoscope, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 
 const DOCTOR_AGENT_SLUG = "doctor";
+const FALLBACK_DOCTOR_USER_ID = "vyva-local-user";
+
+function createDoctorConversationId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `doctor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 const DoctorChoiceScreen = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const { profile, firstName } = useProfile();
   const {
     startVoice,
     stopVoice,
@@ -70,8 +82,13 @@ const DoctorChoiceScreen = () => {
     setVoiceError(null);
     await startVoice(undefined, undefined, {
       agentSlug: DOCTOR_AGENT_SLUG,
+      dynamicVariables: {
+        first_name: firstName?.trim() || profile?.firstName?.trim() || "there",
+        user_id: user?.id ?? FALLBACK_DOCTOR_USER_ID,
+        conversation_id: createDoctorConversationId(),
+      },
     });
-  }, [startVoice]);
+  }, [firstName, profile?.firstName, startVoice, user?.id]);
 
   const stopDoctorVoice = useCallback(() => {
     userStoppedRef.current = true;
