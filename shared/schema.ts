@@ -21,7 +21,7 @@
 
 import {
   pgTable, pgEnum, unique,
-  text, integer, boolean, real, timestamp, uuid, jsonb
+  text, integer, boolean, real, timestamp, uuid, jsonb, date, time
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -1184,6 +1184,98 @@ export const insertScheduledEventLogSchema = createInsertSchema(scheduledEventLo
 export type InsertScheduledEventLog = z.infer<typeof insertScheduledEventLogSchema>;
 export type ScheduledEventLog = typeof scheduledEventLogs.$inferSelect;
 
+export const userProviders = pgTable("user_providers", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  user_id:      text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  category:     text("category").notNull(),
+  name:         text("name").notNull(),
+  phone:        text("phone"),
+  address:      text("address"),
+  place_id:     text("place_id"),
+  maps_url:     text("maps_url"),
+  notes:        text("notes"),
+  is_primary:   boolean("is_primary").notNull().default(true),
+  is_active:    boolean("is_active").notNull().default(true),
+  last_used_at: timestamp("last_used_at", { withTimezone: true }),
+  use_count:    integer("use_count").notNull().default(0),
+  language:     text("language").notNull().default("es"),
+  created_at:   timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at:   timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertUserProviderSchema = createInsertSchema(userProviders).omit({ id: true, created_at: true, updated_at: true });
+export type InsertUserProvider = z.infer<typeof insertUserProviderSchema>;
+export type UserProvider = typeof userProviders.$inferSelect;
+
+export const conciergePending = pgTable("concierge_pending", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  user_id:          text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  use_case:         text("use_case").notNull(),
+  provider_id:      uuid("provider_id").references(() => userProviders.id, { onDelete: "set null" }),
+  provider_name:    text("provider_name"),
+  provider_phone:   text("provider_phone"),
+  found_externally: boolean("found_externally").notNull().default(false),
+  action_summary:   text("action_summary").notNull(),
+  action_payload:   jsonb("action_payload").notNull().default({}),
+  status:           text("status").notNull().default("pending"),
+  language:         text("language").notNull().default("es"),
+  confirmed_at:     timestamp("confirmed_at", { withTimezone: true }).defaultNow(),
+  expires_at:       timestamp("expires_at", { withTimezone: true }).default(sql`now() + interval '30 minutes'`),
+  updated_at:       timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertConciergePendingSchema = createInsertSchema(conciergePending).omit({ id: true, confirmed_at: true, expires_at: true, updated_at: true });
+export type InsertConciergePending = z.infer<typeof insertConciergePendingSchema>;
+export type ConciergePending = typeof conciergePending.$inferSelect;
+
+export const conciergeSessions = pgTable("concierge_sessions", {
+  id:                    uuid("id").primaryKey().defaultRandom(),
+  user_id:               text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  pending_id:            uuid("pending_id").references(() => conciergePending.id, { onDelete: "set null" }),
+  use_case:              text("use_case").notNull(),
+  provider_id:           uuid("provider_id").references(() => userProviders.id, { onDelete: "set null" }),
+  provider_name:         text("provider_name"),
+  provider_phone:        text("provider_phone"),
+  found_externally:      boolean("found_externally").notNull().default(false),
+  action_summary:        text("action_summary"),
+  action_payload:        jsonb("action_payload").default({}),
+  outcome:               text("outcome").notNull().default("pending"),
+  outcome_payload:       jsonb("outcome_payload").default({}),
+  outcome_summary:       text("outcome_summary"),
+  family_notified:       boolean("family_notified").notNull().default(false),
+  call_duration_seconds: integer("call_duration_seconds"),
+  location_type:         text("location_type"),
+  started_at:            timestamp("started_at", { withTimezone: true }).defaultNow(),
+  completed_at:          timestamp("completed_at", { withTimezone: true }),
+});
+
+export const insertConciergeSessionSchema = createInsertSchema(conciergeSessions).omit({ id: true, started_at: true });
+export type InsertConciergeSession = z.infer<typeof insertConciergeSessionSchema>;
+export type ConciergeSession = typeof conciergeSessions.$inferSelect;
+
+export const conciergeReminders = pgTable("concierge_reminders", {
+  id:                  uuid("id").primaryKey().defaultRandom(),
+  user_id:             text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  reminder_type:       text("reminder_type").notNull(),
+  title:               text("title").notNull(),
+  description:         text("description"),
+  reminder_date:       date("reminder_date").notNull(),
+  reminder_time:       time("reminder_time"),
+  advance_notice_days: integer("advance_notice_days").notNull().default(1),
+  source_session_id:   uuid("source_session_id").references(() => conciergeSessions.id, { onDelete: "set null" }),
+  source_use_case:     text("source_use_case"),
+  language:            text("language").notNull().default("es"),
+  is_active:           boolean("is_active").notNull().default(true),
+  triggered:           boolean("triggered").notNull().default(false),
+  triggered_at:        timestamp("triggered_at", { withTimezone: true }),
+  created_at:          timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at:          timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertConciergeReminderSchema = createInsertSchema(conciergeReminders).omit({ id: true, created_at: true, updated_at: true });
+export type InsertConciergeReminder = z.infer<typeof insertConciergeReminderSchema>;
+export type ConciergeReminder = typeof conciergeReminders.$inferSelect;
+
 export const utilityReviewRuns = pgTable("utility_review_runs", {
   id:                    uuid("id").primaryKey().defaultRandom(),
   user_id:               text("user_id").notNull(),
@@ -1321,6 +1413,10 @@ export const schema = {
   communicationsLog,
   scheduledEvents,
   scheduledEventLogs,
+  userProviders,
+  conciergePending,
+  conciergeSessions,
+  conciergeReminders,
   utilityReviewRuns,
   conciergeRecommendationFeedback,
   homePlanCards,
