@@ -199,6 +199,7 @@ export const profiles = pgTable("profiles", {
   subscription_tier:      text("subscription_tier").notNull().default("free"),
   trial_ends_at:          timestamp("trial_ends_at", { withTimezone: true }),
   account_status:         text("account_status").notNull().default("enabled"),
+  role:                   text("role").notNull().default("user"),
   disabled_at:            timestamp("disabled_at", { withTimezone: true }),
   disabled_reason:        text("disabled_reason"),
   disabled_by:            text("disabled_by"),

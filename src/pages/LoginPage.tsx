@@ -1,22 +1,23 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryClient } from "@/lib/queryClient";
 import { stageToRoute } from "@/lib/onboardingRoute";
+import { hasSupabaseAuthConfig, sendSupabasePasswordReset } from "@/lib/supabaseAuth";
 
 type View = "login" | "register" | "forgot";
 
-export default function LoginPage() {
+export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }) {
   const { login, register, user, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const rawFrom = (location.state as { from?: string })?.from;
-  const from = rawFrom && rawFrom !== "/onboarding" ? rawFrom : null;
+  const from = rawFrom && rawFrom !== "/onboarding" ? rawFrom : adminOnly ? "/admin/lifecycle" : null;
 
-  const [mode, setMode] = useState<"login" | "register">("register");
-  const [view, setView] = useState<View>("register");
+  const [mode, setMode] = useState<"login" | "register">(adminOnly ? "login" : "register");
+  const [view, setView] = useState<View>(adminOnly ? "login" : "register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
 
   const switchTab = (tab: "login" | "register") => {
+    if (adminOnly && tab === "register") return;
     setMode(tab);
     setView(tab);
     setError(null);
@@ -43,8 +45,18 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    if (!adminOnly) return;
+    setMode("login");
+    setView("login");
+  }, [adminOnly]);
+
+  useEffect(() => {
     if (isLoading) return;
     if (!user) return;
+    if (from) {
+      navigate(from, { replace: true });
+      return;
+    }
     queryClient
       .fetchQuery({ queryKey: ["/api/onboarding/state"] })
       .then((data: { onboardingState?: { current_stage?: string }; profile?: { current_stage?: string } }) => {
@@ -62,6 +74,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (mode === "register") {
+        if (adminOnly) throw new Error("Admin accounts can only be created by the super admin after sign in.");
         await register(email.trim(), password);
         navigate("/onboarding/basics", { replace: true });
       } else {
@@ -92,6 +105,12 @@ export default function LoginPage() {
     setForgotError(null);
     setForgotLoading(true);
     try {
+      if (hasSupabaseAuthConfig()) {
+        await sendSupabasePasswordReset(forgotEmail.trim());
+        setForgotSent(true);
+        return;
+      }
+
       const res = await fetch("/api/auth/reset-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,17 +134,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-vyva-cream flex flex-col items-center justify-between px-6 py-12">
       {/* Logo */}
-      <div className="flex flex-col items-center gap-3 mt-6">
-        <div
-          className="w-16 h-16 rounded-[20px] flex items-center justify-center shadow-lg"
-          style={{ background: "#6B21A8" }}
-        >
-          <Sparkles size={28} className="text-white" />
-        </div>
-        <h1 className="font-display text-[28px] font-semibold text-vyva-text-1">VYVA</h1>
+      <div className="flex flex-col items-center gap-4 mt-6">
+        <img
+          src="/assets/vyva/vyva-logo-english-slogan.png"
+          alt="VYVA"
+          className="h-auto w-[300px] max-w-[82vw]"
+        />
         <p className="font-body text-[14px] text-vyva-text-2 text-center max-w-[260px]">
           {view === "forgot"
             ? "Enter your email to receive a reset link"
+            : adminOnly
+            ? "Sign in with your admin account"
             : mode === "register"
             ? "Create your account to get started"
             : "Welcome back"}
@@ -196,15 +215,17 @@ export default function LoginPage() {
           <>
             {/* Tab switcher */}
             <div className="flex rounded-full bg-white border border-vyva-border p-1 gap-1">
-              <button
-                data-testid="button-auth-tab-register"
-                onClick={() => switchTab("register")}
-                className={`flex-1 py-2 rounded-full font-body text-[14px] font-medium transition-colors ${
-                  mode === "register" ? "bg-vyva-purple text-white" : "text-vyva-text-2"
-                }`}
-              >
-                Create account
-              </button>
+              {!adminOnly && (
+                <button
+                  data-testid="button-auth-tab-register"
+                  onClick={() => switchTab("register")}
+                  className={`flex-1 py-2 rounded-full font-body text-[14px] font-medium transition-colors ${
+                    mode === "register" ? "bg-vyva-purple text-white" : "text-vyva-text-2"
+                  }`}
+                >
+                  Create account
+                </button>
+              )}
               <button
                 data-testid="button-auth-tab-login"
                 onClick={() => switchTab("login")}

@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getToken, setToken, clearToken, isAuthenticated } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
+import { hasSupabaseAuthConfig, signInWithSupabase, signUpWithSupabase } from "@/lib/supabaseAuth";
 
 const ONBOARDING_STATE_KEY = ["/api/onboarding/state"] as const;
 
 interface AuthUser {
   id: string;
   email: string;
+  role: string;
 }
 
 interface AuthContextValue {
@@ -20,6 +22,24 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function loadCurrentUser(token: string, fallback?: { userId?: string; email?: string }): Promise<AuthUser> {
+  const response = await fetch("/api/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? "Could not load your account");
+  }
+
+  const data = await response.json();
+  return {
+    id: data.id ?? fallback?.userId ?? "",
+    email: data.email ?? fallback?.email ?? "",
+    role: data.role ?? "user",
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -59,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         if (data?.id && data?.email) {
           setTokenState(stored);
-          setUser({ id: data.id, email: data.email });
+          setUser({ id: data.id, email: data.email, role: data.role ?? "user" });
           setLastSeenAt(data.prevSeenAt ?? null);
           queryClient.prefetchQuery({ queryKey: ONBOARDING_STATE_KEY });
         } else {
@@ -71,6 +91,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    if (hasSupabaseAuthConfig()) {
+      const session = await signInWithSupabase(email, password);
+      const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
+      applyToken(session.token, currentUser, null);
+      return;
+    }
+
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,10 +105,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Login failed");
-    applyToken(data.token, { id: data.userId, email: data.email }, data.prevSeenAt ?? null);
+    applyToken(data.token, { id: data.userId, email: data.email, role: data.role ?? "user" }, data.prevSeenAt ?? null);
   }, [applyToken]);
 
   const register = useCallback(async (email: string, password: string) => {
+    if (hasSupabaseAuthConfig()) {
+      const session = await signUpWithSupabase(email, password);
+      const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
+      applyToken(session.token, currentUser, null);
+      return;
+    }
+
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
-    applyToken(data.token, { id: data.userId, email: data.email }, null);
+    applyToken(data.token, { id: data.userId, email: data.email, role: data.role ?? "user" }, null);
   }, [applyToken]);
 
   return (

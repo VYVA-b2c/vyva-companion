@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import AdminMenu from "./AdminMenu";
+import { apiFetch } from "@/lib/queryClient";
 
 type Intake = {
   id: string;
@@ -104,7 +105,6 @@ type HomePlanCardAdmin = {
   updated_at?: string;
 };
 
-const ADMIN_KEY_STORAGE = "vyva_admin_lifecycle_key";
 const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
 const statuses = ["", "created", "link_sent", "consent_pending", "active", "dropped"];
@@ -136,6 +136,10 @@ const emptyIntakeForm = {
   entry_point: "form",
   tier: "trial",
   organization_id: "",
+  elder_first_name: "",
+  elder_last_name: "",
+  elder_phone: "",
+  elder_email: "",
 };
 
 const emptyScheduledEvent = {
@@ -210,7 +214,6 @@ function textToKeywords(value: string) {
 }
 
 export default function LifecycleAdminPage() {
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [activeTab, setActiveTab] = useState("users");
   const [filters, setFilters] = useState({ entry_point: "", user_type: "", status: "", tier: "" });
   const [summary, setSummary] = useState<JsonRecord | null>(null);
@@ -230,20 +233,14 @@ export default function LifecycleAdminPage() {
   const [bulkPreview, setBulkPreview] = useState<BulkPreviewResponse | null>(null);
   const [sendBulkLinks, setSendBulkLinks] = useState(false);
 
-  const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
-
   async function api(path: string, options: RequestInit = {}) {
-    const res = await fetch(`/api/admin/lifecycle${path}`, {
-      ...options,
-      headers: { ...headers, ...(options.headers ?? {}) },
-    });
+    const res = await apiFetch(`/api/admin/lifecycle${path}`, options);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Admin request failed");
     return data;
   }
 
   async function refresh() {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
     const [summaryData, userData, orgData, consentData, commsData] = await Promise.all([
@@ -270,6 +267,7 @@ export default function LifecycleAdminPage() {
     const fullName = `${newIntake.first_name.trim()} ${newIntake.last_name.trim()}`.trim();
     const [callingCode, countryCode = "ES"] = newIntake.country_code.split(" ");
     const phone = `${callingCode} ${newIntake.phone.trim()}`.trim();
+    const elderName = `${newIntake.elder_first_name.trim()} ${newIntake.elder_last_name.trim()}`.trim();
     const data = await api("/intakes", {
       method: "POST",
       body: JSON.stringify({
@@ -280,6 +278,13 @@ export default function LifecycleAdminPage() {
         user_type: newIntake.user_type,
         entry_point: newIntake.entry_point,
         tier: newIntake.tier,
+        elder: newIntake.user_type === "family"
+          ? {
+            name: elderName,
+            phone: newIntake.elder_phone.trim(),
+            email: newIntake.elder_email.trim(),
+          }
+          : undefined,
         metadata: {
           first_name: newIntake.first_name.trim(),
           last_name: newIntake.last_name.trim(),
@@ -474,6 +479,17 @@ export default function LifecycleAdminPage() {
   const visibleOrganizations = organizations.filter((org) => (
     orgFilter === "all" ? true : orgFilter === "active" ? org.is_active : !org.is_active
   ));
+  const creatingFamilyIntake = newIntake.user_type === "family";
+  const canCreateIntake = Boolean(
+    newIntake.first_name.trim()
+      && newIntake.last_name.trim()
+      && newIntake.phone.trim()
+      && (!creatingFamilyIntake || (
+        newIntake.elder_first_name.trim()
+        && newIntake.elder_last_name.trim()
+        && newIntake.elder_phone.trim()
+      ))
+  );
 
   return (
     <main className="min-h-screen bg-[#f7f2eb] px-6 py-8 text-[#2f2135]">
@@ -483,7 +499,6 @@ export default function LifecycleAdminPage() {
           <h1 className="mt-2 font-serif text-4xl">Signup, Access and Lifecycle</h1>
           <p className="mt-2 text-[#7d6b65]">One operating layer for form, phone, WhatsApp and admin-created users.</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <input className="min-w-[260px] rounded-2xl border border-[#e4d8ce] px-4 py-3" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="Admin key" />
             <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => refresh().catch((err) => setMessage(err.message))}>Refresh</button>
             {message && <span className="rounded-2xl bg-purple-50 px-4 py-3 text-purple-800">{message}</span>}
           </div>
@@ -536,7 +551,7 @@ export default function LifecycleAdminPage() {
           <section className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
             <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
               <h2 className="font-serif text-3xl">Create intake</h2>
-              <p className="mt-2 text-sm text-[#7d6b65]">Basic profile details, matching the user settings form.</p>
+              <p className="mt-2 text-sm text-[#7d6b65]">{creatingFamilyIntake ? "Family contact first, then the elder who needs consent." : "Basic profile details, matching the user settings form."}</p>
               <div className="mt-4 grid gap-3">
                 <div className="grid gap-3 md:grid-cols-2">
                   <Field label="First name" required><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.first_name} onChange={(e) => setNewIntake({ ...newIntake, first_name: e.target.value })} /></Field>
@@ -567,13 +582,26 @@ export default function LifecycleAdminPage() {
                   <Field label="Timezone" optional><select className="w-full rounded-2xl border px-4 py-3" value={newIntake.timezone} onChange={(e) => setNewIntake({ ...newIntake, timezone: e.target.value })}>{timezoneOptions.map((value) => <option key={value}>{value}</option>)}</select></Field>
                 </div>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.user_type} onChange={(e) => setNewIntake({ ...newIntake, user_type: e.target.value })}>{userTypes.filter(Boolean).map((v) => <option key={v}>{v}</option>)}</select>
+                {creatingFamilyIntake && (
+                  <div className="rounded-3xl border border-purple-100 bg-purple-50 p-4">
+                    <p className="font-bold text-purple-900">Elder details for consent</p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <Field label="Elder first name" required><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.elder_first_name} onChange={(e) => setNewIntake({ ...newIntake, elder_first_name: e.target.value })} /></Field>
+                      <Field label="Elder last name" required><input className="w-full rounded-2xl border px-4 py-3" value={newIntake.elder_last_name} onChange={(e) => setNewIntake({ ...newIntake, elder_last_name: e.target.value })} /></Field>
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <Field label="Elder phone" required><input className="w-full rounded-2xl border px-4 py-3" placeholder="+34 612 345 678" value={newIntake.elder_phone} onChange={(e) => setNewIntake({ ...newIntake, elder_phone: e.target.value })} /></Field>
+                      <Field label="Elder email" optional><input className="w-full rounded-2xl border px-4 py-3" placeholder="elder@example.com" value={newIntake.elder_email} onChange={(e) => setNewIntake({ ...newIntake, elder_email: e.target.value })} /></Field>
+                    </div>
+                  </div>
+                )}
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.entry_point} onChange={(e) => setNewIntake({ ...newIntake, entry_point: e.target.value })}>{entryPoints.filter(Boolean).map((v) => <option key={v}>{v}</option>)}</select>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.tier} onChange={(e) => setNewIntake({ ...newIntake, tier: e.target.value })}>{tiers.map((v) => <option key={v}>{v}</option>)}</select>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.organization_id} onChange={(e) => setNewIntake({ ...newIntake, organization_id: e.target.value })}>
                   <option value="">No organization</option>
                   {organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                 </select>
-                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={!newIntake.first_name.trim() || !newIntake.last_name.trim() || !newIntake.phone.trim()} onClick={createIntake}>Create intake</button>
+                <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:opacity-50" disabled={!canCreateIntake} onClick={createIntake}>Create intake</button>
               </div>
             </div>
             <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">

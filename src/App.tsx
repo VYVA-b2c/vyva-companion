@@ -1,12 +1,13 @@
-import type React from "react";
+import React, { lazy, Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { BrowserRouter, Route, Routes, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -68,13 +69,15 @@ import SubscriptionSettings from "./pages/settings/SubscriptionSettings";
 import SettingsHome from "./pages/settings/SettingsHome";
 import AccountSettings from "./pages/settings/AccountSettings";
 import NotificationsSettings from "./pages/settings/NotificationsSettings";
-import ProxyPendingPage from "./pages/admin/ProxyPendingPage";
-import LifecycleAdminPage from "./pages/admin/LifecycleAdminPage";
-import HomeCardsAdminPage from "./pages/admin/HomeCardsAdminPage";
-import HeroMessagesAdminPage from "./pages/admin/HeroMessagesAdminPage";
 import CaregiverDashboardPage from "./pages/CaregiverDashboardPage";
 import SocialHub from "./social/SocialHub";
 import RoomScreen from "./social/RoomScreen";
+
+const ProxyPendingPage = lazy(() => import("./pages/admin/ProxyPendingPage"));
+const LifecycleAdminPage = lazy(() => import("./pages/admin/LifecycleAdminPage"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
+const HomeCardsAdminPage = lazy(() => import("./pages/admin/HomeCardsAdminPage"));
+const HeroMessagesAdminPage = lazy(() => import("./pages/admin/HeroMessagesAdminPage"));
 
 const SECTION_MAP: Record<string, React.ComponentType> = {
   allergies: AllergiesSection,
@@ -116,6 +119,31 @@ function SectionRouter() {
   );
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <div className="min-h-screen bg-[#f7f2eb]" />;
+  if (!user) return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+  if (user.role !== "admin") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f7f2eb] px-6 text-center text-[#2f2135]">
+        <section className="max-w-md rounded-3xl border border-[#eadfd5] bg-white p-6 shadow-sm">
+          <p className="text-sm font-bold uppercase tracking-[0.22em] text-purple-700">VYVA Admin</p>
+          <h1 className="mt-2 font-serif text-3xl">Admin access required</h1>
+          <p className="mt-2 text-sm text-[#7d6b65]">Your account is signed in, but it does not have the admin role.</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f7f2eb]" />}>
+      {children}
+    </Suspense>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -126,14 +154,16 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/admin/login" element={<LoginPage adminOnly />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/access/:token" element={<AccessLinkPage />} />
                 <Route path="/confirm/:token" element={<ElderConfirmByToken />} />
                 <Route path="/shared/check-in/:token" element={<SharedCheckinReport />} />
-                <Route path="/admin/proxy-pending" element={<ProxyPendingPage />} />
-                <Route path="/admin/lifecycle" element={<LifecycleAdminPage />} />
-                <Route path="/admin/home-cards" element={<HomeCardsAdminPage />} />
-                <Route path="/admin/hero-messages" element={<HeroMessagesAdminPage />} />
+                <Route path="/admin/proxy-pending" element={<AdminRoute><ProxyPendingPage /></AdminRoute>} />
+                <Route path="/admin/lifecycle" element={<AdminRoute><LifecycleAdminPage /></AdminRoute>} />
+                <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+                <Route path="/admin/home-cards" element={<AdminRoute><HomeCardsAdminPage /></AdminRoute>} />
+                <Route path="/admin/hero-messages" element={<AdminRoute><HeroMessagesAdminPage /></AdminRoute>} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>
                     <Route path="/onboarding" element={<WelcomeScreen />} />
