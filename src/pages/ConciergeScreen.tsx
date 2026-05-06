@@ -694,16 +694,16 @@ async function analyzeBillDocument(image: string, locale: string): Promise<BillD
   const res = lastResponse;
   if (!res) {
     throw billReaderError(locale.startsWith("es")
-      ? "No he podido conectar con el lector de facturas. Reinicie la app en Replit y pruebe de nuevo."
-      : "I could not connect to the bill reader. Restart the app in Replit and try again.");
+      ? "No he podido conectar con el lector de facturas. Reinicie la app y pruebe de nuevo."
+      : "I could not connect to the bill reader. Restart the app and try again.");
   }
 
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null;
     if (res.status === 404) {
       throw billReaderError(locale.startsWith("es")
-        ? "El lector de facturas todavia no esta activo en el servidor. Actualice el codigo y reinicie la app en Replit."
-        : "The bill reader is not active on the server yet. Pull the latest code and restart the app in Replit.", res.status);
+        ? "El lector de facturas todavia no esta activo en el servidor. Actualice el codigo y reinicie la app."
+        : "The bill reader is not active on the server yet. Pull the latest code and restart the app.", res.status);
     }
     if (res.status === 413) {
       const sizeMb = (image.length / 1024 / 1024).toFixed(1);

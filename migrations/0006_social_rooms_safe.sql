@@ -1,8 +1,8 @@
--- Safe additive migration for Replit environments that are missing
+-- Safe additive migration for hosted environments that are missing
 -- the Social Rooms schema. This file only creates missing objects.
 -- It does not drop or alter existing non-social tables.
 
--- Needed for gen_random_uuid() in Postgres / Replit DB
+-- Needed for gen_random_uuid() in Postgres.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS social_rooms (

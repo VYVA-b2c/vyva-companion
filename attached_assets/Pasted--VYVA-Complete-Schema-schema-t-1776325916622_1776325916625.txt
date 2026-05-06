@@ -15,7 +15,7 @@
 //   - user_channel_preferences: per-user channel settings
 //   - inbound_number_routing: local number → deployment map
 //
-// NOTE: profiles.id is TEXT (auth provider ID, e.g. Clerk/Replit).
+// NOTE: profiles.id is TEXT (external auth provider ID).
 // All foreign keys use TEXT to match. No UUIDs for user references.
 // ============================================================
 

@@ -65,8 +65,8 @@ const localStorageAdapter: GameStorageAdapter = {
   },
 };
 
-// TODO: Add a server-backed Replit Database adapter for authenticated users.
-// TODO: Prefer the server adapter when Replit DB is available, and keep localStorage as offline fallback.
+// TODO: Add a server-backed database adapter for authenticated users.
+// TODO: Prefer the server adapter when a database is available, and keep localStorage as offline fallback.
 const adapter: GameStorageAdapter = localStorageAdapter;
 
 export async function saveGameResult(result: GameResult): Promise<void> {

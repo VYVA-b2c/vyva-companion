@@ -600,12 +600,10 @@ onboardingRouter.post("/proxy", async (req: Request, res: Response) => {
       });
 
     // Build the direct confirmation URL for the elder's SMS.
-    // Priority: APP_BASE_URL env var → first REPLIT_DOMAINS entry → hardcoded fallback.
+    // Priority: APP_BASE_URL env var, then local development fallback.
     const appBase =
       process.env.APP_BASE_URL ??
-      (process.env.REPLIT_DOMAINS
-        ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}`
-        : "https://vyva-companion.replit.app");
+      `http://localhost:${process.env.PORT || "5000"}`;
     const confirmUrl = `${appBase}/confirm/${confirmToken}`;
 
     // Notify the elder that their account has been set up by a proxy.

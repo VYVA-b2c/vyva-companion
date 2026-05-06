@@ -39,7 +39,7 @@ try {
     try {
       await client.query(stripSupabaseRls(sql));
       console.log("Concierge schema applied successfully.");
-      console.log("Applied without Supabase RLS policies because the local Replit database has no auth schema.");
+      console.log("Applied without Supabase RLS policies because the local database has no auth schema.");
     } catch (retryError) {
       console.error("Failed to apply concierge schema.");
       console.error(retryError instanceof Error ? retryError.message : retryError);
