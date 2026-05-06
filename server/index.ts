@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import "dotenv/config";
 import { routerHandler } from "./routes/router.js";
 import { conversationTokenHandler } from "./routes/conversationToken.js";
+import { voiceContextHandler } from "./routes/voiceContext.js";
 import { retrieveMedicalProfileToolHandler } from "./routes/elevenlabsTools.js";
 import { onboardingRouter } from "./routes/onboarding.js";
 import billingRouter from "./routes/billing.js";
@@ -78,6 +79,7 @@ app.post("/api/bill-reader/analyze", express.json({ limit: "20mb" }), authMiddle
 app.use(express.json({ limit: "20mb" }));
 
 app.post("/api/router", routerHandler);
+app.post("/api/voice-context", authMiddleware, voiceContextHandler);
 app.post("/api/elevenlabs-conversation-token", conversationTokenHandler);
 app.post("/api/elevenlabs/tools/retrieve-medical-profile", retrieveMedicalProfileToolHandler);
 app.post("/api/meds-voice-parse", medsVoiceParseHandler);

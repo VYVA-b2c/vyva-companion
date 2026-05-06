@@ -8,6 +8,14 @@ import {
   agentDifficulty,
 } from "../../shared/schema.js";
 import { genderInstruction, inferProfileGender, type GrammaticalGender } from "../lib/userPersonalization.js";
+import { buildVoiceContext, type VoiceDynamicVariables } from "../lib/voiceContext.js";
+import {
+  formatMemoryBlock,
+  getMem0ApiKey,
+  scheduleMem0Add,
+  searchMemories,
+  type Mem0Memory,
+} from "../lib/mem0.js";
 
 type RoutingDomain =
   | "safety"
@@ -84,7 +92,7 @@ const HEALTH_KEYWORDS = [
   "worried about my health", "i think i might have", "not feeling well",
   "feel dizzy", "blood pressure", "my head feels", "my chest", "my back",
   "my knee", "breathless", "symptom", "nausea", "temperature", "unwell",
-  "doctor", "hurts", "ache", "pain",
+  "doctor", "health", "vitals", "vital signs", "hurts", "ache", "pain",
   "allergy", "allergies", "allergic", "allergen", "anaphylaxis", "hives", "rash",
   "epipen", "antihistamine", "hay fever", "pollen", "dust mite",
   "natural remedy for", "natural remedies for", "remedy for my allerg", "allergic reaction",
@@ -109,11 +117,20 @@ const NEWS_FOR_COMPANION = [
 const BRAIN_COACH_KEYWORDS = [
   "memory game", "brain exercise", "brain training", "test my memory",
   "let's do a game", "lets do a game", "exercise my brain", "scrabble",
-  "trivia", "puzzle", "cognitive", "quiz", "logic", "game", "practice",
+  "trivia", "puzzle", "cognitive", "cognition", "quiz", "logic", "game", "practice",
 ];
 const STORY_FOR_COMPANION = ["tell me a story", "read me", "\\bstory\\b"];
 
 const THRESHOLD = 0.55;
+
+const ROUTING_HINTS: Array<{ domain: RoutingDomain; patterns: string[] }> = [
+  { domain: "safety", patterns: ["urgent health", "emergency help", "safety", "scam guard"] },
+  { domain: "meds", patterns: ["medication", "medicine", "meds", "prescription", "pill", "tablet"] },
+  { domain: "health", patterns: ["health", "doctor", "medical", "vitals", "vital signs", "signos", "symptom", "allergy", "allergies"] },
+  { domain: "concierge", patterns: ["concierge", "appointment", "schedule", "taxi", "shopping"] },
+  { domain: "brain_coach", patterns: ["brain", "cognitive", "cognition", "memory", "activity", "activities"] },
+  { domain: "companion", patterns: ["companion", "community", "social", "social rooms"] },
+];
 
 function countKeywordHits(utterance: string, patterns: string[]): number {
   let n = 0;
@@ -150,7 +167,21 @@ function healthDisallowedTiredOnly(utterance: string): boolean {
   return countKeywordHits(utterance, HEALTH_BODY_OR_SYMPTOM) === 0;
 }
 
+function classifyRoutingHint(utterance: string): RoutingDomain | null {
+  const normalized = utterance.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  for (const hint of ROUTING_HINTS) {
+    if (hint.patterns.some((pattern) => normalized === pattern || normalized.includes(pattern))) {
+      return hint.domain;
+    }
+  }
+  return null;
+}
+
 function classifyIntent(utterance: string): { domain: RoutingDomain; confidence: number } {
+  const hintedDomain = classifyRoutingHint(utterance);
+  if (hintedDomain) return { domain: hintedDomain, confidence: 1 };
+
   for (const domain of DOMAIN_ORDER) {
     let hits = 0;
     if (domain === "meds") {
@@ -204,72 +235,52 @@ function firstName(fullName: string | null): string {
   return fullName.trim().split(/\s+/)[0] ?? "friend";
 }
 
-type Mem0Memory = { memory?: string; content?: string; text?: string };
-
-async function searchMemories(query: string, mem0UserId: string, apiKey: string): Promise<Mem0Memory[]> {
-  const headers = {
-    Authorization: `Token ${apiKey}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
+function buildRouteDynamicVariables(data: {
+  domain: RoutingDomain;
+  confidence: number;
+  sessionId: string;
+  turnCount: number;
+  lastAgent: string | null;
+  lastTopic: string;
+  timeOfDay: string;
+  firstName: string;
+  memoryBlock: string;
+  brainCoachStreak?: number;
+  difficultyLevel?: number;
+  difficultySessionsAtLevel?: number;
+  difficultyLastScore?: number | null;
+}) {
+  const variables: Record<string, string | number | boolean> = {
+    routing_domain: data.domain,
+    intent_confidence: data.confidence,
+    session_id: data.sessionId,
+    turn_count: data.turnCount,
+    last_agent: data.lastAgent ?? "",
+    last_topic: data.lastTopic,
+    time_of_day: data.timeOfDay,
+    first_name: data.firstName,
+    memory_block: data.memoryBlock || "(no memory retrieved)",
   };
-  const tryV1 = await fetch("https://api.mem0.ai/v1/memories/search/", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, user_id: mem0UserId, limit: 5 }),
-  }).catch(() => null);
 
-  if (tryV1?.ok) {
-    const data = await tryV1.json().catch(() => null);
-    const list = normalizeMem0SearchResponse(data);
-    if (list.length) return list;
+  if (data.brainCoachStreak !== undefined) {
+    variables.brain_coach_streak = data.brainCoachStreak;
+  }
+  if (data.difficultyLevel !== undefined) {
+    variables.difficulty_level = data.difficultyLevel;
+    variables.difficulty_sessions_at_level = data.difficultySessionsAtLevel ?? 0;
+    variables.difficulty_last_score = data.difficultyLastScore ?? "";
   }
 
-  const tryV2 = await fetch("https://api.mem0.ai/v2/memories/search/", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, filters: { user_id: mem0UserId }, top_k: 5 }),
-  }).catch(() => null);
+  return variables;
+}
 
-  if (tryV2?.ok) {
-    const data = await tryV2.json().catch(() => null);
-    return normalizeMem0SearchResponse(data);
+async function safeBuildVoiceContext(userId: string, domain: RoutingDomain, memoryQuery: string): Promise<VoiceDynamicVariables> {
+  try {
+    return await buildVoiceContext(userId, domain, memoryQuery);
+  } catch (err) {
+    console.warn("[router] voice context unavailable:", err);
+    return {};
   }
-  return [];
-}
-
-function normalizeMem0SearchResponse(data: unknown): Mem0Memory[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data as Mem0Memory[];
-  if (typeof data === "object" && data !== null) {
-    const o = data as Record<string, unknown>;
-    if (Array.isArray(o.memories)) return o.memories as Mem0Memory[];
-    if (Array.isArray(o.results)) return o.results as Mem0Memory[];
-  }
-  return [];
-}
-
-function memoryText(m: Mem0Memory): string {
-  const s = m.memory ?? m.content ?? m.text ?? "";
-  return typeof s === "string" ? s.trim() : "";
-}
-
-function formatMemoryBlock(memories: Mem0Memory[]): string {
-  const top = memories.slice(0, 3).map(memoryText).filter(Boolean);
-  if (!top.length) return "";
-  const labels = ["Margaret mentioned", "Margaret likes", "Margaret also shared"];
-  return top.map((t, i) => `${labels[i] ?? "Memory"}: ${t}.`).join(" ");
-}
-
-function scheduleMem0Add(mem0UserId: string, messages: ConversationTurn[], apiKey: string): void {
-  fetch("https://api.mem0.ai/v1/memories/", {
-    method: "POST",
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ user_id: mem0UserId, messages }),
-  }).catch((e) => console.error("[mem0] add error:", e));
 }
 
 function buildMem0Messages(history: ConversationTurn[], utterance: string): ConversationTurn[] {
@@ -390,7 +401,7 @@ export async function routerHandler(req: Request, res: Response) {
     domain = "safety";
     confidence = 1;
 
-    const mem0Key = process.env.MEM0_API_KEY ?? "";
+    const mem0Key = getMem0ApiKey();
     const [profileSafe, prevSafe] = await Promise.all([
       getProfile(user_id).catch(() => null),
       getSessionState(session_id).catch(() => null),
@@ -434,8 +445,23 @@ export async function routerHandler(req: Request, res: Response) {
     if (mem0Key) scheduleMem0Add(mem0UserIdSafe, buildMem0Messages(history, utterance), mem0Key);
 
     const agent_id = agentIdForDomain("safety");
+    const voiceContext = await safeBuildVoiceContext(user_id, "safety", utterance);
     return res.json({
       agent_id, system_prompt_override,
+      dynamic_variables: {
+        ...voiceContext,
+        ...buildRouteDynamicVariables({
+          domain: "safety",
+          confidence,
+          sessionId: session_id,
+          turnCount: newTurnSafe,
+          lastAgent: lastAgentBeforeSafe,
+          lastTopic: lastTopicSafe,
+          timeOfDay: timeOfDayLabel(nowSafe),
+          firstName: firstSafe,
+          memoryBlock: memoryBlockSafe,
+        }),
+      },
       session_data: { domain: "safety", intent_confidence: confidence, session_id, turn_count: newTurnSafe, last_agent: lastAgentBeforeSafe },
     });
   }
@@ -462,7 +488,7 @@ export async function routerHandler(req: Request, res: Response) {
     confidence = c.confidence;
   }
 
-  const mem0Key = process.env.MEM0_API_KEY ?? "";
+  const mem0Key = getMem0ApiKey();
   const mem0UserId = profile?.mem0_user_id?.trim() || user_id;
   let memories: Mem0Memory[] = [];
   if (mem0Key) {
@@ -524,9 +550,30 @@ export async function routerHandler(req: Request, res: Response) {
 
   const agent_id = agentIdForDomain(domain);
   if (!agent_id) console.error(`Missing env for domain ${domain}: ${AGENT_ENV_MAP[domain]}`);
+  const voiceContext = await safeBuildVoiceContext(user_id, domain, utterance);
 
   return res.json({
     agent_id, system_prompt_override,
+    dynamic_variables: {
+      ...voiceContext,
+      ...buildRouteDynamicVariables({
+        domain,
+        confidence,
+        sessionId: session_id,
+        turnCount: newTurn,
+        lastAgent: lastAgentBefore,
+        lastTopic,
+        timeOfDay: timeOfDayLabel(now),
+        firstName: first,
+        memoryBlock,
+        ...(domain === "brain_coach" ? { brainCoachStreak: streak } : {}),
+        ...(diffRow ? {
+          difficultyLevel: diffRow.difficulty_level,
+          difficultySessionsAtLevel: diffRow.sessions_at_level,
+          difficultyLastScore: diffRow.last_score,
+        } : {}),
+      }),
+    },
     session_data: { domain, intent_confidence: confidence, session_id, turn_count: newTurn, last_agent: lastAgentBefore },
   });
 }
