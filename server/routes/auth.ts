@@ -15,6 +15,7 @@ import { getSupabaseConfig } from "../lib/supabaseAuth.js";
 const scryptAsync = promisify(scrypt);
 
 const isDev = process.env.NODE_ENV !== "production";
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL ?? "karim.assad@mokadigital.net").toLowerCase();
 const emailSchema = z.string().trim().email();
 const SUPPORTED_PROFILE_LANGUAGES = ["es", "en", "fr", "de", "it", "pt", "cy"] as const;
 type ProfileLanguage = (typeof SUPPORTED_PROFILE_LANGUAGES)[number];
@@ -31,6 +32,10 @@ function normalizeEmail(value: unknown): string | null {
   if (!trimmed) return null;
   const parsed = emailSchema.safeParse(trimmed);
   return parsed.success ? parsed.data.toLowerCase() : null;
+}
+
+function isSuperAdminEmail(value: unknown): boolean {
+  return normalizeEmail(value) === SUPER_ADMIN_EMAIL;
 }
 
 function normalizePhone(value: unknown): string | null {
@@ -137,16 +142,19 @@ async function getProfileRole(userId: string): Promise<string> {
 
 async function getOrCreateAuthenticatedProfile(userId: string, email?: unknown) {
   const normalizedEmail = normalizeEmail(email);
+  const role = isSuperAdminEmail(normalizedEmail) ? "admin" : "user";
   const [created] = await db
     .insert(profiles)
     .values({
       id: userId,
       email: normalizedEmail,
+      role,
     })
     .onConflictDoUpdate({
       target: profiles.id,
       set: {
         email: normalizedEmail,
+        ...(role === "admin" ? { role } : {}),
         updated_at: new Date(),
       },
     })
@@ -370,7 +378,7 @@ authRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
         phone: profile.phone ?? null,
         activeProfileId: profile.id,
         language: normalizeProfileLanguage(profile.language),
-        role: profile.role ?? "user",
+        role: isSuperAdminEmail(profile.email) || isSuperAdminEmail(req.user.email) ? "admin" : profile.role ?? "user",
         prevSeenAt: null,
       });
     }

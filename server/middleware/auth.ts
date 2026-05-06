@@ -2,6 +2,12 @@ import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../lib/jwt.js";
 import { verifySupabaseAccessToken } from "../lib/supabaseAuth.js";
 
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL ?? "karim.assad@mokadigital.net").toLowerCase();
+
+function isSuperAdminEmail(value: unknown): boolean {
+  return typeof value === "string" && value.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -98,17 +104,19 @@ export async function requireAdminUser(
     .where(eq(profiles.id, req.user.id))
     .limit(1);
 
-  if (!profile) {
+  const isSuperAdmin = isSuperAdminEmail(req.user.email) || isSuperAdminEmail(profile?.email);
+
+  if (!profile && !isSuperAdmin) {
     res.status(403).json({ error: "Admin access required" });
     return;
   }
 
-  if (profile.role !== "admin") {
+  if (profile?.role !== "admin" && !isSuperAdmin) {
     res.status(403).json({ error: "Admin access required" });
     return;
   }
 
-  req.user.role = profile.role;
-  req.user.email = req.user.email ?? profile.email ?? undefined;
+  req.user.role = "admin";
+  req.user.email = req.user.email ?? profile?.email ?? undefined;
   next();
 }
