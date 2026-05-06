@@ -1,10 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../lib/jwt.js";
+import { verifySupabaseAccessToken } from "../lib/supabaseAuth.js";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; [key: string]: unknown };
+      user?: { id: string; role?: string; [key: string]: unknown };
     }
   }
 }
@@ -37,6 +38,11 @@ export async function authMiddleware(
       req.user = { id: userId };
       return next();
     }
+    const supabaseUser = await verifySupabaseAccessToken(token);
+    if (supabaseUser) {
+      req.user = { id: supabaseUser.id, email: supabaseUser.email };
+      return next();
+    }
     // Token present but invalid — reject immediately, don't fall through
     res.status(401).json({ error: "Invalid or expired token" });
     return;
@@ -67,5 +73,42 @@ export function requireUser(
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
+  next();
+}
+
+export async function requireAdminUser(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const [{ eq }, { db }, { profiles }] = await Promise.all([
+    import("drizzle-orm"),
+    import("../db.js"),
+    import("../../shared/schema.js"),
+  ]);
+
+  const [profile] = await db
+    .select({ role: profiles.role, email: profiles.email })
+    .from(profiles)
+    .where(eq(profiles.id, req.user.id))
+    .limit(1);
+
+  if (!profile) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  if (profile.role !== "admin") {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  req.user.role = profile.role;
+  req.user.email = req.user.email ?? profile.email ?? undefined;
   next();
 }

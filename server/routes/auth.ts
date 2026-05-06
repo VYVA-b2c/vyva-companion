@@ -14,6 +14,39 @@ const scryptAsync = promisify(scrypt);
 
 const isDev = process.env.NODE_ENV !== "production";
 
+async function getProfileRole(userId: string): Promise<string> {
+  const [profile] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+
+  return profile?.role ?? "user";
+}
+
+async function getOrCreateAuthProfile(userId: string, email?: string | null) {
+  const [profile] = await db
+    .select({ id: profiles.id, email: profiles.email, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+
+  if (profile) return profile;
+
+  await db.insert(profiles).values({
+    id: userId,
+    email: email ?? null,
+  } as typeof profiles.$inferInsert).onConflictDoNothing();
+
+  const [created] = await db
+    .select({ id: profiles.id, email: profiles.email, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+
+  return created ?? { id: userId, email: email ?? null, role: "user" };
+}
+
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const derived = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -85,10 +118,10 @@ authRouter.post("/register", async (req: Request, res: Response) => {
     .values({ email: lowerEmail, password_hash })
     .returning();
 
-  await db.insert(profiles).values({ id: user.id }).onConflictDoNothing();
+  await db.insert(profiles).values({ id: user.id, email: lowerEmail }).onConflictDoNothing();
 
   const token = await signToken(user.id);
-  return res.status(201).json({ token, userId: user.id, email: user.email });
+  return res.status(201).json({ token, userId: user.id, email: user.email, role: "user" });
 });
 
 /**
@@ -122,8 +155,9 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     .set({ last_seen_at: new Date() })
     .where(eq(users.id, user.id));
 
+  const role = await getProfileRole(user.id);
   const token = await signToken(user.id);
-  return res.json({ token, userId: user.id, email: user.email, prevSeenAt });
+  return res.json({ token, userId: user.id, email: user.email, role, prevSeenAt });
 });
 
 /**
@@ -135,24 +169,20 @@ authRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const [user] = await db
-    .select({ id: users.id, email: users.email, last_seen_at: users.last_seen_at })
-    .from(users)
-    .where(eq(users.id, req.user.id))
-    .limit(1);
-
-  if (!user) {
-    return res.status(401).json({ error: "User not found" });
-  }
-
-  const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
+  const authEmail = typeof req.user.email === "string" ? req.user.email : null;
+  const profile = await getOrCreateAuthProfile(req.user.id, authEmail);
 
   await db
-    .update(users)
-    .set({ last_seen_at: new Date() })
-    .where(eq(users.id, user.id));
+    .update(profiles)
+    .set({ updated_at: new Date() })
+    .where(eq(profiles.id, req.user.id));
 
-  return res.json({ id: user.id, email: user.email, prevSeenAt });
+  return res.json({
+    id: profile.id,
+    email: profile.email ?? authEmail ?? "",
+    role: profile.role ?? "user",
+    prevSeenAt: null,
+  });
 });
 
 /**
@@ -238,7 +268,7 @@ authRouter.post("/access-link/consume", async (req: Request, res: Response) => {
     });
   }
 
-  await db.update(users).set({ last_seen_at: now }).where(eq(users.id, userId));
+  await db.update(profiles).set({ updated_at: now }).where(eq(profiles.id, userId));
 
   const token = await signToken(userId);
   return res.json({

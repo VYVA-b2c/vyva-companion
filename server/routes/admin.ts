@@ -9,27 +9,13 @@ export const adminRouter = Router();
 
 // ============================================================
 // Admin auth middleware
-// Requires x-admin-key header matching ADMIN_API_KEY env var.
-// In production, requests are rejected if ADMIN_API_KEY is not set.
-// In development only, falls back to "dev-admin-key" for convenience.
+// Admin routes are mounted behind authMiddleware + requireAdminUser.
+// This local guard keeps route handlers explicit and defensive.
 // ============================================================
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const ADMIN_KEY = process.env.ADMIN_API_KEY;
-
 function requireAdmin(req: Request, res: Response): boolean {
-  // In production, refuse all requests when the secret is not configured —
-  // this prevents accidentally exposing the dashboard via the dev fallback.
-  if (IS_PRODUCTION && !ADMIN_KEY) {
-    res.status(503).json({ error: "Admin dashboard is not configured on this server" });
-    return false;
-  }
-
-  const effectiveKey = ADMIN_KEY ?? "dev-admin-key";
-  const provided = req.headers["x-admin-key"] as string | undefined;
-
-  if (!provided || provided !== effectiveKey) {
-    res.status(403).json({ error: "Forbidden — invalid or missing admin key" });
+  if (!req.user || req.user.role !== "admin") {
+    res.status(req.user ? 403 : 401).json({ error: req.user ? "Admin access required" : "Not authenticated" });
     return false;
   }
   return true;

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import AdminMenu from "./AdminMenu";
+import { apiFetch } from "@/lib/queryClient";
 
 type HomePlanCardAdmin = {
   id?: string;
@@ -17,8 +18,6 @@ type HomePlanCardAdmin = {
   admin_notes?: string | null;
   updated_at?: string;
 };
-
-const ADMIN_KEY_STORAGE = "vyva_admin_lifecycle_key";
 
 const emptyCard: HomePlanCardAdmin = {
   card_id: "",
@@ -59,25 +58,18 @@ function Field({ label, optional, children }: { label: string; optional?: boolea
 }
 
 export default function HomeCardsAdminPage() {
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [cards, setCards] = useState<HomePlanCardAdmin[]>([]);
   const [draft, setDraft] = useState<HomePlanCardAdmin>(emptyCard);
   const [message, setMessage] = useState("");
 
-  const headers = useMemo(() => ({ "Content-Type": "application/json", "x-admin-key": adminKey }), [adminKey]);
-
   async function api(path: string, options: RequestInit = {}) {
-    const res = await fetch(`/api/admin/lifecycle${path}`, {
-      ...options,
-      headers: { ...headers, ...(options.headers ?? {}) },
-    });
+    const res = await apiFetch(`/api/admin/lifecycle${path}`, options);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Admin request failed");
     return data;
   }
 
   async function refresh() {
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
     setMessage("");
     const data = await api("/home-plan-cards");
     setCards(data.cards ?? []);
@@ -138,7 +130,6 @@ export default function HomeCardsAdminPage() {
             Admins add and tune the pool behind Today for you. VYVA still chooses which cards each user sees based on profile signals.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <input className="min-w-[260px] rounded-2xl border border-[#e4d8ce] px-4 py-3" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="Admin key" />
             <button className="rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => refresh().catch((err) => setMessage(err.message))}>Refresh</button>
             {message && <span className="rounded-2xl bg-purple-50 px-4 py-3 text-purple-800">{message}</span>}
           </div>

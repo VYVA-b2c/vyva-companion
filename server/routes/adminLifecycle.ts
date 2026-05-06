@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
@@ -18,24 +18,28 @@ import {
   tierEntitlements,
   userIntakes,
   userMedications,
-  users,
 } from "../../shared/schema.js";
 
 export const adminLifecycleRouter = Router();
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const ADMIN_KEY = process.env.ADMIN_API_KEY;
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL ?? "karim.assad@mokadigital.net").toLowerCase();
 
 function requireAdmin(req: Request, res: Response): boolean {
-  if (IS_PRODUCTION && !ADMIN_KEY) {
-    res.status(503).json({ error: "Admin dashboard is not configured on this server" });
+  if (!req.user || req.user.role !== "admin") {
+    res.status(req.user ? 403 : 401).json({ error: req.user ? "Admin access required" : "Not authenticated" });
     return false;
   }
+  return true;
+}
 
-  const effectiveKey = ADMIN_KEY ?? "dev-admin-key";
-  const provided = req.headers["x-admin-key"] as string | undefined;
-  if (!provided || provided !== effectiveKey) {
-    res.status(403).json({ error: "Forbidden - invalid or missing admin key" });
+function isSuperAdmin(req: Request): boolean {
+  return typeof req.user?.email === "string" && req.user.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
+function requireSuperAdmin(req: Request, res: Response): boolean {
+  if (!requireAdmin(req, res)) return false;
+  if (!isSuperAdmin(req)) {
+    res.status(403).json({ error: "Only the super admin can manage admin access" });
     return false;
   }
   return true;
@@ -196,6 +200,9 @@ const heroMessageCreateSchema = z.object({
 });
 
 const heroMessageUpdateSchema = heroMessageCreateSchema.omit({ message_id: true }).partial();
+const adminRoleUpdateSchema = z.object({
+  role: z.enum(["user", "admin"]),
+});
 
 function targetUserIdForIntake(intake: typeof userIntakes.$inferSelect): string | null {
   return intake.elder_user_id ?? intake.user_id ?? intake.family_user_id ?? null;
@@ -241,6 +248,10 @@ function normalizePhone(phone: string): string {
   const trimmed = phone.trim();
   if (trimmed.startsWith("+")) return trimmed.replace(/[^\d+]/g, "");
   return trimmed.replace(/\D/g, "");
+}
+
+function normalizeEmail(email?: string | null): string {
+  return (email ?? "").trim().toLowerCase();
 }
 
 function slugify(value: string): string {
@@ -292,8 +303,8 @@ function normalizeBulkRow(row: z.infer<typeof bulkRowSchema>, defaultTier: strin
   };
 }
 
-async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bulkRowSchema>[]) {
-  const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bulkRowSchema>[], database = db) {
+  const [org] = await database.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
   if (!org) return { error: "Organization not found" as const };
 
   const normalized = rows.map((row, index) => ({
@@ -302,6 +313,15 @@ async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bul
     errors: [] as string[],
   }));
   const seenPhones = new Map<string, number>();
+  const phones = Array.from(new Set(normalized.map((row) => row.values.phone).filter(Boolean)));
+  const existingPhones = new Set(
+    phones.length
+      ? (await database
+        .select({ phone: userIntakes.phone })
+        .from(userIntakes)
+        .where(inArray(userIntakes.phone, phones))).map((row) => row.phone)
+      : []
+  );
 
   for (const row of normalized) {
     if (!row.values.first_name) row.errors.push("First name is required");
@@ -318,12 +338,7 @@ async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bul
         seenPhones.set(row.values.phone, row.index);
       }
 
-      const [existing] = await db
-        .select({ id: userIntakes.id })
-        .from(userIntakes)
-        .where(eq(userIntakes.phone, row.values.phone))
-        .limit(1);
-      if (existing) row.errors.push("Phone already exists in lifecycle intakes");
+      if (existingPhones.has(row.values.phone)) row.errors.push("Phone already exists in lifecycle intakes");
     }
   }
 
@@ -339,8 +354,26 @@ async function buildBulkPreview(organizationId: string, rows: z.infer<typeof bul
   };
 }
 
-function placeholderPasswordHash(): string {
-  return `passwordless:${randomBytes(32).toString("hex")}`;
+function validateFamilyIntake(data: z.infer<typeof intakeSchema>): string | null {
+  if (data.user_type !== "family") return null;
+
+  const elderName = data.elder?.name?.trim() ?? "";
+  const elderPhone = normalizePhone(data.elder?.phone ?? "");
+  const familyPhone = normalizePhone(data.phone);
+  const elderEmail = normalizeEmail(data.elder?.email);
+  const familyEmail = normalizeEmail(data.email);
+
+  if (!elderName || !elderPhone) {
+    return "Family intakes require separate elder name and phone details";
+  }
+  if (elderPhone === familyPhone) {
+    return "Elder phone must be different from the family contact phone";
+  }
+  if (elderEmail && familyEmail && elderEmail === familyEmail) {
+    return "Elder email must be different from the family contact email";
+  }
+
+  return null;
 }
 
 function publicBaseUrl(req: Request): string {
@@ -356,8 +389,8 @@ async function recordEvent(input: {
   toStatus?: string | null;
   channel?: string | null;
   metadata?: Record<string, unknown>;
-}) {
-  await db.insert(lifecycleEvents).values({
+}, database = db) {
+  await database.insert(lifecycleEvents).values({
     intake_id: input.intakeId ?? null,
     user_id: input.userId ?? null,
     event_type: input.eventType,
@@ -375,14 +408,24 @@ async function ensurePasswordlessUser(input: {
   tier: string;
   organizationId?: string | null;
   profile?: Record<string, unknown>;
-}) {
-  const email = (input.email || syntheticEmailForPhone(input.phone)).toLowerCase();
-  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  const user = existing ?? (await db.insert(users).values({
-    email,
-    password_hash: placeholderPasswordHash(),
-  }).returning())[0];
-
+}, database = db) {
+  const normalizedPhone = normalizePhone(input.phone);
+  const email = input.email ? input.email.toLowerCase() : null;
+  const [existingByEmail] = email
+    ? await database
+      .select({ id: profiles.id, email: profiles.email })
+      .from(profiles)
+      .where(sql`lower(${profiles.email}) = ${email}`)
+      .limit(1)
+    : [];
+  const [existingByPhone] = existingByEmail
+    ? []
+    : await database
+      .select({ id: profiles.id, email: profiles.email })
+      .from(profiles)
+      .where(eq(profiles.phone_number, normalizedPhone))
+      .limit(1);
+  const user = existingByEmail ?? existingByPhone ?? { id: randomUUID(), email };
   const preferredName = typeof input.profile?.preferred_name === "string" && input.profile.preferred_name.trim()
     ? input.profile.preferred_name.trim()
     : input.name.split(" ")[0] ?? input.name;
@@ -394,15 +437,15 @@ async function ensurePasswordlessUser(input: {
     ? input.profile.whatsapp_number.trim()
     : normalizePhone(input.phone);
 
-  await db.insert(profiles).values({
+  await database.insert(profiles).values({
     id: user.id,
     full_name: input.name,
     preferred_name: preferredName,
     date_of_birth: dateOfBirth,
     language,
-    phone_number: normalizePhone(input.phone),
+    phone_number: normalizedPhone,
     whatsapp_number: whatsappNumber,
-    email: input.email || null,
+    email: input.email || user.email || null,
     country_code: countryCode,
     timezone,
     subscription_tier: input.tier,
@@ -414,9 +457,9 @@ async function ensurePasswordlessUser(input: {
       preferred_name: preferredName,
       date_of_birth: dateOfBirth,
       language,
-      phone_number: normalizePhone(input.phone),
+      phone_number: normalizedPhone,
       whatsapp_number: whatsappNumber,
-      email: input.email || null,
+      email: input.email || user.email || null,
       country_code: countryCode,
       timezone,
       subscription_tier: input.tier,
@@ -842,8 +885,11 @@ adminLifecycleRouter.post("/intakes", async (req: Request, res: Response) => {
   }
 
   const data = parsed.data;
-  const elderName = data.user_type === "family" ? (data.elder?.name || data.name) : data.name;
-  const elderPhone = data.user_type === "family" ? (data.elder?.phone || data.phone) : data.phone;
+  const familyError = validateFamilyIntake(data);
+  if (familyError) return res.status(400).json({ error: familyError });
+
+  const elderName = data.user_type === "family" ? data.elder?.name?.trim() ?? "" : data.name;
+  const elderPhone = data.user_type === "family" ? data.elder?.phone?.trim() ?? "" : data.phone;
   const elderEmail = data.user_type === "family" ? (data.elder?.email || undefined) : data.email || undefined;
   const elderUser = await ensurePasswordlessUser({
     name: elderName,
@@ -1182,116 +1228,122 @@ adminLifecycleRouter.post("/organizations/:id/bulk-intakes/import", async (req: 
   const preview = await buildBulkPreview(req.params.id, parsed.data.rows);
   if ("error" in preview) return res.status(404).json({ error: preview.error });
 
-  const imported = [];
-  const links = [];
   const skipped = preview.rows.filter((row) => !row.valid);
 
-  for (const row of preview.rows.filter((item) => item.valid)) {
-    const values = row.values;
-    const requiresConsent = values.user_type === "family";
-    const shouldSendLink = parsed.data.send_links && !requiresConsent;
-    const user = await ensurePasswordlessUser({
-      name: values.name,
-      phone: values.phone,
-      email: values.email || null,
-      tier: values.tier,
-      organizationId: preview.organization.id,
-      profile: {
-        first_name: values.first_name,
-        last_name: values.last_name,
-        preferred_name: values.preferred_name,
-        date_of_birth: values.date_of_birth,
-        gender: values.gender,
-        phone_number: values.phone,
-        whatsapp_number: values.whatsapp,
-        email: values.email,
-        language: values.language,
-        timezone: values.timezone,
-      },
-    });
+  const result = await db.transaction(async (tx) => {
+    const database = tx as typeof db;
+    const imported = [];
+    const links = [];
 
-    const [intake] = await db.insert(userIntakes).values({
-      user_id: user.id,
-      elder_user_id: values.user_type === "elder" ? user.id : null,
-      family_user_id: values.user_type === "family" ? user.id : null,
-      name: values.name,
-      phone: values.phone,
-      email: values.email || null,
-      user_type: values.user_type,
-      entry_point: "admin",
-      organization_id: preview.organization.id,
-      tier: values.tier,
-      status: requiresConsent ? "consent_pending" : shouldSendLink ? "link_sent" : "created",
-      journey_step: requiresConsent ? "bulk_import_consent_required" : shouldSendLink ? "bulk_import_link_sent" : "bulk_import_created",
-      consent_status: requiresConsent ? "pending" : "not_required",
-      source_payload: { bulk_import: true, row_number: row.row_number },
-      metadata: {
-        first_name: values.first_name,
-        last_name: values.last_name,
-        preferred_name: values.preferred_name,
-        date_of_birth: values.date_of_birth,
-        gender: values.gender,
-        whatsapp_number: values.whatsapp,
-        language: values.language,
-        timezone: values.timezone,
-        import_source: "organization_csv",
-      },
-      link_sent_at: shouldSendLink ? new Date() : null,
-      last_activity_at: new Date(),
-    }).returning();
-
-    await recordEvent({
-      intakeId: intake.id,
-      userId: user.id,
-      eventType: "bulk_intake_imported",
-      toStatus: intake.status,
-      channel: "admin",
-      metadata: { organization_id: preview.organization.id, row_number: row.row_number },
-    });
-
-    imported.push(intake);
-
-    if (shouldSendLink) {
-      const token = randomBytes(32).toString("base64url");
-      const destination = values.user_type === "family" ? "/caregiver" : "/onboarding";
-      const [link] = await db.insert(accessLinks).values({
-        token,
-        user_id: user.id,
-        intake_id: intake.id,
-        organization_id: preview.organization.id,
-        link_type: values.tier === "unlimited" ? "unlimited" : "trial",
+    for (const row of preview.rows.filter((item) => item.valid)) {
+      const values = row.values;
+      const requiresConsent = values.user_type === "family";
+      const shouldSendLink = parsed.data.send_links && !requiresConsent;
+      const user = await ensurePasswordlessUser({
+        name: values.name,
+        phone: values.phone,
+        email: values.email || null,
         tier: values.tier,
-        destination,
-        target_role: values.user_type,
-        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      }).returning();
-      const url = `${publicBaseUrl(req)}/access/${token}`;
+        organizationId: preview.organization.id,
+        profile: {
+          first_name: values.first_name,
+          last_name: values.last_name,
+          preferred_name: values.preferred_name,
+          date_of_birth: values.date_of_birth,
+          gender: values.gender,
+          phone_number: values.phone,
+          whatsapp_number: values.whatsapp,
+          email: values.email,
+          language: values.language,
+          timezone: values.timezone,
+        },
+      }, database);
 
-      await db.insert(communicationsLog).values({
-        intake_id: intake.id,
+      const [intake] = await database.insert(userIntakes).values({
         user_id: user.id,
-        channel: "sms",
-        recipient: values.phone,
-        purpose: "bulk_send_app_link",
-        status: "queued",
-        body: `VYVA: here is your secure link to continue: ${url}`,
-        metadata: { url, organization_id: preview.organization.id },
-      });
+        elder_user_id: values.user_type === "elder" ? user.id : null,
+        family_user_id: values.user_type === "family" ? user.id : null,
+        name: values.name,
+        phone: values.phone,
+        email: values.email || null,
+        user_type: values.user_type,
+        entry_point: "admin",
+        organization_id: preview.organization.id,
+        tier: values.tier,
+        status: requiresConsent ? "consent_pending" : shouldSendLink ? "link_sent" : "created",
+        journey_step: requiresConsent ? "bulk_import_consent_required" : shouldSendLink ? "bulk_import_link_sent" : "bulk_import_created",
+        consent_status: requiresConsent ? "pending" : "not_required",
+        source_payload: { bulk_import: true, row_number: row.row_number },
+        metadata: {
+          first_name: values.first_name,
+          last_name: values.last_name,
+          preferred_name: values.preferred_name,
+          date_of_birth: values.date_of_birth,
+          gender: values.gender,
+          whatsapp_number: values.whatsapp,
+          language: values.language,
+          timezone: values.timezone,
+          import_source: "organization_csv",
+        },
+        link_sent_at: shouldSendLink ? new Date() : null,
+        last_activity_at: new Date(),
+      }).returning();
 
-      links.push({ intake_id: intake.id, link_id: link.id, url });
+      await recordEvent({
+        intakeId: intake.id,
+        userId: user.id,
+        eventType: "bulk_intake_imported",
+        toStatus: intake.status,
+        channel: "admin",
+        metadata: { organization_id: preview.organization.id, row_number: row.row_number },
+      }, database);
+
+      imported.push(intake);
+
+      if (shouldSendLink) {
+        const token = randomBytes(32).toString("base64url");
+        const destination = values.user_type === "family" ? "/caregiver" : "/onboarding";
+        const [link] = await database.insert(accessLinks).values({
+          token,
+          user_id: user.id,
+          intake_id: intake.id,
+          organization_id: preview.organization.id,
+          link_type: values.tier === "unlimited" ? "unlimited" : "trial",
+          tier: values.tier,
+          destination,
+          target_role: values.user_type,
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        }).returning();
+        const url = `${publicBaseUrl(req)}/access/${token}`;
+
+        await database.insert(communicationsLog).values({
+          intake_id: intake.id,
+          user_id: user.id,
+          channel: "sms",
+          recipient: values.phone,
+          purpose: "bulk_send_app_link",
+          status: "queued",
+          body: `VYVA: here is your secure link to continue: ${url}`,
+          metadata: { url, organization_id: preview.organization.id },
+        });
+
+        links.push({ intake_id: intake.id, link_id: link.id, url });
+      }
     }
-  }
 
-  return res.status(201).json({
-    imported,
-    links,
-    skipped,
-    summary: {
-      imported: imported.length,
-      skipped: skipped.length,
-      links_queued: links.length,
-    },
+    return {
+      imported,
+      links,
+      skipped,
+      summary: {
+        imported: imported.length,
+        skipped: skipped.length,
+        links_queued: links.length,
+      },
+    };
   });
+
+  return res.status(201).json(result);
 });
 
 adminLifecycleRouter.get("/tiers", async (req: Request, res: Response) => {
@@ -1338,4 +1390,90 @@ adminLifecycleRouter.get("/communications", async (req: Request, res: Response) 
   if (!requireAdmin(req, res)) return;
   const rows = await db.select().from(communicationsLog).orderBy(desc(communicationsLog.created_at)).limit(150);
   return res.json({ communications: rows });
+});
+
+adminLifecycleRouter.get("/admin-users", async (req: Request, res: Response) => {
+  if (!requireSuperAdmin(req, res)) return;
+
+  const query = String(req.query.email ?? "").trim().toLowerCase();
+  const admins = await db
+    .select({
+      id: profiles.id,
+      email: profiles.email,
+      role: profiles.role,
+      last_seen_at: sql<Date | null>`null`,
+      created_at: profiles.created_at,
+    })
+    .from(profiles)
+    .where(eq(profiles.role, "admin"))
+    .orderBy(profiles.email)
+    .limit(100);
+
+  const matches = query.length >= 3
+    ? await db
+      .select({
+        id: profiles.id,
+        email: profiles.email,
+        role: profiles.role,
+        last_seen_at: sql<Date | null>`null`,
+        created_at: profiles.created_at,
+      })
+      .from(profiles)
+      .where(sql`lower(${profiles.email}) like ${`%${query}%`}`)
+      .orderBy(profiles.email)
+      .limit(25)
+    : [];
+
+  return res.json({ admins, matches });
+});
+
+adminLifecycleRouter.patch("/admin-users/:userId/role", async (req: Request, res: Response) => {
+  if (!requireSuperAdmin(req, res)) return;
+
+  const parsed = adminRoleUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid role" });
+
+  const [existing] = await db
+    .select({ id: profiles.id, email: profiles.email, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, req.params.userId))
+    .limit(1);
+
+  if (!existing) return res.status(404).json({ error: "User not found" });
+
+  if ((existing.email ?? "").toLowerCase() === SUPER_ADMIN_EMAIL && parsed.data.role !== "admin") {
+    return res.status(400).json({ error: "Cannot remove the super admin account" });
+  }
+
+  if (existing.role === "admin" && parsed.data.role !== "admin") {
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(profiles)
+      .where(eq(profiles.role, "admin"));
+
+    if ((count ?? 0) <= 1) {
+      return res.status(400).json({ error: "Cannot remove the last admin account" });
+    }
+  }
+
+  const [user] = await db
+    .update(profiles)
+    .set({ role: parsed.data.role })
+    .where(eq(profiles.id, existing.id))
+    .returning({
+      id: profiles.id,
+      email: profiles.email,
+      role: profiles.role,
+      last_seen_at: sql<Date | null>`null`,
+      created_at: profiles.created_at,
+    });
+
+  await recordEvent({
+    userId: existing.id,
+    eventType: "admin_role_updated",
+    channel: "admin",
+    metadata: { from_role: existing.role, to_role: parsed.data.role, email: existing.email },
+  });
+
+  return res.json({ user });
 });

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { apiFetch, queryClient } from "@/lib/queryClient";
 import { CheckCircle2, Flag, UserCheck, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ProxyProfile = {
   id: string;
@@ -44,11 +45,9 @@ function displayName(p: ProxyProfile): string {
 
 function ProfileRow({
   profile,
-  adminKey,
   isPending,
 }: {
   profile: ProxyProfile;
-  adminKey: string;
   isPending: boolean;
 }) {
   const [flagReason, setFlagReason] = useState("");
@@ -57,9 +56,8 @@ function ProfileRow({
 
   const confirmMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/proxy-confirm/${profile.id}`, {
+      const res = await apiFetch(`/api/admin/proxy-confirm/${profile.id}`, {
         method: "POST",
-        headers: { "x-admin-key": adminKey, "Content-Type": "application/json" },
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       return res.json();
@@ -73,9 +71,8 @@ function ProfileRow({
 
   const flagMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/proxy-flag/${profile.id}`, {
+      const res = await apiFetch(`/api/admin/proxy-flag/${profile.id}`, {
         method: "POST",
-        headers: { "x-admin-key": adminKey, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: flagReason || undefined }),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -208,83 +205,19 @@ function ProfileRow({
 }
 
 export default function ProxyPendingPage() {
-  const [adminKey, setAdminKey] = useState<string>(
-    () => sessionStorage.getItem("vyva_admin_key") ?? ""
-  );
-  const [keyInput, setKeyInput] = useState("");
-  const [keyError, setKeyError] = useState("");
-  const isAuthenticated = !!adminKey;
+  const { logout } = useAuth();
 
   const { data, isLoading, error, refetch } = useQuery<AdminData>({
     queryKey: ["/api/admin/proxy-pending"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/proxy-pending", {
-        headers: { "x-admin-key": adminKey },
-      });
+      const res = await apiFetch("/api/admin/proxy-pending");
       if (res.status === 403) throw new Error("FORBIDDEN");
+      if (res.status === 401) throw new Error("UNAUTHENTICATED");
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       return res.json();
     },
-    enabled: isAuthenticated,
     retry: false,
   });
-
-  const handleKeySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setKeyError("");
-    const test = await fetch("/api/admin/proxy-pending", {
-      headers: { "x-admin-key": keyInput },
-    });
-    if (test.status === 403) {
-      setKeyError("Invalid admin key — please try again");
-      return;
-    }
-    sessionStorage.setItem("vyva_admin_key", keyInput);
-    setAdminKey(keyInput);
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-8 w-full max-w-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-              <ShieldAlert size={20} className="text-purple-700" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900 text-lg">Admin access</h1>
-              <p className="text-xs text-gray-500">VYVA internal dashboard</p>
-            </div>
-          </div>
-          <form onSubmit={handleKeySubmit} className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Admin key</label>
-              <Input
-                data-testid="input-admin-key"
-                type="password"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                placeholder="Enter your admin key"
-                className="h-11"
-                autoFocus
-              />
-            </div>
-            {keyError && (
-              <p data-testid="text-admin-key-error" className="text-xs text-red-600">{keyError}</p>
-            )}
-            <button
-              data-testid="button-admin-login"
-              type="submit"
-              disabled={!keyInput.trim()}
-              className="w-full py-2.5 rounded-xl bg-purple-700 text-white text-sm font-semibold hover:bg-purple-800 disabled:opacity-40"
-            >
-              Access dashboard
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   const pending   = data?.pending   ?? [];
   const confirmed = data?.confirmed ?? [];
@@ -313,7 +246,7 @@ export default function ProxyPendingPage() {
             </button>
             <button
               data-testid="button-admin-logout"
-              onClick={() => { sessionStorage.removeItem("vyva_admin_key"); setAdminKey(""); }}
+              onClick={logout}
               className="text-xs text-gray-400 hover:text-gray-600"
             >
               Sign out
@@ -327,7 +260,7 @@ export default function ProxyPendingPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700" data-testid="text-admin-error">
             {(error as Error).message === "FORBIDDEN"
-              ? "Access denied — admin key was rejected"
+              ? "Access denied - your account is not an admin"
               : "Failed to load data — please refresh"}
           </div>
         )}
@@ -375,7 +308,7 @@ export default function ProxyPendingPage() {
             ) : (
               <div>
                 {pending.map((p) => (
-                  <ProfileRow key={p.id} profile={p} adminKey={adminKey} isPending={true} />
+                  <ProfileRow key={p.id} profile={p} isPending={true} />
                 ))}
               </div>
             )}
@@ -409,7 +342,7 @@ export default function ProxyPendingPage() {
             ) : (
               <div>
                 {confirmed.map((p) => (
-                  <ProfileRow key={p.id} profile={p} adminKey={adminKey} isPending={false} />
+                  <ProfileRow key={p.id} profile={p} isPending={false} />
                 ))}
               </div>
             )}
