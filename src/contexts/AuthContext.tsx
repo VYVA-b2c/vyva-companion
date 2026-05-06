@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { getToken, setToken, clearToken, isAuthenticated } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
 import { setLanguage as setAppLanguage } from "@/i18n";
-import { isSupabaseAuthConfiguredError, signInWithSupabase, signUpWithSupabase } from "@/lib/supabaseAuth";
+import { signInWithSupabase } from "@/lib/supabaseAuth";
 
 const ONBOARDING_STATE_KEY = ["/api/onboarding/state"] as const;
 
@@ -148,8 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
         applyToken(session.token, currentUser, null);
         return;
-      } catch (err) {
-        if (!isSupabaseAuthConfiguredError(err)) throw err;
+      } catch {
+        // Fall back to VYVA's backend auth so regular email/password accounts
+        // are not blocked by Supabase confirmation or SMTP setup.
       }
     }
 
@@ -164,18 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyToken]);
 
   const register = useCallback(async (identifier: string | AuthIdentifier, password: string) => {
-    const email = emailFromIdentifier(identifier);
-    if (email) {
-      try {
-        const session = await signUpWithSupabase(email, password);
-        const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
-        applyToken(session.token, currentUser, null);
-        return;
-      } catch (err) {
-        if (!isSupabaseAuthConfiguredError(err)) throw err;
-      }
-    }
-
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
