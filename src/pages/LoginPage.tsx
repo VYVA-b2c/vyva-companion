@@ -858,8 +858,16 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
   const contactPlaceholder = copy.combinedContactPlaceholder ?? `${copy.phonePlaceholder} / ${copy.emailPlaceholder}`;
   const contactAutocomplete = "username";
   const activeView: View = view === "forgot" || view === "magic" ? view : mode;
-  const authTitle = activeView === "register" ? copy.createTab : activeView === "login" ? copy.signInTab : copy.titles[activeView];
-  const authSubtitle = copy.subtitles[activeView];
+  const authTitle = adminOnly && activeView === "login"
+    ? "Admin sign in"
+    : activeView === "register"
+      ? copy.createTab
+      : activeView === "login"
+        ? copy.signInTab
+        : copy.titles[activeView];
+  const authSubtitle = adminOnly && activeView === "login"
+    ? "Access the VYVA operations panel."
+    : copy.subtitles[activeView];
   const switchPrompt = mode === "register"
     ? (copy.alreadyHaveAccount ?? "Already have an account?")
     : (copy.dontHaveAccount ?? "Don't have an account?");
@@ -924,45 +932,59 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
 
         <main className="relative z-10 mx-auto flex min-h-[calc(100vh-92px)] w-full max-w-[1040px] items-center justify-center px-5 pb-8 sm:px-8">
           <section className="w-full max-w-[540px]">
-            <div className="mb-5 text-center">
-              <p className="mb-3 font-body text-[11px] font-extrabold uppercase tracking-[0.26em] text-vyva-purple/70">
-                {copy.privateDailySupport}
-              </p>
-              <h1 className="font-display text-[50px] leading-[0.94] text-[#2E1642] sm:text-[66px]">
-                {copy.heroTitle}
-              </h1>
-              <p className="mx-auto mt-4 max-w-[430px] font-body text-[15px] leading-[1.55] text-vyva-text-2">
-                {copy.heroSubtitle}
-              </p>
-
-              <div className="mt-5 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleGuideVoiceToggle}
-                  className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 py-2 font-body text-[13px] font-extrabold shadow-[0_12px_30px_rgba(107,33,168,0.12)] backdrop-blur ${
-                    isGuideLive
-                      ? "border-[#E8DDF3] bg-white text-vyva-purple"
-                      : "border-transparent bg-vyva-purple text-white"
-                  }`}
-                  data-testid="button-login-guide-voice"
-                >
-                  {isGuideConnecting ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : isGuideLive ? (
-                    <X size={15} />
-                  ) : (
-                    <Mic size={15} />
-                  )}
-                  {isGuideConnecting ? copy.guide.connecting : isGuideLive ? copy.guide.end : copy.guide.title}
-                </button>
-
-                {guideVoiceErrorText && (
-                  <p className="max-w-[420px] rounded-[16px] bg-[#FFF9E8] px-4 py-3 text-center font-body text-[12px] leading-[1.5] text-[#855F00]">
-                    {guideVoiceErrorText}
-                  </p>
-                )}
+            {adminOnly ? (
+              <div className="mb-5 text-center">
+                <p className="mb-3 font-body text-[11px] font-extrabold uppercase tracking-[0.26em] text-vyva-purple/70">
+                  VYVA Admin
+                </p>
+                <h1 className="font-display text-[46px] leading-[0.98] text-[#2E1642] sm:text-[58px]">
+                  Operations access
+                </h1>
+                <p className="mx-auto mt-4 max-w-[380px] font-body text-[15px] leading-[1.55] text-vyva-text-2">
+                  Sign in with an approved admin account to manage lifecycle, content, and access.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="mb-5 text-center">
+                <p className="mb-3 font-body text-[11px] font-extrabold uppercase tracking-[0.26em] text-vyva-purple/70">
+                  {copy.privateDailySupport}
+                </p>
+                <h1 className="font-display text-[50px] leading-[0.94] text-[#2E1642] sm:text-[66px]">
+                  {copy.heroTitle}
+                </h1>
+                <p className="mx-auto mt-4 max-w-[430px] font-body text-[15px] leading-[1.55] text-vyva-text-2">
+                  {copy.heroSubtitle}
+                </p>
+
+                <div className="mt-5 flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGuideVoiceToggle}
+                    className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 py-2 font-body text-[13px] font-extrabold shadow-[0_12px_30px_rgba(107,33,168,0.12)] backdrop-blur ${
+                      isGuideLive
+                        ? "border-[#E8DDF3] bg-white text-vyva-purple"
+                        : "border-transparent bg-vyva-purple text-white"
+                    }`}
+                    data-testid="button-login-guide-voice"
+                  >
+                    {isGuideConnecting ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : isGuideLive ? (
+                      <X size={15} />
+                    ) : (
+                      <Mic size={15} />
+                    )}
+                    {isGuideConnecting ? copy.guide.connecting : isGuideLive ? copy.guide.end : copy.guide.title}
+                  </button>
+
+                  {guideVoiceErrorText && (
+                    <p className="max-w-[420px] rounded-[16px] bg-[#FFF9E8] px-4 py-3 text-center font-body text-[12px] leading-[1.5] text-[#855F00]">
+                      {guideVoiceErrorText}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-[34px] border border-[#EFE7DB] bg-white/94 p-5 shadow-[0_24px_70px_rgba(72,44,18,0.14)] backdrop-blur sm:p-7">
               <div className="mb-5">
@@ -1152,18 +1174,22 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
                         {!loading && <ArrowRight size={17} />}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={showMagic}
-                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[#E8DDF3] bg-white px-4 py-3 font-body text-[13px] font-extrabold text-vyva-purple"
-                        data-testid="button-show-magic-link"
-                      >
-                        <KeyRound size={15} />
-                        {copy.signInWithMagicLink}
-                      </button>
+                      {!adminOnly && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={showMagic}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#E8DDF3] bg-white px-4 py-3 font-body text-[13px] font-extrabold text-vyva-purple"
+                            data-testid="button-show-magic-link"
+                          >
+                            <KeyRound size={15} />
+                            {copy.signInWithMagicLink}
+                          </button>
 
-                      {authDivider}
-                      {googleButton}
+                          {authDivider}
+                          {googleButton}
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
