@@ -20,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { queryClient } from "@/lib/queryClient";
 import { stageToRoute } from "@/lib/onboardingRoute";
-import { hasSupabaseAuthConfig, sendSupabasePasswordReset } from "@/lib/supabaseAuth";
+import { isSupabaseAuthAvailable, sendSupabasePasswordReset } from "@/lib/supabaseAuth";
 import { useLanguage } from "@/i18n";
 import type { LanguageCode } from "@/i18n/languages";
 
@@ -794,7 +794,7 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
     setForgotLoading(true);
     try {
       const email = forgotEmail.trim();
-      if (hasSupabaseAuthConfig()) {
+      if (await isSupabaseAuthAvailable()) {
         await sendSupabasePasswordReset(email);
       } else {
         const res = await fetch("/api/auth/reset-request", {

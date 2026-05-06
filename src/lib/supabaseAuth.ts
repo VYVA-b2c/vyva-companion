@@ -9,7 +9,14 @@ type SupabaseAuthResponse = {
   msg?: string;
 };
 
-function getSupabaseConfig() {
+type SupabaseConfig = {
+  url: string;
+  anonKey: string;
+};
+
+let runtimeConfigPromise: Promise<SupabaseConfig | null> | null = null;
+
+function getBuildtimeSupabaseConfig(): SupabaseConfig | null {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
@@ -17,12 +24,43 @@ function getSupabaseConfig() {
   return { url: url.replace(/\/$/, ""), anonKey };
 }
 
+async function getRuntimeSupabaseConfig(): Promise<SupabaseConfig | null> {
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = fetch("/api/auth/supabase-config")
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const data = await response.json().catch(() => null) as {
+          configured?: boolean;
+          url?: string;
+          anonKey?: string;
+        } | null;
+        if (!data?.configured || !data.url || !data.anonKey) return null;
+        return { url: data.url.replace(/\/$/, ""), anonKey: data.anonKey };
+      })
+      .catch(() => null);
+  }
+
+  return runtimeConfigPromise;
+}
+
+async function getSupabaseConfig(): Promise<SupabaseConfig | null> {
+  return getBuildtimeSupabaseConfig() ?? await getRuntimeSupabaseConfig();
+}
+
 export function hasSupabaseAuthConfig(): boolean {
-  return getSupabaseConfig() !== null;
+  return getBuildtimeSupabaseConfig() !== null;
+}
+
+export async function isSupabaseAuthAvailable(): Promise<boolean> {
+  return await getSupabaseConfig() !== null;
+}
+
+export function isSupabaseAuthConfiguredError(error: unknown): boolean {
+  return error instanceof Error && error.message === "Supabase auth is not configured.";
 }
 
 async function supabaseAuthFetch(path: string, body: Record<string, unknown>): Promise<SupabaseAuthResponse> {
-  const config = getSupabaseConfig();
+  const config = await getSupabaseConfig();
   if (!config) throw new Error("Supabase auth is not configured.");
 
   const response = await fetch(`${config.url}${path}`, {

@@ -10,6 +10,7 @@ import { signMagicLoginToken, signToken, verifyMagicLoginToken } from "../lib/jw
 import { authMiddleware } from "../middleware/auth.js";
 import { sendMagicLoginEmail, sendPasswordResetEmail } from "../lib/email.js";
 import { getActiveProfileContext } from "../lib/profileAccess.js";
+import { getSupabaseConfig } from "../lib/supabaseAuth.js";
 
 const scryptAsync = promisify(scrypt);
 
@@ -219,6 +220,12 @@ const consumeAccessLinkSchema = z.object({
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 export const authRouter = Router();
+
+authRouter.get("/supabase-config", (_req: Request, res: Response) => {
+  const config = getSupabaseConfig();
+  if (!config) return res.status(404).json({ configured: false });
+  return res.json({ configured: true, url: config.url, anonKey: config.anonKey });
+});
 
 /**
  * POST /api/auth/register

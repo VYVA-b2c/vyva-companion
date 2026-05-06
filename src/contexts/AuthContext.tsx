@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { getToken, setToken, clearToken, isAuthenticated } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
 import { setLanguage as setAppLanguage } from "@/i18n";
-import { hasSupabaseAuthConfig, signInWithSupabase, signUpWithSupabase } from "@/lib/supabaseAuth";
+import { isSupabaseAuthConfiguredError, signInWithSupabase, signUpWithSupabase } from "@/lib/supabaseAuth";
 
 const ONBOARDING_STATE_KEY = ["/api/onboarding/state"] as const;
 
@@ -142,11 +142,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (identifier: string | AuthIdentifier, password: string) => {
     const email = emailFromIdentifier(identifier);
-    if (hasSupabaseAuthConfig() && email) {
-      const session = await signInWithSupabase(email, password);
-      const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
-      applyToken(session.token, currentUser, null);
-      return;
+    if (email) {
+      try {
+        const session = await signInWithSupabase(email, password);
+        const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
+        applyToken(session.token, currentUser, null);
+        return;
+      } catch (err) {
+        if (!isSupabaseAuthConfiguredError(err)) throw err;
+      }
     }
 
     const res = await fetch("/api/auth/login", {
@@ -154,18 +158,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...contactPayload(identifier), password }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Login failed");
     applyToken(data.token, responseUser(data), data.prevSeenAt ?? null);
   }, [applyToken]);
 
   const register = useCallback(async (identifier: string | AuthIdentifier, password: string) => {
     const email = emailFromIdentifier(identifier);
-    if (hasSupabaseAuthConfig() && email) {
-      const session = await signUpWithSupabase(email, password);
-      const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
-      applyToken(session.token, currentUser, null);
-      return;
+    if (email) {
+      try {
+        const session = await signUpWithSupabase(email, password);
+        const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
+        applyToken(session.token, currentUser, null);
+        return;
+      } catch (err) {
+        if (!isSupabaseAuthConfiguredError(err)) throw err;
+      }
     }
 
     const res = await fetch("/api/auth/register", {
@@ -173,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...contactPayload(identifier), password }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
     applyToken(data.token, responseUser(data), null);
   }, [applyToken]);
@@ -184,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(contactPayload(identifier)),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Could not send sign-in link");
     return data as MagicLinkResponse;
   }, []);
@@ -195,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: magicToken }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "This sign-in link did not work");
     applyToken(data.token, responseUser(data), data.prevSeenAt ?? null);
   }, [applyToken]);
