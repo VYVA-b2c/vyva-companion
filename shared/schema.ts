@@ -1188,20 +1188,50 @@ export const utilityReviewRuns = pgTable("utility_review_runs", {
   id:                    uuid("id").primaryKey().defaultRandom(),
   user_id:               text("user_id").notNull(),
   country:               text("country").notNull().default("ES"),
-  utility_type:          text("utility_type").notNull(),
-  input_method:          text("input_method").notNull(),
+  utility_type:          text("utility_type").notNull().default("electricity"),
+  input_method:          text("input_method").notNull().default("manual"),
   extracted_data_json:   jsonb("extracted_data_json").notNull().default({}),
   normalized_input_json: jsonb("normalized_input_json").notNull().default({}),
   source_used:           text("source_used").notNull().default("CNMC"),
   source_status:         text("source_status").notNull().default("pending"),
   results_json:          jsonb("results_json").notNull().default([]),
   confidence:            text("confidence").notNull().default("medium"),
+
+  // Legacy columns kept so drizzle-kit push does not delete production data.
+  use_case:              text("use_case"),
+  provider_id:           text("provider_id"),
+  provider_name:         text("provider_name"),
+  provider_phone:        text("provider_phone"),
+  found_externally:      boolean("found_externally"),
+  action_summary:        text("action_summary"),
+  action_payload:        jsonb("action_payload"),
+  status:                text("status"),
+  language:              text("language"),
+  confirmed_at:          timestamp("confirmed_at", { withTimezone: true }),
+  expires_at:            timestamp("expires_at", { withTimezone: true }),
+  updated_at:            timestamp("updated_at", { withTimezone: true }),
+
   created_at:            timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertUtilityReviewRunSchema = createInsertSchema(utilityReviewRuns).omit({ id: true, created_at: true });
 export type InsertUtilityReviewRun = z.infer<typeof insertUtilityReviewRunSchema>;
 export type UtilityReviewRun = typeof utilityReviewRuns.$inferSelect;
+
+export const conciergeRecommendationFeedback = pgTable("concierge_recommendation_feedback", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  user_id:           text("user_id").notNull(),
+  recommendation_id: text("recommendation_id").notNull(),
+  action:            text("action").notNull(),
+  category:          text("category"),
+  title:             text("title"),
+  reasons:           jsonb("reasons").notNull().default([]),
+  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertConciergeRecommendationFeedbackSchema = createInsertSchema(conciergeRecommendationFeedback).omit({ id: true, created_at: true });
+export type InsertConciergeRecommendationFeedback = z.infer<typeof insertConciergeRecommendationFeedbackSchema>;
+export type ConciergeRecommendationFeedback = typeof conciergeRecommendationFeedback.$inferSelect;
 
 export const homePlanCards = pgTable("home_plan_cards", {
   id:                       uuid("id").primaryKey().defaultRandom(),
@@ -1292,6 +1322,7 @@ export const schema = {
   scheduledEvents,
   scheduledEventLogs,
   utilityReviewRuns,
+  conciergeRecommendationFeedback,
   homePlanCards,
   heroMessages,
 };
