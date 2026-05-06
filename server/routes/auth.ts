@@ -228,12 +228,19 @@ async function checkPassword(password: string, stored: string): Promise<boolean>
 
 function friendlyAuthWriteError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("ENOTFOUND helium")) {
+    return "Local database is not reachable from here. Test signup inside Replit, or use a reachable DATABASE_URL locally.";
+  }
   if (
     message.includes("phone_number") ||
     message.includes("active_profile_id") ||
-    message.includes("onboarding_intent")
+    message.includes("onboarding_intent") ||
+    message.includes("does not exist")
   ) {
     return "Database schema is out of date. Please run npm run db:push, restart the app, and try again.";
+  }
+  if (!isProduction) {
+    return `Registration failed: ${message.slice(0, 240)}`;
   }
   return "Registration failed. Please try again.";
 }
