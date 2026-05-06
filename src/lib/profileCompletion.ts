@@ -41,8 +41,12 @@ export function deriveCompletedSections(
     completed.add("care-team");
   }
 
-  const consentHobbies = (profile?.data_sharing_consent as Record<string, unknown> | null | undefined)?.hobbies as Record<string, unknown> | null | undefined;
-  const hobbies = consentHobbies?.hobbies;
+  const nestedHobbies = consent?.hobbies as Record<string, unknown> | unknown[] | null | undefined;
+  const hobbies = Array.isArray(profile?.hobbies)
+    ? profile.hobbies
+    : Array.isArray(nestedHobbies)
+      ? nestedHobbies
+      : (nestedHobbies as Record<string, unknown> | null | undefined)?.hobbies;
   if (Array.isArray(hobbies) && hobbies.length > 0) {
     completed.add("hobbies");
   }

@@ -118,7 +118,11 @@ function readGeoCache(): GeoCacheEntry | null {
 }
 
 function writeGeoCache(lat: number, lng: number): void {
-  try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ lat, lng, timestamp: Date.now() })); } catch { }
+  try {
+    localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ lat, lng, timestamp: Date.now() }));
+  } catch {
+    return;
+  }
 }
 
 // Returns cached location instantly (null if none). Kicks off a background GPS

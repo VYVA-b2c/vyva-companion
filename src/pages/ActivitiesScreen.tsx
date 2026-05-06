@@ -1,10 +1,10 @@
-import { BrainCircuit, Headphones, HelpCircle, Layers, Play, Puzzle, Type, Users, Wind } from "lucide-react";
+import { BrainCircuit, Headphones, HelpCircle, Layers, Play, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
 import { useLanguage } from "@/i18n";
 import VoiceHero from "@/components/VoiceHero";
 
-const activityIcons: Record<string, any> = {
+const activityIcons: Record<string, LucideIcon> = {
   "brain.activities.triviaQuiz": HelpCircle,
   "brain.activities.memoryGame": Layers,
   "brain.activities.scrabble": Type,

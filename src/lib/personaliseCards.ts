@@ -129,5 +129,6 @@ export function incrementChatNavigationCount(): void {
     const current = getChatNavigationCount();
     localStorage.setItem(CHAT_NAV_COUNT_KEY, String(current + 1));
   } catch {
+    return;
   }
 }

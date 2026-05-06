@@ -2,6 +2,19 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const serverProjects = process.env.DATABASE_URL
+  ? [
+      {
+        extends: true,
+        test: {
+          name: "server",
+          environment: "node",
+          include: ["server/**/*.test.ts"],
+        },
+      },
+    ]
+  : [];
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -16,14 +29,7 @@ export default defineConfig({
           include: ["src/**/*.{test,spec}.{ts,tsx}"],
         },
       },
-      {
-        extends: true,
-        test: {
-          name: "server",
-          environment: "node",
-          include: ["server/**/*.test.ts"],
-        },
-      },
+      ...serverProjects,
     ],
   },
   resolve: {

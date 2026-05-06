@@ -178,7 +178,9 @@ export function useVyvaVoice() {
             if (parsed.expected_keys?.[0]) {
               message = `${message} (${parsed.expected_keys[0]})`;
             }
-          } catch {}
+          } catch {
+            // Keep the upstream text when it is not JSON.
+          }
           throw new Error(message);
         }
 

@@ -261,6 +261,7 @@ const HomeScreen = () => {
     try {
       localStorage.setItem(COORDS_WEATHER_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
     } catch {
+      return;
     }
   }
 
@@ -284,7 +285,8 @@ const HomeScreen = () => {
         writeCoordsWeatherCache(data);
         setCoordsWeatherData(data);
       }
-    } catch {
+    } catch (err) {
+      console.warn("[home] IP weather lookup failed:", err);
     }
   };
 
@@ -312,7 +314,8 @@ const HomeScreen = () => {
             writeCoordsWeatherCache(data);
             setCoordsWeatherData(data);
           }
-        } catch {
+        } catch (err) {
+          console.warn("[home] coordinate weather lookup failed:", err);
         }
       },
       () => {

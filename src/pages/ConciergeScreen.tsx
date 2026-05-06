@@ -947,7 +947,7 @@ function sessionOutcomeLabel(outcome: string, locale = "es"): string {
   }
 }
 
-function useCaseLabel(useCase: string, locale = "es"): string {
+function getUseCaseLabel(useCase: string, locale = "es"): string {
   const es = locale.startsWith("es");
   switch (useCase) {
     case "book_ride":
@@ -1707,7 +1707,7 @@ const ConciergeScreen = () => {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-body text-[12px] uppercase tracking-[0.12em] text-vyva-text-2">
-                  {useCaseLabel(activeAction.use_case, locale)}
+                  {getUseCaseLabel(activeAction.use_case, locale)}
                 </p>
                 <p className="mt-1 font-body text-[20px] font-semibold leading-tight text-vyva-text-1">
                   {activeAction.provider_name || (isSpanish ? "Proveedor seleccionado" : "Selected provider")}
@@ -2991,7 +2991,7 @@ const ConciergeScreen = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-body text-[12px] uppercase tracking-wide text-vyva-text-2">
-                        {useCaseLabel(item.use_case, locale)}
+                        {getUseCaseLabel(item.use_case, locale)}
                       </p>
                       <p className="font-body text-[16px] font-semibold text-vyva-text-1">
                         {item.provider_name || (isSpanish ? "Proveedor" : "Provider")}

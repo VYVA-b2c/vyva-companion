@@ -935,10 +935,10 @@ const HealthScreen = () => {
                                         try { await navigator.share({ title: t("health.pastScans.aiAdvice", "AI Advice"), text }); confirmCopied(); }
                                         catch (err: unknown) {
                                           if (err instanceof Error && err.name === "AbortError") return;
-                                          try { await navigator.clipboard.writeText(text); confirmCopied(); } catch { }
+                                          try { await navigator.clipboard.writeText(text); confirmCopied(); } catch { return; }
                                         }
                                       } else {
-                                        try { await navigator.clipboard.writeText(text); confirmCopied(); } catch { }
+                                        try { await navigator.clipboard.writeText(text); confirmCopied(); } catch { return; }
                                       }
                                     }}
                                     className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-full transition-colors hover:bg-purple-50 active:scale-95"

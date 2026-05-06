@@ -715,9 +715,10 @@ const MemoryGameRunner = () => {
             language,
           });
         } finally {
-          if (!active) return;
-          setSaving(false);
-          setFinished(true);
+          if (active) {
+            setSaving(false);
+            setFinished(true);
+          }
         }
       }
       void completeGame();
@@ -752,9 +753,10 @@ const MemoryGameRunner = () => {
             language,
           });
         } finally {
-          if (!active) return;
-          setSaving(false);
-          setFinished(true);
+          if (active) {
+            setSaving(false);
+            setFinished(true);
+          }
         }
       }
       void completeGame();
@@ -782,9 +784,10 @@ const MemoryGameRunner = () => {
             language,
           });
         } finally {
-          if (!active) return;
-          setSaving(false);
-          setFinished(true);
+          if (active) {
+            setSaving(false);
+            setFinished(true);
+          }
         }
       }
       void completeGame();

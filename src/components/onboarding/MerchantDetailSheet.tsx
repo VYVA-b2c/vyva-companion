@@ -126,7 +126,6 @@ export function MerchantDetailSheet({
         fetchFullDetails(provider.google_place_id);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
 
   const fetchFullDetails = async (placeId: string) => {
@@ -149,7 +148,8 @@ export function MerchantDetailSheet({
           address: prev.address || data.formattedAddress || "",
         };
       });
-    } catch {
+    } catch (err) {
+      console.warn("[MerchantDetailSheet] place details lookup failed:", err);
     } finally {
       setLoadingPlace(false);
     }
