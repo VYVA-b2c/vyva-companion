@@ -6,13 +6,123 @@ import { promisify } from "util";
 import { z } from "zod";
 import { db } from "../db.js";
 import { accessLinks, lifecycleEvents, profiles, userIntakes, users } from "../../shared/schema.js";
-import { signToken } from "../lib/jwt.js";
+import { signMagicLoginToken, signToken, verifyMagicLoginToken } from "../lib/jwt.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { sendPasswordResetEmail } from "../lib/email.js";
+import { sendMagicLoginEmail, sendPasswordResetEmail } from "../lib/email.js";
+import { getActiveProfileContext } from "../lib/profileAccess.js";
 
 const scryptAsync = promisify(scrypt);
 
 const isDev = process.env.NODE_ENV !== "production";
+const emailSchema = z.string().trim().email();
+const SUPPORTED_PROFILE_LANGUAGES = ["es", "en", "fr", "de", "it", "pt", "cy"] as const;
+type ProfileLanguage = (typeof SUPPORTED_PROFILE_LANGUAGES)[number];
+
+type ContactIdentifier = {
+  email: string | null;
+  phone: string | null;
+  kind: "email" | "phone";
+};
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = emailSchema.safeParse(trimmed);
+  return parsed.success ? parsed.data.toLowerCase() : null;
+}
+
+function normalizePhone(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const startsInternational = trimmed.startsWith("+");
+  const compact = trimmed.replace(/[^\d+]/g, "");
+  const normalized = compact.startsWith("00")
+    ? `+${compact.slice(2).replace(/\D/g, "")}`
+    : startsInternational
+      ? `+${compact.slice(1).replace(/\D/g, "")}`
+      : compact.replace(/\D/g, "");
+  const digitCount = normalized.replace(/\D/g, "").length;
+  if (digitCount < 7 || digitCount > 15) return null;
+  return normalized;
+}
+
+function normalizeProfileLanguage(value: unknown): ProfileLanguage {
+  if (typeof value !== "string") return "es";
+  const raw = value.trim().toLowerCase();
+  return SUPPORTED_PROFILE_LANGUAGES.includes(raw as ProfileLanguage)
+    ? raw as ProfileLanguage
+    : "es";
+}
+
+function resolveContactIdentifier(body: {
+  email?: unknown;
+  phone?: unknown;
+  identifier?: unknown;
+}): ContactIdentifier | null {
+  const email = normalizeEmail(body.email);
+  if (email) return { email, phone: null, kind: "email" };
+
+  const phone = normalizePhone(body.phone);
+  if (phone) return { email: null, phone, kind: "phone" };
+
+  if (typeof body.identifier === "string") {
+    const identifier = body.identifier.trim();
+    if (!identifier) return null;
+    if (identifier.includes("@")) {
+      const identifierEmail = normalizeEmail(identifier);
+      return identifierEmail ? { email: identifierEmail, phone: null, kind: "email" } : null;
+    }
+    const identifierPhone = normalizePhone(identifier);
+    return identifierPhone ? { email: null, phone: identifierPhone, kind: "phone" } : null;
+  }
+
+  return null;
+}
+
+async function findUserByContact(contact: ContactIdentifier) {
+  const whereClause = contact.kind === "email" && contact.email
+    ? eq(users.email, contact.email)
+    : eq(users.phone_number, contact.phone ?? "");
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(whereClause)
+    .limit(1);
+
+  return user ?? null;
+}
+
+async function findUserById(userId: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return user ?? null;
+}
+
+async function getOrCreateAuthenticatedUser(userId: string, email?: unknown) {
+  const existing = await findUserById(userId);
+  if (existing) return existing;
+
+  const normalizedEmail = normalizeEmail(email);
+  const [created] = await db
+    .insert(users)
+    .values({
+      id: userId,
+      email: normalizedEmail,
+      password_hash: "external:supabase",
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  return created ?? await findUserById(userId);
+}
 
 async function getProfileRole(userId: string): Promise<string> {
   const [profile] = await db
@@ -24,27 +134,34 @@ async function getProfileRole(userId: string): Promise<string> {
   return profile?.role ?? "user";
 }
 
-async function getOrCreateAuthProfile(userId: string, email?: string | null) {
+async function getUserProfileLanguage(userId: string): Promise<ProfileLanguage> {
+  const context = await getActiveProfileContext(userId);
+  if (!context.profileId) return "es";
+
   const [profile] = await db
-    .select({ id: profiles.id, email: profiles.email, role: profiles.role })
+    .select({ language: profiles.language })
     .from(profiles)
-    .where(eq(profiles.id, userId))
+    .where(eq(profiles.id, context.profileId))
     .limit(1);
 
-  if (profile) return profile;
+  return normalizeProfileLanguage(profile?.language);
+}
 
-  await db.insert(profiles).values({
-    id: userId,
-    email: email ?? null,
-  } as typeof profiles.$inferInsert).onConflictDoNothing();
-
-  const [created] = await db
-    .select({ id: profiles.id, email: profiles.email, role: profiles.role })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1);
-
-  return created ?? { id: userId, email: email ?? null, role: "user" };
+function authResponseUser(
+  user: typeof users.$inferSelect,
+  prevSeenAt: string | null,
+  language: ProfileLanguage,
+  role = "user",
+) {
+  return {
+    userId: user.id,
+    email: user.email,
+    phone: user.phone_number,
+    language,
+    activeProfileId: user.active_profile_id ?? null,
+    role,
+    prevSeenAt,
+  };
 }
 
 async function hashPassword(password: string): Promise<string> {
@@ -61,13 +178,28 @@ async function checkPassword(password: string, stored: string): Promise<boolean>
 }
 
 const registerSchema = z.object({
-  email:    z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  email:      z.string().optional(),
+  phone:      z.string().optional(),
+  identifier: z.string().optional(),
+  language:   z.string().optional(),
+  password:   z.string().min(8, "Password must be at least 8 characters"),
 });
 
 const loginSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(1),
+  email:      z.string().optional(),
+  phone:      z.string().optional(),
+  identifier: z.string().optional(),
+  password:   z.string().min(1),
+});
+
+const magicLinkRequestSchema = z.object({
+  email:      z.string().optional(),
+  phone:      z.string().optional(),
+  identifier: z.string().optional(),
+});
+
+const magicLoginSchema = z.object({
+  token: z.string().min(1, "Magic link token is required"),
 });
 
 const resetRequestSchema = z.object({
@@ -99,29 +231,31 @@ authRouter.post("/register", async (req: Request, res: Response) => {
     return res.status(400).json({ error: msg });
   }
 
-  const { email, password } = parsed.data;
-  const lowerEmail = email.toLowerCase();
+  const { password } = parsed.data;
+  const language = normalizeProfileLanguage(parsed.data.language);
+  const contact = resolveContactIdentifier(parsed.data);
+  if (!contact) {
+    return res.status(400).json({ error: "Please enter a valid email address or mobile number." });
+  }
 
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, lowerEmail))
-    .limit(1);
+  const existing = await findUserByContact(contact);
 
-  if (existing.length > 0) {
-    return res.status(409).json({ error: "An account with this email already exists." });
+  if (existing) {
+    return res.status(409).json({
+      error: contact.kind === "phone"
+        ? "An account with this mobile number already exists."
+        : "An account with this email already exists.",
+    });
   }
 
   const password_hash = await hashPassword(password);
   const [user] = await db
     .insert(users)
-    .values({ email: lowerEmail, password_hash })
+    .values({ email: contact.email, phone_number: contact.phone, password_hash })
     .returning();
 
-  await db.insert(profiles).values({ id: user.id, email: lowerEmail }).onConflictDoNothing();
-
   const token = await signToken(user.id);
-  return res.status(201).json({ token, userId: user.id, email: user.email, role: "user" });
+  return res.status(201).json({ token, ...authResponseUser(user, null, language, "user") });
 });
 
 /**
@@ -131,21 +265,21 @@ authRouter.post("/register", async (req: Request, res: Response) => {
 authRouter.post("/login", async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid email or password" });
+    return res.status(400).json({ error: "Invalid sign-in details" });
   }
 
-  const { email, password } = parsed.data;
+  const { password } = parsed.data;
+  const contact = resolveContactIdentifier(parsed.data);
+  if (!contact) {
+    return res.status(400).json({ error: "Please enter a valid email address or mobile number." });
+  }
 
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
+  const user = await findUserByContact(contact);
 
   const ok = user ? await checkPassword(password, user.password_hash) : false;
 
   if (!user || !ok) {
-    return res.status(401).json({ error: "Incorrect email or password." });
+    return res.status(401).json({ error: "Incorrect email, mobile number, or password." });
   }
 
   const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
@@ -155,9 +289,16 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     .set({ last_seen_at: new Date() })
     .where(eq(users.id, user.id));
 
-  const role = await getProfileRole(user.id);
   const token = await signToken(user.id);
-  return res.json({ token, userId: user.id, email: user.email, role, prevSeenAt });
+  return res.json({
+    token,
+    ...authResponseUser(
+      user,
+      prevSeenAt,
+      await getUserProfileLanguage(user.id),
+      await getProfileRole(user.id),
+    ),
+  });
 });
 
 /**
@@ -169,19 +310,118 @@ authRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const authEmail = typeof req.user.email === "string" ? req.user.email : null;
-  const profile = await getOrCreateAuthProfile(req.user.id, authEmail);
+  const user = await getOrCreateAuthenticatedUser(req.user.id, req.user.email);
+
+  if (!user) {
+    return res.status(401).json({ error: "User not found" });
+  }
+
+  const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
 
   await db
-    .update(profiles)
-    .set({ updated_at: new Date() })
-    .where(eq(profiles.id, req.user.id));
+    .update(users)
+    .set({ last_seen_at: new Date() })
+    .where(eq(users.id, user.id));
 
   return res.json({
-    id: profile.id,
-    email: profile.email ?? authEmail ?? "",
-    role: profile.role ?? "user",
-    prevSeenAt: null,
+    id: user.id,
+    email: user.email,
+    phone: user.phone_number,
+    activeProfileId: user.active_profile_id ?? null,
+    language: await getUserProfileLanguage(user.id),
+    role: await getProfileRole(user.id),
+    prevSeenAt,
+  });
+});
+
+/**
+ * POST /api/auth/magic-link-request
+ * Sends a short-lived sign-in link. The response stays generic so people
+ * cannot probe whether an email or phone number has an account.
+ */
+authRouter.post("/magic-link-request", async (req: Request, res: Response) => {
+  const parsed = magicLinkRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Please enter a valid email address or mobile number." });
+  }
+
+  const contact = resolveContactIdentifier(parsed.data);
+  if (!contact) {
+    return res.status(400).json({ error: "Please enter a valid email address or mobile number." });
+  }
+
+  const genericOk: Record<string, unknown> = {
+    message: "If an account exists, a secure sign-in link has been sent.",
+  };
+
+  const user = await findUserByContact(contact);
+  if (!user) {
+    return res.json(genericOk);
+  }
+
+  const magicToken = await signMagicLoginToken(user.id);
+  const fallbackAppUrl = isDev ? `${req.protocol}://${req.get("host")}` : "";
+  const appUrl = process.env.APP_URL ?? fallbackAppUrl;
+  const magicLink = `${appUrl}/login?magic_token=${encodeURIComponent(magicToken)}`;
+
+  if (user.email) {
+    try {
+      await sendMagicLoginEmail({ to: user.email, magicLink });
+    } catch (err) {
+      console.error("[auth] Failed to send magic login email:", err);
+      return res.status(500).json({ error: "Failed to send sign-in link. Please try again later." });
+    }
+  } else if (isDev) {
+    console.log("[auth:dev] Magic login link for phone-only account:", magicLink);
+  }
+
+  if (isDev) {
+    genericOk._devMagicLink = magicLink;
+  }
+
+  return res.json(genericOk);
+});
+
+/**
+ * POST /api/auth/magic-login
+ * Exchanges a valid magic link token for the normal app JWT.
+ */
+authRouter.post("/magic-login", async (req: Request, res: Response) => {
+  const parsed = magicLoginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid magic link" });
+  }
+
+  const userId = await verifyMagicLoginToken(parsed.data.token);
+  if (!userId) {
+    return res.status(401).json({ error: "This sign-in link is invalid or expired." });
+  }
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) {
+    return res.status(401).json({ error: "This sign-in link is invalid or expired." });
+  }
+
+  const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
+  await db
+    .update(users)
+    .set({ last_seen_at: new Date() })
+    .where(eq(users.id, user.id));
+
+  const token = await signToken(user.id);
+  return res.json({
+    token,
+    ...authResponseUser(
+      user,
+      prevSeenAt,
+      await getUserProfileLanguage(user.id),
+      await getProfileRole(user.id),
+    ),
   });
 });
 
@@ -268,7 +508,7 @@ authRouter.post("/access-link/consume", async (req: Request, res: Response) => {
     });
   }
 
-  await db.update(profiles).set({ updated_at: now }).where(eq(profiles.id, userId));
+  await db.update(users).set({ last_seen_at: now }).where(eq(users.id, userId));
 
   const token = await signToken(userId);
   return res.json({
@@ -308,7 +548,7 @@ authRouter.post("/reset-request", async (req: Request, res: Response) => {
   // (prevents email enumeration attacks).
   const genericOk = { message: "If an account with that email exists, a reset link has been sent." };
 
-  if (!user) {
+  if (!user || !user.email) {
     return res.json(genericOk);
   }
 

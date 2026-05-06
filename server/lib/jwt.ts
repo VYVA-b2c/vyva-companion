@@ -38,6 +38,32 @@ export async function verifyToken(token: string): Promise<string | null> {
   }
 }
 
+const MAGIC_LOGIN_AUDIENCE = "vyva-magic-login";
+
+export async function signMagicLoginToken(userId: string): Promise<string> {
+  return new SignJWT({
+    sub: userId,
+    token_type: "magic_login",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setAudience(MAGIC_LOGIN_AUDIENCE)
+    .setExpirationTime("15m")
+    .sign(JWT_SECRET);
+}
+
+export async function verifyMagicLoginToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET, {
+      audience: MAGIC_LOGIN_AUDIENCE,
+    });
+    if (payload.token_type !== "magic_login") return null;
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 const MEDICAL_PROFILE_AUDIENCE = "elevenlabs-medical-profile";
 
 export async function signMedicalProfileToolToken(

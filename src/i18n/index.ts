@@ -7,6 +7,7 @@ import legacyFr from "./locales/fr.json";
 import legacyDe from "./locales/de.json";
 import legacyIt from "./locales/it.json";
 import legacyPt from "./locales/pt.json";
+import legacyCy from "./locales/cy.json";
 import { DEFAULT_LANGUAGE, LANGUAGES, type LanguageCode } from "./languages";
 import customEn from "./en";
 import customEs from "./es";
@@ -30,6 +31,7 @@ const overrides: DictionaryMap = {
   de: customDe,
   it: customIt,
   pt: customPt,
+  cy: {},
 };
 
 const baseDictionaries: DictionaryMap = {
@@ -39,6 +41,7 @@ const baseDictionaries: DictionaryMap = {
   de: legacyDe as TranslationTree,
   it: legacyIt as TranslationTree,
   pt: legacyPt as TranslationTree,
+  cy: legacyCy as TranslationTree,
 };
 
 function isObject(value: TranslationValue): value is TranslationTree {
@@ -69,6 +72,7 @@ const dictionaries: DictionaryMap = {
   de: deepMerge(baseDictionaries.de, overrides.de),
   it: deepMerge(baseDictionaries.it, overrides.it),
   pt: deepMerge(baseDictionaries.pt, overrides.pt),
+  cy: deepMerge(baseDictionaries.cy, overrides.cy),
 };
 
 const supportedCodes = LANGUAGES.map((language) => language.code);

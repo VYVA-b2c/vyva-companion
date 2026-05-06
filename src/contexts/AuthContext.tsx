@@ -1,14 +1,30 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getToken, setToken, clearToken, isAuthenticated } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
+import { setLanguage as setAppLanguage } from "@/i18n";
 import { hasSupabaseAuthConfig, signInWithSupabase, signUpWithSupabase } from "@/lib/supabaseAuth";
 
 const ONBOARDING_STATE_KEY = ["/api/onboarding/state"] as const;
 
 interface AuthUser {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
+  language: string | null;
+  activeProfileId: string | null;
   role: string;
+}
+
+interface AuthIdentifier {
+  email?: string;
+  phone?: string;
+  identifier?: string;
+  language?: string;
+}
+
+interface MagicLinkResponse {
+  message: string;
+  _devMagicLink?: string;
 }
 
 interface AuthContextValue {
@@ -16,14 +32,46 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   lastSeenAt: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  login: (identifier: string | AuthIdentifier, password: string) => Promise<void>;
+  register: (identifier: string | AuthIdentifier, password: string) => Promise<void>;
+  requestMagicLink: (identifier: string | AuthIdentifier) => Promise<MagicLinkResponse>;
+  loginWithMagicToken: (magicToken: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function loadCurrentUser(token: string, fallback?: { userId?: string; email?: string }): Promise<AuthUser> {
+function contactPayload(identifier: string | AuthIdentifier): AuthIdentifier {
+  if (typeof identifier === "string") return { identifier };
+  return identifier;
+}
+
+function emailFromIdentifier(identifier: string | AuthIdentifier): string | null {
+  const payload = contactPayload(identifier);
+  const raw = payload.email ?? (payload.identifier?.includes("@") ? payload.identifier : null);
+  return raw?.trim() || null;
+}
+
+function responseUser(data: {
+  userId?: string;
+  id?: string;
+  email?: string | null;
+  phone?: string | null;
+  language?: string | null;
+  activeProfileId?: string | null;
+  role?: string | null;
+}): AuthUser {
+  return {
+    id: data.userId ?? data.id ?? "",
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    language: data.language ?? null,
+    activeProfileId: data.activeProfileId ?? null,
+    role: data.role ?? "user",
+  };
+}
+
+async function loadCurrentUser(token: string, fallback?: { userId?: string; email?: string | null }): Promise<AuthUser> {
   const response = await fetch("/api/auth/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -34,11 +82,11 @@ async function loadCurrentUser(token: string, fallback?: { userId?: string; emai
   }
 
   const data = await response.json();
-  return {
-    id: data.id ?? fallback?.userId ?? "",
-    email: data.email ?? fallback?.email ?? "",
-    role: data.role ?? "user",
-  };
+  return responseUser({
+    ...data,
+    id: data.id ?? fallback?.userId,
+    email: data.email ?? fallback?.email,
+  });
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -52,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokenState(tok);
     setUser(u);
     setLastSeenAt(prevSeenAt);
+    if (u.language) setAppLanguage(u.language);
     queryClient.prefetchQuery({ queryKey: ONBOARDING_STATE_KEY });
   }, []);
 
@@ -64,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.removeQueries({ queryKey: ["/api/profile"] });
   }, []);
 
-  // On mount: validate stored token via /api/auth/me
   useEffect(() => {
     const stored = getToken();
     if (!stored || !isAuthenticated()) {
@@ -77,10 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.id && data?.email) {
+        if (data?.id) {
+          const hydratedUser = responseUser(data);
           setTokenState(stored);
-          setUser({ id: data.id, email: data.email, role: data.role ?? "user" });
+          setUser(hydratedUser);
           setLastSeenAt(data.prevSeenAt ?? null);
+          if (hydratedUser.language) setAppLanguage(hydratedUser.language);
           queryClient.prefetchQuery({ queryKey: ONBOARDING_STATE_KEY });
         } else {
           clearToken();
@@ -90,8 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    if (hasSupabaseAuthConfig()) {
+  const login = useCallback(async (identifier: string | AuthIdentifier, password: string) => {
+    const email = emailFromIdentifier(identifier);
+    if (hasSupabaseAuthConfig() && email) {
       const session = await signInWithSupabase(email, password);
       const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
       applyToken(session.token, currentUser, null);
@@ -101,15 +152,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ ...contactPayload(identifier), password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Login failed");
-    applyToken(data.token, { id: data.userId, email: data.email, role: data.role ?? "user" }, data.prevSeenAt ?? null);
+    applyToken(data.token, responseUser(data), data.prevSeenAt ?? null);
   }, [applyToken]);
 
-  const register = useCallback(async (email: string, password: string) => {
-    if (hasSupabaseAuthConfig()) {
+  const register = useCallback(async (identifier: string | AuthIdentifier, password: string) => {
+    const email = emailFromIdentifier(identifier);
+    if (hasSupabaseAuthConfig() && email) {
       const session = await signUpWithSupabase(email, password);
       const currentUser = await loadCurrentUser(session.token, { userId: session.userId, email: session.email });
       applyToken(session.token, currentUser, null);
@@ -119,15 +171,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ ...contactPayload(identifier), password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
-    applyToken(data.token, { id: data.userId, email: data.email, role: data.role ?? "user" }, null);
+    applyToken(data.token, responseUser(data), null);
+  }, [applyToken]);
+
+  const requestMagicLink = useCallback(async (identifier: string | AuthIdentifier) => {
+    const res = await fetch("/api/auth/magic-link-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contactPayload(identifier)),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Could not send sign-in link");
+    return data as MagicLinkResponse;
+  }, []);
+
+  const loginWithMagicToken = useCallback(async (magicToken: string) => {
+    const res = await fetch("/api/auth/magic-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: magicToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "This sign-in link did not work");
+    applyToken(data.token, responseUser(data), data.prevSeenAt ?? null);
   }, [applyToken]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, lastSeenAt, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, isLoading, lastSeenAt, login, register, requestMagicLink, loginWithMagicToken, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

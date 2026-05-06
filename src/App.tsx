@@ -31,6 +31,7 @@ import SettingsScreen from "./pages/SettingsScreen";
 import NotFound from "./pages/NotFound";
 
 import WelcomeScreen from "./pages/onboarding/WelcomeScreen";
+import WhoForStep from "./pages/onboarding/WhoForStep";
 import BasicsStep from "./pages/onboarding/BasicsStep";
 import ChannelStep from "./pages/onboarding/ChannelStep";
 import DataConsentStep from "./pages/onboarding/DataConsentStep";
@@ -167,6 +168,7 @@ const App = () => (
                 <Route element={<ProtectedRoute />}>
                   <Route element={<OnboardingGuard />}>
                     <Route path="/onboarding" element={<WelcomeScreen />} />
+                    <Route path="/onboarding/who-for" element={<WhoForStep />} />
                     <Route path="/onboarding/basics" element={<BasicsStep />} />
                     <Route path="/onboarding/channel" element={<ChannelStep />} />
                     <Route path="/onboarding/proxy-setup" element={<ProxySetupStep />} />

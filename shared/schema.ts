@@ -107,6 +107,20 @@ export const invitationStatusEnum = pgEnum("invitation_status", [
   "expired",
 ]);
 
+export const profileMemberRoleEnum = pgEnum("profile_member_role", [
+  "elder",
+  "caregiver",
+  "family",
+  "doctor",
+  "admin",
+]);
+
+export const profileMemberStatusEnum = pgEnum("profile_member_status", [
+  "active",
+  "pending_elder_consent",
+  "revoked",
+]);
+
 export const lifecycleEntryPointEnum = pgEnum("lifecycle_entry_point", [
   "form",
   "phone",
@@ -151,8 +165,11 @@ export const consentAttemptStatusEnum = pgEnum("consent_attempt_status", [
 
 export const users = pgTable("users", {
   id:                    text("id").primaryKey().default(sql`gen_random_uuid()`),
-  email:                 text("email").notNull().unique(),
+  email:                 text("email").unique(),
+  phone_number:          text("phone_number").unique(),
   password_hash:         text("password_hash").notNull(),
+  active_profile_id:     text("active_profile_id"),
+  onboarding_intent:     text("onboarding_intent"),
   reset_token:           text("reset_token"),
   reset_token_expires_at: timestamp("reset_token_expires_at", { withTimezone: true }),
   last_seen_at:          timestamp("last_seen_at", { withTimezone: true }),
@@ -268,6 +285,27 @@ export const profiles = pgTable("profiles", {
 export const insertProfileSchema = createInsertSchema(profiles).omit({ created_at: true, updated_at: true });
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
+
+export const profileMemberships = pgTable("profile_memberships", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  user_id:       text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  profile_id:    text("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  role:          profileMemberRoleEnum("role").notNull(),
+  status:        profileMemberStatusEnum("status").notNull().default("active"),
+  relationship:  text("relationship"),
+  display_name:  text("display_name"),
+  permissions:   jsonb("permissions").notNull().default({}),
+  is_primary:    boolean("is_primary").notNull().default(false),
+  accepted_at:   timestamp("accepted_at", { withTimezone: true }),
+  created_at:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:    timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("profile_memberships_user_profile_unique").on(t.user_id, t.profile_id),
+]);
+
+export const insertProfileMembershipSchema = createInsertSchema(profileMemberships).omit({ id: true, created_at: true, updated_at: true });
+export type InsertProfileMembership = z.infer<typeof insertProfileMembershipSchema>;
+export type ProfileMembership = typeof profileMemberships.$inferSelect;
 
 
 // ============================================================

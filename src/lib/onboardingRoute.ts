@@ -10,7 +10,10 @@ export function stageToRoute(stage: string | null | undefined): string {
     case "complete":            return "/";
     case "stage_1_identity":    return "/onboarding/basics";
     case "stage_2_preferences": return "/onboarding/channel";
-    default:                    return "/onboarding/consent";
+    case "stage_3_health":
+    case "stage_4_care_team":
+    case "stage_5_consent":     return "/onboarding/consent";
+    default:                    return "/onboarding/who-for";
   }
 }
 
@@ -22,16 +25,16 @@ export function stageToRoute(stage: string | null | undefined): string {
 export async function resolveOnboardingRoute(): Promise<string> {
   try {
     const tok = getToken();
-    if (!tok) return "/onboarding/basics";
+    if (!tok) return "/onboarding/who-for";
     const res = await fetch("/api/onboarding/state", {
       headers: { Authorization: `Bearer ${tok}` },
     });
-    if (!res.ok) return "/onboarding/basics";
+    if (!res.ok) return "/onboarding/who-for";
     const data = await res.json();
     return stageToRoute(
       data?.onboardingState?.current_stage ?? data?.profile?.current_stage,
     );
   } catch {
-    return "/onboarding/basics";
+    return "/onboarding/who-for";
   }
 }

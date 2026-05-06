@@ -12,6 +12,7 @@ import {
 import { getDoctorMedicalProfileVariables } from "../lib/doctorMedicalProfile.js";
 import { signMedicalProfileToolToken } from "../lib/jwt.js";
 import { mergeIdentityGender, readProfileGender } from "../lib/userPersonalization.js";
+import { getActiveProfileContext } from "../lib/profileAccess.js";
 
 const DEMO_USER_ID = "demo-user";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -24,8 +25,11 @@ const router = Router();
  * In production, unauthenticated callers receive null (→ 401) to prevent
  * unintended reads/writes on shared demo-profile data.
  */
-function resolveUserId(req: Request): string | null {
-  if (req.user?.id) return req.user.id;
+async function resolveUserId(req: Request): Promise<string | null> {
+  if (req.user?.id) {
+    const context = await getActiveProfileContext(req.user.id);
+    return context.profileId;
+  }
   if (!IS_PROD) return DEMO_USER_ID;
   return null;
 }
@@ -93,7 +97,7 @@ function medicationEventsFromRows(rows: Array<typeof userMedications.$inferSelec
 }
 
 router.get("/", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
@@ -137,7 +141,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 router.get("/doctor-context", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
@@ -166,7 +170,7 @@ router.get("/doctor-context", async (req: Request, res: Response) => {
 });
 
 router.post("/", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   const parsed = profileBodySchema.safeParse(req.body);
@@ -238,7 +242,7 @@ const avatarBodySchema = z.object({
 });
 
 router.patch("/avatar", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
   const parsed = avatarBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -261,7 +265,7 @@ router.patch("/avatar", async (req: Request, res: Response) => {
 });
 
 router.get("/personalisation", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
@@ -291,7 +295,7 @@ router.get("/personalisation", async (req: Request, res: Response) => {
 });
 
 router.get("/scheduled-events", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
@@ -308,7 +312,7 @@ router.get("/scheduled-events", async (req: Request, res: Response) => {
 });
 
 router.post("/scheduled-events", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
   const parsed = scheduledEventBodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid scheduled event" });
@@ -341,7 +345,7 @@ router.post("/scheduled-events", async (req: Request, res: Response) => {
 });
 
 router.patch("/scheduled-events/:id", async (req: Request, res: Response) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
   const parsed = scheduledEventBodySchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid scheduled event update" });
@@ -376,7 +380,7 @@ router.patch("/scheduled-events/:id", async (req: Request, res: Response) => {
 
 for (const [action, status] of [["pause", "paused"], ["resume", "upcoming"], ["cancel", "cancelled"]] as const) {
   router.post(`/scheduled-events/:id/${action}`, async (req: Request, res: Response) => {
-    const userId = resolveUserId(req);
+    const userId = await resolveUserId(req);
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
     if (req.params.id.startsWith("medication:")) return res.status(400).json({ error: "Medication reminders are edited from Medications" });
     const [event] = await db.update(scheduledEvents).set({ status, updated_at: new Date(), updated_by: userId }).where(eq(scheduledEvents.id, req.params.id)).returning();

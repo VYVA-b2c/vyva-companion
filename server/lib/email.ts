@@ -25,6 +25,11 @@ export interface SendPasswordResetEmailOptions {
   resetLink: string;
 }
 
+export interface SendMagicLoginEmailOptions {
+  to: string;
+  magicLink: string;
+}
+
 export async function sendPasswordResetEmail({ to, resetLink }: SendPasswordResetEmailOptions): Promise<void> {
   const from = process.env.SMTP_FROM ?? "no-reply@vyva.ai";
   const subject = "Reset your Vyva password";
@@ -57,6 +62,45 @@ export async function sendPasswordResetEmail({ to, resetLink }: SendPasswordRese
       console.log(`[email:dev] To: ${to}`);
       console.log(`[email:dev] Subject: ${subject}`);
       console.log(`[email:dev] Reset link: ${resetLink}`);
+      return;
+    }
+    throw new Error("SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS.");
+  }
+
+  await transport.sendMail({ from, to, subject, html });
+}
+
+export async function sendMagicLoginEmail({ to, magicLink }: SendMagicLoginEmailOptions): Promise<void> {
+  const from = process.env.SMTP_FROM ?? "no-reply@vyva.ai";
+  const subject = "Your secure VYVA sign-in link";
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Sign in to VYVA</h2>
+      <p>Use this secure link to open your VYVA account. It expires in <strong>15 minutes</strong>.</p>
+      <p style="margin: 24px 0;">
+        <a href="${magicLink}"
+           style="background:#6B21A8;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;display:inline-block;">
+          Sign in securely
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:14px;">
+        If you did not request this, you can safely ignore this email.
+      </p>
+      <p style="color:#6b7280;font-size:14px;">
+        Or copy this link into your browser:<br/>
+        <a href="${magicLink}">${magicLink}</a>
+      </p>
+    </div>
+  `;
+
+  const transport = createTransport();
+
+  if (!transport) {
+    if (isDev) {
+      console.log("[email:dev] Magic login email (SMTP not configured - logging instead)");
+      console.log(`[email:dev] To: ${to}`);
+      console.log(`[email:dev] Subject: ${subject}`);
+      console.log(`[email:dev] Magic link: ${magicLink}`);
       return;
     }
     throw new Error("SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS.");

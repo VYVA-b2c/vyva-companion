@@ -1,17 +1,20 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   profiles,
+  profileMemberships,
   onboardingState,
   consentLog,
   userChannelPreferences,
   userMedications,
   teamInvitations,
+  users,
 } from "../../shared/schema.js";
 import { z } from "zod";
 import { notifyElderOfProxySetup } from "../services/notifications.js";
+import { getActiveProfileContext, requireActiveProfileId } from "../lib/profileAccess.js";
 
 export const onboardingRouter = Router();
 
@@ -160,22 +163,123 @@ async function markField(userId: string, field: string): Promise<void> {
 }
 
 // ============================================================
+// POST /start-profile
+// Creates the care-recipient profile for this login account.
+// ============================================================
+
+const startProfileSchema = z.object({
+  setup_for: z.enum(["self", "someone_else"]),
+  language: z.string().optional().default("es"),
+});
+
+onboardingRouter.post("/start-profile", async (req: Request, res: Response) => {
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+
+  const parsed = startProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
+  }
+
+  try {
+    const [account] = await db
+      .select({ email: users.email, phone_number: users.phone_number })
+      .from(users)
+      .where(eq(users.id, accountUserId))
+      .limit(1);
+
+    if (!account) {
+      return res.status(401).json({ error: "Account not found" });
+    }
+
+    const isSelf = parsed.data.setup_for === "self";
+    const profileId = isSelf ? accountUserId : crypto.randomUUID();
+    const now = new Date();
+
+    await db
+      .insert(profiles)
+      .values({
+        id: profileId,
+        email: isSelf ? account.email : null,
+        phone_number: isSelf ? account.phone_number : null,
+        language: parsed.data.language,
+        onboarding_channel: isSelf ? "web_form" : "proxy_web",
+        current_stage: "stage_1_identity",
+      })
+      .onConflictDoNothing();
+
+    await db
+      .insert(profileMemberships)
+      .values({
+        user_id: accountUserId,
+        profile_id: profileId,
+        role: isSelf ? "elder" : "caregiver",
+        relationship: isSelf ? "self" : "setup_initiator",
+        is_primary: true,
+        status: "active",
+        accepted_at: now,
+      })
+      .onConflictDoUpdate({
+        target: [profileMemberships.user_id, profileMemberships.profile_id],
+        set: {
+          role: isSelf ? "elder" : "caregiver",
+          relationship: isSelf ? "self" : "setup_initiator",
+          status: "active",
+          is_primary: true,
+          accepted_at: now,
+          updated_at: now,
+        },
+      });
+
+    await db
+      .update(users)
+      .set({
+        active_profile_id: profileId,
+        onboarding_intent: parsed.data.setup_for,
+      })
+      .where(eq(users.id, accountUserId));
+
+    await ensureOnboardingState(profileId);
+
+    return res.json({
+      ok: true,
+      profileId,
+      role: isSelf ? "elder" : "caregiver",
+      nextRoute: isSelf ? "/onboarding/basics" : "/onboarding/proxy-setup",
+    });
+  } catch (e) {
+    console.error("[onboarding] POST /start-profile error:", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ============================================================
 // GET /state
 // ============================================================
 
 onboardingRouter.get("/state", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
 
   try {
+    const context = await getActiveProfileContext(accountUserId);
+    if (!context.profileId) {
+      return res.json({
+        profile: null,
+        onboardingState: null,
+        account: { id: accountUserId, activeProfileId: null, role: null },
+      });
+    }
+
     const [profileRows, stateRow] = await Promise.all([
-      db.select().from(profiles).where(eq(profiles.id, userId)).limit(1),
-      ensureOnboardingState(userId),
+      db.select().from(profiles).where(eq(profiles.id, context.profileId)).limit(1),
+      ensureOnboardingState(context.profileId),
     ]);
 
     return res.json({
       profile: profileRows[0] ?? null,
       onboardingState: stateRow,
+      account: { id: accountUserId, activeProfileId: context.profileId, role: context.role },
     });
   } catch (e) {
     console.error("[onboarding] GET /state error:", e);
@@ -188,7 +292,9 @@ onboardingRouter.get("/state", async (req: Request, res: Response) => {
 // ============================================================
 
 onboardingRouter.get("/careteam", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   try {
@@ -222,7 +328,9 @@ onboardingRouter.get("/careteam", async (req: Request, res: Response) => {
 // ============================================================
 
 onboardingRouter.patch("/careteam/:id", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   const { id } = req.params;
@@ -272,7 +380,9 @@ onboardingRouter.patch("/careteam/:id", async (req: Request, res: Response) => {
 // ============================================================
 
 onboardingRouter.post("/careteam/:id/resend", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   const { id } = req.params;
@@ -362,7 +472,9 @@ const basicsSchema = z.object({
 });
 
 onboardingRouter.post("/basics", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   const parsed = basicsSchema.safeParse(req.body);
@@ -474,7 +586,9 @@ const channelSchema = z.object({
 });
 
 onboardingRouter.post("/channel", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   // Gate: basics must be complete (stage_2_preferences) before channel can be set.
@@ -545,7 +659,9 @@ const proxySchema = z.object({
 });
 
 onboardingRouter.post("/proxy", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   // Gate: user must have started onboarding (profile must exist with at least basics complete).
@@ -564,9 +680,12 @@ onboardingRouter.post("/proxy", async (req: Request, res: Response) => {
     // rather than a user ID. This is intentional for the current MVP where the carer does not have
     // their own VYVA account. Future work should migrate to storing carer user ID + separate display fields.
     //
-    // Selecting "proxy" replaces the normal channel step, so we advance the stage to stage_3_health
-    // here (equivalent to what POST /channel does), allowing the elder to proceed to consent.
-    const shouldAdvance = stageIndex(currentStage) <= stageIndex("stage_2_preferences");
+    // In the new signup flow, proxy setup can happen before the elder's basics
+    // are entered. In the older channel-step flow, it still replaces channel
+    // preferences and advances to the health/consent stage.
+    const shouldAdvance =
+      stageIndex(currentStage) >= stageIndex("stage_2_preferences") &&
+      stageIndex(currentStage) <= stageIndex("stage_2_preferences");
 
     // Generate a one-time confirmation token stored on the profile.
     // This lets the elder confirm without needing to be logged in — they
@@ -598,6 +717,17 @@ onboardingRouter.post("/proxy", async (req: Request, res: Response) => {
           updated_at: new Date(),
         },
       });
+
+    await db
+      .update(profileMemberships)
+      .set({
+        display_name: parsed.data.proxy_name,
+        updated_at: new Date(),
+      })
+      .where(and(
+        eq(profileMemberships.user_id, accountUserId),
+        eq(profileMemberships.profile_id, userId),
+      ));
 
     // Build the direct confirmation URL for the elder's SMS.
     // Priority: APP_BASE_URL env var, then local development fallback.
@@ -631,7 +761,11 @@ onboardingRouter.post("/proxy", async (req: Request, res: Response) => {
       console.error("[onboarding] POST /proxy — notification error (non-fatal):", notifyErr);
     }
 
-    return res.json({ ok: true, confirmUrl });
+    return res.json({
+      ok: true,
+      confirmUrl,
+      nextRoute: shouldAdvance ? "/onboarding/elder-confirm" : "/onboarding/basics",
+    });
   } catch (e) {
     console.error("[onboarding] POST /proxy error:", e);
     return res.status(500).json({ error: "Internal server error" });
@@ -720,7 +854,9 @@ onboardingRouter.post("/confirm/:token", async (req: Request, res: Response) => 
 // ============================================================
 
 onboardingRouter.post("/elder-confirm", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   try {
@@ -782,7 +918,9 @@ const consentSchema = z.object({
 });
 
 onboardingRouter.post("/consent", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   // Gate: channel preferences (stage_2) must be complete before submitting consent.
@@ -854,7 +992,9 @@ const fieldSchema = z.object({
 });
 
 onboardingRouter.post("/field", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   const parsed = fieldSchema.safeParse(req.body);
@@ -1027,7 +1167,9 @@ async function mergeSectionIntoConsent(
 }
 
 onboardingRouter.post("/section/:sectionId", async (req: Request, res: Response) => {
-  const userId = requireUser(req, res);
+  const accountUserId = requireUser(req, res);
+  if (!accountUserId) return;
+  const userId = await requireActiveProfileId(accountUserId, res);
   if (!userId) return;
 
   const { sectionId } = req.params;

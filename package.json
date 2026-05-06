@@ -7,6 +7,7 @@
     "dev": "concurrently --kill-others \"cross-env PORT=3001 tsx server/index.ts\" \"vite\"",
     "dev:server": "tsx server/index.ts",
     "dev:client": "vite",
+    "preview:adherence": "node scripts/preview-adherence-report.mjs",
     "db:push": "drizzle-kit push",
     "db:concierge": "node scripts/apply-concierge-schema.mjs",
     "build:client": "vite build",

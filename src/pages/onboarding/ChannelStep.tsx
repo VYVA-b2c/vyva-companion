@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Phone, MessageSquare, Globe, UserRound } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, ChevronLeft, Globe, MessageSquare, Phone, UserRound } from "lucide-react";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Input } from "@/components/ui/input";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { friendlyError } from "@/lib/apiError";
@@ -12,7 +14,7 @@ const CHANNELS = [
     iconBg: "#F5F3FF",
     iconColor: "#6B21A8",
     label: "Daily phone call",
-    sub: "VYVA calls you each morning",
+    sub: "VYVA calls each morning",
     proxy: false,
   },
   {
@@ -21,7 +23,7 @@ const CHANNELS = [
     iconBg: "#ECFDF5",
     iconColor: "#0A7C4E",
     label: "WhatsApp",
-    sub: "Messages & voice notes on WhatsApp",
+    sub: "Messages and voice notes",
     proxy: false,
   },
   {
@@ -30,7 +32,7 @@ const CHANNELS = [
     iconBg: "#EDE9FE",
     iconColor: "#6B21A8",
     label: "App only",
-    sub: "Use the app whenever you like",
+    sub: "Use VYVA whenever you like",
     proxy: false,
   },
   {
@@ -39,15 +41,15 @@ const CHANNELS = [
     iconBg: "#FFF7ED",
     iconColor: "#C2410C",
     label: "Setting this up for someone else",
-    sub: "A family member or carer is completing this profile",
+    sub: "Family or caregiver setup",
     proxy: true,
   },
 ];
 
 const CHANNEL_MAP: Record<string, string> = {
-  voice_outbound:     "voice_outbound",
-  whatsapp_outbound:  "whatsapp_outbound",
-  voice_app:          "voice_app",
+  voice_outbound: "voice_outbound",
+  whatsapp_outbound: "whatsapp_outbound",
+  voice_app: "voice_app",
 };
 
 const ChannelStep = () => {
@@ -56,6 +58,11 @@ const ChannelStep = () => {
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onboardingQuery = useQuery<{ account?: { role?: string | null } } | null>({
+    queryKey: ["/api/onboarding/state"],
+  });
+  const isCaregiverSetup = onboardingQuery.data?.account?.role === "caregiver";
+  const channels = isCaregiverSetup ? CHANNELS.filter((channel) => !channel.proxy) : CHANNELS;
 
   const isProxy = selected === "proxy";
   const needsPhone = !isProxy && (selected === "voice_outbound" || selected === "whatsapp_outbound");
@@ -96,105 +103,110 @@ const ChannelStep = () => {
   };
 
   return (
-    <div className="min-h-screen bg-vyva-cream flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-12 pb-4">
+    <OnboardingChrome mainClassName="flex min-h-[calc(100vh-92px)] max-w-[560px] flex-col justify-center">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <button
           data-testid="button-channel-back"
           onClick={() => navigate("/onboarding/basics")}
-          className="w-10 h-10 rounded-full bg-white border border-vyva-border flex items-center justify-center"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#EFE7DB] bg-white shadow-[0_12px_30px_rgba(72,44,18,0.08)]"
         >
           <ChevronLeft size={20} className="text-vyva-text-1" />
         </button>
-        <div>
-          <p className="font-body text-[12px] text-vyva-text-3 uppercase tracking-wider">Step 2 of 5</p>
-          <h1 className="font-display text-[22px] font-semibold text-vyva-text-1">How VYVA reaches you</h1>
-        </div>
+        <span className="rounded-full bg-white/80 px-4 py-2 font-body text-[12px] font-extrabold uppercase tracking-[0.18em] text-vyva-purple/75 shadow-[0_12px_30px_rgba(72,44,18,0.08)]">
+          Step 2 of 5
+        </span>
       </div>
 
-      {/* Progress */}
-      <div className="px-5 mb-6">
-        <div className="h-1.5 bg-vyva-warm2 rounded-full overflow-hidden">
-          <div className="h-full bg-vyva-purple rounded-full" style={{ width: "40%" }} />
+      <section className="rounded-[34px] border border-[#EFE7DB] bg-white/95 p-5 shadow-[0_24px_70px_rgba(72,44,18,0.12)] backdrop-blur sm:p-7">
+        <div className="mb-5">
+          <p className="font-body text-[12px] font-extrabold uppercase tracking-[0.24em] text-vyva-purple/70">
+            Daily support
+          </p>
+          <h1 className="mt-2 font-display text-[42px] leading-[0.98] text-[#2E1642]">
+            {isCaregiverSetup ? "How should VYVA reach them?" : "How should VYVA reach you?"}
+          </h1>
+          <p className="mt-3 font-body text-[14px] leading-[1.55] text-vyva-text-2">
+            {isCaregiverSetup
+              ? "Choose how VYVA should contact the person receiving support."
+              : "Choose how you would like VYVA to contact you for check-ins."}
+          </p>
         </div>
-      </div>
 
-      <div className="flex-1 px-5 space-y-3">
-        <p className="font-body text-[14px] text-vyva-text-2 mb-4">
-          Choose how you'd like VYVA to contact you for daily check-ins.
-        </p>
+        <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-[#F1E9DD]">
+          <div className="h-full rounded-full bg-vyva-purple" style={{ width: "40%" }} />
+        </div>
 
-        {CHANNELS.map((ch) => {
-          const Icon = ch.icon;
-          const active = selected === ch.id;
-          const isProxyOption = ch.proxy;
-          return (
-            <button
-              key={ch.id}
-              data-testid={`button-channel-option-${ch.id}`}
-              onClick={() => setSelected(ch.id)}
-              className={`w-full flex items-center gap-3 p-4 rounded-[18px] border-2 text-left transition-colors ${
-                isProxyOption ? "mt-5 border-dashed" : ""
-              } ${
-                active
-                  ? "border-vyva-purple bg-vyva-purple-pale"
-                  : "border-vyva-border bg-white"
-              }`}
-            >
-              <div
-                className="w-10 h-10 rounded-[13px] flex items-center justify-center flex-shrink-0"
-                style={{ background: ch.iconBg }}
+        <div className="space-y-3">
+          {channels.map((ch) => {
+            const Icon = ch.icon;
+            const active = selected === ch.id;
+            const isProxyOption = ch.proxy;
+            return (
+              <button
+                key={ch.id}
+                data-testid={`button-channel-option-${ch.id}`}
+                onClick={() => setSelected(ch.id)}
+                className={`flex w-full items-center gap-3 rounded-[22px] border-2 p-4 text-left transition-colors ${
+                  isProxyOption ? "mt-5 border-dashed" : ""
+                } ${
+                  active
+                    ? "border-vyva-purple bg-[#F5F3FF]"
+                    : "border-[#EFE7DB] bg-white hover:border-[#E1D6C8]"
+                }`}
               >
-                <Icon size={20} style={{ color: ch.iconColor }} />
-              </div>
-              <div>
-                <p className="font-body text-[15px] font-medium text-vyva-text-1">{ch.label}</p>
-                <p className="font-body text-[12px] text-vyva-text-2">{ch.sub}</p>
-              </div>
-              {active && (
-                <div className="ml-auto w-5 h-5 rounded-full bg-vyva-purple flex items-center justify-center flex-shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-white" />
+                <div
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[15px]"
+                  style={{ background: ch.iconBg }}
+                >
+                  <Icon size={20} style={{ color: ch.iconColor }} />
                 </div>
-              )}
-            </button>
-          );
-        })}
+                <div className="min-w-0 flex-1">
+                  <p className="font-body text-[15px] font-extrabold text-vyva-text-1">{ch.label}</p>
+                  <p className="font-body text-[12px] leading-[1.4] text-vyva-text-2">{ch.sub}</p>
+                </div>
+                {active && (
+                  <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple">
+                    <div className="h-2 w-2 rounded-full bg-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
 
-        {needsPhone && (
-          <div className="mt-4">
-            <label className="font-body text-[13px] font-medium text-vyva-text-2 mb-1.5 block">
-              Phone number <span className="text-vyva-red">*</span>
-            </label>
-            <Input
-              data-testid="input-channel-phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+44 7700 900000"
-              className="bg-white"
-            />
-          </div>
+          {needsPhone && (
+            <div className="pt-2">
+              <label className="mb-1.5 block font-body text-[13px] font-bold text-vyva-text-2">
+                Phone number <span className="text-vyva-red">*</span>
+              </label>
+              <Input
+                data-testid="input-channel-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+34 600 000 000"
+                className="h-[56px] rounded-[20px] border-vyva-border bg-white px-4 shadow-vyva-input"
+              />
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <p data-testid="text-channel-error" className="mt-4 rounded-[16px] bg-red-50 px-4 py-3 font-body text-[13px] text-red-700">
+            {error}
+          </p>
         )}
-      </div>
 
-      {error && (
-        <p data-testid="text-channel-error" className="px-5 pb-2 font-body text-[13px] text-red-600">
-          {error}
-        </p>
-      )}
-
-      <div className="px-5 py-6">
         <button
           data-testid="button-channel-continue"
           onClick={handleContinue}
           disabled={!canContinue}
-          className="w-full py-4 rounded-full font-body text-[17px] font-semibold text-white disabled:opacity-40"
-          style={{ background: "#6B21A8" }}
+          className="vyva-primary-action mt-6 w-full bg-[linear-gradient(135deg,#6B21A8_0%,#8B3FC8_100%)] py-4 shadow-vyva-fab disabled:opacity-40"
         >
-          {saving ? "Saving…" : "Continue"}
+          {saving ? "Saving..." : "Continue"}
+          {!saving && <ArrowRight size={17} />}
         </button>
-      </div>
-    </div>
+      </section>
+    </OnboardingChrome>
   );
 };
 

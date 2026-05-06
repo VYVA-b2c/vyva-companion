@@ -1,27 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft } from "lucide-react";
+import { ArrowRight, ChevronLeft } from "lucide-react";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Input } from "@/components/ui/input";
 import { ChipSelector } from "@/components/onboarding/ChipSelector";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { friendlyError } from "@/lib/apiError";
 import { getToken } from "@/lib/auth";
+import { useLanguage } from "@/i18n";
 import { LANGUAGES, type LanguageCode } from "@/i18n/languages";
 
 const ONBOARDING_LANGUAGE_OPTIONS = LANGUAGES.map((entry) => entry.label);
 
 const LANGUAGE_LABEL_BY_CODE: Record<LanguageCode, string> = {
-  es: "Español",
+  es: "Espa\u00f1ol",
   en: "English",
-  fr: "Français",
+  fr: "Fran\u00e7ais",
   de: "Deutsch",
   it: "Italiano",
-  pt: "Português",
+  pt: "Portugu\u00eas",
+  cy: "English",
 };
 
 const LANGUAGE_CODE_BY_LABEL = Object.fromEntries(
-  Object.entries(LANGUAGE_LABEL_BY_CODE).map(([code, label]) => [label, code]),
+  LANGUAGES.map((entry) => [entry.label, entry.code]),
 ) as Record<string, LanguageCode>;
 
 type ProfileResponse = {
@@ -34,21 +37,31 @@ type ProfileResponse = {
 
 const BasicsStep = () => {
   const navigate = useNavigate();
+  const { language, setLanguage } = useLanguage();
   const [fullName, setFullName] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [dob, setDob] = useState("");
-  const [languages, setLanguages] = useState<string[]>(["Español"]);
+  const [languages, setLanguages] = useState<string[]>([LANGUAGE_LABEL_BY_CODE[language] ?? LANGUAGE_LABEL_BY_CODE.es]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const profileQuery = useQuery<ProfileResponse | null>({
     queryKey: ["/api/profile"],
   });
+  const onboardingQuery = useQuery<{ account?: { role?: string | null } } | null>({
+    queryKey: ["/api/onboarding/state"],
+  });
+  const isCaregiverSetup = onboardingQuery.data?.account?.role === "caregiver";
 
   const selectedLanguageCode = useMemo<LanguageCode>(() => {
     const selected = languages[0];
     return LANGUAGE_CODE_BY_LABEL[selected] ?? "es";
   }, [languages]);
+
+  useEffect(() => {
+    if (profileQuery.data) return;
+    setLanguages([LANGUAGE_LABEL_BY_CODE[language] ?? LANGUAGE_LABEL_BY_CODE.es]);
+  }, [language, profileQuery.data]);
 
   useEffect(() => {
     if (!profileQuery.data) return;
@@ -57,10 +70,16 @@ const BasicsStep = () => {
     if (profileQuery.data.preferredName) setPreferredName(profileQuery.data.preferredName);
     if (profileQuery.data.dateOfBirth) setDob(profileQuery.data.dateOfBirth);
 
-    const languageCode = (profileQuery.data.language as LanguageCode | undefined) ?? "es";
-    const languageLabel = LANGUAGE_LABEL_BY_CODE[languageCode] ?? "Español";
+    const languageCode = (profileQuery.data.language as LanguageCode | undefined) ?? language;
+    const languageLabel = LANGUAGE_LABEL_BY_CODE[languageCode] ?? LANGUAGE_LABEL_BY_CODE.es;
     setLanguages([languageLabel]);
-  }, [profileQuery.data]);
+  }, [language, profileQuery.data]);
+
+  const handleLanguageChange = (nextLanguages: string[]) => {
+    setLanguages(nextLanguages);
+    const nextCode = LANGUAGE_CODE_BY_LABEL[nextLanguages[0]];
+    if (nextCode) setLanguage(nextCode);
+  };
 
   const canContinue = fullName.trim().length > 0 && !saving;
 
@@ -78,10 +97,10 @@ const BasicsStep = () => {
     let res: Response | undefined;
     try {
       const body: Record<string, string | null> = {
-        full_name:      fullName.trim(),
+        full_name: fullName.trim(),
         preferred_name: preferredName.trim() || null,
-        date_of_birth:  dob || null,
-        language:       selectedLanguageCode,
+        date_of_birth: dob || null,
+        language: selectedLanguageCode,
       };
       res = await apiFetch("/api/onboarding/basics", {
         method: "POST",
@@ -101,103 +120,110 @@ const BasicsStep = () => {
   };
 
   return (
-    <div className="min-h-screen bg-vyva-cream flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-12 pb-4">
+    <OnboardingChrome mainClassName="flex min-h-[calc(100vh-92px)] max-w-[560px] flex-col justify-center">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <button
           data-testid="button-basics-back"
-          onClick={() => navigate("/onboarding")}
-          className="w-10 h-10 rounded-full bg-white border border-vyva-border flex items-center justify-center"
+          onClick={() => navigate("/onboarding/who-for")}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#EFE7DB] bg-white shadow-[0_12px_30px_rgba(72,44,18,0.08)]"
         >
           <ChevronLeft size={20} className="text-vyva-text-1" />
         </button>
-        <div>
-          <p className="font-body text-[12px] text-vyva-text-3 uppercase tracking-wider">Step 1 of 5</p>
-          <h1 className="font-display text-[22px] font-semibold text-vyva-text-1">About you</h1>
-        </div>
+        <span className="rounded-full bg-white/80 px-4 py-2 font-body text-[12px] font-extrabold uppercase tracking-[0.18em] text-vyva-purple/75 shadow-[0_12px_30px_rgba(72,44,18,0.08)]">
+          Step 1 of 5
+        </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="px-5 mb-6">
-        <div className="h-1.5 bg-vyva-warm2 rounded-full overflow-hidden">
-          <div className="h-full bg-vyva-purple rounded-full" style={{ width: "20%" }} />
-        </div>
-      </div>
-
-      {/* Form */}
-      <div className="flex-1 px-5 space-y-5">
-        <div>
-          <label className="font-body text-[13px] font-medium text-vyva-text-2 mb-1.5 block">
-            Full name <span className="text-vyva-red">*</span>
-          </label>
-          <Input
-            data-testid="input-basics-full-name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="e.g. Margaret Collins"
-            className="bg-white"
-          />
+      <section className="rounded-[34px] border border-[#EFE7DB] bg-white/95 p-5 shadow-[0_24px_70px_rgba(72,44,18,0.12)] backdrop-blur sm:p-7">
+        <div className="mb-5">
+          <p className="font-body text-[12px] font-extrabold uppercase tracking-[0.24em] text-vyva-purple/70">
+            Profile basics
+          </p>
+          <h1 className="mt-2 font-display text-[42px] leading-[0.98] text-[#2E1642]">
+            {isCaregiverSetup ? "About them" : "About you"}
+          </h1>
+          <p className="mt-3 font-body text-[14px] leading-[1.55] text-vyva-text-2">
+            {isCaregiverSetup
+              ? "Tell VYVA who will receive support. You can add more health and care details after this."
+              : "Start with the essentials. You can update your profile any time."}
+          </p>
         </div>
 
-        <div>
-          <label className="font-body text-[13px] font-medium text-vyva-text-2 mb-1.5 block">
-            What should VYVA call you?
-          </label>
-          <Input
-            data-testid="input-basics-preferred-name"
-            value={preferredName}
-            onChange={(e) => setPreferredName(e.target.value)}
-            placeholder="e.g. Margaret, Maggie…"
-            className="bg-white"
-          />
-          <p className="font-body text-[11px] text-vyva-text-3 mt-1">Optional — defaults to your first name</p>
+        <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-[#F1E9DD]">
+          <div className="h-full rounded-full bg-vyva-purple" style={{ width: "20%" }} />
         </div>
 
-        <div>
-          <label className="font-body text-[13px] font-medium text-vyva-text-2 mb-1.5 block">
-            Date of birth
-          </label>
-          <Input
-            data-testid="input-basics-dob"
-            type="date"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            className="bg-white"
-          />
+        <div className="space-y-5">
+          <div>
+            <label className="mb-1.5 block font-body text-[13px] font-bold text-vyva-text-2">
+              {isCaregiverSetup ? "Their full name" : "Full name"} <span className="text-vyva-red">*</span>
+            </label>
+            <Input
+              data-testid="input-basics-full-name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Margaret Collins"
+              className="h-[56px] rounded-[20px] border-vyva-border bg-white px-4 shadow-vyva-input"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-body text-[13px] font-bold text-vyva-text-2">
+              {isCaregiverSetup ? "What should VYVA call them?" : "What should VYVA call you?"}
+            </label>
+            <Input
+              data-testid="input-basics-preferred-name"
+              value={preferredName}
+              onChange={(e) => setPreferredName(e.target.value)}
+              placeholder="e.g. Margaret, Maggie..."
+              className="h-[56px] rounded-[20px] border-vyva-border bg-white px-4 shadow-vyva-input"
+            />
+            <p className="mt-1 font-body text-[11px] text-vyva-text-3">Optional - defaults to the first name</p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-body text-[13px] font-bold text-vyva-text-2">
+              Date of birth
+            </label>
+            <Input
+              data-testid="input-basics-dob"
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className="h-[56px] rounded-[20px] border-vyva-border bg-white px-4 shadow-vyva-input"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block font-body text-[13px] font-bold text-vyva-text-2">
+              Preferred language
+            </label>
+            <ChipSelector
+              options={ONBOARDING_LANGUAGE_OPTIONS}
+              selected={languages}
+              onChange={handleLanguageChange}
+              multi={false}
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="font-body text-[13px] font-medium text-vyva-text-2 mb-2 block">
-            Preferred language
-          </label>
-          <ChipSelector
-            options={ONBOARDING_LANGUAGE_OPTIONS}
-            selected={languages}
-            onChange={setLanguages}
-            multi={false}
-          />
-        </div>
-      </div>
+        {error && (
+          <p data-testid="text-basics-error" className="mt-4 rounded-[16px] bg-red-50 px-4 py-3 font-body text-[13px] text-red-700">
+            {error}
+          </p>
+        )}
 
-      {error && (
-        <p data-testid="text-basics-error" className="px-5 pb-2 font-body text-[13px] text-red-600">
-          {error}
-        </p>
-      )}
-
-      {/* Continue */}
-      <div className="px-5 py-6">
         <button
           data-testid="button-basics-continue"
           onClick={handleContinue}
           disabled={!canContinue}
-          className="w-full py-4 rounded-full font-body text-[17px] font-semibold text-white disabled:opacity-40"
-          style={{ background: "#6B21A8" }}
+          className="vyva-primary-action mt-6 w-full bg-[linear-gradient(135deg,#6B21A8_0%,#8B3FC8_100%)] py-4 shadow-vyva-fab disabled:opacity-40"
         >
-          {saving ? "Saving…" : "Continue"}
+          {saving ? "Saving..." : "Continue"}
+          {!saving && <ArrowRight size={17} />}
         </button>
-      </div>
-    </div>
+      </section>
+    </OnboardingChrome>
   );
 };
 

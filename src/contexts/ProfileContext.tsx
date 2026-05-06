@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import i18n, { LANGUAGE_STORAGE_KEY } from "@/i18n/index";
 import { SUPPORTED_LANGUAGES } from "@/i18n/detectLanguage";
 import type { LanguageCode } from "@/i18n/languages";
@@ -59,6 +60,7 @@ function normalizeProfileLanguage(language?: string | null): LanguageCode | null
 }
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
   const { data: profile, isLoading } = useQuery<ProfileData | null>({
     queryKey: ["/api/profile"],
     staleTime: 5 * 60 * 1000,
@@ -74,6 +76,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       .join("") || "";
 
   useEffect(() => {
+    if (!token) return;
     const lang = normalizeProfileLanguage(profile?.language);
     if (!lang) return;
     if (lang !== i18n.language) {
@@ -82,7 +85,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (localStorage.getItem(LANGUAGE_STORAGE_KEY) !== lang) {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
     }
-  }, [profile?.language]);
+  }, [profile?.language, token]);
 
   return (
     <ProfileContext.Provider value={{ profile: profile ?? null, isLoading, fullName, initials, firstName }}>
