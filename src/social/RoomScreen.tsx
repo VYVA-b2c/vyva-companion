@@ -1363,7 +1363,7 @@ const RoomScreen = () => {
         setIsSending(false);
       }
     });
-  }, [agentIsSpeaking, agentTranscript, armLiveReplyTimeout, clearPresenceTimers]);
+  }, [agentIsSpeaking, agentTranscript, armLiveReplyTimeout, clearLiveReplyTimeout, clearPresenceTimers]);
 
   useEffect(() => {
     let cancelled = false;

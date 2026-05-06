@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Heart, Brain, Users, ConciergeBell, Mic, RefreshCw, type LucideIcon } from "lucide-react";
@@ -37,6 +37,35 @@ type HomeAgentCard = {
   voiceContext: string;
   theme: "pink" | "purple" | "blue" | "green";
 };
+
+type WeatherData = {
+  city: string;
+  temperature: number;
+  description: string;
+};
+
+const COORDS_WEATHER_CACHE_KEY = "vyva_coords_weather_cache";
+const COORDS_WEATHER_TTL_MS = 30 * 60 * 1000;
+
+function readCoordsWeatherCache(): WeatherData | null {
+  try {
+    const raw = localStorage.getItem(COORDS_WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: WeatherData; ts: number };
+    if (Date.now() - parsed.ts > COORDS_WEATHER_TTL_MS) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCoordsWeatherCache(data: WeatherData) {
+  try {
+    localStorage.setItem(COORDS_WEATHER_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  } catch {
+    return;
+  }
+}
 
 const HOME_AGENT_CARDS: HomeAgentCard[] = [
   { id: "health", icon: Heart, path: "/health", voiceContext: "health", theme: "pink" },
@@ -139,6 +168,7 @@ const HomeScreen = () => {
   });
 
   const orderedCards = useMemo(() => {
+    void todayKey;
     const dateSorted = dateSeededCardOrder();
     if (!personalisationData) return dateSorted;
     const pData: PersonalisationData = {
@@ -186,7 +216,14 @@ const HomeScreen = () => {
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startAutoScroll = () => {
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+      autoScrollRef.current = null;
+    }
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
     if (autoScrollRef.current) return;
     autoScrollRef.current = setInterval(() => {
       const el = carouselRef.current;
@@ -200,14 +237,7 @@ const HomeScreen = () => {
         el.scrollBy({ left: 1 });
       }
     }, 20);
-  };
-
-  const stopAutoScroll = () => {
-    if (autoScrollRef.current) {
-      clearInterval(autoScrollRef.current);
-      autoScrollRef.current = null;
-    }
-  };
+  }, [stopAutoScroll]);
 
   const pauseAndResume = () => {
     stopAutoScroll();
@@ -223,7 +253,7 @@ const HomeScreen = () => {
       stopAutoScroll();
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     };
-  }, []);
+  }, [startAutoScroll, stopAutoScroll]);
   const { firstName: profileFirstName } = useProfile();
   const { startVoice, stopVoice, status: voiceStatus, isSpeaking, isConnecting, transcript } = useVyvaVoice();
   const isVoiceActive = voiceStatus !== "idle";
@@ -242,34 +272,7 @@ const HomeScreen = () => {
     retry: false,
   });
 
-  const COORDS_WEATHER_CACHE_KEY = "vyva_coords_weather_cache";
-  const COORDS_WEATHER_TTL_MS = 30 * 60 * 1000;
-
-  function readCoordsWeatherCache(): { city: string; temperature: number; description: string } | null {
-    try {
-      const raw = localStorage.getItem(COORDS_WEATHER_CACHE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { data: { city: string; temperature: number; description: string }; ts: number };
-      if (Date.now() - parsed.ts > COORDS_WEATHER_TTL_MS) return null;
-      return parsed.data;
-    } catch {
-      return null;
-    }
-  }
-
-  function writeCoordsWeatherCache(data: { city: string; temperature: number; description: string }) {
-    try {
-      localStorage.setItem(COORDS_WEATHER_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-    } catch {
-      return;
-    }
-  }
-
-  const [coordsWeatherData, setCoordsWeatherData] = useState<{
-    city: string;
-    temperature: number;
-    description: string;
-  } | null>(() => readCoordsWeatherCache());
+  const [coordsWeatherData, setCoordsWeatherData] = useState<WeatherData | null>(() => readCoordsWeatherCache());
   const geoAttemptedRef = useRef(false);
 
   const noCityInProfile =
@@ -277,7 +280,7 @@ const HomeScreen = () => {
     profileWeatherRawError instanceof Error &&
     profileWeatherRawError.message.startsWith("404");
 
-  const fetchIpWeather = async () => {
+  const fetchIpWeather = useCallback(async () => {
     try {
       const res = await fetch("/api/weather/by-ip");
       if (res.ok) {
@@ -288,7 +291,7 @@ const HomeScreen = () => {
     } catch (err) {
       console.warn("[home] IP weather lookup failed:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!noCityInProfile) return;
@@ -323,7 +326,7 @@ const HomeScreen = () => {
       },
       { timeout: 8000 }
     );
-  }, [noCityInProfile]);
+  }, [fetchIpWeather, noCityInProfile]);
 
   const weatherData = profileWeatherData ?? coordsWeatherData;
 

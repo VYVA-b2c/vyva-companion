@@ -488,10 +488,12 @@ async function getOfferProfileContext(userId: string): Promise<OfferProfileConte
     db.select().from(socialUserInterests).where(eq(socialUserInterests.user_id, userId)).limit(1).catch(() => []),
   ]);
 
-  const profile = profileRows[0] as any;
-  const companion = companionRows[0] as any;
-  const social = socialRows[0] as any;
-  const consent = (profile?.data_sharing_consent ?? {}) as Record<string, any>;
+  const profile = profileRows[0] as Record<string, unknown> | undefined;
+  const companion = companionRows[0] as Record<string, unknown> | undefined;
+  const social = socialRows[0] as Record<string, unknown> | undefined;
+  const consent = profile?.data_sharing_consent && typeof profile.data_sharing_consent === "object" && !Array.isArray(profile.data_sharing_consent)
+    ? profile.data_sharing_consent as Record<string, unknown>
+    : {};
   const profileText = JSON.stringify({
     consent,
     companion,
@@ -1013,7 +1015,7 @@ router.post("/search", async (req: Request, res: Response) => {
   }
 
   const normalizedLocale = normaliseLocale(locale);
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   const context = await getOfferProfileContext(userId);
   const documentContext = document_context && typeof document_context === "object"
     ? normaliseDocumentAnalysis(document_context as unknown as Record<string, unknown>, normalizedLocale)

@@ -27,7 +27,7 @@ const VoiceCallOverlay = ({ isSpeaking, isConnecting, transcript, onEnd }: Voice
       setFade(true);
     }, 180);
     return () => clearTimeout(timer);
-  }, [latestEntry]);
+  }, [latestEntry, visibleEntry]);
 
   const statusLabel = isConnecting
     ? t("voiceHero.connecting")

@@ -373,6 +373,7 @@ const MemoryGameRunner = () => {
   }, [localizedVariant, plan]);
 
   const wordRecallChoiceWords = useMemo(() => {
+    void wordRecallChoicesSeed;
     if (plan?.gameType !== "word_recall") return [];
     return shuffleItems([...wordRecallWords, ...wordRecallDistractors]);
   }, [plan?.gameType, wordRecallChoicesSeed, wordRecallDistractors, wordRecallWords]);

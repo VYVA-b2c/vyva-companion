@@ -76,11 +76,13 @@ type ScheduledEvent = {
   read_only?: boolean;
 };
 
+type JsonRecord = Record<string, unknown>;
+
 type UserDetail = {
   intake: Intake;
-  profile: Record<string, any> | null;
+  profile: JsonRecord | null;
   communications: Communication[];
-  lifecycle_events: Array<Record<string, any>>;
+  lifecycle_events: JsonRecord[];
   consent_attempts: ConsentAttempt[];
   scheduled_events: ScheduledEvent[];
 };
@@ -211,7 +213,7 @@ export default function LifecycleAdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "dev-admin-key");
   const [activeTab, setActiveTab] = useState("users");
   const [filters, setFilters] = useState({ entry_point: "", user_type: "", status: "", tier: "" });
-  const [summary, setSummary] = useState<Record<string, any> | null>(null);
+  const [summary, setSummary] = useState<JsonRecord | null>(null);
   const [users, setUsers] = useState<Intake[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [orgFilter, setOrgFilter] = useState<"active" | "archived" | "all">("active");
@@ -221,7 +223,7 @@ export default function LifecycleAdminPage() {
   const [newIntake, setNewIntake] = useState(emptyIntakeForm);
   const [newOrg, setNewOrg] = useState({ name: "", default_tier: "trial" });
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
-  const [selectedDraft, setSelectedDraft] = useState<Record<string, any>>({});
+  const [selectedDraft, setSelectedDraft] = useState<JsonRecord>({});
   const [newEvent, setNewEvent] = useState(emptyScheduledEvent);
   const [bulkOrg, setBulkOrg] = useState<Organization | null>(null);
   const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
@@ -521,7 +523,7 @@ export default function LifecycleAdminPage() {
                 ["status", statuses],
                 ["tier", ["", ...tiers]],
               ].map(([key, values]) => (
-                <select key={key as string} className="rounded-2xl border border-[#e4d8ce] px-4 py-3" value={(filters as any)[key as string]} onChange={(e) => setFilters((prev) => ({ ...prev, [key as string]: e.target.value }))}>
+                <select key={key as keyof typeof filters} className="rounded-2xl border border-[#e4d8ce] px-4 py-3" value={filters[key as keyof typeof filters]} onChange={(e) => setFilters((prev) => ({ ...prev, [key as keyof typeof filters]: e.target.value }))}>
                   {(values as string[]).map((value) => <option key={value} value={value}>{value || String(key).replace("_", " ")}</option>)}
                 </select>
               ))}
@@ -742,8 +744,8 @@ function IntakeTable({ users, onView, onSendLink, onTriggerConsent, onToggleEnab
 
 function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus, onEventTime }: {
   detail: UserDetail;
-  draft: Record<string, any>;
-  setDraft: (next: Record<string, any>) => void;
+  draft: JsonRecord;
+  setDraft: (next: JsonRecord) => void;
   organizations: Organization[];
   onClose: () => void;
   onSave: () => void;
@@ -850,7 +852,7 @@ function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSa
   );
 }
 
-function LogPanel({ title, rows }: { title: string; rows: Array<Record<string, any>> }) {
+function LogPanel({ title, rows }: { title: string; rows: JsonRecord[] }) {
   return (
     <div className="rounded-3xl border p-4">
       <h3 className="font-black">{title}</h3>
@@ -959,7 +961,7 @@ function CommunicationsSection({ communications }: { communications: Communicati
   );
 }
 
-function AnalyticsSection({ summary }: { summary: Record<string, any> | null }) {
+function AnalyticsSection({ summary }: { summary: JsonRecord | null }) {
   const groups = [
     ["Entry points", summary?.byEntryPoint],
     ["User types", summary?.byUserType],

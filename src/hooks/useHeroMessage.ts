@@ -48,6 +48,20 @@ export function useHeroMessage(
   const { i18n } = useTranslation();
   const { profile, firstName: profileFirstName } = useProfile();
   const [catalogVersion, setCatalogVersion] = useState(0);
+  const {
+    language,
+    firstName,
+    date,
+    safetyLevel,
+    fallbackHeadline,
+    fallbackSubtitle,
+    fallbackSourceText,
+    fallbackCtaLabel,
+    fallbackContextHint,
+    upcomingEventType,
+    recentActivity,
+    trackImpression,
+  } = options;
 
   useEffect(() => {
     let cancelled = false;
@@ -60,26 +74,34 @@ export function useHeroMessage(
   }, []);
 
   const message = useMemo(() => {
+    void catalogVersion;
     if (!surface) return null;
     return selectHeroMessage(surface, {
-      ...options,
-      language: options.language ?? profile?.language ?? i18n.language,
-      firstName: options.firstName ?? profileFirstName,
-      date: options.date ?? new Date(),
+      safetyLevel,
+      fallbackHeadline,
+      fallbackSubtitle,
+      fallbackSourceText,
+      fallbackCtaLabel,
+      fallbackContextHint,
+      upcomingEventType,
+      recentActivity,
+      language: language ?? profile?.language ?? i18n.language,
+      firstName: firstName ?? profileFirstName,
+      date: date ?? new Date(),
     });
   }, [
     surface,
-    options.language,
-    options.firstName,
-    options.date,
-    options.safetyLevel,
-    options.fallbackHeadline,
-    options.fallbackSubtitle,
-    options.fallbackSourceText,
-    options.fallbackCtaLabel,
-    options.fallbackContextHint,
-    options.upcomingEventType,
-    options.recentActivity,
+    language,
+    firstName,
+    date,
+    safetyLevel,
+    fallbackHeadline,
+    fallbackSubtitle,
+    fallbackSourceText,
+    fallbackCtaLabel,
+    fallbackContextHint,
+    upcomingEventType,
+    recentActivity,
     profile?.language,
     profileFirstName,
     i18n.language,
@@ -87,9 +109,9 @@ export function useHeroMessage(
   ]);
 
   useEffect(() => {
-    if (!message || options.trackImpression === false) return;
+    if (!message || trackImpression === false) return;
     recordHeroImpression(message.messageId);
-  }, [message?.messageId, options.trackImpression]);
+  }, [message, trackImpression]);
 
   return message;
 }

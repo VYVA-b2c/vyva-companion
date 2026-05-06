@@ -71,7 +71,7 @@ const CheckinHistoryScreen = () => {
   const { data, isLoading, isError } = useQuery<CheckinHistoryResponse>({
     queryKey: ["/api/checkins/history"],
   });
-  const reports = data?.reports ?? [];
+  const reports = useMemo(() => data?.reports ?? [], [data?.reports]);
   const latest = reports[0];
   const averageEnergy = useMemo(() => {
     const values = reports.map((report) => report.energy_level).filter((value): value is number => typeof value === "number");

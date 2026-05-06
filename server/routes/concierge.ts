@@ -1629,12 +1629,18 @@ function extractJsonLdEvents(html: string, source: LocalEventSource): LocalEvent
       value.forEach(collect);
       return;
     }
-    const item = value as Record<string, any>;
+    const item = value as Record<string, unknown>;
     if (Array.isArray(item["@graph"])) item["@graph"].forEach(collect);
     const type = Array.isArray(item["@type"]) ? item["@type"].join(" ") : item["@type"];
     if (typeof type !== "string" || !/event/i.test(type)) return;
-    const location = typeof item.location === "object"
-      ? [item.location.name, item.location.address?.streetAddress, item.location.address?.addressLocality].filter(Boolean).join(", ")
+    const locationRecord = item.location && typeof item.location === "object" && !Array.isArray(item.location)
+      ? item.location as Record<string, unknown>
+      : null;
+    const addressRecord = locationRecord?.address && typeof locationRecord.address === "object" && !Array.isArray(locationRecord.address)
+      ? locationRecord.address as Record<string, unknown>
+      : null;
+    const location = locationRecord
+      ? [locationRecord.name, addressRecord?.streetAddress, addressRecord?.addressLocality].filter(Boolean).join(", ")
       : typeof item.location === "string" ? item.location : source.defaultLocation;
     const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
     events.push({
@@ -2080,7 +2086,7 @@ export async function conciergeHandler(req: Request, res: Response) {
 
   const normalizedLocale = normaliseLocale(locale);
   const apiKey = process.env.OPENAI_API_KEY ?? "";
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
 
   if (!apiKey) {
@@ -2124,7 +2130,7 @@ export async function conciergeHandler(req: Request, res: Response) {
 }
 
 export async function conciergeRecommendationFeedbackHandler(req: Request, res: Response) {
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   const { recommendation_id, action, category, title, reasons = [] } = req.body as RecommendationFeedbackRequestBody;
 
   if (!recommendation_id || typeof recommendation_id !== "string") {
@@ -2166,7 +2172,7 @@ export async function conciergeRecommendationPlanHandler(req: Request, res: Resp
   }
 
   const normalizedLocale = normaliseLocale(locale);
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
 
   try {
@@ -2181,7 +2187,7 @@ export async function conciergeRecommendationPlanHandler(req: Request, res: Resp
 export async function conciergeRecommendationsHandler(req: Request, res: Response) {
   const { locale = "en", refresh = false } = req.body as RecommendationsRequestBody;
   const normalizedLocale = normaliseLocale(locale);
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   const context = await getUserProfile(userId);
   const rankedCandidates = rankRecommendationCandidates(context, { refresh });
   const deterministicCards = await cardsFromRankedCandidates(rankedCandidates, normalizedLocale, context);

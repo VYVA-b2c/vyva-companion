@@ -1699,7 +1699,7 @@ const CheckHowIFeelScreen = () => {
   const loadingMessage = useMemo(() => {
     const messages = copy.loading;
     return messages[Math.min(Math.floor((Date.now() - startedAtRef.current) / 1800), messages.length - 1)];
-  }, [copy.loading, step]);
+  }, [copy.loading]);
 
   const goBack = () => {
     if (canGoBack) {

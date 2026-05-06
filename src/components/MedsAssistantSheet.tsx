@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Send, Loader2, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -52,28 +52,7 @@ const MedsAssistantSheet = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const reqIdRef = useRef(0);
 
-  useEffect(() => {
-    if (open && !sentInitial.current) {
-      sentInitial.current = true;
-      sendMessage(initialPrompt, []);
-    }
-    if (!open) {
-      reqIdRef.current += 1;
-      setMessages([]);
-      setInput("");
-      setError(null);
-      setLoading(false);
-      sentInitial.current = false;
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, loading]);
-
-  async function sendMessage(text: string, history: ChatMessage[]) {
+  const sendMessage = useCallback(async (text: string, history: ChatMessage[]) => {
     const myReqId = ++reqIdRef.current;
     setLoading(true);
     setError(null);
@@ -90,7 +69,28 @@ const MedsAssistantSheet = ({
     } finally {
       if (reqIdRef.current === myReqId) setLoading(false);
     }
-  }
+  }, [i18n.language, t]);
+
+  useEffect(() => {
+    if (open && !sentInitial.current) {
+      sentInitial.current = true;
+      void sendMessage(initialPrompt, []);
+    }
+    if (!open) {
+      reqIdRef.current += 1;
+      setMessages([]);
+      setInput("");
+      setError(null);
+      setLoading(false);
+      sentInitial.current = false;
+    }
+  }, [initialPrompt, open, sendMessage]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
 
   function handleSend() {
     const text = input.trim();
@@ -99,7 +99,7 @@ const MedsAssistantSheet = ({
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
     setInput("");
-    sendMessage(text, nextHistory);
+    void sendMessage(text, nextHistory);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

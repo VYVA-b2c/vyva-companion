@@ -255,7 +255,7 @@ async function logUtilityRun(userId: string, body: {
 
 router.post("/normalize", async (req: Request, res: Response) => {
   const body = req.body as UtilityNormalizeBody;
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   try {
     const normalized = await normalizeUtilitiesInput(body, userId);
     const missing = validateComparisonInput(normalized);
@@ -272,7 +272,7 @@ router.post("/normalize", async (req: Request, res: Response) => {
 
 router.post("/compare", async (req: Request, res: Response) => {
   const body = req.body as UtilityCompareBody;
-  const userId = (req as any).user?.id ?? DEMO_USER_ID;
+  const userId = req.user?.id ?? DEMO_USER_ID;
   try {
     const normalized = await normalizeComparisonBody(body, userId);
     const missing = validateComparisonInput(normalized);

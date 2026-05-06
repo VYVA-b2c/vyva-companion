@@ -961,6 +961,26 @@ function getUseCaseLabel(useCase: string, locale = "es"): string {
   }
 }
 
+type BrowserSpeechRecognitionEvent = {
+  results?: ArrayLike<ArrayLike<{ transcript?: string }>>;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+type SpeechRecognitionWindow = Window & typeof globalThis & {
+  SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+};
+
 const ConciergeScreen = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.split("-")[0].toLowerCase();
@@ -1095,6 +1115,8 @@ const ConciergeScreen = () => {
       }
     }
     loadRecommendations();
+    // loadRecommendations intentionally keys all cache writes to the active language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i18n.language]);
 
   useEffect(() => {
@@ -1433,7 +1455,8 @@ const ConciergeScreen = () => {
   }
 
   function startUtilityVoiceDictation() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setUtilityError(isSpanish
         ? "Este navegador no permite dictado aqui. Puede escribir la respuesta en una frase corta."
@@ -1444,7 +1467,7 @@ const ConciergeScreen = () => {
     recognition.lang = isSpanish ? "es-ES" : i18n.language;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       const transcript = event.results?.[0]?.[0]?.transcript;
       if (transcript) setUtilityVoiceDraft(transcript);
     };

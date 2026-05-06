@@ -15,15 +15,15 @@ const ChatScreen = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    startVoice("companion");
-  }, []);
+    void startVoice("companion");
+  }, [startVoice]);
 
   useEffect(() => {
     if (status === "connected" && pendingRef.current) {
       sendText(pendingRef.current);
       pendingRef.current = null;
     }
-  }, [status]);
+  }, [sendText, status]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
