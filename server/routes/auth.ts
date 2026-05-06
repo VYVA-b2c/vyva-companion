@@ -226,6 +226,18 @@ async function checkPassword(password: string, stored: string): Promise<boolean>
   return derived.toString("hex") === hash;
 }
 
+function friendlyAuthWriteError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (
+    message.includes("phone_number") ||
+    message.includes("active_profile_id") ||
+    message.includes("onboarding_intent")
+  ) {
+    return "Database schema is out of date. Please run npm run db:push, restart the app, and try again.";
+  }
+  return "Registration failed. Please try again.";
+}
+
 const registerSchema = z.object({
   email:      z.string().optional(),
   phone:      z.string().optional(),
@@ -293,24 +305,29 @@ authRouter.post("/register", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Please enter a valid email address or mobile number." });
   }
 
-  const existing = await findUserByContact(contact);
+  try {
+    const existing = await findUserByContact(contact);
 
-  if (existing) {
-    return res.status(409).json({
-      error: contact.kind === "phone"
-        ? "An account with this mobile number already exists."
-        : "An account with this email already exists.",
-    });
+    if (existing) {
+      return res.status(409).json({
+        error: contact.kind === "phone"
+          ? "An account with this mobile number already exists."
+          : "An account with this email already exists.",
+      });
+    }
+
+    const password_hash = await hashPassword(password);
+    const [user] = await db
+      .insert(users)
+      .values({ email: contact.email, phone_number: contact.phone, password_hash })
+      .returning();
+
+    const token = await signToken(user.id);
+    return res.status(201).json({ token, ...authResponseUser(user, null, language, "user") });
+  } catch (err) {
+    console.error("[auth/register]", err);
+    return res.status(500).json({ error: friendlyAuthWriteError(err) });
   }
-
-  const password_hash = await hashPassword(password);
-  const [user] = await db
-    .insert(users)
-    .values({ email: contact.email, phone_number: contact.phone, password_hash })
-    .returning();
-
-  const token = await signToken(user.id);
-  return res.status(201).json({ token, ...authResponseUser(user, null, language, "user") });
 });
 
 /**
