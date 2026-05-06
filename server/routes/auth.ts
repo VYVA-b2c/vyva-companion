@@ -15,6 +15,7 @@ import { getSupabaseConfig } from "../lib/supabaseAuth.js";
 const scryptAsync = promisify(scrypt);
 
 const isDev = process.env.NODE_ENV !== "production";
+const isProduction = process.env.NODE_ENV === "production";
 const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL ?? "karim.assad@mokadigital.net").toLowerCase();
 const emailSchema = z.string().trim().email();
 const SUPPORTED_PROFILE_LANGUAGES = ["es", "en", "fr", "de", "it", "pt", "cy"] as const;
@@ -237,7 +238,7 @@ function friendlyAuthWriteError(err: unknown): string {
     message.includes("onboarding_intent") ||
     message.includes("does not exist")
   ) {
-    return "Database schema is out of date. Please run npm run db:push, restart the app, and try again.";
+    return "Database schema is out of date. Please run npm run db:auth, restart the app, and try again.";
   }
   if (!isProduction) {
     return `Registration failed: ${message.slice(0, 240)}`;
