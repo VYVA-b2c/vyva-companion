@@ -135,6 +135,46 @@ async function getProfileRole(userId: string): Promise<string> {
   return profile?.role ?? "user";
 }
 
+async function getOrCreateAuthenticatedProfile(userId: string, email?: unknown) {
+  const normalizedEmail = normalizeEmail(email);
+  const [created] = await db
+    .insert(profiles)
+    .values({
+      id: userId,
+      email: normalizedEmail,
+    })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: {
+        email: normalizedEmail,
+        updated_at: new Date(),
+      },
+    })
+    .returning({
+      id: profiles.id,
+      email: profiles.email,
+      phone: profiles.phone_number,
+      language: profiles.language,
+      role: profiles.role,
+    });
+
+  if (created) return created;
+
+  const [profile] = await db
+    .select({
+      id: profiles.id,
+      email: profiles.email,
+      phone: profiles.phone_number,
+      language: profiles.language,
+      role: profiles.role,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+
+  return profile ?? null;
+}
+
 async function getUserProfileLanguage(userId: string): Promise<ProfileLanguage> {
   const context = await getActiveProfileContext(userId);
   if (!context.profileId) return "es";
@@ -317,28 +357,50 @@ authRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const user = await getOrCreateAuthenticatedUser(req.user.id, req.user.email);
+  try {
+    if (req.user.authProvider === "supabase") {
+      const profile = await getOrCreateAuthenticatedProfile(req.user.id, req.user.email);
+      if (!profile) {
+        return res.status(401).json({ error: "User not found" });
+      }
 
-  if (!user) {
-    return res.status(401).json({ error: "User not found" });
+      return res.json({
+        id: profile.id,
+        email: profile.email ?? (typeof req.user.email === "string" ? req.user.email : null),
+        phone: profile.phone ?? null,
+        activeProfileId: profile.id,
+        language: normalizeProfileLanguage(profile.language),
+        role: profile.role ?? "user",
+        prevSeenAt: null,
+      });
+    }
+
+    const user = await getOrCreateAuthenticatedUser(req.user.id, req.user.email);
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
+
+    await db
+      .update(users)
+      .set({ last_seen_at: new Date() })
+      .where(eq(users.id, user.id));
+
+    return res.json({
+      id: user.id,
+      email: user.email,
+      phone: user.phone_number,
+      activeProfileId: user.active_profile_id ?? null,
+      language: await getUserProfileLanguage(user.id),
+      role: await getProfileRole(user.id),
+      prevSeenAt,
+    });
+  } catch (err) {
+    console.error("[auth/me]", err);
+    return res.status(500).json({ error: "Could not load your account" });
   }
-
-  const prevSeenAt = user.last_seen_at ? user.last_seen_at.toISOString() : null;
-
-  await db
-    .update(users)
-    .set({ last_seen_at: new Date() })
-    .where(eq(users.id, user.id));
-
-  return res.json({
-    id: user.id,
-    email: user.email,
-    phone: user.phone_number,
-    activeProfileId: user.active_profile_id ?? null,
-    language: await getUserProfileLanguage(user.id),
-    role: await getProfileRole(user.id),
-    prevSeenAt,
-  });
 });
 
 /**

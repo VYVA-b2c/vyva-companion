@@ -5,7 +5,7 @@ import { verifySupabaseAccessToken } from "../lib/supabaseAuth.js";
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; role?: string; [key: string]: unknown };
+      user?: { id: string; role?: string; authProvider?: "legacy" | "supabase"; [key: string]: unknown };
     }
   }
 }
@@ -35,12 +35,12 @@ export async function authMiddleware(
     const token = authHeader.slice(7);
     const userId = await verifyToken(token);
     if (userId) {
-      req.user = { id: userId };
+      req.user = { id: userId, authProvider: "legacy" };
       return next();
     }
     const supabaseUser = await verifySupabaseAccessToken(token);
     if (supabaseUser) {
-      req.user = { id: supabaseUser.id, email: supabaseUser.email };
+      req.user = { id: supabaseUser.id, email: supabaseUser.email, authProvider: "supabase" };
       return next();
     }
     // Token present but invalid — reject immediately, don't fall through
