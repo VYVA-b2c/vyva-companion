@@ -1,4 +1,4 @@
-import { BrainCircuit, Headphones, HelpCircle, Layers, Map as MapIcon, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
+import { BrainCircuit, Headphones, HelpCircle, Layers, Map as MapIcon, Play, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
 import { useLanguage } from "@/i18n";
@@ -14,14 +14,56 @@ const activityIcons: Record<string, LucideIcon> = {
   "brain.activities.breathing": Wind,
 };
 
-const activityStyles: Record<string, { iconBg: string; iconColor: string; cardBg: string }> = {
-  "brain.activities.triviaQuiz": { iconBg: "#ECFDF5", iconColor: "#0A7C4E", cardBg: "#F7FFFA" },
-  "brain.activities.memoryGame": { iconBg: "#EDE9FE", iconColor: "#6B21A8", cardBg: "#FCF8FF" },
-  "brain.activities.spatialNavigator": { iconBg: "#FEF3C7", iconColor: "#B45309", cardBg: "#FFFBEB" },
-  "brain.activities.scrabble": { iconBg: "#FDF2F8", iconColor: "#B0355A", cardBg: "#FFF8FB" },
-  "brain.activities.logicPuzzle": { iconBg: "#FEF3C7", iconColor: "#C9890A", cardBg: "#FFFBEF" },
-  "brain.activities.meditation": { iconBg: "#F0FDFA", iconColor: "#0F766E", cardBg: "#F7FFFD" },
-  "brain.activities.breathing": { iconBg: "#ECFDF5", iconColor: "#0A7C4E", cardBg: "#F7FFFA" },
+const activityStyles: Record<string, { iconBg: string; iconColor: string; glow: string; badgeBg: string; badgeText: string }> = {
+  "brain.activities.triviaQuiz": {
+    iconBg: "linear-gradient(135deg, #DDF8EA 0%, #F1FBF5 100%)",
+    iconColor: "#149A63",
+    glow: "rgba(20,154,99,0.12)",
+    badgeBg: "#DDF8EA",
+    badgeText: "#0A7C4E",
+  },
+  "brain.activities.memoryGame": {
+    iconBg: "linear-gradient(135deg, #ECE4FF 0%, #F8F2FF 100%)",
+    iconColor: "#7C3AED",
+    glow: "rgba(124,58,237,0.13)",
+    badgeBg: "#EDE9FE",
+    badgeText: "#6D28D9",
+  },
+  "brain.activities.spatialNavigator": {
+    iconBg: "linear-gradient(135deg, #FEF3C7 0%, #FFF7ED 100%)",
+    iconColor: "#B45309",
+    glow: "rgba(180,83,9,0.12)",
+    badgeBg: "#FEF3C7",
+    badgeText: "#B45309",
+  },
+  "brain.activities.scrabble": {
+    iconBg: "linear-gradient(135deg, #FFE7E7 0%, #FFF7F2 100%)",
+    iconColor: "#E74C43",
+    glow: "rgba(231,76,67,0.12)",
+    badgeBg: "#FFE7E7",
+    badgeText: "#B0355A",
+  },
+  "brain.activities.logicPuzzle": {
+    iconBg: "linear-gradient(135deg, #FEF3C7 0%, #FFF7ED 100%)",
+    iconColor: "#C9890A",
+    glow: "rgba(201,137,10,0.12)",
+    badgeBg: "#FEF3C7",
+    badgeText: "#A16207",
+  },
+  "brain.activities.meditation": {
+    iconBg: "linear-gradient(135deg, #CCFBF1 0%, #F0FDFA 100%)",
+    iconColor: "#0F766E",
+    glow: "rgba(15,118,110,0.12)",
+    badgeBg: "#CCFBF1",
+    badgeText: "#0F766E",
+  },
+  "brain.activities.breathing": {
+    iconBg: "linear-gradient(135deg, #DDF8EA 0%, #F1FBF5 100%)",
+    iconColor: "#149A63",
+    glow: "rgba(20,154,99,0.12)",
+    badgeBg: "#DDF8EA",
+    badgeText: "#0A7C4E",
+  },
 };
 
 const activityRoutes: Partial<Record<string, string>> = {
@@ -52,19 +94,36 @@ const ActivitiesScreen = () => {
   };
 
   return (
-    <div className="px-[22px] pb-5">
+    <div className="vyva-page">
       <VoiceHero
         heroSurface="brain"
         sourceText={t("brain.voiceSource")}
         headline={<>{t("brain.headline")}</>}
         subtitle={t("brain.subtitle", { streak: margaret.streak })}
         contextHint="brain training"
-      />
+      >
+        <button
+          type="button"
+          onClick={() => navigate("/memory-games")}
+          className="mt-3 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-full bg-white px-[20px] py-[14px] transition-all active:scale-[0.975]"
+        >
+          <Play size={16} style={{ color: "#6B21A8" }} />
+          <span className="font-body text-[16px] font-semibold leading-tight" style={{ color: "#6B21A8" }}>
+            {t("brain.startSession")}
+          </span>
+        </button>
+      </VoiceHero>
 
-      <section className="mt-5 rounded-[24px] border border-[#EFE7DB] bg-[#FFF9F1] p-4 shadow-vyva-card">
+      <section
+        className="mt-[18px] rounded-[26px] border bg-[#FFF9F1] p-4"
+        style={{
+          borderColor: "#EDE2D1",
+          boxShadow: "0 2px 10px rgba(43,31,24,0.05)",
+        }}
+      >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple">{t("brain.streakThisWeek")}</p>
+            <p className="font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-vyva-purple">{t("brain.streakThisWeek")}</p>
             <p className="mt-1 font-display text-[30px] leading-none text-vyva-text-1">{margaret.streak}</p>
           </div>
           <div className="flex gap-[6px]">
@@ -77,10 +136,10 @@ const ActivitiesScreen = () => {
                   className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] text-[12px] font-medium"
                   style={
                     completed
-                      ? { background: "#6B21A8", color: "#FFFFFF" }
+                      ? { background: "#6B21A8", color: "#FFFFFF", boxShadow: "0 8px 18px rgba(107,33,168,0.16)" }
                       : isToday
-                        ? { background: "#F5F3FF", color: "#6B21A8", border: "2px solid #6B21A8" }
-                        : { background: "#FFFFFF", color: "#B5A89F" }
+                        ? { background: "#FFFFFF", color: "#6B21A8", border: "2px solid #6B21A8" }
+                        : { background: "#FFFFFF", color: "#B5A89F", border: "1px solid #EFE4D5" }
                   }
                 >
                   {d}
@@ -91,12 +150,18 @@ const ActivitiesScreen = () => {
         </div>
       </section>
 
-      <section className="mt-5">
-        <h2 className="font-display text-[24px] text-vyva-text-1">{t("activities.chooseActivity")}</h2>
+      <section className="mt-[18px]">
+        <h2 className="vyva-section-title">{t("activities.chooseActivity")}</h2>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {margaret.activities.map((act) => {
             const Icon = activityIcons[act.name] || BrainCircuit;
-            const style = activityStyles[act.name] || { iconBg: "#EDE9FE", iconColor: "#6B21A8", cardBg: "#FCF8FF" };
+            const style = activityStyles[act.name] || {
+              iconBg: "linear-gradient(135deg, #ECE4FF 0%, #F8F2FF 100%)",
+              iconColor: "#7C3AED",
+              glow: "rgba(124,58,237,0.13)",
+              badgeBg: "#EDE9FE",
+              badgeText: "#6D28D9",
+            };
 
             return (
               <button
@@ -105,47 +170,57 @@ const ActivitiesScreen = () => {
                 onClick={() => handleActivityClick(act.name)}
                 data-testid={`activity-card-${act.name.replaceAll(".", "-")}`}
                 aria-label={activityLabels[act.name] ?? t("activities.memory")}
-                className="rounded-[24px] border p-[16px] text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
+                className="group relative min-h-[168px] overflow-visible rounded-[28px] border bg-[#FFFCF8] px-4 py-4 text-left transition-transform active:scale-[0.99]"
                 style={{
-                  minHeight: 148,
-                  background: style.cardBg,
-                  borderColor: act.done ? "#A7F3D0" : "#EDE2D1",
+                  borderColor: "#EDE2D1",
+                  boxShadow: `0 16px 34px ${style.glow}, 0 2px 10px rgba(43,31,24,0.05)`,
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    className="flex h-[52px] w-[52px] items-center justify-center rounded-[18px]"
-                    style={{ background: style.iconBg }}
-                  >
-                    <Icon size={24} style={{ color: style.iconColor }} />
+                <div className="relative z-10 flex h-full flex-col justify-between gap-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[20px]"
+                      style={{ background: style.iconBg }}
+                    >
+                      <Icon size={30} strokeWidth={2.5} style={{ color: style.iconColor }} />
+                    </div>
+                    {act.done ? (
+                      <span
+                        className="rounded-full px-2.5 py-1 font-body text-[11px] font-bold leading-tight shadow-sm"
+                        style={{ background: style.badgeBg, color: style.badgeText }}
+                      >
+                        {t("activities.doneToday")}
+                      </span>
+                    ) : null}
                   </div>
-                  {act.done ? (
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0A7C4E] shadow-sm">
-                      {t("activities.doneToday")}
-                    </span>
-                  ) : null}
-                </div>
 
-                <p className="mt-5 text-[18px] font-semibold leading-[1.2] text-vyva-text-1">
-                  {activityLabels[act.name] ?? t("activities.memory")}
-                </p>
+                  <p className="min-w-0 font-body text-[21px] font-extrabold leading-tight text-vyva-text-1 [overflow-wrap:anywhere]">
+                    {activityLabels[act.name] ?? t("activities.memory")}
+                  </p>
+                </div>
               </button>
             );
           })}
         </div>
       </section>
 
-      <section className="mt-5 rounded-[22px] border border-vyva-border bg-white p-[16px_18px] shadow-vyva-card">
+      <section
+        className="mt-[18px] rounded-[26px] border bg-[#FFFCF8] p-[16px_18px]"
+        style={{
+          borderColor: "#EDE2D1",
+          boxShadow: "0 2px 10px rgba(43,31,24,0.05)",
+        }}
+      >
         <div className="flex items-center gap-4">
           <div
-            className="flex h-[50px] w-[50px] flex-shrink-0 items-center justify-center rounded-[16px]"
-            style={{ background: "#F5F3FF" }}
+            className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px]"
+            style={{ background: "linear-gradient(135deg, #E6F0FF 0%, #F3F8FF 100%)" }}
           >
-            <Users size={22} style={{ color: "#6B21A8" }} />
+            <Users size={28} strokeWidth={2.5} style={{ color: "#2F66D0" }} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold text-vyva-text-1">{t("companions.activityTile")}</p>
-            <p className="mt-0.5 text-[13px] text-vyva-text-2">{t("companions.activityTileSubtitle")}</p>
+            <p className="font-body text-[17px] font-semibold leading-snug text-vyva-text-1">{t("companions.activityTile")}</p>
+            <p className="mt-1 font-body text-[13px] leading-[1.5] text-vyva-text-2">{t("companions.activityTileSubtitle")}</p>
           </div>
         </div>
       </section>
