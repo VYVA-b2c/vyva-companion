@@ -98,7 +98,13 @@ export default function SettingsHome() {
 
     try {
       const response = await apiFetch("/api/profile/export");
-      if (!response.ok) throw new Error("Export failed");
+      if (!response.ok) {
+        const body = await response.clone().json().catch(() => null);
+        const message = body?.detail
+          ? `${body.error ?? "Export failed"}: ${body.detail}`
+          : body?.error ?? `Export failed (${response.status})`;
+        throw new Error(message);
+      }
 
       const blob = await response.blob();
       const disposition = response.headers.get("Content-Disposition") ?? "";
@@ -113,9 +119,10 @@ export default function SettingsHome() {
       link.remove();
       URL.revokeObjectURL(url);
       toast({ title: t("settings.home.rows.downloadDataStarted", "Your data export is downloading") });
-    } catch {
+    } catch (err) {
       toast({
         title: t("settings.home.rows.downloadDataError", "Could not download your data"),
+        description: err instanceof Error ? err.message : undefined,
         variant: "destructive",
       });
     } finally {
