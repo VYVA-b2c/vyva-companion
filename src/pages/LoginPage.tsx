@@ -85,6 +85,7 @@ type LoginCopy = {
   continueWithGoogle: string;
   usePasswordInstead: string;
   profilePrivate: string;
+  privacyPolicy: string;
   checkInbox: string;
   resetSentBody: string;
   backToSignIn: string;
@@ -156,6 +157,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Continue with Google",
     usePasswordInstead: "Use password instead",
     profilePrivate: "Your profile stays private.",
+    privacyPolicy: "Privacy policy",
     checkInbox: "Check your inbox",
     resetSentBody: "If there is an account, the reset link is on its way.",
     backToSignIn: "Back to sign in",
@@ -225,6 +227,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Continuar con Google",
     usePasswordInstead: "Usar contraseña",
     profilePrivate: "Tu perfil sigue siendo privado.",
+    privacyPolicy: "Política de privacidad",
     checkInbox: "Revisa tu bandeja",
     resetSentBody: "Si existe una cuenta, el enlace ya va en camino.",
     backToSignIn: "Volver a entrar",
@@ -296,6 +299,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Continuer avec Google",
     usePasswordInstead: "Utiliser le mot de passe",
     profilePrivate: "Votre profil reste privé.",
+    privacyPolicy: "Politique de confidentialité",
     checkInbox: "Vérifiez votre boîte mail",
     resetSentBody: "Si le compte existe, le lien est en route.",
     backToSignIn: "Retour à la connexion",
@@ -365,6 +369,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Mit Google fortfahren",
     usePasswordInstead: "Passwort verwenden",
     profilePrivate: "Dein Profil bleibt privat.",
+    privacyPolicy: "Datenschutzerklärung",
     checkInbox: "Posteingang prüfen",
     resetSentBody: "Falls ein Konto existiert, ist der Link unterwegs.",
     backToSignIn: "Zurück zur Anmeldung",
@@ -434,6 +439,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Continua con Google",
     usePasswordInstead: "Usa password",
     profilePrivate: "Il tuo profilo resta privato.",
+    privacyPolicy: "Informativa sulla privacy",
     checkInbox: "Controlla la posta",
     resetSentBody: "Se l'account esiste, il link è in arrivo.",
     backToSignIn: "Torna all'accesso",
@@ -503,6 +509,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Continuar com Google",
     usePasswordInstead: "Usar palavra-passe",
     profilePrivate: "O seu perfil continua privado.",
+    privacyPolicy: "Política de privacidade",
     checkInbox: "Verifique o email",
     resetSentBody: "Se existir uma conta, o link está a caminho.",
     backToSignIn: "Voltar ao início de sessão",
@@ -572,6 +579,7 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     continueWithGoogle: "Parhau gyda Google",
     usePasswordInstead: "Defnyddio cyfrinair",
     profilePrivate: "Mae eich proffil yn aros yn breifat.",
+    privacyPolicy: "Polisi preifatrwydd",
     checkInbox: "Gwiriwch eich mewnflwch",
     resetSentBody: "Os oes cyfrif, mae'r ddolen ar ei ffordd.",
     backToSignIn: "Yn ôl i fewngofnodi",
@@ -1264,9 +1272,20 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
                     </p>
                   )}
 
-                  <div className="flex items-center justify-center gap-2 rounded-full bg-[#FFF9E8] px-4 py-3">
-                    <ShieldCheck size={16} className="text-[#B98900]" />
-                    <span className="font-body text-[12px] font-bold text-[#8A6500]">{copy.profilePrivate}</span>
+                  <div className="flex flex-col items-center justify-center gap-1 rounded-[22px] bg-[#FFF9E8] px-4 py-3 text-center sm:flex-row sm:gap-2 sm:rounded-full">
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <ShieldCheck size={16} className="text-[#B98900]" />
+                      <span className="font-body text-[12px] font-bold text-[#8A6500]">{copy.profilePrivate}</span>
+                    </span>
+                    <a
+                      href="https://vyva.life/privacypolicy"
+                      target="_blank"
+                      rel="noreferrer"
+                      data-testid="link-privacy-policy"
+                      className="font-body text-[12px] font-extrabold text-vyva-purple underline-offset-4 hover:underline"
+                    >
+                      {copy.privacyPolicy}
+                    </a>
                   </div>
                 </div>
               )}
