@@ -1035,8 +1035,10 @@ function TierSection({
 }: {
   plans: SubscriptionPlanAdmin[];
   setPlans: (plans: SubscriptionPlanAdmin[]) => void;
-  onSave: (plan: SubscriptionPlanAdmin) => void;
+  onSave: (plan: SubscriptionPlanAdmin) => Promise<void>;
 }) {
+  const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<{ planId: string; type: "success" | "error"; text: string } | null>(null);
   const rows = plans.length
     ? plans
     : tiers.map((tier, index) => ({
@@ -1093,6 +1095,32 @@ function TierSection({
       : plan));
   }
 
+  function centsToCurrency(cents: number | null | undefined) {
+    return ((cents ?? 0) / 100).toFixed(2);
+  }
+
+  function currencyToCents(value: string) {
+    const parsed = Number(value.replace(",", "."));
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
+  }
+
+  async function handleSave(plan: SubscriptionPlanAdmin) {
+    setSavingPlanId(plan.plan_id);
+    setSaveNotice(null);
+    try {
+      await onSave(plan);
+      setSaveNotice({ planId: plan.plan_id, type: "success", text: `${plan.name} saved successfully.` });
+    } catch (err) {
+      setSaveNotice({
+        planId: plan.plan_id,
+        type: "error",
+        text: err instanceof Error ? err.message : "Could not save this plan.",
+      });
+    } finally {
+      setSavingPlanId(null);
+    }
+  }
+
   return (
     <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1117,8 +1145,8 @@ function TierSection({
                   </div>
                   <Field label="Description" optional><textarea className="min-h-20 w-full rounded-2xl border px-4 py-3 bg-white" value={plan.description ?? ""} onChange={(e) => updatePlan(plan.plan_id, { description: e.target.value })} /></Field>
                   <div className="mt-3 grid gap-3 md:grid-cols-4">
-                    <Field label="EUR cents"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.price_eur} onChange={(e) => updatePlan(plan.plan_id, { price_eur: Number(e.target.value) })} /></Field>
-                    <Field label="GBP cents"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.price_gbp} onChange={(e) => updatePlan(plan.plan_id, { price_gbp: Number(e.target.value) })} /></Field>
+                    <Field label="EUR / month"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" inputMode="decimal" min={0} step="0.01" value={centsToCurrency(plan.price_eur)} onChange={(e) => updatePlan(plan.plan_id, { price_eur: currencyToCents(e.target.value) })} /></Field>
+                    <Field label="GBP / month"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" inputMode="decimal" min={0} step="0.01" value={centsToCurrency(plan.price_gbp)} onChange={(e) => updatePlan(plan.plan_id, { price_gbp: currencyToCents(e.target.value) })} /></Field>
                     <Field label="Trial days"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.trial_days ?? 0} onChange={(e) => updatePlan(plan.plan_id, { trial_days: Number(e.target.value) })} /></Field>
                     <Field label="Order"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" value={plan.sort_order ?? 0} onChange={(e) => updatePlan(plan.plan_id, { sort_order: Number(e.target.value) })} /></Field>
                   </div>
@@ -1153,7 +1181,14 @@ function TierSection({
                     <label className="flex items-center gap-2 rounded-2xl border border-[#eadfd5] px-4 py-3 text-sm font-bold"><input type="checkbox" checked={plan.is_public} onChange={(e) => updatePlan(plan.plan_id, { is_public: e.target.checked })} /> Public</label>
                     <label className="flex items-center gap-2 rounded-2xl border border-[#eadfd5] px-4 py-3 text-sm font-bold"><input type="checkbox" checked={plan.is_active} onChange={(e) => updatePlan(plan.plan_id, { is_active: e.target.checked })} /> Active</label>
                   </div>
-                  <button className="mt-4 w-full rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => onSave(plan)}>Save plan</button>
+                  {saveNotice?.planId === plan.plan_id && (
+                    <p className={`mt-4 rounded-2xl px-4 py-3 text-sm font-bold ${saveNotice.type === "success" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
+                      {saveNotice.text}
+                    </p>
+                  )}
+                  <button className="mt-4 w-full rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={savingPlanId === plan.plan_id} onClick={() => handleSave(plan)}>
+                    {savingPlanId === plan.plan_id ? "Saving..." : "Save plan"}
+                  </button>
                 </div>
               </div>
             </article>
