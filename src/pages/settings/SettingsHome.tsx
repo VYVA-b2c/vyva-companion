@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/queryClient";
 
 interface RowProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -27,6 +30,7 @@ interface RowProps {
   sub?: string;
   value?: string;
   onClick?: () => void;
+  disabled?: boolean;
   danger?: boolean;
   "data-testid"?: string;
 }
@@ -39,6 +43,7 @@ function Row({
   sub,
   value,
   onClick,
+  disabled,
   danger,
   "data-testid": testId,
 }: RowProps) {
@@ -46,8 +51,9 @@ function Row({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       data-testid={testId}
-      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition-colors hover:bg-[#FCF8FF]"
+      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition-colors hover:bg-[#FCF8FF] disabled:cursor-wait disabled:opacity-70"
     >
       <div
         className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[14px]"
@@ -78,10 +84,43 @@ export default function SettingsHome() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const [isDownloadingData, setIsDownloadingData] = useState(false);
 
   const handleSignOut = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleDownloadData = async () => {
+    if (isDownloadingData) return;
+    setIsDownloadingData(true);
+
+    try {
+      const response = await apiFetch("/api/profile/export");
+      if (!response.ok) throw new Error("Export failed");
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? `vyva-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: t("settings.home.rows.downloadDataStarted", "Your data export is downloading") });
+    } catch {
+      toast({
+        title: t("settings.home.rows.downloadDataError", "Could not download your data"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingData(false);
+    }
   };
 
   return (
@@ -137,8 +176,11 @@ export default function SettingsHome() {
             icon={Download}
             iconBg="#FFF7E8"
             iconColor="#C9890A"
-            title={t("settings.home.rows.downloadData")}
+            title={isDownloadingData ? t("settings.home.rows.downloadDataPreparing", "Preparing your data...") : t("settings.home.rows.downloadData")}
             sub={t("settings.home.rows.downloadDataSub")}
+            onClick={handleDownloadData}
+            disabled={isDownloadingData}
+            data-testid="button-settings-download-data"
           />
         </Section>
 

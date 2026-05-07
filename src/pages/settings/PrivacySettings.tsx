@@ -90,6 +90,18 @@ const PrivacySettings = () => {
             onToggle={() => toggleGlobal("dataImprovement")}
             testId="toggle-privacy-ai-improvement"
           />
+          <a
+            href="https://vyva.life/privacypolicy"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between gap-3 border-t border-vyva-border bg-vyva-cream/40 px-4 py-3 text-left hover:bg-vyva-warm/60"
+            data-testid="link-privacy-policy"
+          >
+            <span className="font-body text-[13px] font-medium text-vyva-text-2">
+              {t("settings.home.rows.privacyPolicy")}
+            </span>
+            <span className="font-body text-[15px] font-medium text-vyva-purple">↗</span>
+          </a>
         </div>
 
         {/* Per-person consents */}

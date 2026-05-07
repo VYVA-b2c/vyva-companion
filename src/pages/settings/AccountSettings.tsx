@@ -42,27 +42,6 @@ type AccountForm = {
   timezone: string;
 };
 
-type ScheduledEventItem = {
-  id: string;
-  event_type: string;
-  title: string;
-  description?: string | null;
-  channel: string;
-  agent_slug?: string | null;
-  room_slug?: string | null;
-  scheduled_for?: string | null;
-  display_time?: string | null;
-  timezone: string;
-  recurrence: string;
-  status: string;
-  source: string;
-  read_only?: boolean;
-};
-
-type ScheduledEventsResponse = {
-  events: ScheduledEventItem[];
-};
-
 const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
   es: {
     required: "Obligatorio",
@@ -75,20 +54,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "Los apellidos son obligatorios.",
     phoneRequired: "El numero de telefono es obligatorio.",
     requiredFieldsMissing: "Completa los campos obligatorios.",
+    genderInferred: "Sugerido por el nombre; puedes cambiarlo.",
     saved: "Datos de la cuenta guardados",
     saveError: "No se pudieron guardar los datos de la cuenta",
     defaultName: "Maria",
-    scheduledEvents: "Eventos programados",
-    scheduledEventsHint: "Aqui veras llamadas, recordatorios y sesiones programadas por VYVA.",
-    scheduledEmpty: "No hay eventos programados todavia.",
-    scheduledPause: "Pausar",
-    scheduledResume: "Reanudar",
-    scheduledCancel: "Cancelar",
-    scheduledSaveTime: "Guardar hora",
-    scheduledReadOnly: "Gestionado por otra seccion",
-    scheduledUpcoming: "Proximo",
-    scheduledPaused: "Pausado",
-    scheduledPast: "Pasado",
   },
   en: {
     required: "Required",
@@ -101,20 +70,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "Last name is required.",
     phoneRequired: "Phone number is required.",
     requiredFieldsMissing: "Please complete the required fields.",
+    genderInferred: "Suggested from the name; you can change it.",
     saved: "Account details saved",
     saveError: "Could not save account details",
     defaultName: "Maria",
-    scheduledEvents: "Scheduled events",
-    scheduledEventsHint: "Calls, reminders and VYVA sessions scheduled for you will appear here.",
-    scheduledEmpty: "No scheduled events yet.",
-    scheduledPause: "Pause",
-    scheduledResume: "Resume",
-    scheduledCancel: "Cancel",
-    scheduledSaveTime: "Save time",
-    scheduledReadOnly: "Managed in another section",
-    scheduledUpcoming: "Upcoming",
-    scheduledPaused: "Paused",
-    scheduledPast: "Past",
   },
   fr: {
     required: "Obligatoire",
@@ -127,20 +86,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "Le nom est obligatoire.",
     phoneRequired: "Le numero de telephone est obligatoire.",
     requiredFieldsMissing: "Veuillez remplir les champs obligatoires.",
+    genderInferred: "Suggere a partir du prenom; vous pouvez le modifier.",
     saved: "Informations du compte enregistrees",
     saveError: "Impossible d'enregistrer les informations du compte",
     defaultName: "Maria",
-    scheduledEvents: "Evenements programmes",
-    scheduledEventsHint: "Les appels, rappels et sessions VYVA programmes apparaitront ici.",
-    scheduledEmpty: "Aucun evenement programme pour le moment.",
-    scheduledPause: "Mettre en pause",
-    scheduledResume: "Reprendre",
-    scheduledCancel: "Annuler",
-    scheduledSaveTime: "Enregistrer l'heure",
-    scheduledReadOnly: "Gere dans une autre section",
-    scheduledUpcoming: "A venir",
-    scheduledPaused: "En pause",
-    scheduledPast: "Passe",
   },
   de: {
     required: "Pflichtfeld",
@@ -153,20 +102,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "Der Nachname ist erforderlich.",
     phoneRequired: "Die Telefonnummer ist erforderlich.",
     requiredFieldsMissing: "Bitte fullen Sie die Pflichtfelder aus.",
+    genderInferred: "Aus dem Namen vorgeschlagen; Sie konnen es andern.",
     saved: "Kontodaten gespeichert",
     saveError: "Die Kontodaten konnten nicht gespeichert werden",
     defaultName: "Maria",
-    scheduledEvents: "Geplante Ereignisse",
-    scheduledEventsHint: "Anrufe, Erinnerungen und VYVA-Sitzungen erscheinen hier.",
-    scheduledEmpty: "Noch keine geplanten Ereignisse.",
-    scheduledPause: "Pausieren",
-    scheduledResume: "Fortsetzen",
-    scheduledCancel: "Absagen",
-    scheduledSaveTime: "Zeit speichern",
-    scheduledReadOnly: "In einem anderen Bereich verwaltet",
-    scheduledUpcoming: "Bevorstehend",
-    scheduledPaused: "Pausiert",
-    scheduledPast: "Vergangen",
   },
   it: {
     required: "Obbligatorio",
@@ -179,20 +118,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "Il cognome e obbligatorio.",
     phoneRequired: "Il numero di telefono e obbligatorio.",
     requiredFieldsMissing: "Completa i campi obbligatori.",
+    genderInferred: "Suggerito dal nome; puoi modificarlo.",
     saved: "Dati dell'account salvati",
     saveError: "Impossibile salvare i dati dell'account",
     defaultName: "Maria",
-    scheduledEvents: "Eventi programmati",
-    scheduledEventsHint: "Qui appariranno chiamate, promemoria e sessioni VYVA programmate.",
-    scheduledEmpty: "Non ci sono ancora eventi programmati.",
-    scheduledPause: "Pausa",
-    scheduledResume: "Riprendi",
-    scheduledCancel: "Annulla",
-    scheduledSaveTime: "Salva ora",
-    scheduledReadOnly: "Gestito in un'altra sezione",
-    scheduledUpcoming: "In arrivo",
-    scheduledPaused: "In pausa",
-    scheduledPast: "Passato",
   },
   pt: {
     required: "Obrigatorio",
@@ -205,20 +134,10 @@ const ACCOUNT_LANGUAGE_COPY: Record<LanguageCode, Record<string, string>> = {
     lastNameRequired: "O apelido e obrigatorio.",
     phoneRequired: "O numero de telefone e obrigatorio.",
     requiredFieldsMissing: "Preencha os campos obrigatorios.",
+    genderInferred: "Sugerido a partir do nome; pode alterar.",
     saved: "Dados da conta guardados",
     saveError: "Nao foi possivel guardar os dados da conta",
     defaultName: "Maria",
-    scheduledEvents: "Eventos programados",
-    scheduledEventsHint: "Chamadas, lembretes e sessoes VYVA programadas aparecem aqui.",
-    scheduledEmpty: "Ainda nao ha eventos programados.",
-    scheduledPause: "Pausar",
-    scheduledResume: "Retomar",
-    scheduledCancel: "Cancelar",
-    scheduledSaveTime: "Guardar hora",
-    scheduledReadOnly: "Gerido noutra seccao",
-    scheduledUpcoming: "Proximo",
-    scheduledPaused: "Pausado",
-    scheduledPast: "Passado",
   },
 };
 
@@ -263,6 +182,92 @@ const COUNTRY_DEFAULTS: Record<string, { timezone: string; language: LanguageCod
   AE: { timezone: "dubai", language: "en" },
 };
 
+const NAME_GENDER_HINTS: Record<"female" | "male", string[]> = {
+  female: [
+    "aisha", "ana", "anna", "anne", "barbara", "carmen", "catarina", "chiara",
+    "claire", "elena", "elizabeth", "emma", "fatima", "francesca", "giulia",
+    "ines", "isabel", "jennifer", "julie", "laura", "leila", "linda", "lucia",
+    "margaret", "maria", "marie", "mary", "marta", "nour", "olivia", "patricia",
+    "paula", "rosa", "sara", "sofia", "sophie", "susan",
+  ],
+  male: [
+    "abdul", "ahmed", "alexander", "ali", "andreas", "antonio", "carlos",
+    "daniel", "david", "francesco", "francisco", "george", "giovanni", "hans",
+    "hassan", "hussein", "james", "javier", "joao", "john", "jose", "juan",
+    "karim", "khaled", "luca", "luis", "manuel", "marco", "michael", "miguel",
+    "mohamed", "mohammed", "muhammad", "omar", "pablo", "paul", "paulo",
+    "pedro", "peter", "robert", "thomas", "william", "yusuf",
+  ],
+};
+
+function normalizeNameToken(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)[0]
+    ?.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z]/gi, "")
+    .toLowerCase() ?? "";
+}
+
+function inferGenderFromName(firstName: string): "female" | "male" | null {
+  const token = normalizeNameToken(firstName);
+  if (!token) return null;
+  if (NAME_GENDER_HINTS.female.includes(token)) return "female";
+  if (NAME_GENDER_HINTS.male.includes(token)) return "male";
+  return null;
+}
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read image"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function compressAvatarFile(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Selected file is not an image");
+  }
+
+  const image = await loadImageFromFile(file);
+  const attempts = [
+    { maxSize: 720, quality: 0.84 },
+    { maxSize: 560, quality: 0.78 },
+    { maxSize: 420, quality: 0.72 },
+  ];
+
+  let lastDataUrl = "";
+
+  for (const attempt of attempts) {
+    const scale = Math.min(1, attempt.maxSize / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare image");
+    ctx.drawImage(image, 0, 0, width, height);
+    lastDataUrl = canvas.toDataURL("image/jpeg", attempt.quality);
+
+    if (lastDataUrl.length <= 1_800_000) {
+      return lastDataUrl;
+    }
+  }
+
+  return lastDataUrl;
+}
+
 function splitPhoneNumber(phone: string | undefined, countryCode: string | undefined) {
   const fallbackCountry = PHONE_COUNTRY_OPTIONS.find((option) => option.value === (countryCode || "ES"))?.value ?? "ES";
   const rawPhone = (phone ?? "").trim();
@@ -306,22 +311,6 @@ function getDefaultsForCountry(countryCode: string) {
   return COUNTRY_DEFAULTS[countryCode] ?? COUNTRY_DEFAULTS.ES;
 }
 
-function toDatetimeLocal(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
-}
-
-function formatScheduledDate(value?: string | null, fallback?: string | null) {
-  if (fallback) return fallback;
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString();
-}
-
 export default function AccountSettings() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -333,6 +322,8 @@ export default function AccountSettings() {
   const [saving, setSaving] = useState(false);
   const [timezoneTouched, setTimezoneTouched] = useState(false);
   const [languageTouched, setLanguageTouched] = useState(false);
+  const [genderTouched, setGenderTouched] = useState(false);
+  const [genderWasInferred, setGenderWasInferred] = useState(false);
   const [form, setForm] = useState<AccountForm>({
     firstName: "",
     lastName: "",
@@ -352,21 +343,20 @@ export default function AccountSettings() {
     queryKey: ["/api/profile"],
   });
 
-  const scheduledEventsQuery = useQuery<ScheduledEventsResponse>({
-    queryKey: ["/api/profile/scheduled-events"],
-  });
-
   useEffect(() => {
     if (!profileQuery.data) return;
     const phoneParts = splitPhoneNumber(profileQuery.data.phone, profileQuery.data.country as string | undefined);
     const defaultForCountry = getDefaultsForCountry(phoneParts.phoneCountry);
+    const profileGender = profileQuery.data.gender;
+    const inferredGender = inferGenderFromName(profileQuery.data.firstName ?? "");
+    const shouldUseInferredGender = (!profileGender || profileGender === "prefer_not") && Boolean(inferredGender);
     setForm((current) => ({
       ...current,
       firstName: profileQuery.data.firstName ?? "",
       lastName: profileQuery.data.lastName ?? "",
       preferredName: profileQuery.data.preferredName ?? "",
       dateOfBirth: profileQuery.data.dateOfBirth ?? "",
-      gender: profileQuery.data.gender ?? "prefer_not",
+      gender: shouldUseInferredGender ? inferredGender! : profileGender ?? "prefer_not",
       phoneCountry: phoneParts.phoneCountry,
       phoneLocal: formatPhoneLocal(phoneParts.phoneLocal),
       email: profileQuery.data.email ?? "",
@@ -375,11 +365,33 @@ export default function AccountSettings() {
     }));
     setTimezoneTouched(Boolean(profileQuery.data.timezone));
     setLanguageTouched(Boolean(profileQuery.data.language));
+    setGenderTouched(Boolean(profileGender && profileGender !== "prefer_not"));
+    setGenderWasInferred(shouldUseInferredGender);
   }, [profileQuery.data]);
 
   useEffect(() => {
     setForm((current) => ({ ...current, language }));
   }, [language]);
+
+  useEffect(() => {
+    if (genderTouched) return;
+    const inferredGender = inferGenderFromName(form.firstName);
+
+    if (inferredGender && (form.gender === "prefer_not" || genderWasInferred)) {
+      setForm((current) => (
+        current.gender === inferredGender ? current : { ...current, gender: inferredGender }
+      ));
+      setGenderWasInferred(true);
+      return;
+    }
+
+    if (!inferredGender && genderWasInferred) {
+      setForm((current) => (
+        current.gender === "prefer_not" ? current : { ...current, gender: "prefer_not" }
+      ));
+      setGenderWasInferred(false);
+    }
+  }, [form.firstName, form.gender, genderTouched, genderWasInferred]);
 
   useEffect(() => {
     const defaults = getDefaultsForCountry(form.phoneCountry);
@@ -415,32 +427,14 @@ export default function AccountSettings() {
     },
   });
 
-  const scheduledEventMutation = useMutation({
-    mutationFn: async ({ id, action, scheduledFor }: { id: string; action: "pause" | "resume" | "cancel" | "update"; scheduledFor?: string }) => {
-      const url = action === "update" ? `/api/profile/scheduled-events/${id}` : `/api/profile/scheduled-events/${id}/${action}`;
-      const res = await apiFetch(url, {
-        method: action === "update" ? "PATCH" : "POST",
-        body: action === "update" ? JSON.stringify({ scheduled_for: scheduledFor }) : undefined,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profile/scheduled-events"] });
-    },
-    onError: () => {
-      toast({ title: t("settings.account.saveError", "Could not update scheduled event"), variant: "destructive" });
-    },
-  });
-
   const displayName = [form.firstName, form.lastName].filter(Boolean).join(" ").trim() || accountCopy.defaultName;
   const initial = displayName.charAt(0).toUpperCase();
   const requiredText = accountCopy.required;
   const optionalText = accountCopy.optional;
 
   const renderFieldLabel = (label: string, required: boolean) => (
-    <span className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-1.5">
+    <span className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 leading-tight">
+      <span className="flex min-w-0 items-start gap-1.5">
         <span>{label}</span>
         {required ? <span className="text-sm leading-none" style={{ color: "#B0355A" }}>*</span> : null}
       </span>
@@ -450,16 +444,18 @@ export default function AccountSettings() {
     </span>
   );
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
+
+    try {
+      const dataUrl = await compressAvatarFile(file);
       avatarMutation.mutate(dataUrl);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch {
+      toast({ title: t("settings.account.photoError", "Could not update photo"), variant: "destructive" });
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const handleSave = async () => {
@@ -508,6 +504,9 @@ export default function AccountSettings() {
       setSaving(false);
     }
   };
+
+  const compactLabelClass = "block min-h-[34px] text-xs font-bold text-gray-600";
+  const fieldLabelClass = "block text-xs font-bold text-gray-600";
 
   return (
     <PhoneFrame subtitle={t("settings.account.title")} showBack onBack={() => navigate("/settings")}>
@@ -583,7 +582,7 @@ export default function AccountSettings() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="first_name" className="text-xs font-bold text-gray-600">
+            <Label htmlFor="first_name" className={compactLabelClass}>
               {renderFieldLabel(accountCopy.firstName, true)}
             </Label>
             <Input
@@ -604,7 +603,7 @@ export default function AccountSettings() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="last_name" className="text-xs font-bold text-gray-600">
+            <Label htmlFor="last_name" className={compactLabelClass}>
               {renderFieldLabel(accountCopy.lastName, true)}
             </Label>
             <Input
@@ -626,7 +625,7 @@ export default function AccountSettings() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="preferred_name" className="text-xs font-bold text-gray-600">
+          <Label htmlFor="preferred_name" className={fieldLabelClass}>
             {renderFieldLabel(t("settings.account.preferredName"), false)}
           </Label>
           <Input
@@ -639,7 +638,7 @@ export default function AccountSettings() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-gray-600">{renderFieldLabel(t("settings.account.dateOfBirth"), false)}</Label>
+            <Label className={compactLabelClass}>{renderFieldLabel(t("settings.account.dateOfBirth"), false)}</Label>
             <Input
               type="date"
               value={form.dateOfBirth}
@@ -648,8 +647,15 @@ export default function AccountSettings() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-gray-600">{renderFieldLabel(t("settings.account.gender"), false)}</Label>
-            <Select value={form.gender} onValueChange={(value) => setForm((current) => ({ ...current, gender: value }))}>
+            <Label className={compactLabelClass}>{renderFieldLabel(t("settings.account.gender"), false)}</Label>
+            <Select
+              value={form.gender}
+              onValueChange={(value) => {
+                setGenderTouched(true);
+                setGenderWasInferred(false);
+                setForm((current) => ({ ...current, gender: value }));
+              }}
+            >
               <SelectTrigger className="h-11 border-purple-200"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="female">{t("settings.account.genderFemale")}</SelectItem>
@@ -658,11 +664,16 @@ export default function AccountSettings() {
                 <SelectItem value="prefer_not">{t("settings.account.genderPreferNot")}</SelectItem>
               </SelectContent>
             </Select>
+            {genderWasInferred ? (
+              <p className="text-[11px]" style={{ color: "#7A7290" }}>
+                {accountCopy.genderInferred}
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="phone" className="text-xs font-bold text-gray-600">
+          <Label htmlFor="phone" className={fieldLabelClass}>
             {renderFieldLabel(t("settings.account.phone"), true)}
           </Label>
           <div className="grid grid-cols-[122px_minmax(0,1fr)] gap-3">
@@ -702,7 +713,7 @@ export default function AccountSettings() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="whatsapp" className="text-xs font-bold text-gray-600">
+          <Label htmlFor="whatsapp" className={fieldLabelClass}>
             {renderFieldLabel(t("settings.account.whatsapp"), false)}
           </Label>
           <Input
@@ -716,7 +727,7 @@ export default function AccountSettings() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-xs font-bold text-gray-600">
+          <Label htmlFor="email" className={fieldLabelClass}>
             {renderFieldLabel(t("settings.account.email"), false)}
           </Label>
           <Input
@@ -731,7 +742,7 @@ export default function AccountSettings() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-gray-600">{renderFieldLabel(t("settings.account.language"), false)}</Label>
+            <Label className={compactLabelClass}>{renderFieldLabel(t("settings.account.language"), false)}</Label>
             <Select
               value={form.language}
               onValueChange={(value) => {
@@ -751,7 +762,7 @@ export default function AccountSettings() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-gray-600">{renderFieldLabel(t("settings.account.timezone"), false)}</Label>
+            <Label className={compactLabelClass}>{renderFieldLabel(t("settings.account.timezone"), false)}</Label>
             <Select
               value={form.timezone}
               onValueChange={(value) => {
@@ -770,33 +781,6 @@ export default function AccountSettings() {
             </Select>
           </div>
         </div>
-
-        <section
-          className="rounded-[18px] border px-4 py-4"
-          style={{ background: "#fffdf9", borderColor: "#E9D5FF" }}
-        >
-          <div>
-            <h3 className="text-base font-bold text-gray-900">{accountCopy.scheduledEvents}</h3>
-            <p className="mt-1 text-xs" style={{ color: "#7A7290" }}>{accountCopy.scheduledEventsHint}</p>
-          </div>
-          <div className="mt-3 space-y-3">
-            {(scheduledEventsQuery.data?.events ?? []).length === 0 ? (
-              <p className="rounded-2xl bg-purple-50 px-4 py-3 text-sm" style={{ color: "#6B21A8" }}>
-                {accountCopy.scheduledEmpty}
-              </p>
-            ) : (
-              (scheduledEventsQuery.data?.events ?? []).map((event) => (
-                <ScheduledEventCard
-                  key={event.id}
-                  event={event}
-                  labels={accountCopy}
-                  onAction={(action, scheduledFor) => scheduledEventMutation.mutate({ id: event.id, action, scheduledFor })}
-                  disabled={scheduledEventMutation.isPending}
-                />
-              ))
-            )}
-          </div>
-        </section>
 
         <div className="flex flex-col gap-2 pt-2">
           <Button
@@ -821,78 +805,5 @@ export default function AccountSettings() {
         </div>
       </div>
     </PhoneFrame>
-  );
-}
-
-function ScheduledEventCard({
-  event,
-  labels,
-  onAction,
-  disabled,
-}: {
-  event: ScheduledEventItem;
-  labels: Record<string, string>;
-  onAction: (action: "pause" | "resume" | "cancel" | "update", scheduledFor?: string) => void;
-  disabled: boolean;
-}) {
-  const [draftTime, setDraftTime] = useState(toDatetimeLocal(event.scheduled_for));
-  const isPaused = event.status === "paused";
-  const isPast = event.status === "completed" || event.status === "cancelled";
-
-  useEffect(() => {
-    setDraftTime(toDatetimeLocal(event.scheduled_for));
-  }, [event.scheduled_for]);
-
-  return (
-    <article className="rounded-2xl border bg-white px-4 py-3" style={{ borderColor: "#EFE3DA" }}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-gray-900">{event.title}</p>
-          {event.description ? <p className="mt-1 text-xs text-gray-500">{event.description}</p> : null}
-          <p className="mt-1 text-xs" style={{ color: "#7A7290" }}>
-            {formatScheduledDate(event.scheduled_for, event.display_time)} - {event.channel} - {event.recurrence}
-          </p>
-        </div>
-        <span className="rounded-full bg-purple-50 px-3 py-1 text-[11px] font-bold" style={{ color: "#6B21A8" }}>
-          {isPaused ? labels.scheduledPaused : isPast ? labels.scheduledPast : labels.scheduledUpcoming}
-        </span>
-      </div>
-
-      {event.read_only ? (
-        <p className="mt-3 rounded-xl bg-[#F7F2EB] px-3 py-2 text-xs text-gray-500">{labels.scheduledReadOnly}</p>
-      ) : (
-        <div className="mt-3 space-y-2">
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Input type="datetime-local" value={draftTime} onChange={(e) => setDraftTime(e.target.value)} className="h-10" />
-            <Button
-              variant="outline"
-              className="h-10 rounded-xl"
-              disabled={disabled || !draftTime}
-              onClick={() => onAction("update", new Date(draftTime).toISOString())}
-            >
-              {labels.scheduledSaveTime}
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="h-9 rounded-xl"
-              disabled={disabled}
-              onClick={() => onAction(isPaused ? "resume" : "pause")}
-            >
-              {isPaused ? labels.scheduledResume : labels.scheduledPause}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-9 rounded-xl"
-              disabled={disabled}
-              onClick={() => onAction("cancel")}
-            >
-              {labels.scheduledCancel}
-            </Button>
-          </div>
-        </div>
-      )}
-    </article>
   );
 }

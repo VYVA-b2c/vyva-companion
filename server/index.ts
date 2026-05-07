@@ -192,6 +192,80 @@ app.get("/api/places/details/:placeId", async (req, res) => {
   }
 });
 
+app.get("/api/places/reverse-geocode", async (req, res) => {
+  const key = getGooglePlacesApiKey();
+  if (!key) return res.status(503).json({ error: "Places API key not configured" });
+
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return res.status(400).json({ error: "lat and lng required" });
+  }
+
+  try {
+    const upstream = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`
+    );
+    const data = await upstream.json() as {
+      status?: string;
+      error_message?: string;
+      results?: Array<{
+        formatted_address?: string;
+        types?: string[];
+        address_components?: Array<{
+          long_name: string;
+          short_name: string;
+          types: string[];
+        }>;
+      }>;
+    };
+
+    if (!upstream.ok || data.status === "REQUEST_DENIED") {
+      return res.status(upstream.status || 502).json({ error: data.error_message ?? "Reverse geocoding failed" });
+    }
+
+    const best =
+      data.results?.find((result) => result.types?.includes("street_address")) ??
+      data.results?.find((result) => result.types?.includes("premise")) ??
+      data.results?.find((result) => result.types?.includes("route")) ??
+      data.results?.[0];
+
+    if (!best?.address_components?.length) {
+      return res.status(404).json({ error: "No address found" });
+    }
+
+    const component = (type: string, useShort = false) => {
+      const match = best.address_components?.find((item) => item.types.includes(type));
+      return useShort ? match?.short_name ?? "" : match?.long_name ?? "";
+    };
+
+    const streetNumber = component("street_number");
+    const route = component("route");
+    const line2 = component("subpremise") || component("premise") || component("neighborhood") || component("sublocality");
+    const city =
+      component("locality") ||
+      component("postal_town") ||
+      component("administrative_area_level_3") ||
+      component("administrative_area_level_2");
+
+    return res.json({
+      formattedAddress: best.formatted_address ?? "",
+      address: {
+        address_line_1: [streetNumber, route].filter(Boolean).join(" "),
+        address_line_2: line2,
+        city,
+        region: component("administrative_area_level_1"),
+        postcode: component("postal_code"),
+        country: component("country"),
+        country_code: component("country", true),
+      },
+    });
+  } catch (err) {
+    console.error("[places/reverse-geocode]", err);
+    return res.status(502).json({ error: "Upstream request failed" });
+  }
+});
+
 app.get("/api/places/staticmap", async (req, res) => {
   const key = getGooglePlacesApiKey();
   if (!key) return res.status(503).json({ error: "Places API key not configured" });

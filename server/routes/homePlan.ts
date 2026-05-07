@@ -149,6 +149,13 @@ const CARD_CATALOG: HomePlanCard[] = [
   },
 ];
 
+const PICTOGRAPH_RE = /\p{Extended_Pictographic}/u;
+
+function getDisplayEmoji(value: string | undefined, fallback = ""): string {
+  const trimmed = value?.trim() ?? "";
+  return PICTOGRAPH_RE.test(trimmed) ? trimmed : fallback;
+}
+
 function normaliseSignals(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
   return values
@@ -183,9 +190,11 @@ function rotate<T>(items: T[], refreshIndex: number, pageSize: number): T[] {
 }
 
 function cardFromRow(row: typeof homePlanCards.$inferSelect): HomePlanCard {
+  const fallbackCard = CARD_CATALOG.find((card) => card.id === row.card_id);
+
   return {
     id: row.card_id,
-    emoji: row.emoji,
+    emoji: getDisplayEmoji(row.emoji, fallbackCard?.emoji ?? ""),
     bg: row.bg,
     badgeBg: row.badge_bg,
     badgeText: row.badge_text,

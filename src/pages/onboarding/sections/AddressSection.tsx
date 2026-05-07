@@ -25,6 +25,11 @@ type AddressForm = {
   country: string;
 };
 
+type ReverseGeocodeResponse = {
+  formattedAddress?: string;
+  address?: Partial<AddressForm> & { country_code?: string };
+};
+
 const EMPTY_FORM: AddressForm = {
   address_line_1: "", address_line_2: "", city: "",
   region: "", postcode: "", country: "Spain",
@@ -66,6 +71,7 @@ export default function AddressSection() {
   const [saving, setSaving] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState(false);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [speakItOpen, setSpeakItOpen] = useState(false);
   const [parsing, setParsing] = useState(false);
 
@@ -146,26 +152,50 @@ export default function AddressSection() {
     }
     setDetecting(true);
     setDetected(false);
+    setLocationAccuracy(null);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const { latitude: lat, longitude: lon } = pos.coords;
-          const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
-          const res = await fetch(url, { headers: { "User-Agent": "VYVA-App/1.0" } });
-          if (!res.ok) throw new Error("Geocoding failed");
-          const json = await res.json() as { address: Record<string, string> };
-          const a = json.address ?? {};
-          const houseNo   = a.house_number ?? "";
-          const road      = a.road ?? a.street ?? a.pedestrian ?? "";
-          const line1     = houseNo ? `${houseNo} ${road}` : road;
-          const line2     = a.suburb ?? a.neighbourhood ?? a.quarter ?? "";
-          const city      = a.city ?? a.town ?? a.village ?? a.municipality ?? "";
-          const postcode  = a.postcode ?? "";
-          const region    = a.state ?? a.county ?? "";
-          const country   = normaliseCountry(a.country ?? "");
-          applyAddress({ address_line_1: line1, address_line_2: line2, city, postcode, region, country });
+          const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+          let geocoded: ReverseGeocodeResponse | null = null;
+
+          try {
+            const params = new URLSearchParams({ lat: String(lat), lng: String(lon) });
+            const googleRes = await apiFetch(`/api/places/reverse-geocode?${params.toString()}`);
+            if (googleRes.ok) geocoded = await googleRes.json() as ReverseGeocodeResponse;
+          } catch {
+            geocoded = null;
+          }
+
+          if (!geocoded?.address) {
+            const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Geocoding failed");
+            const json = await res.json() as { address: Record<string, string> };
+            const a = json.address ?? {};
+            const houseNo   = a.house_number ?? "";
+            const road      = a.road ?? a.street ?? a.pedestrian ?? "";
+            geocoded = {
+              address: {
+                address_line_1: houseNo ? `${houseNo} ${road}` : road,
+                address_line_2: a.suburb ?? a.neighbourhood ?? a.quarter ?? "",
+                city: a.city ?? a.town ?? a.village ?? a.municipality ?? "",
+                postcode: a.postcode ?? "",
+                region: a.state ?? a.county ?? "",
+                country: a.country ?? "",
+              },
+            };
+          }
+
+          const addr = geocoded.address ?? {};
+          const country = normaliseCountry(addr.country_code ?? addr.country ?? "");
+          applyAddress({ ...addr, country });
+          setLocationAccuracy(Math.round(accuracy));
           setDetected(true);
-          toast({ title: "📍 Location detected!", description: "We've filled in your address — please check and adjust if needed." });
+          toast({
+            title: "Location detected",
+            description: `We found your address within about ${Math.round(accuracy)}m. Please check the house/floor details.`,
+          });
         } catch {
           toast({ title: "Could not get address", description: "Location was found but we couldn't look up the address. Please fill in manually.", variant: "destructive" });
         } finally {
@@ -179,7 +209,7 @@ export default function AddressSection() {
           : "Could not detect your location. Please fill in the address manually.";
         toast({ title: "Location unavailable", description: msg, variant: "destructive" });
       },
-      { timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
@@ -279,7 +309,12 @@ export default function AddressSection() {
                 {detecting ? "Detecting…" : detected ? "Location used!" : "Detect my location"}
               </p>
               <p className="font-body text-[11px]" style={{ color: "#16A34A" }}>
-                {detecting ? "Getting your address" : "Auto-fill from GPS"}
+                {detecting
+                  ? "High-accuracy GPS"
+                  : locationAccuracy
+                    ? `Approx. ±${locationAccuracy}m`
+                    : "Auto-fill from GPS"
+                }
               </p>
             </div>
           </button>

@@ -123,6 +123,13 @@ const HOY_CARDS: HoyCard[] = [
   { id: "social",     emoji: "🤝", bg: "#FFFBEB", badgeBg: "#FEF3C7", badgeText: "#B45309", route: "/social-rooms" },
 ];
 
+const PICTOGRAPH_RE = /\p{Extended_Pictographic}/u;
+
+function getDisplayEmoji(value: string | undefined): string {
+  const trimmed = value?.trim() ?? "";
+  return PICTOGRAPH_RE.test(trimmed) ? trimmed : "";
+}
+
 function dateSeededCardOrder(): HoyCard[] {
   const today = new Date();
   const seed =
@@ -486,47 +493,53 @@ const HomeScreen = () => {
           onMouseDown={pauseAndResume}
           onTouchStart={pauseAndResume}
         >
-          {displayedTodayCards.map((card) => (
-            <div
-              key={card.id}
-              data-testid={`card-today-for-you-${card.id}`}
-              className="flex flex-col overflow-hidden rounded-[26px]"
-              style={{
-                background: card.bg,
-                border: "1px solid #EDE2D1",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              }}
-            >
-              <div className="px-[18px] pt-[18px] pb-[14px] flex flex-col gap-[10px] flex-1">
-                <div className="flex items-center justify-between">
-                  <span
-                    className="font-body text-[11px] font-semibold px-[10px] py-[4px] rounded-full"
-                    style={{ background: card.badgeBg, color: card.badgeText }}
+          {displayedTodayCards.map((card) => {
+            const displayEmoji = getDisplayEmoji(card.emoji);
+
+            return (
+              <div
+                key={card.id}
+                data-testid={`card-today-for-you-${card.id}`}
+                className="flex flex-col overflow-hidden rounded-[26px]"
+                style={{
+                  background: card.bg,
+                  border: "1px solid #EDE2D1",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                }}
+              >
+                <div className="px-[18px] pt-[18px] pb-[14px] flex flex-col gap-[10px] flex-1">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="font-body text-[11px] font-semibold px-[10px] py-[4px] rounded-full"
+                      style={{ background: card.badgeBg, color: card.badgeText }}
+                    >
+                      {t(`home.todayForYou.cards.${card.id}.badge`)}
+                    </span>
+                    {displayEmoji && (
+                      <span className="text-[26px]" aria-hidden="true">{displayEmoji}</span>
+                    )}
+                  </div>
+
+                  <p className="font-body text-[17px] font-semibold text-vyva-text-1 leading-[1.35]">
+                    {t(`home.todayForYou.cards.${card.id}.title`)}
+                  </p>
+
+                  <p className="font-body text-[13px] text-vyva-text-2 leading-[1.5] flex-1">
+                    {t(`home.todayForYou.cards.${card.id}.text`)}
+                  </p>
+
+                  <button
+                    data-testid={`button-today-for-you-${card.id}`}
+                    onClick={() => handleNavigate(card.route)}
+                    className="w-full mt-1 py-[10px] rounded-[14px] font-body text-[14px] font-semibold text-white transition-all active:scale-[0.975]"
+                    style={{ background: card.badgeText }}
                   >
-                    {t(`home.todayForYou.cards.${card.id}.badge`)}
-                  </span>
-                  <span className="text-[26px]" aria-hidden="true">{card.emoji}</span>
+                    {t(`home.todayForYou.cards.${card.id}.cta`)}
+                  </button>
                 </div>
-
-                <p className="font-body text-[17px] font-semibold text-vyva-text-1 leading-[1.35]">
-                  {t(`home.todayForYou.cards.${card.id}.title`)}
-                </p>
-
-                <p className="font-body text-[13px] text-vyva-text-2 leading-[1.5] flex-1">
-                  {t(`home.todayForYou.cards.${card.id}.text`)}
-                </p>
-
-                <button
-                  data-testid={`button-today-for-you-${card.id}`}
-                  onClick={() => handleNavigate(card.route)}
-                  className="w-full mt-1 py-[10px] rounded-[14px] font-body text-[14px] font-semibold text-white transition-all active:scale-[0.975]"
-                  style={{ background: card.badgeText }}
-                >
-                  {t(`home.todayForYou.cards.${card.id}.cta`)}
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

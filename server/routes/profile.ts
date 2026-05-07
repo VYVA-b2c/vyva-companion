@@ -1,12 +1,48 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { and, desc, eq, count } from "drizzle-orm";
+import { and, desc, eq, count, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
 import {
   profiles,
+  profileMemberships,
+  users,
+  sessionState,
+  sessionExchanges,
+  agentDifficulty,
+  caregiverAlerts,
+  medicationAdherence,
   scheduledEventLogs,
   scheduledEvents,
+  activityLogs,
+  dailyStepLogs,
+  onboardingState,
+  consentLog,
+  teamInvitations,
+  userChannelIdentity,
+  userChannelPreferences,
+  billingEvents,
+  scamChecks,
+  homeScans,
+  woundScans,
+  companionProfiles,
+  companionConnections,
+  socialRoomVisits,
+  socialUserInterests,
+  socialConnections,
+  triageReports,
+  vitalsReadings,
+  userIntakes,
+  accessLinks,
+  lifecycleEvents,
+  consentAttempts,
+  communicationsLog,
+  userProviders,
+  conciergePending,
+  conciergeSessions,
+  conciergeReminders,
+  utilityReviewRuns,
+  conciergeRecommendationFeedback,
   userMedications,
 } from "../../shared/schema.js";
 import { getDoctorMedicalProfileVariables } from "../lib/doctorMedicalProfile.js";
@@ -240,6 +276,210 @@ router.get("/readiness", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("[profile GET /readiness]", err);
     return res.status(500).json({ error: "Failed to fetch profile readiness" });
+  }
+});
+
+router.get("/export", async (req: Request, res: Response) => {
+  const profileId = await resolveUserId(req);
+  if (!profileId) return res.status(401).json({ error: "Not authenticated" });
+
+  const accountUserId = req.user?.id ?? null;
+  const userIds = Array.from(new Set([profileId, accountUserId].filter(Boolean))) as string[];
+
+  try {
+    const [
+      accountRows,
+      profileRows,
+      membershipRows,
+      sessionRows,
+      exchangeRows,
+      difficultyRows,
+      alertRows,
+      medicationRows,
+      adherenceRows,
+      activityRows,
+      stepRows,
+      onboardingRows,
+      consentRows,
+      invitationRows,
+      channelIdentityRows,
+      channelPreferenceRows,
+      billingRows,
+      scamRows,
+      homeScanRows,
+      woundRows,
+      companionProfileRows,
+      companionConnectionRows,
+      socialVisitRows,
+      socialInterestRows,
+      socialConnectionRows,
+      triageRows,
+      vitalRows,
+      intakeRows,
+      accessLinkRows,
+      lifecycleRows,
+      consentAttemptRows,
+      communicationRows,
+      providerRows,
+      conciergePendingRows,
+      conciergeSessionRows,
+      conciergeReminderRows,
+      utilityReviewRows,
+      recommendationFeedbackRows,
+      scheduledRows,
+      scheduledLogRows,
+    ] = await Promise.all([
+      accountUserId
+        ? db.select({
+            id: users.id,
+            email: users.email,
+            phone_number: users.phone_number,
+            active_profile_id: users.active_profile_id,
+            onboarding_intent: users.onboarding_intent,
+            last_seen_at: users.last_seen_at,
+            created_at: users.created_at,
+          }).from(users).where(eq(users.id, accountUserId))
+        : Promise.resolve([]),
+      db.select().from(profiles).where(eq(profiles.id, profileId)),
+      db.select().from(profileMemberships).where(or(
+        inArray(profileMemberships.user_id, userIds),
+        eq(profileMemberships.profile_id, profileId),
+      )),
+      db.select().from(sessionState).where(inArray(sessionState.user_id, userIds)),
+      db.select().from(sessionExchanges).where(inArray(sessionExchanges.user_id, userIds)),
+      db.select().from(agentDifficulty).where(inArray(agentDifficulty.user_id, userIds)),
+      db.select().from(caregiverAlerts).where(inArray(caregiverAlerts.user_id, userIds)),
+      db.select().from(userMedications).where(inArray(userMedications.user_id, userIds)),
+      db.select().from(medicationAdherence).where(inArray(medicationAdherence.user_id, userIds)),
+      db.select().from(activityLogs).where(inArray(activityLogs.user_id, userIds)),
+      db.select().from(dailyStepLogs).where(inArray(dailyStepLogs.user_id, userIds)),
+      db.select().from(onboardingState).where(inArray(onboardingState.user_id, userIds)),
+      db.select().from(consentLog).where(inArray(consentLog.user_id, userIds)),
+      db.select().from(teamInvitations).where(or(
+        inArray(teamInvitations.senior_id, userIds),
+        inArray(teamInvitations.accepted_user_id, userIds),
+      )),
+      db.select().from(userChannelIdentity).where(inArray(userChannelIdentity.user_id, userIds)),
+      db.select().from(userChannelPreferences).where(inArray(userChannelPreferences.user_id, userIds)),
+      db.select().from(billingEvents).where(inArray(billingEvents.user_id, userIds)),
+      db.select().from(scamChecks).where(inArray(scamChecks.user_id, userIds)),
+      db.select().from(homeScans).where(inArray(homeScans.user_id, userIds)),
+      db.select().from(woundScans).where(inArray(woundScans.user_id, userIds)),
+      db.select().from(companionProfiles).where(inArray(companionProfiles.user_id, userIds)),
+      db.select().from(companionConnections).where(or(
+        inArray(companionConnections.requester_id, userIds),
+        inArray(companionConnections.recipient_id, userIds),
+      )),
+      db.select().from(socialRoomVisits).where(inArray(socialRoomVisits.user_id, userIds)),
+      db.select().from(socialUserInterests).where(inArray(socialUserInterests.user_id, userIds)),
+      db.select().from(socialConnections).where(or(
+        inArray(socialConnections.user_id_a, userIds),
+        inArray(socialConnections.user_id_b, userIds),
+      )),
+      db.select().from(triageReports).where(inArray(triageReports.user_id, userIds)),
+      db.select().from(vitalsReadings).where(inArray(vitalsReadings.user_id, userIds)),
+      db.select().from(userIntakes).where(or(
+        inArray(userIntakes.user_id, userIds),
+        inArray(userIntakes.elder_user_id, userIds),
+        inArray(userIntakes.family_user_id, userIds),
+      )),
+      db.select().from(accessLinks).where(inArray(accessLinks.user_id, userIds)),
+      db.select().from(lifecycleEvents).where(inArray(lifecycleEvents.user_id, userIds)),
+      db.select().from(consentAttempts).where(or(
+        inArray(consentAttempts.elder_user_id, userIds),
+        inArray(consentAttempts.family_user_id, userIds),
+      )),
+      db.select().from(communicationsLog).where(inArray(communicationsLog.user_id, userIds)),
+      db.select().from(userProviders).where(inArray(userProviders.user_id, userIds)),
+      db.select().from(conciergePending).where(inArray(conciergePending.user_id, userIds)),
+      db.select().from(conciergeSessions).where(inArray(conciergeSessions.user_id, userIds)),
+      db.select().from(conciergeReminders).where(inArray(conciergeReminders.user_id, userIds)),
+      db.select().from(utilityReviewRuns).where(inArray(utilityReviewRuns.user_id, userIds)),
+      db.select().from(conciergeRecommendationFeedback).where(inArray(conciergeRecommendationFeedback.user_id, userIds)),
+      db.select().from(scheduledEvents).where(inArray(scheduledEvents.user_id, userIds)),
+      db.select().from(scheduledEventLogs).where(inArray(scheduledEventLogs.user_id, userIds)),
+    ]);
+
+    const exportedAt = new Date().toISOString();
+    const exportPayload = {
+      exported_at: exportedAt,
+      export_version: 1,
+      profile_id: profileId,
+      account_user_id: accountUserId,
+      note: "Password hashes, reset tokens, internal secrets, and third-party service keys are intentionally excluded from this export.",
+      data: {
+        account: accountRows,
+        profile: profileRows,
+        profile_memberships: membershipRows,
+        onboarding: onboardingRows,
+        consent: {
+          consent_log: consentRows,
+          care_team_invitations: invitationRows,
+        },
+        communication_preferences: {
+          channel_identities: channelIdentityRows,
+          channel_preferences: channelPreferenceRows,
+        },
+        conversations: {
+          session_state: sessionRows,
+          session_exchanges: exchangeRows,
+          agent_difficulty: difficultyRows,
+          caregiver_alerts: alertRows,
+        },
+        health: {
+          medications: medicationRows,
+          medication_adherence: adherenceRows,
+          triage_reports: triageRows,
+          vitals_readings: vitalRows,
+          wound_scans: woundRows,
+        },
+        activity: {
+          activity_logs: activityRows,
+          daily_step_logs: stepRows,
+        },
+        safety_and_reviews: {
+          scam_checks: scamRows,
+          home_scans: homeScanRows,
+          utility_review_runs: utilityReviewRows,
+        },
+        social: {
+          companion_profiles: companionProfileRows,
+          companion_connections: companionConnectionRows,
+          social_room_visits: socialVisitRows,
+          social_user_interests: socialInterestRows,
+          social_connections: socialConnectionRows,
+        },
+        concierge: {
+          user_providers: providerRows,
+          pending_actions: conciergePendingRows,
+          sessions: conciergeSessionRows,
+          reminders: conciergeReminderRows,
+          recommendation_feedback: recommendationFeedbackRows,
+        },
+        scheduling: {
+          scheduled_events: scheduledRows,
+          scheduled_event_logs: scheduledLogRows,
+        },
+        lifecycle: {
+          intakes: intakeRows,
+          access_links: accessLinkRows,
+          lifecycle_events: lifecycleRows,
+          consent_attempts: consentAttemptRows,
+          communications_log: communicationRows,
+        },
+        billing: {
+          billing_events: billingRows,
+        },
+      },
+    };
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="vyva-data-export-${exportedAt.slice(0, 10)}.json"`);
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(JSON.stringify(exportPayload, null, 2));
+  } catch (err) {
+    console.error("[profile GET /export]", err);
+    return res.status(500).json({ error: "Failed to export profile data" });
   }
 });
 
