@@ -1,7 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { readFileSync } from "node:fs";
 import path from "path";
 import type { IncomingMessage, ServerResponse } from "http";
+
+const packageJson = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version?: string };
+
+const appVersion = process.env.VITE_APP_VERSION || packageJson.version || "0.0.0";
 
 function forwardApiRequest(req: IncomingMessage, res: ServerResponse) {
   const target = `http://127.0.0.1:3001${req.url ?? ""}`;
@@ -33,6 +40,9 @@ function forwardApiRequest(req: IncomingMessage, res: ServerResponse) {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   server: {
     host: "0.0.0.0",
     port: 5000,

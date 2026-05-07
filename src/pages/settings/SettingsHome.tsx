@@ -20,6 +20,7 @@ import {
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { APP_VERSION } from "@/lib/appInfo";
 import { apiFetch } from "@/lib/queryClient";
 
 const TERMS_OF_SERVICE_URL = "https://vyva.life/terms-of-service";
@@ -50,14 +51,8 @@ function Row({
   danger,
   "data-testid": testId,
 }: RowProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-testid={testId}
-      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition-colors hover:bg-[#FCF8FF] disabled:cursor-wait disabled:opacity-70"
-    >
+  const rowContent = (
+    <>
       <div
         className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[14px]"
         style={{ background: iconBg, color: iconColor }}
@@ -69,7 +64,30 @@ function Row({
         {sub ? <p className="mt-0.5 text-[12px] leading-[1.45] text-vyva-text-2">{sub}</p> : null}
       </div>
       {value ? <span className="rounded-full bg-[#F5F0FF] px-2.5 py-1 text-[11px] font-semibold text-vyva-purple">{value}</span> : null}
-      <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#C4B5D8]" />
+      {onClick ? <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#C4B5D8]" /> : null}
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <div
+        data-testid={testId}
+        className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left"
+      >
+        {rowContent}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testId}
+      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition-colors hover:bg-[#FCF8FF] disabled:cursor-wait disabled:opacity-70"
+    >
+      {rowContent}
     </button>
   );
 }
@@ -232,7 +250,7 @@ export default function SettingsHome() {
           />
           <Row icon={MessageCircle} iconBg="#EEF4FF" iconColor="#2563EB" title={t("settings.home.rows.contactSupport")} />
           <Row icon={Star} iconBg="#FFF7E8" iconColor="#C9890A" title={t("settings.home.rows.sendFeedback")} />
-          <Row icon={Info} iconBg="#F5F5F4" iconColor="#57534E" title={t("settings.home.rows.appVersion")} value="1.0.0" />
+          <Row icon={Info} iconBg="#F5F5F4" iconColor="#57534E" title={t("settings.home.rows.appVersion")} value={APP_VERSION} />
         </Section>
 
         <Section title={t("settings.home.sections.dangerZone")}>
