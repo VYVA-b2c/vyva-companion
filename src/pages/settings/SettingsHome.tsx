@@ -22,6 +22,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/queryClient";
 
+const TERMS_OF_SERVICE_URL = "https://vyva.life/terms-of-service";
+const PRIVACY_POLICY_URL = "https://vyva.life/privacypolicy";
+
 interface RowProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   iconBg: string;
@@ -90,6 +93,13 @@ export default function SettingsHome() {
   const handleSignOut = () => {
     logout();
     navigate("/login");
+  };
+
+  const openExternalLink = (url: string) => {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.href = url;
+    }
   };
 
   const handleDownloadData = async () => {
@@ -204,8 +214,22 @@ export default function SettingsHome() {
         </Section>
 
         <Section title={t("settings.home.sections.about")}>
-          <Row icon={FileText} iconBg="#F7F2FF" iconColor="#7C3AED" title={t("settings.home.rows.termsOfService")} />
-          <Row icon={Shield} iconBg="#EEF8F2" iconColor="#0F766E" title={t("settings.home.rows.privacyPolicy")} />
+          <Row
+            icon={FileText}
+            iconBg="#F7F2FF"
+            iconColor="#7C3AED"
+            title={t("settings.home.rows.termsOfService")}
+            onClick={() => openExternalLink(TERMS_OF_SERVICE_URL)}
+            data-testid="button-settings-terms-of-service"
+          />
+          <Row
+            icon={Shield}
+            iconBg="#EEF8F2"
+            iconColor="#0F766E"
+            title={t("settings.home.rows.privacyPolicy")}
+            onClick={() => openExternalLink(PRIVACY_POLICY_URL)}
+            data-testid="button-settings-privacy-policy"
+          />
           <Row icon={MessageCircle} iconBg="#EEF4FF" iconColor="#2563EB" title={t("settings.home.rows.contactSupport")} />
           <Row icon={Star} iconBg="#FFF7E8" iconColor="#C9890A" title={t("settings.home.rows.sendFeedback")} />
           <Row icon={Info} iconBg="#F5F5F4" iconColor="#57534E" title={t("settings.home.rows.appVersion")} value="1.0.0" />
