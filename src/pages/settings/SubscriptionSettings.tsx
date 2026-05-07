@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { apiFetch } from "@/lib/queryClient";
 
 type PlanEntitlement = {
@@ -108,22 +109,13 @@ const SubscriptionSettings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-vyva-cream flex flex-col">
-      <div className="flex items-center gap-3 px-5 pt-12 pb-4">
-        <button
-          data-testid="button-subscription-back"
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-white border border-vyva-border flex items-center justify-center"
-        >
-          <ChevronLeft size={20} className="text-vyva-text-1" />
-        </button>
-        <div className="min-w-0">
-          <h1 className="font-display text-[22px] font-semibold text-vyva-text-1">Your plan</h1>
-          <p className="font-body text-[12px] text-vyva-text-2">Choose the support level that fits your routine.</p>
+    <PhoneFrame showBack onBack={() => navigate("/settings")}>
+      <div className="space-y-4 px-1 pb-5">
+        <div>
+          <h1 className="font-display text-[28px] font-semibold leading-tight text-vyva-text-1">Your plan</h1>
+          <p className="mt-1 font-body text-[13px] leading-relaxed text-vyva-text-2">Choose the support level that fits your routine.</p>
         </div>
-      </div>
 
-      <div className="flex-1 px-5 space-y-4 pb-8">
         <div
           className="rounded-[18px] px-4 py-4 bg-vyva-warm2/50 border border-vyva-border flex items-start gap-3"
           data-testid="banner-subscription-current-plan"
@@ -195,12 +187,12 @@ const SubscriptionSettings = () => {
                       </span>
                     </div>
                   )}
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h2 className="font-display text-[20px] font-semibold text-vyva-text-1">{plan.name}</h2>
                       {plan.description && <p className="mt-1 font-body text-[12px] leading-relaxed text-vyva-text-2">{plan.description}</p>}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="ml-auto text-right shrink-0">
                       <span className="font-display text-[28px] font-semibold text-vyva-text-1">{price}</span>
                       {!isFree && <span className="font-body text-[13px] text-vyva-text-3"> / {plan.billing_interval ?? "month"}</span>}
                     </div>
@@ -246,7 +238,7 @@ const SubscriptionSettings = () => {
           Cancel anytime - Secure payment by Stripe - Trial available before paid support
         </p>
       </div>
-    </div>
+    </PhoneFrame>
   );
 };
 

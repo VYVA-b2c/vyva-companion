@@ -182,7 +182,7 @@ const App = () => (
                   <Route path="/onboarding/profile/:id" element={<SectionRouter />} />
                   <Route path="/onboarding/careteam" element={<CareTeamFlow />} />
                   <Route path="/settings/privacy" element={<PrivacySettings />} />
-                  <Route path="/settings/subscription" element={<SubscriptionSettings />} />
+                  <Route path="/settings/subscription" element={<AppShell><SubscriptionSettings /></AppShell>} />
                   <Route path="/settings" element={<AppShell><SettingsHome /></AppShell>} />
                   <Route path="/settings/account" element={<AppShell><AccountSettings /></AppShell>} />
                   <Route path="/settings/notifications" element={<AppShell><NotificationsSettings /></AppShell>} />
