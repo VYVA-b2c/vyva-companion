@@ -28,7 +28,7 @@ create table if not exists organizations (
   contact_name text,
   contact_email text,
   contact_phone text,
-  default_tier text not null default 'trial',
+  default_tier text not null default 'free',
   is_active boolean not null default true,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -62,7 +62,7 @@ create table if not exists user_intakes (
   user_type lifecycle_user_type not null default 'elder',
   entry_point lifecycle_entry_point not null default 'form',
   organization_id uuid references organizations(id) on delete set null,
-  tier text not null default 'trial',
+  tier text not null default 'free',
   status lifecycle_status not null default 'created',
   journey_step text not null default 'created',
   consent_status text not null default 'not_required',
@@ -83,7 +83,7 @@ create table if not exists access_links (
   intake_id uuid references user_intakes(id) on delete set null,
   organization_id uuid references organizations(id) on delete set null,
   link_type access_link_type not null default 'trial',
-  tier text not null default 'trial',
+  tier text not null default 'free',
   destination text not null default '/onboarding',
   target_role text not null default 'elder',
   max_uses integer not null default 1,
@@ -142,8 +142,8 @@ insert into tier_entitlements (
   tier, display_name, description, voice_assistant, medication_tracking,
   symptom_check, concierge, caregiver_dashboard
 ) values
-  ('trial', 'Trial', 'Default trial access', true, true, true, true, false),
-  ('unlimited', 'Unlimited', 'Full access without payment requirement', true, true, true, true, true),
+  ('free', 'Free', 'Core VYVA companion features.', true, true, false, false, false),
+  ('premium', 'Premium', 'Full VYVA support bundle.', true, true, true, true, true),
   ('custom', 'Custom', 'Admin-controlled entitlement bundle', false, false, false, false, false)
 on conflict (tier) do nothing;
 

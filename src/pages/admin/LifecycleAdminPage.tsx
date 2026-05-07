@@ -138,7 +138,7 @@ type SubscriptionPlanAdmin = {
 const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
 const statuses = ["", "created", "link_sent", "consent_pending", "active", "dropped"];
-const tiers = ["trial", "essential", "unlimited", "custom"];
+const tiers = ["free", "premium"];
 const languageOptions = [
   { value: "es", label: "Spanish" },
   { value: "en", label: "English" },
@@ -164,7 +164,7 @@ const emptyIntakeForm = {
   timezone: "Europe/Madrid",
   user_type: "elder",
   entry_point: "form",
-  tier: "trial",
+  tier: "free",
   organization_id: "",
   elder_first_name: "",
   elder_last_name: "",
@@ -255,7 +255,7 @@ export default function LifecycleAdminPage() {
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [message, setMessage] = useState("");
   const [newIntake, setNewIntake] = useState(emptyIntakeForm);
-  const [newOrg, setNewOrg] = useState({ name: "", default_tier: "trial" });
+  const [newOrg, setNewOrg] = useState({ name: "", default_tier: "free" });
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [selectedDraft, setSelectedDraft] = useState<JsonRecord>({});
   const [newEvent, setNewEvent] = useState(emptyScheduledEvent);
@@ -367,7 +367,7 @@ export default function LifecycleAdminPage() {
       body: JSON.stringify(newOrg),
     });
     setMessage(`Organization created: ${data.organization.name}.`);
-    setNewOrg({ name: "", default_tier: "trial" });
+    setNewOrg({ name: "", default_tier: "free" });
     await refresh();
   }
 
@@ -865,7 +865,7 @@ function UserDetailModal({ detail, draft, setDraft, organizations, planOptions, 
                 <Field label="Caregiver contact"><input className="w-full rounded-2xl border px-4 py-3" value={draft.caregiver_contact ?? ""} onChange={(e) => setDraft({ ...draft, caregiver_contact: e.target.value })} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Tier"><select className="w-full rounded-2xl border px-4 py-3" value={draft.tier ?? "trial"} onChange={(e) => setDraft({ ...draft, tier: e.target.value })}>{planOptions.map((plan) => <option key={plan.value} value={plan.value}>{plan.label}</option>)}</select></Field>
+                <Field label="Tier"><select className="w-full rounded-2xl border px-4 py-3" value={draft.tier ?? "free"} onChange={(e) => setDraft({ ...draft, tier: e.target.value })}>{planOptions.map((plan) => <option key={plan.value} value={plan.value}>{plan.label}</option>)}</select></Field>
                 <Field label="Language"><select className="w-full rounded-2xl border px-4 py-3" value={draft.language ?? "es"} onChange={(e) => setDraft({ ...draft, language: e.target.value })}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
                 <Field label="Organization"><select className="w-full rounded-2xl border px-4 py-3" value={draft.organization_id ?? ""} onChange={(e) => setDraft({ ...draft, organization_id: e.target.value })}><option value="">None</option>{organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></Field>
               </div>
@@ -1044,26 +1044,28 @@ function TierSection({
     : tiers.map((tier, index) => ({
       plan_id: tier,
       name: tier[0].toUpperCase() + tier.slice(1),
-      description: `${tier} plan`,
-      price_eur: tier === "trial" || tier === "custom" ? 0 : tier === "essential" ? 1900 : 2900,
-      price_gbp: tier === "trial" || tier === "custom" ? 0 : tier === "essential" ? 1600 : 2499,
+      description: tier === "free" ? "Core features forever free" : "Full VYVA experience",
+      price_eur: tier === "free" ? 0 : 2900,
+      price_gbp: tier === "free" ? 0 : 2499,
       billing_interval: "month",
-      trial_days: tier === "trial" ? 14 : 0,
+      trial_days: tier === "free" ? 7 : 14,
       stripe_price_id_eur: "",
       stripe_price_id_gbp: "",
-      features: [],
+      features: tier === "free"
+        ? ["companionship", "brain_training", "daily_checkin"]
+        : ["companionship", "brain_training", "daily_checkin", "concierge", "caregiver_alerts"],
       is_active: true,
-      is_public: tier !== "custom",
-      sort_order: index * 10,
+      is_public: true,
+      sort_order: index,
       entitlement: {
         tier,
         display_name: tier[0].toUpperCase() + tier.slice(1),
         description: `${tier} entitlement bundle`,
-        voice_assistant: tier !== "custom",
-        medication_tracking: tier !== "custom",
-        symptom_check: tier !== "custom",
-        concierge: tier === "unlimited",
-        caregiver_dashboard: tier === "unlimited",
+        voice_assistant: true,
+        medication_tracking: true,
+        symptom_check: tier === "premium",
+        concierge: tier === "premium",
+        caregiver_dashboard: tier === "premium",
         custom_features: {},
         is_active: true,
       },
@@ -1135,6 +1137,7 @@ function TierSection({
         {rows.map((plan) => {
           const entitlement = plan.entitlement;
           const featuresText = (plan.features ?? []).join("\n");
+          const missingEntitlement = plan.is_active && plan.is_public && !entitlement;
           return (
             <article key={plan.plan_id} className="rounded-3xl border border-[#eadfd5] bg-[#fbf8f5] p-4">
               <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -1159,6 +1162,11 @@ function TierSection({
 
                 <div className="rounded-3xl border border-[#eadfd5] bg-white p-4">
                   <p className="font-black">Entitlements</p>
+                  {missingEntitlement && (
+                    <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                      This public plan has no access rules yet. Choose the toggles below and save the plan.
+                    </p>
+                  )}
                   <div className="mt-3 grid gap-2">
                     {[
                       ["voice_assistant", "Voice assistant"],

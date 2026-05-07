@@ -13,6 +13,7 @@ import {
   ChevronDown,
   X,
   Clock,
+  Lock,
   Pill,
   Activity,
   ClipboardList,
@@ -35,7 +36,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useServiceGate } from "@/hooks/useServiceGate";
+import { serviceForPath, useServiceGate } from "@/hooks/useServiceGate";
 
 type WoundScan = {
   id: string;
@@ -345,7 +346,7 @@ const HealthScreen = () => {
   const { t, i18n } = useTranslation();
   const { firstName, profile } = useProfile();
   const navigate = useNavigate();
-  const { guardPath, canUseService } = useServiceGate();
+  const { guardPath, canUseService, readiness } = useServiceGate();
   const location = useLocation();
   const { toast } = useToast();
 
@@ -659,11 +660,19 @@ const HealthScreen = () => {
   };
 
   const QUICK_TILES = [
-    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar cómo me siento", action: () => navigate("/health/symptom-check") },
-    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => guardPath("/meds") },
-    { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    action: () => navigate("/health/vitals") },
-    { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      action: () => navigate("/informes") },
+    { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar cómo me siento", path: "/health/symptom-check", action: () => guardPath("/health/symptom-check") },
+    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     path: "/meds", action: () => guardPath("/meds") },
+    { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    path: "/health/vitals", action: () => navigate("/health/vitals") },
+    { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      path: "/informes", action: () => navigate("/informes") },
   ];
+
+  const isSubscriptionLocked = (path?: string) => {
+    if (!path) return false;
+    const serviceId = serviceForPath(path);
+    if (!serviceId) return false;
+    const service = readiness?.services?.[serviceId];
+    return Boolean(service && !service.ready && service.missing.some((step) => step.section === "subscription"));
+  };
 
   return (
     <>
@@ -703,28 +712,37 @@ const HealthScreen = () => {
             Acceso rápido
           </p>
           <div className="grid grid-cols-2 gap-4">
-            {QUICK_TILES.map((tile) => (
-              <button
-                key={tile.id}
-                data-testid={`button-health-quick-${tile.id}`}
-                onClick={tile.action}
-                className="vyva-tap flex min-h-[150px] min-w-0 flex-col items-center justify-center gap-3 rounded-[28px] border border-vyva-border bg-[#FFFCF8] px-3 py-5 text-center transition-transform active:scale-[0.99]"
-                style={{ boxShadow: "0 14px 30px rgba(60,38,20,0.08)" }}
-              >
-                <div
-                  className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px]"
-                  style={{ background: tile.iconBg }}
+            {QUICK_TILES.map((tile) => {
+              const locked = isSubscriptionLocked(tile.path);
+              return (
+                <button
+                  key={tile.id}
+                  data-testid={`button-health-quick-${tile.id}`}
+                  onClick={tile.action}
+                  className={`vyva-tap relative flex min-h-[150px] min-w-0 flex-col items-center justify-center gap-3 rounded-[28px] border border-vyva-border bg-[#FFFCF8] px-3 py-5 text-center transition-transform active:scale-[0.99] ${locked ? "opacity-80" : ""}`}
+                  style={{ boxShadow: "0 14px 30px rgba(60,38,20,0.08)" }}
                 >
-                  <tile.Icon size={27} style={{ color: tile.iconColor }} />
-                </div>
-                <span className="font-body text-[18px] font-extrabold leading-[1.08] text-vyva-text-1 [overflow-wrap:anywhere]">
-                  {tile.label}
-                </span>
-                <span className="font-body text-[14px] font-medium leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">
-                  {tile.hint}
-                </span>
-              </button>
-            ))}
+                  {locked && (
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#F4EAFE] px-2 py-1 font-body text-[11px] font-bold text-[#6B21A8]">
+                      <Lock size={12} strokeWidth={2.5} />
+                      Plan
+                    </span>
+                  )}
+                  <div
+                    className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-[20px]"
+                    style={{ background: tile.iconBg }}
+                  >
+                    {locked ? <Lock size={25} style={{ color: tile.iconColor }} /> : <tile.Icon size={27} style={{ color: tile.iconColor }} />}
+                  </div>
+                  <span className="font-body text-[18px] font-extrabold leading-[1.08] text-vyva-text-1 [overflow-wrap:anywhere]">
+                    {tile.label}
+                  </span>
+                  <span className="font-body text-[14px] font-medium leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">
+                    {tile.hint}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
