@@ -394,7 +394,7 @@ export default function MedicationsSection() {
                     <Label className="text-xs font-bold text-gray-600">Medication name</Label>
                     <Input data-testid={`input-med-name-${idx}`} placeholder="e.g. Metformin" value={med.name} onChange={(e) => updateMed(med.id, "name", e.target.value)} className="h-11 border-purple-200" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-gray-600">Dosage</Label>
                       <Input data-testid={`input-med-dosage-${idx}`} placeholder="e.g. 500mg" value={med.dosage} onChange={(e) => updateMed(med.id, "dosage", e.target.value)} className="h-11 border-purple-200" />
@@ -412,7 +412,7 @@ export default function MedicationsSection() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-gray-600">Time(s)</Label>
                       <Input data-testid={`input-med-times-${idx}`} placeholder="e.g. 08:00, 20:00" value={med.times} onChange={(e) => updateMed(med.id, "times", e.target.value)} className="h-11 border-purple-200" />
