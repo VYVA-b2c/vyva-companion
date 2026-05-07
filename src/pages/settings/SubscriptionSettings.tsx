@@ -29,30 +29,8 @@ type BillingStatus = {
   trial_days_remaining: number;
   trial_ends_at?: string | null;
   has_billing_account?: boolean;
+  plan?: SubscriptionPlan | null;
 };
-
-const fallbackPlans: SubscriptionPlan[] = [
-  {
-    plan_id: "trial",
-    name: "Free trial",
-    description: "Start with core VYVA support before choosing a paid plan.",
-    price_eur: 0,
-    price_gbp: 0,
-    billing_interval: "month",
-    trial_days: 14,
-    features: ["Daily companion conversations", "Medication reminders", "Basic wellbeing check-ins"],
-  },
-  {
-    plan_id: "unlimited",
-    name: "Unlimited",
-    description: "Full VYVA access with concierge support and caregiver visibility.",
-    price_eur: 2900,
-    price_gbp: 2499,
-    billing_interval: "month",
-    trial_days: 0,
-    features: ["Everything in trial", "Concierge support", "Caregiver dashboard", "Family access"],
-  },
-];
 
 function formatPrice(plan: SubscriptionPlan, currency: "eur" | "gbp") {
   const amount = currency === "gbp" ? plan.price_gbp : plan.price_eur;
@@ -79,6 +57,7 @@ const SubscriptionSettings = () => {
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [currency, setCurrency] = useState<"eur" | "gbp">("eur");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   async function loadBilling() {
@@ -95,11 +74,15 @@ const SubscriptionSettings = () => {
   }
 
   useEffect(() => {
-    loadBilling().catch((err) => setMessage(err instanceof Error ? err.message : "Could not load subscription"));
+    loadBilling()
+      .catch((err) => setMessage(err instanceof Error ? err.message : "Could not load subscription"))
+      .finally(() => setLoading(false));
   }, []);
 
-  const visiblePlans = useMemo(() => (plans.length ? plans : fallbackPlans), [plans]);
-  const currentPlan = status?.tier ?? "trial";
+  const visiblePlans = useMemo(() => plans, [plans]);
+  const currentPlanId = status?.tier ?? "";
+  const matchedPlanName = status?.plan?.name ?? visiblePlans.find((plan) => plan.plan_id === currentPlanId)?.name;
+  const currentPlanName = matchedPlanName || currentPlanId || "No plan";
 
   async function choosePlan(plan: SubscriptionPlan) {
     setLoadingPlan(plan.plan_id);
@@ -148,7 +131,7 @@ const SubscriptionSettings = () => {
           <CreditCard size={20} className="text-vyva-text-2 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-body text-[14px] font-medium text-vyva-text-1" data-testid="text-subscription-current-plan">
-              Current tier: <span className="capitalize">{currentPlan}</span>
+              Current plan: <span className="capitalize">{currentPlanName}</span>
             </p>
             <p className="font-body text-[12px] text-vyva-text-2">
               {status?.status === "trial" && status.trial_days_remaining > 0
@@ -180,8 +163,18 @@ const SubscriptionSettings = () => {
         )}
 
         <div className="space-y-4">
+          {loading && (
+            <p className="rounded-[18px] bg-white border border-vyva-border px-4 py-3 font-body text-[13px] text-vyva-text-2">
+              Loading plans...
+            </p>
+          )}
+          {!loading && !visiblePlans.length && (
+            <p className="rounded-[18px] bg-white border border-vyva-border px-4 py-3 font-body text-[13px] text-vyva-text-2">
+              No public subscription plans are configured yet.
+            </p>
+          )}
           {visiblePlans.map((plan) => {
-            const active = currentPlan === plan.plan_id;
+            const active = currentPlanId === plan.plan_id;
             const price = formatPrice(plan, currency);
             const features = [...(plan.features ?? []), ...entitlementLabels(plan)];
             const isFree = plan.price_eur === 0 && plan.price_gbp === 0;
