@@ -121,11 +121,10 @@ export default function DevicesSection() {
 
   return (
     <PhoneFrame subtitle="📡 Devices & sensors" showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-      <div className="flex flex-col gap-5 px-4 py-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">📡 Devices & sensors</h2>
-            <p className="text-xs text-gray-500 mt-1">Connect devices so VYVA reads real health data before triage or symptom reports.</p>
+      <div className="flex flex-col gap-5 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 leading-relaxed">Connect devices so VYVA reads real health data before triage or symptom reports.</p>
           </div>
           <AutoSaveStatusBadge autoSaveStatus={autoSaveStatus} savedFading={savedFading} retryCountdown={retryCountdown} onRetryNow={retryNow} testId="status-devices-autosave" />
         </div>

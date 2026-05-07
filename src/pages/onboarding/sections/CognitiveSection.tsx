@@ -95,11 +95,10 @@ export default function CognitiveSection() {
 
   return (
     <PhoneFrame subtitle="🧠 Cognitive profile" showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-      <div className="flex flex-col gap-5 px-4 py-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">🧠 Cognitive profile</h2>
-            <p className="text-xs text-gray-500 mt-1">Helps VYVA adjust how it communicates and personalise brain training sessions.</p>
+      <div className="flex flex-col gap-5 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 leading-relaxed">Helps VYVA adjust how it communicates and personalise brain training sessions.</p>
           </div>
           <AutoSaveStatusBadge autoSaveStatus={autoSaveStatus} savedFading={savedFading} retryCountdown={retryCountdown} onRetryNow={retryNow} testId="status-cognitive-autosave" />
         </div>

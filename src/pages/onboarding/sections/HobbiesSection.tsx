@@ -464,13 +464,12 @@ export default function HobbiesSection() {
       showAllSections
       onAllSections={() => navigate("/onboarding/profile")}
     >
-      <div className="flex flex-col gap-6 px-4 py-5">
+      <div className="flex flex-col gap-5 px-4 py-4">
 
-        {/* Header */}
+        {/* Guidance */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-vyva-text-1">⭐ Hobbies & interests</h2>
-            <p className="text-[15px] text-vyva-text-2 mt-1.5 leading-relaxed">
+            <p className="text-[14px] text-vyva-text-2 leading-relaxed">
               The more VYVA knows about what you love, the more it feels like a real companion — not just a bot. These answers shape every conversation.
             </p>
           </div>

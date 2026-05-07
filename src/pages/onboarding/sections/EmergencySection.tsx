@@ -94,11 +94,10 @@ export default function EmergencySection() {
 
   return (
     <PhoneFrame subtitle="🆘 Emergency contact" showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-      <div className="flex flex-col gap-4 px-4 py-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">🆘 Emergency contact</h2>
-            <p className="text-xs text-gray-500 mt-1">Called immediately if VYVA cannot reach you. Must be reachable 24/7.</p>
+      <div className="flex flex-col gap-4 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 leading-relaxed">Called immediately if VYVA cannot reach you. Must be reachable 24/7.</p>
           </div>
           <AutoSaveStatusBadge autoSaveStatus={autoSaveStatus} savedFading={savedFading} retryCountdown={retryCountdown} onRetryNow={retryNow} testId="status-emergency-autosave" />
         </div>

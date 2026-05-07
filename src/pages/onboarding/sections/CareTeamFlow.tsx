@@ -292,10 +292,9 @@ export default function CareTeamFlow() {
     // Show the roster
     return (
       <PhoneFrame subtitle={t("onboarding.careTeam.frame.roster")} showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-        <div className="flex flex-col gap-4 px-4 py-5">
+        <div className="flex flex-col gap-4 px-4 py-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">{t("onboarding.careTeam.rosterTitle")}</h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 leading-relaxed">
               {t("onboarding.careTeam.rosterSubtitle")}
             </p>
           </div>

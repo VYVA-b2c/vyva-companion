@@ -141,11 +141,10 @@ export default function AllergiesSection() {
 
   return (
     <PhoneFrame subtitle="⚠️ Allergies" showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-      <div className="flex flex-col gap-4 px-4 py-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">⚠️ Allergies</h2>
-            <p className="text-xs text-gray-500 mt-1">Drug, food, and environmental allergies. Shared with emergency services only if you need urgent help.</p>
+      <div className="flex flex-col gap-4 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 leading-relaxed">Drug, food, and environmental allergies. Shared with emergency services only if you need urgent help.</p>
           </div>
           <AutoSaveStatusBadge
             autoSaveStatus={autoSaveStatus}

@@ -218,13 +218,12 @@ export default function AddressSection() {
 
   return (
     <PhoneFrame subtitle="🏠 Home address" showBack onBack={() => navigate("/onboarding/profile")} showAllSections onAllSections={() => navigate("/onboarding/profile")}>
-      <div className="flex flex-col gap-4 px-4 py-5">
+      <div className="flex flex-col gap-4 px-4 py-4">
 
-        {/* Header */}
+        {/* Guidance */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-gray-900">🏠 Your home address</h2>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+            <p className="text-xs text-gray-500 leading-relaxed">
               This helps VYVA with safety features and local services. It's only shared with emergency services if you need urgent help.
             </p>
           </div>

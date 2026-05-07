@@ -276,11 +276,10 @@ export default function MedicationsSection() {
 
   return (
     <PhoneFrame subtitle="💊 Medications" showBack onBack={() => confirmNavigation("/onboarding/profile")} showAllSections onAllSections={() => confirmNavigation("/onboarding/profile")}>
-      <div className="flex flex-col gap-5 px-4 py-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">💊 Medications</h2>
-            <p className="text-xs text-gray-500 mt-1">All optional — skip any field you prefer not to fill in.</p>
+      <div className="flex flex-col gap-5 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 leading-relaxed">All optional — skip any field you prefer not to fill in.</p>
           </div>
           <AutoSaveStatusBadge autoSaveStatus={autoSaveStatus} savedFading={savedFading} retryCountdown={retryCountdown} onRetryNow={retryNow} testId="status-meds-autosave" />
         </div>
