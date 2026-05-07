@@ -21,6 +21,30 @@ const emailSchema = z.string().trim().email();
 const SUPPORTED_PROFILE_LANGUAGES = ["es", "en", "fr", "de", "it", "pt", "cy"] as const;
 type ProfileLanguage = (typeof SUPPORTED_PROFILE_LANGUAGES)[number];
 
+function getPublicAppUrl(req: Request): string | null {
+  const configuredAppUrl = process.env.APP_URL?.trim();
+  if (configuredAppUrl) {
+    return configuredAppUrl.replace(/\/+$/, "");
+  }
+
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || req.get("host")?.trim();
+  if (!host) return null;
+
+  const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = forwardedProto || req.protocol || (isProduction ? "https" : "http");
+  return `${proto}://${host}`.replace(/\/+$/, "");
+}
+
+function buildPublicAppLink(req: Request, path: string): string {
+  const appUrl = getPublicAppUrl(req);
+  if (!appUrl) {
+    throw new Error("APP_URL is not configured and the request host could not be resolved.");
+  }
+
+  return `${appUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 type ContactIdentifier = {
   email: string | null;
   phone: string | null;
@@ -462,9 +486,13 @@ authRouter.post("/magic-link-request", async (req: Request, res: Response) => {
   }
 
   const magicToken = await signMagicLoginToken(user.id);
-  const fallbackAppUrl = isDev ? `${req.protocol}://${req.get("host")}` : "";
-  const appUrl = process.env.APP_URL ?? fallbackAppUrl;
-  const magicLink = `${appUrl}/login?magic_token=${encodeURIComponent(magicToken)}`;
+  let magicLink: string;
+  try {
+    magicLink = buildPublicAppLink(req, `/login?magic_token=${encodeURIComponent(magicToken)}`);
+  } catch (err) {
+    console.error("[auth] Failed to build magic login link:", err);
+    return res.status(500).json({ error: "Could not prepare sign-in link. Please try again later." });
+  }
 
   if (user.email) {
     try {
@@ -662,8 +690,13 @@ authRouter.post("/reset-request", async (req: Request, res: Response) => {
     .set({ reset_token: resetToken, reset_token_expires_at: expiresAt })
     .where(eq(users.id, user.id));
 
-  const appUrl = process.env.APP_URL ?? (isDev ? `http://localhost:3001` : "");
-  const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
+  let resetLink: string;
+  try {
+    resetLink = buildPublicAppLink(req, `/reset-password?token=${encodeURIComponent(resetToken)}`);
+  } catch (err) {
+    console.error("[auth] Failed to build password reset link:", err);
+    return res.status(500).json({ error: "Could not prepare reset email. Please try again later." });
+  }
 
   try {
     await sendPasswordResetEmail({ to: user.email, resetLink });
