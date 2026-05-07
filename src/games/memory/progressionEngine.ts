@@ -6,7 +6,9 @@ import type { CognitiveDomain, GameResult, MemoryGameType, Recommendation } from
 
 const DOMAIN_ROTATION: CognitiveDomain[] = [
   "visual_memory",
+  "attention",
   "working_memory",
+  "language",
   "episodic_memory",
   "prospective_memory",
   "associative_memory",

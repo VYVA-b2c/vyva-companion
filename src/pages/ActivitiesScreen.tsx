@@ -1,4 +1,4 @@
-import { BrainCircuit, Headphones, HelpCircle, Layers, Play, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
+import { BrainCircuit, Headphones, HelpCircle, Layers, Map as MapIcon, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
 import { useLanguage } from "@/i18n";
@@ -7,6 +7,7 @@ import VoiceHero from "@/components/VoiceHero";
 const activityIcons: Record<string, LucideIcon> = {
   "brain.activities.triviaQuiz": HelpCircle,
   "brain.activities.memoryGame": Layers,
+  "brain.activities.spatialNavigator": MapIcon,
   "brain.activities.scrabble": Type,
   "brain.activities.logicPuzzle": Puzzle,
   "brain.activities.meditation": Headphones,
@@ -16,6 +17,7 @@ const activityIcons: Record<string, LucideIcon> = {
 const activityStyles: Record<string, { iconBg: string; iconColor: string; cardBg: string }> = {
   "brain.activities.triviaQuiz": { iconBg: "#ECFDF5", iconColor: "#0A7C4E", cardBg: "#F7FFFA" },
   "brain.activities.memoryGame": { iconBg: "#EDE9FE", iconColor: "#6B21A8", cardBg: "#FCF8FF" },
+  "brain.activities.spatialNavigator": { iconBg: "#FEF3C7", iconColor: "#B45309", cardBg: "#FFFBEB" },
   "brain.activities.scrabble": { iconBg: "#FDF2F8", iconColor: "#B0355A", cardBg: "#FFF8FB" },
   "brain.activities.logicPuzzle": { iconBg: "#FEF3C7", iconColor: "#C9890A", cardBg: "#FFFBEF" },
   "brain.activities.meditation": { iconBg: "#F0FDFA", iconColor: "#0F766E", cardBg: "#F7FFFD" },
@@ -24,6 +26,7 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string; cardBg
 
 const activityRoutes: Partial<Record<string, string>> = {
   "brain.activities.memoryGame": "/memory-games",
+  "brain.activities.spatialNavigator": "/spatial-navigator",
 };
 
 const ActivitiesScreen = () => {
@@ -36,6 +39,7 @@ const ActivitiesScreen = () => {
   const activityLabels: Record<string, string> = {
     "brain.activities.triviaQuiz": t("activities.trivia"),
     "brain.activities.memoryGame": t("activities.memory"),
+    "brain.activities.spatialNavigator": t("activities.spatialNavigator"),
     "brain.activities.scrabble": t("activities.scrabble"),
     "brain.activities.logicPuzzle": t("activities.logicPuzzle"),
     "brain.activities.meditation": t("activities.meditation"),
@@ -55,14 +59,7 @@ const ActivitiesScreen = () => {
         headline={<>{t("brain.headline")}</>}
         subtitle={t("brain.subtitle", { streak: margaret.streak })}
         contextHint="brain training"
-      >
-        <button className="mt-3 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-white px-[20px] py-[13px] shadow-vyva-card">
-          <Play size={16} style={{ color: "#6B21A8" }} />
-          <span className="font-body text-[16px] font-medium" style={{ color: "#6B21A8" }}>
-            {t("brain.startSession")}
-          </span>
-        </button>
-      </VoiceHero>
+      />
 
       <section className="mt-5 rounded-[24px] border border-[#EFE7DB] bg-[#FFF9F1] p-4 shadow-vyva-card">
         <div className="flex items-center justify-between gap-3">

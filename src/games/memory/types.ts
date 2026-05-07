@@ -1,6 +1,8 @@
 import type { LanguageCode } from "@/i18n/languages";
 
 export type CognitiveDomain =
+  | "attention"
+  | "language"
   | "visual_memory"
   | "working_memory"
   | "episodic_memory"

@@ -7,8 +7,8 @@ import BottomNav from "./BottomNav";
 import { useServiceGate } from "@/hooks/useServiceGate";
 import { useToastSurface } from "@/hooks/useToastSurface";
 
-const FULL_SCREEN_ROUTES = ["/chat"];
-const WIDE_ROUTES = ["/social-rooms"];
+const FULL_SCREEN_ROUTES = ["/chat", "/spatial-navigator"];
+const WIDE_ROUTES = ["/social-rooms", "/spatial-navigator"];
 
 const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
   const { t } = useTranslation();

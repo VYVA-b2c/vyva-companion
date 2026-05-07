@@ -23,6 +23,7 @@ import MedsScreen from "./pages/MedsScreen";
 import AdherenceReportScreen from "./pages/AdherenceReportScreen";
 import ActivitiesScreen from "./pages/ActivitiesScreen";
 import ActivityScreen from "./pages/ActivityScreen";
+import SpatialNavigator from "./games/SpatialNavigator";
 import MemoryGamesPage from "./games/memory/MemoryGamesPage";
 import MemoryGameRunner from "./games/memory/MemoryGameRunner";
 import ConciergeScreen from "./pages/ConciergeScreen";
@@ -121,6 +122,18 @@ function SectionRouter() {
   );
 }
 
+function SpatialNavigatorRoute() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  return (
+    <SpatialNavigator
+      userId={user?.id ?? ""}
+      onExit={() => navigate("/activities")}
+    />
+  );
+}
+
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const location = useLocation();
@@ -205,6 +218,7 @@ const App = () => (
                   <Route path="/meds/adherence-report" element={<AppShell><ServiceGateRoute service="adherenceReport"><AdherenceReportScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/activities" element={<AppShell><ActivitiesScreen /></AppShell>} />
                   <Route path="/activity" element={<AppShell><ActivityScreen /></AppShell>} />
+                  <Route path="/spatial-navigator" element={<AppShell><SpatialNavigatorRoute /></AppShell>} />
                   <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
                   <Route path="/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
                   <Route path="/concierge" element={<AppShell><ServiceGateRoute service="concierge"><ConciergeScreen /></ServiceGateRoute></AppShell>} />

@@ -134,6 +134,8 @@ const it = {
     },
   },
   cognitiveDomains: {
+    attention: "Attenzione",
+    language: "Linguaggio",
     visual_memory: "Memoria visiva",
     working_memory: "Memoria di lavoro",
     episodic_memory: "Memoria episodica",
@@ -142,6 +144,8 @@ const it = {
     comprehension_memory: "Comprensione e richiamo",
   },
   recommendationReasons: {
+    attention: "Oggi alleniamo l'attenzione con un esercizio delicato.",
+    language: "Oggi alleniamo il linguaggio con un esercizio delicato.",
     visual_memory: "Oggi alleniamo la memoria visiva con un esercizio delicato.",
     working_memory: "Oggi alleniamo la memoria di lavoro con un esercizio delicato.",
     episodic_memory: "Oggi alleniamo la memoria episodica con un esercizio delicato.",
