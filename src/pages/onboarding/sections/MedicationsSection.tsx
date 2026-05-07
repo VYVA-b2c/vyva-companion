@@ -1,6 +1,6 @@
 // src/pages/onboarding/sections/MedicationsSection.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,13 +30,27 @@ const emptyMed = (id: string): Medication => ({
   id, name: "", dosage: "", frequency: "", times: "", with_food: "", prescribed_by: "",
 });
 
+function parseMedicationTimes(raw: string): string[] | undefined {
+  const times = raw
+    .split(/[,\n;]+/)
+    .map((time) => time.trim())
+    .filter(Boolean);
+
+  return times.length > 0 ? times : undefined;
+}
+
 async function saveMedsToServer(meds: Medication[]): Promise<Response> {
   return await apiFetch("/api/onboarding/section/medications", {
     method: "POST",
     body: JSON.stringify({
       medications: meds
         .filter((m) => m.name.trim())
-        .map(({ id: _id, ...rest }) => rest),
+        .map((m) => ({
+          medication_name: m.name.trim(),
+          dosage: m.dosage.trim() || undefined,
+          frequency: m.frequency || undefined,
+          scheduled_times: parseMedicationTimes(m.times),
+        })),
     }),
   });
 }
@@ -54,6 +68,7 @@ function medsAreEqual(a: Medication, b: Medication): boolean {
 
 export default function MedicationsSection() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const counterRef = useRef(1);
   const loadedRef = useRef(false);
@@ -74,6 +89,13 @@ export default function MedicationsSection() {
   useEffect(() => { medsRef.current = meds; }, [meds]);
   useEffect(() => { busyRef.current = saving || autoSaving || adding || !!removingId; }, [saving, autoSaving, adding, removingId]);
   useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); }, []);
+
+  const completePath = () => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo
+      ? `/onboarding/complete/medications?returnTo=${encodeURIComponent(returnTo)}`
+      : "/onboarding/complete/medications";
+  };
 
   const { data, isLoading } = useQuery<{ profile: { medications?: Omit<Medication, "id">[] } | null }>({
     queryKey: ["/api/onboarding/state"],
@@ -106,6 +128,7 @@ export default function MedicationsSection() {
         }
         setSavedMeds([...currentMeds]);
         queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
       } finally {
         setAutoSaving(false);
       }
@@ -133,6 +156,7 @@ export default function MedicationsSection() {
       setSavedMeds(updated);
       setAutoSaveStatus("saved");
       queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
     } catch (err) {
       setMeds(previous);
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
@@ -157,6 +181,7 @@ export default function MedicationsSection() {
       setSavedMeds(updated);
       setAutoSaveStatus("saved");
       queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
     } catch (err) {
       setMeds(previous);
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
@@ -191,6 +216,7 @@ export default function MedicationsSection() {
         setSavedMeds(updated);
         setAutoSaveStatus("saved");
         queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
       } catch (err) {
         setMeds(previous);
         const msg = await friendlyError(err, res && !res.ok ? res : undefined);
@@ -233,10 +259,11 @@ export default function MedicationsSection() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await queryClient.invalidateQueries({ queryKey: ["/api/onboarding/state"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
       setSavedMeds(meds);
       setAutoSaveStatus("saved");
       navigating = true;
-      navTimerRef.current = setTimeout(() => navigate("/onboarding/complete/medications"), 300);
+      navTimerRef.current = setTimeout(() => navigate(completePath()), 300);
     } catch (err) {
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
       toast({ title: "Could not save medications", description: msg, variant: "destructive" });

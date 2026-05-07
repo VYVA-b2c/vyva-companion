@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Camera, CheckCircle2, ChevronDown } from "lucide-react";
 import { SiFacebook, SiInstagram, SiWhatsapp } from "react-icons/si";
 import { Input } from "@/components/ui/input";
@@ -128,6 +128,7 @@ function Toggle({
 
 export default function BasicsSection() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   const [form, setForm] = useState<BasicsForm>({
@@ -205,6 +206,13 @@ export default function BasicsSection() {
     whatsapp_number:        f.whatsapp_number.trim() || null,
   });
 
+  const completePath = () => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo
+      ? `/onboarding/complete/basics?returnTo=${encodeURIComponent(returnTo)}`
+      : "/onboarding/complete/basics";
+  };
+
   const { autoSaveStatus, savedFading, retryCountdown, retryNow, scheduleAutoSave, cancelAutoSave } = useAutoSave(
     async () => {
       const f = formRef.current;
@@ -217,6 +225,7 @@ export default function BasicsSection() {
         const msg = await friendlyError(new Error(), res);
         throw new Error(msg);
       }
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
     },
     2000,
   );
@@ -253,8 +262,9 @@ export default function BasicsSection() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await queryClient.invalidateQueries({ queryKey: ["/api/onboarding/state"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
       setSaveSuccess(true);
-      setTimeout(() => navigate("/onboarding/complete/basics"), 1500);
+      setTimeout(() => navigate(completePath()), 1500);
     } catch (err) {
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
       toast({ title: "Could not save basics", description: msg, variant: "destructive" });

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import StatusBar from "./StatusBar";
 import BottomNav from "./BottomNav";
+import { useServiceGate } from "@/hooks/useServiceGate";
 
 const FULL_SCREEN_ROUTES = ["/chat"];
 const WIDE_ROUTES = ["/social-rooms"];
@@ -59,6 +60,7 @@ const SosSheet = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
 
 const AppShell = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const { canUseService } = useServiceGate();
   const [sosOpen, setSosOpen] = useState(false);
   const isFullScreen = FULL_SCREEN_ROUTES.includes(location.pathname);
   const isWideRoute = WIDE_ROUTES.some((route) => location.pathname.startsWith(route));
@@ -70,7 +72,9 @@ const AppShell = ({ children }: { children: ReactNode }) => {
         <main className={`min-h-screen overflow-y-auto ${isFullScreen ? "" : "pt-[76px] pb-[104px]"}`}>
           {children}
         </main>
-        {!isFullScreen && <BottomNav onSosClick={() => setSosOpen(true)} />}
+        {!isFullScreen && <BottomNav onSosClick={() => {
+          if (canUseService("sos", "/sos")) setSosOpen(true);
+        }} />}
         {!isFullScreen && <SosSheet open={sosOpen} onOpenChange={setSosOpen} />}
       </div>
     </div>

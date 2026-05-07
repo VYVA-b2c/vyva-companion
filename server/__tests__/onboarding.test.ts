@@ -6,7 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { authMiddleware } from "../middleware/auth.js";
 import { onboardingRouter } from "../routes/onboarding.js";
 import { db } from "../db.js";
-import { profiles, onboardingState, userChannelPreferences, teamInvitations } from "../../shared/schema.js";
+import { profiles, onboardingState, userChannelPreferences, teamInvitations, userMedications } from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
 
 function buildApp() {
@@ -23,6 +23,7 @@ const TEST_USER_ID = randomUUID();
 async function cleanupUser(userId: string) {
   try {
     await db.delete(teamInvitations).where(eq(teamInvitations.senior_id, userId));
+    await db.delete(userMedications).where(eq(userMedications.user_id, userId));
     await db.delete(userChannelPreferences).where(eq(userChannelPreferences.user_id, userId));
     await db.delete(onboardingState).where(eq(onboardingState.user_id, userId));
     await db.delete(profiles).where(eq(profiles.id, userId));

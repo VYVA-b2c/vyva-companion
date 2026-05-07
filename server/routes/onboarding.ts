@@ -162,6 +162,26 @@ async function markField(userId: string, field: string): Promise<void> {
     .where(eq(onboardingState.user_id, userId));
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function splitTimes(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const times = value.filter(hasText).map((time) => time.trim());
+    return times.length > 0 ? times : undefined;
+  }
+
+  if (!hasText(value)) return undefined;
+
+  const times = value
+    .split(/[,\n;]+/)
+    .map((time) => time.trim())
+    .filter(Boolean);
+
+  return times.length > 0 ? times : undefined;
+}
+
 // ============================================================
 // POST /start-profile
 // Creates the care-recipient profile for this login account.
@@ -271,13 +291,57 @@ onboardingRouter.get("/state", async (req: Request, res: Response) => {
       });
     }
 
-    const [profileRows, stateRow] = await Promise.all([
+    const [profileRows, stateRow, medicationRows] = await Promise.all([
       db.select().from(profiles).where(eq(profiles.id, context.profileId)).limit(1),
       ensureOnboardingState(context.profileId),
+      db.select()
+        .from(userMedications)
+        .where(and(
+          eq(userMedications.user_id, context.profileId),
+          eq(userMedications.active, true),
+          eq(userMedications.added_by, "onboarding"),
+        )),
     ]);
 
+    const profile = profileRows[0];
+    const consent = (profile?.data_sharing_consent ?? {}) as Record<string, unknown>;
+    const conditionSection = (consent.conditions ?? {}) as {
+      health_conditions?: string[];
+      mobility_level?: string | null;
+      living_situation?: string | null;
+    };
+    const emergencySection = (consent.emergency ?? {}) as {
+      emergency_name?: string;
+      emergency_phone?: string;
+      emergency_role?: string;
+      secondary_phone?: string;
+      address?: string;
+    };
+
     return res.json({
-      profile: profileRows[0] ?? null,
+      profile: profile
+        ? {
+            ...profile,
+            medications: medicationRows.map((med) => ({
+              name: med.medication_name,
+              dosage: med.dosage ?? "",
+              frequency: med.frequency ?? "",
+              times: med.scheduled_times?.join(", ") ?? "",
+              with_food: "",
+              prescribed_by: "",
+            })),
+            conditions: (conditionSection.health_conditions ?? []).map((name) => ({ name, category: "other" })),
+            mobility_level: conditionSection.mobility_level ?? "",
+            living_situation: conditionSection.living_situation ?? "",
+            emergency_contact: {
+              name: emergencySection.emergency_name ?? "",
+              relationship: emergencySection.emergency_role ?? "",
+              primary_phone: emergencySection.emergency_phone ?? "",
+              secondary_phone: emergencySection.secondary_phone ?? "",
+              address: emergencySection.address ?? "",
+            },
+          }
+        : null,
       onboardingState: stateRow,
       account: { id: accountUserId, activeProfileId: context.profileId, role: context.role },
     });
@@ -1024,15 +1088,24 @@ onboardingRouter.post("/field", async (req: Request, res: Response) => {
 const sectionSchemas: Record<string, z.ZodTypeAny> = {
   medications: z.object({
     medications: z.array(z.object({
-      medication_name: z.string(),
+      medication_name: z.string().optional(),
+      name:            z.string().optional(),
       dosage:          z.string().optional(),
       frequency:       z.string().optional(),
       scheduled_times: z.array(z.string()).optional(),
+      times:           z.union([z.string(), z.array(z.string())]).optional(),
     })).optional(),
     known_allergies: z.array(z.string()).optional(),
   }),
   conditions: z.object({
     health_conditions: z.array(z.string()).optional(),
+    conditions: z.array(z.object({
+      name:     z.string(),
+      category: z.string().optional(),
+    })).optional(),
+    mobility_level:   z.string().nullable().optional(),
+    living_situation: z.string().nullable().optional(),
+    allergies:        z.array(z.string()).optional(),
   }),
   cognitive: z.object({
     cognitive_notes: z.string().optional(),
@@ -1047,6 +1120,7 @@ const sectionSchemas: Record<string, z.ZodTypeAny> = {
     region:         z.string().optional(),
     postcode:       z.string().optional(),
     country_code:   z.string().optional(),
+    country:        z.string().optional(),
     timezone:       z.string().optional(),
   }),
   gp: z.object({
@@ -1090,6 +1164,11 @@ const sectionSchemas: Record<string, z.ZodTypeAny> = {
     emergency_name:  z.string().optional(),
     emergency_phone: z.string().optional(),
     emergency_role:  z.string().optional(),
+    name:            z.string().optional(),
+    relationship:    z.string().optional(),
+    primary_phone:   z.string().optional(),
+    secondary_phone: z.string().optional(),
+    address:         z.string().optional(),
   }),
   careteam: z.object({
     role:           z.enum(["family", "carer", "doctor"]),
@@ -1196,39 +1275,91 @@ onboardingRouter.post("/section/:sectionId", async (req: Request, res: Response)
           .where(eq(profiles.id, userId));
       }
 
-      const meds = data.medications as Array<{
-        medication_name: string;
+      const rawMeds = data.medications as Array<{
+        medication_name?: string;
+        name?: string;
         dosage?: string;
         frequency?: string;
         scheduled_times?: string[];
+        times?: string | string[];
       }> | undefined;
 
-      if (Array.isArray(meds) && meds.length > 0) {
+      const meds = Array.isArray(rawMeds)
+        ? rawMeds
+            .map((m) => ({
+              medication_name: (m.medication_name ?? m.name ?? "").trim(),
+              dosage: hasText(m.dosage) ? m.dosage.trim() : null,
+              frequency: hasText(m.frequency) ? m.frequency.trim() : null,
+              scheduled_times: splitTimes(m.scheduled_times ?? m.times) ?? null,
+            }))
+            .filter((m) => m.medication_name.length > 0)
+        : [];
+
+      // The profile medication form is treated as the source of truth for
+      // onboarding-entered medicines, so repeated autosaves update instead of duplicate.
+      await db
+        .delete(userMedications)
+        .where(and(eq(userMedications.user_id, userId), eq(userMedications.added_by, "onboarding")));
+
+      if (meds.length > 0) {
         await db.insert(userMedications).values(
           meds.map((m) => ({
             user_id:         userId,
             medication_name: m.medication_name,
-            dosage:          m.dosage ?? null,
-            frequency:       m.frequency ?? null,
-            scheduled_times: m.scheduled_times ?? null,
+            dosage:          m.dosage,
+            frequency:       m.frequency,
+            scheduled_times: m.scheduled_times,
             added_by:        "onboarding",
           }))
         );
-
-        await markField(userId, "has_medications");
       }
+
+      await db
+        .update(onboardingState)
+        .set({
+          has_medications: meds.length > 0,
+          feature_medication_mgmt: meds.length > 0,
+          updated_at: new Date(),
+        })
+        .where(eq(onboardingState.user_id, userId));
 
       if (Array.isArray(data.known_allergies) && (data.known_allergies as string[]).length > 0) {
         await markField(userId, "has_allergies");
       }
+    } else if (sectionId === "conditions") {
+      const namedConditions = Array.isArray(data.conditions)
+        ? (data.conditions as Array<{ name?: string }>)
+            .map((condition) => condition.name)
+            .filter(hasText)
+            .map((name) => name.trim())
+        : [];
+      const healthConditions = Array.isArray(data.health_conditions)
+        ? (data.health_conditions as unknown[]).filter(hasText).map((name) => name.trim())
+        : namedConditions;
+      const payload = {
+        health_conditions: healthConditions,
+        mobility_level: hasText(data.mobility_level) ? data.mobility_level.trim() : null,
+        living_situation: hasText(data.living_situation) ? data.living_situation.trim() : null,
+      };
+
+      await mergeSectionIntoConsent(userId, "conditions", payload);
+
+      if (
+        payload.health_conditions.length > 0 ||
+        payload.mobility_level ||
+        payload.living_situation
+      ) {
+        await markField(userId, "has_health_conditions");
+      }
     } else if (sectionId === "address") {
       const profileUpdates: Record<string, unknown> = { updated_at: new Date() };
-      if (data.address_line_1) profileUpdates.address_line_1 = data.address_line_1;
-      if (data.city)           profileUpdates.city           = data.city;
-      if (data.region)         profileUpdates.region         = data.region;
-      if (data.postcode)       profileUpdates.postcode       = data.postcode;
-      if (data.country_code)   profileUpdates.country_code   = data.country_code;
-      if (data.timezone)       profileUpdates.timezone       = data.timezone;
+      const country = data.country_code ?? data.country;
+      if (data.address_line_1 !== undefined) profileUpdates.address_line_1 = hasText(data.address_line_1) ? data.address_line_1.trim() : null;
+      if (data.city           !== undefined) profileUpdates.city           = hasText(data.city) ? data.city.trim() : null;
+      if (data.region         !== undefined) profileUpdates.region         = hasText(data.region) ? data.region.trim() : null;
+      if (data.postcode       !== undefined) profileUpdates.postcode       = hasText(data.postcode) ? data.postcode.trim() : null;
+      if (country             !== undefined) profileUpdates.country_code   = hasText(country) ? country.trim() : null;
+      if (data.timezone       !== undefined) profileUpdates.timezone       = hasText(data.timezone) ? data.timezone.trim() : null;
 
       await db.update(profiles).set(profileUpdates).where(eq(profiles.id, userId));
 
@@ -1288,6 +1419,20 @@ onboardingRouter.post("/section/:sectionId", async (req: Request, res: Response)
 
       const fieldToMark = CARETEAM_ONBOARDING_FIELD[ct.role];
       if (fieldToMark) await markField(userId, fieldToMark);
+    } else if (sectionId === "emergency") {
+      const payload = {
+        emergency_name: hasText(data.emergency_name) ? data.emergency_name.trim() : hasText(data.name) ? data.name.trim() : "",
+        emergency_phone: hasText(data.emergency_phone) ? data.emergency_phone.trim() : hasText(data.primary_phone) ? data.primary_phone.trim() : "",
+        emergency_role: hasText(data.emergency_role) ? data.emergency_role.trim() : hasText(data.relationship) ? data.relationship.trim() : "",
+        secondary_phone: hasText(data.secondary_phone) ? data.secondary_phone.trim() : "",
+        address: hasText(data.address) ? data.address.trim() : "",
+      };
+
+      await mergeSectionIntoConsent(userId, "emergency", payload);
+
+      if (payload.emergency_name && payload.emergency_phone) {
+        await markField(userId, "has_emergency_address");
+      }
     } else {
       await mergeSectionIntoConsent(userId, sectionId, data);
 

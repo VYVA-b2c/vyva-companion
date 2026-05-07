@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 
 const SECTION_LABELS: Record<string, { title: string; message: string }> = {
@@ -19,7 +19,9 @@ const DEFAULT = { title: "Section complete!", message: "Thanks for filling in th
 const SectionCompleteScreen = () => {
   const navigate = useNavigate();
   const { section = "" } = useParams<{ section: string }>();
+  const [searchParams] = useSearchParams();
   const info = SECTION_LABELS[section] ?? DEFAULT;
+  const returnTo = searchParams.get("returnTo");
 
   return (
     <div className="min-h-screen bg-vyva-cream flex flex-col items-center justify-center px-6 gap-8">
@@ -49,11 +51,11 @@ const SectionCompleteScreen = () => {
       <div className="w-full max-w-[380px] space-y-3">
         <button
           data-testid="button-complete-back-to-profile"
-          onClick={() => navigate("/onboarding/profile")}
+          onClick={() => navigate(returnTo || "/onboarding/profile")}
           className="w-full py-4 rounded-full font-body text-[17px] font-semibold text-white"
           style={{ background: "#6B21A8" }}
         >
-          Back to my profile
+          {returnTo ? "Continue" : "Back to my profile"}
         </button>
         <button
           data-testid="button-complete-go-home"

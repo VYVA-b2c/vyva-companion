@@ -1,6 +1,6 @@
 // src/pages/onboarding/sections/ConditionsSection.tsx
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, CheckCircle2, ChevronDown } from "lucide-react";
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { AutoSaveStatusBadge } from "@/components/onboarding/AutoSaveStatusBadge";
@@ -133,6 +133,7 @@ type SavedCondition = { name: string; category: string };
 
 export default function ConditionsSection() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -146,21 +147,36 @@ export default function ConditionsSection() {
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); }, []);
 
+  const buildConditionsPayload = () => ({
+    health_conditions: selected,
+    conditions: selected.map((name) => {
+      const group = CONDITION_GROUPS.find((g) => g.items.includes(name));
+      return { name, category: group?.cat || "other" };
+    }),
+    mobility_level: mobility || null,
+    living_situation: living || null,
+    allergies: [],
+  });
+
+  const completePath = () => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo
+      ? `/onboarding/complete/conditions?returnTo=${encodeURIComponent(returnTo)}`
+      : "/onboarding/complete/conditions";
+  };
+
   const { autoSaveStatus, savedFading, retryCountdown, retryNow, scheduleAutoSave, cancelAutoSave, setAutoSaveStatus } = useAutoSave(
     async () => {
-      const conditions = selected.map((name) => {
-        const group = CONDITION_GROUPS.find((g) => g.items.includes(name));
-        return { name, category: group?.cat || "other" };
-      });
       const res = await apiFetch("/api/onboarding/section/conditions", {
         method: "POST",
-        body: JSON.stringify({ conditions, mobility_level: mobility || null, living_situation: living || null, allergies: [] }),
+        body: JSON.stringify(buildConditionsPayload()),
       });
       if (!res.ok) {
         const msg = await friendlyError(new Error(), res);
         throw new Error(msg);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
     },
     2000,
   );
@@ -225,20 +241,17 @@ export default function ConditionsSection() {
     let navigating = false;
     let res: Response | undefined;
     try {
-      const conditions = selected.map((name) => {
-        const group = CONDITION_GROUPS.find((g) => g.items.includes(name));
-        return { name, category: group?.cat || "other" };
-      });
       res = await apiFetch("/api/onboarding/section/conditions", {
         method: "POST",
-        body: JSON.stringify({ conditions, mobility_level: mobility || null, living_situation: living || null, allergies: [] }),
+        body: JSON.stringify(buildConditionsPayload()),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await queryClient.invalidateQueries({ queryKey: ["/api/onboarding/state"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/profile/personalisation"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
       setAutoSaveStatus("saved");
       navigating = true;
-      navTimerRef.current = setTimeout(() => navigate("/onboarding/complete/conditions"), 300);
+      navTimerRef.current = setTimeout(() => navigate(completePath()), 300);
     } catch (err) {
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
       toast({ title: "Could not save health conditions", description: msg, variant: "destructive" });

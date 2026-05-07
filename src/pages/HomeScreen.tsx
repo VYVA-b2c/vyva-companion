@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Heart, Brain, Users, ConciergeBell, Mic, RefreshCw, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +7,7 @@ import VoiceCallOverlay from "@/components/VoiceCallOverlay";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { useProfile } from "@/contexts/ProfileContext";
 import { apiFetch } from "@/lib/queryClient";
+import { useServiceGate } from "@/hooks/useServiceGate";
 import {
   personaliseCardOrder,
   getChatNavigationCount,
@@ -143,7 +143,7 @@ function todayDateString() {
 }
 
 const HomeScreen = () => {
-  const navigate = useNavigate();
+  const { guardPath } = useServiceGate();
   const { t } = useTranslation();
   const [todayKey, setTodayKey] = useState(todayDateString);
   const [todayRefreshIndex, setTodayRefreshIndex] = useState(0);
@@ -354,7 +354,7 @@ const HomeScreen = () => {
 
   const handleNavigate = (path: string) => {
     if (path === "/chat") incrementChatNavigationCount();
-    navigate(path);
+    guardPath(path);
   };
 
   const handleRefreshTodayCards = () => {

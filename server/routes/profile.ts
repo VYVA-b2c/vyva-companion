@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { desc, eq, count } from "drizzle-orm";
+import { and, desc, eq, count } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db.js";
 import {
@@ -28,7 +28,9 @@ const router = Router();
 async function resolveUserId(req: Request): Promise<string | null> {
   if (req.user?.id) {
     const context = await getActiveProfileContext(req.user.id);
-    return context.profileId;
+    if (context.profileId) return context.profileId;
+    if (!IS_PROD) return req.user.id;
+    return null;
   }
   if (!IS_PROD) return DEMO_USER_ID;
   return null;
@@ -95,6 +97,151 @@ function medicationEventsFromRows(rows: Array<typeof userMedications.$inferSelec
     }));
   });
 }
+
+type MissingSetupStep = {
+  section: string;
+  path: string;
+  reason: string;
+};
+
+type ServiceGate = {
+  ready: boolean;
+  missing: MissingSetupStep[];
+  recommended?: MissingSetupStep[];
+};
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function consentSection(consent: unknown, section: string): Record<string, unknown> {
+  if (!consent || typeof consent !== "object") return {};
+  const value = (consent as Record<string, unknown>)[section];
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function setupStep(section: string, reason: string): MissingSetupStep {
+  return {
+    section,
+    path: `/onboarding/profile/${section}`,
+    reason,
+  };
+}
+
+function gate(ready: boolean, missing: MissingSetupStep[], recommended?: MissingSetupStep[]): ServiceGate {
+  return {
+    ready,
+    missing: ready ? [] : missing,
+    ...(recommended?.length ? { recommended } : {}),
+  };
+}
+
+function hasUsableMedication(med: typeof userMedications.$inferSelect): boolean {
+  return (
+    hasText(med.medication_name) &&
+    (
+      hasText(med.dosage) ||
+      hasText(med.frequency) ||
+      (Array.isArray(med.scheduled_times) && med.scheduled_times.some(hasText))
+    )
+  );
+}
+
+router.get("/readiness", async (req: Request, res: Response) => {
+  const userId = await resolveUserId(req);
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  try {
+    const [profileRows, medications] = await Promise.all([
+      db.select()
+        .from(profiles)
+        .where(eq(profiles.id, userId))
+        .limit(1),
+      db.select()
+        .from(userMedications)
+        .where(and(eq(userMedications.user_id, userId), eq(userMedications.active, true))),
+    ]);
+
+    const profile = profileRows[0] ?? null;
+    const emergency = consentSection(profile?.data_sharing_consent, "emergency");
+    const conditions = consentSection(profile?.data_sharing_consent, "conditions");
+    const healthConditions = Array.isArray(conditions.health_conditions)
+      ? conditions.health_conditions.filter(hasText)
+      : [];
+
+    const hasBasics = hasText(profile?.full_name);
+    const hasContact = hasText(profile?.phone_number) || hasText(profile?.whatsapp_number) || hasText(profile?.email);
+    const hasDetailedAddress = (
+      hasText(profile?.address_line_1) &&
+      hasText(profile?.city) &&
+      hasText(profile?.postcode) &&
+      hasText(profile?.country_code)
+    );
+    const hasLocalAddress = hasText(profile?.city) && (hasText(profile?.country_code) || hasText(profile?.postcode));
+    const hasEmergencyContact = hasText(emergency.emergency_name) && hasText(emergency.emergency_phone);
+    const hasMedicationForServices = medications.some(hasUsableMedication);
+    const hasAnyMedication = medications.some((med) => hasText(med.medication_name));
+    const hasHealthContext = healthConditions.length > 0;
+    const hasAllergies = Array.isArray(profile?.known_allergies) && profile.known_allergies.some(hasText);
+    const hasGp = hasText(profile?.gp_name) || hasText(profile?.gp_phone);
+
+    const medicationMissing = [
+      setupStep("medications", "To make medication reminders and reports work, add at least one medication first."),
+    ];
+    const addressMissing = [
+      setupStep("address", "To use this safely, add your home address first."),
+    ];
+    const sosMissing = [
+      ...(!hasDetailedAddress ? addressMissing : []),
+      ...(!hasEmergencyContact ? [setupStep("emergency", "To use SOS safely, add an emergency contact first.")] : []),
+    ];
+    const doctorMissing = [
+      ...(!hasBasics ? [setupStep("basics", "To start a doctor call, add the user's basic profile details first.")] : []),
+      ...(!hasContact ? [setupStep("basics", "To start a doctor call, add a phone number or contact method first.")] : []),
+    ];
+    const doctorRecommended = [
+      ...(!hasHealthContext ? [setupStep("health", "Add health conditions so the doctor agent has better context.")] : []),
+      ...(!hasMedicationForServices ? [setupStep("medications", "Add medications so the doctor agent can consider them.")] : []),
+      ...(!hasAllergies ? [setupStep("allergies", "Add allergies so recommendations stay safer.")] : []),
+      ...(!hasGp ? [setupStep("gp", "Add GP details in case follow-up is needed.")] : []),
+    ];
+
+    return res.json({
+      profile: {
+        exists: !!profile,
+        hasBasics,
+        hasContact,
+        hasDetailedAddress,
+        hasLocalAddress,
+        hasEmergencyContact,
+        hasMedicationForServices,
+        hasAnyMedication,
+        hasHealthContext,
+        hasAllergies,
+        hasGp,
+      },
+      services: {
+        medications: gate(hasMedicationForServices, medicationMissing),
+        adherenceReport: gate(hasMedicationForServices, medicationMissing),
+        medicationReminders: gate(hasMedicationForServices, medicationMissing),
+        medicationInteractions: gate(hasMedicationForServices, medicationMissing),
+        sos: gate(hasDetailedAddress && hasEmergencyContact, sosMissing),
+        doctor: gate(hasBasics && hasContact, doctorMissing, doctorRecommended),
+        localServices: gate(hasLocalAddress, addressMissing),
+        specialistFinder: gate(hasLocalAddress, addressMissing),
+        reports: gate(true, []),
+        concierge: gate(true, []),
+        socialRooms: gate(true, []),
+        activities: gate(true, []),
+        brainTraining: gate(true, []),
+        chat: gate(true, []),
+      },
+    });
+  } catch (err) {
+    console.error("[profile GET /readiness]", err);
+    return res.status(500).json({ error: "Failed to fetch profile readiness" });
+  }
+});
 
 router.get("/", async (req: Request, res: Response) => {
   const userId = await resolveUserId(req);

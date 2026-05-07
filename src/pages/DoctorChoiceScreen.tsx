@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useHeroMessage } from "@/hooks/useHeroMessage";
+import { useServiceGate } from "@/hooks/useServiceGate";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { apiFetch } from "@/lib/queryClient";
 
@@ -36,6 +37,7 @@ const DoctorChoiceScreen = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { profile, firstName } = useProfile();
+  const { readiness } = useServiceGate();
   const {
     startVoice,
     stopVoice,
@@ -53,6 +55,7 @@ const DoctorChoiceScreen = () => {
   const attemptedStartRef = useRef(false);
   const startListeningWhenReadyRef = useRef(false);
   const autoStartRequested = Boolean((location.state as { autoStartVoice?: boolean } | null)?.autoStartVoice);
+  const doctorRecommendations = readiness?.services.doctor.recommended ?? [];
 
   const heroMessage = useHeroMessage("doctor", {
     fallbackHeadline: t("health.doctorChoice.title", "Elige una opcion"),
@@ -277,6 +280,24 @@ const DoctorChoiceScreen = () => {
         <div className="mt-4 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] px-5 py-4 font-body text-[16px] font-semibold text-[#9A3412]">
           {voiceError}
         </div>
+      ) : null}
+
+      {doctorRecommendations.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => {
+            const firstRecommendation = doctorRecommendations[0];
+            navigate(`${firstRecommendation.path}?returnTo=${encodeURIComponent("/health/doctor")}`);
+          }}
+          className="mt-4 w-full rounded-[24px] border border-vyva-border bg-white px-5 py-4 text-left shadow-sm"
+        >
+          <p className="font-body text-[13px] font-extrabold uppercase tracking-[0.12em] text-vyva-purple">
+            {t("health.doctorChoice.contextTipTitle", "Optional profile tip")}
+          </p>
+          <p className="mt-1 font-body text-[15px] font-semibold text-vyva-text-1">
+            {doctorRecommendations[0].reason}
+          </p>
+        </button>
       ) : null}
 
       <div className="mt-5 flex flex-col gap-4">

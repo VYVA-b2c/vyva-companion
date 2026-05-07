@@ -1,6 +1,6 @@
 // src/pages/onboarding/sections/AddressSection.tsx
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ function normaliseCountry(raw: string): string {
 
 export default function AddressSection() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [form, setForm] = useState<AddressForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -70,6 +71,22 @@ export default function AddressSection() {
 
   const formRef = useRef(form);
   useEffect(() => { formRef.current = form; }, [form]);
+
+  const buildAddressPayload = (current: AddressForm) => ({
+    address_line_1: current.address_line_1,
+    address_line_2: current.address_line_2,
+    city: current.city,
+    region: current.region,
+    postcode: current.postcode,
+    country_code: current.country,
+  });
+
+  const completePath = () => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo
+      ? `/onboarding/complete/address?returnTo=${encodeURIComponent(returnTo)}`
+      : "/onboarding/complete/address";
+  };
 
   const { data, isLoading } = useQuery<{ profile: AddressForm | null }>({
     queryKey: ["/api/onboarding/state"],
@@ -84,7 +101,7 @@ export default function AddressSection() {
         city:           p.city           ?? prev.city,
         region:         p.region         ?? prev.region,
         postcode:       p.postcode       ?? prev.postcode,
-        country:        (p as AddressForm & { country?: string }).country ?? prev.country,
+        country:        (p as AddressForm & { country?: string; country_code?: string }).country_code ?? (p as AddressForm & { country?: string }).country ?? prev.country,
       }));
     }
   }, [data]);
@@ -93,12 +110,13 @@ export default function AddressSection() {
     async () => {
       const res = await apiFetch("/api/onboarding/section/address", {
         method: "POST",
-        body: JSON.stringify(formRef.current),
+        body: JSON.stringify(buildAddressPayload(formRef.current)),
       });
       if (!res.ok) {
         const msg = await friendlyError(new Error(), res);
         throw new Error(msg);
       }
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
     },
     2000,
   );
@@ -201,11 +219,12 @@ export default function AddressSection() {
     try {
       res = await apiFetch("/api/onboarding/section/address", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify(buildAddressPayload(form)),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await queryClient.invalidateQueries({ queryKey: ["/api/onboarding/state"] });
-      navigate("/onboarding/complete/address");
+      await queryClient.invalidateQueries({ queryKey: ["/api/profile/readiness"] });
+      navigate(completePath());
     } catch (err) {
       const msg = await friendlyError(err, res && !res.ok ? res : undefined);
       toast({ title: "Could not save home address", description: msg, variant: "destructive" });

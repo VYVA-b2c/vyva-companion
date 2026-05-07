@@ -35,6 +35,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useServiceGate } from "@/hooks/useServiceGate";
 
 type WoundScan = {
   id: string;
@@ -344,6 +345,7 @@ const HealthScreen = () => {
   const { t, i18n } = useTranslation();
   const { firstName, profile } = useProfile();
   const navigate = useNavigate();
+  const { guardPath, canUseService } = useServiceGate();
   const location = useLocation();
   const { toast } = useToast();
 
@@ -658,7 +660,7 @@ const HealthScreen = () => {
 
   const QUICK_TILES = [
     { id: "sintomas",   Icon: HeartPulse,    iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Síntomas",    hint: "Revisar cómo me siento", action: () => navigate("/health/symptom-check") },
-    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => navigate("/meds") },
+    { id: "medicacion", Icon: Pill,          iconBg: "#FDF4FF", iconColor: "#86198F", label: "Medicación",  hint: "Mis pastillas",     action: () => guardPath("/meds") },
     { id: "signos",     Icon: Activity,      iconBg: "#FFF1F2", iconColor: "#BE123C", label: "Estado",      hint: "Signos vitales",    action: () => navigate("/health/vitals") },
     { id: "historial",  Icon: ClipboardList, iconBg: "#EFF6FF", iconColor: "#1D4ED8", label: "Informes",    hint: "Ver resumen",      action: () => navigate("/informes") },
   ];
@@ -673,7 +675,7 @@ const HealthScreen = () => {
           headline={<>{headlineText}</>}
           contextHint="health symptoms"
           talkLabel={t("health.talkToDoctor", "Talk to a Doctor")}
-          onTalkClick={() => navigate("/health/doctor", { state: { autoStartVoice: true } })}
+          onTalkClick={() => guardPath("/health/doctor", { state: { autoStartVoice: true } })}
         />
 
         <button
@@ -984,7 +986,17 @@ const HealthScreen = () => {
                 </div>
                 <button
                   data-testid="button-find-specialist"
-                  onClick={() => { setSpecialistOpen((v) => !v); setSpecialistResult(null); }}
+                  onClick={() => {
+                    if (specialistOpen) {
+                      setSpecialistOpen(false);
+                      setSpecialistResult(null);
+                      return;
+                    }
+                    if (canUseService("localServices", "/health")) {
+                      setSpecialistOpen(true);
+                      setSpecialistResult(null);
+                    }
+                  }}
                   className="vyva-tap flex-shrink-0 rounded-full px-[16px] py-[8px] font-body text-[14px] font-semibold transition-all inline-flex items-center gap-2"
                   style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
                 >

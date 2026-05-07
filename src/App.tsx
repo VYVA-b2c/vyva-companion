@@ -13,6 +13,7 @@ import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AccessLinkPage from "@/pages/AccessLinkPage";
 import AppShell from "./components/AppShell";
+import ServiceGateRoute from "./components/ServiceGateRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OnboardingGuard from "./components/OnboardingGuard";
 import HomeScreen from "./pages/HomeScreen";
@@ -188,7 +189,7 @@ const App = () => (
                   <Route path="/" element={<AppShell><HomeScreen /></AppShell>} />
                   <Route path="/chat" element={<AppShell><ChatScreen /></AppShell>} />
                   <Route path="/health" element={<AppShell><HealthScreen /></AppShell>} />
-                  <Route path="/health/doctor" element={<AppShell><DoctorChoiceScreen /></AppShell>} />
+                  <Route path="/health/doctor" element={<AppShell><ServiceGateRoute service="doctor"><DoctorChoiceScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/health/check-in" element={<AppShell><CheckHowIFeelScreen /></AppShell>} />
                   <Route path="/health/check-ins" element={<AppShell><CheckinHistoryScreen /></AppShell>} />
                   <Route path="/health/symptom-check" element={<AppShell><SymptomCheckScreen /></AppShell>} />
@@ -200,8 +201,8 @@ const App = () => (
                   <Route path="/caregiver-dashboard" element={<CaregiverDashboardPage />} />
                   <Route path="/social-rooms" element={<AppShell><SocialHub /></AppShell>} />
                   <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />
-                  <Route path="/meds" element={<AppShell><MedsScreen /></AppShell>} />
-                  <Route path="/meds/adherence-report" element={<AppShell><AdherenceReportScreen /></AppShell>} />
+                  <Route path="/meds" element={<AppShell><ServiceGateRoute service="medications"><MedsScreen /></ServiceGateRoute></AppShell>} />
+                  <Route path="/meds/adherence-report" element={<AppShell><ServiceGateRoute service="adherenceReport"><AdherenceReportScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/activities" element={<AppShell><ActivitiesScreen /></AppShell>} />
                   <Route path="/activity" element={<AppShell><ActivityScreen /></AppShell>} />
                   <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
