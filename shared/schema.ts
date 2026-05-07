@@ -213,7 +213,7 @@ export const profiles = pgTable("profiles", {
   stripe_customer_id:     text("stripe_customer_id"),
   stripe_subscription_id: text("stripe_subscription_id"),
   subscription_status:    text("subscription_status").notNull().default("trial"),
-  subscription_tier:      text("subscription_tier").notNull().default("free"),
+  subscription_tier:      text("subscription_tier").notNull().default("trial"),
   trial_ends_at:          timestamp("trial_ends_at", { withTimezone: true }),
   account_status:         text("account_status").notNull().default("enabled"),
   role:                   text("role").notNull().default("user"),

@@ -105,10 +105,40 @@ type HomePlanCardAdmin = {
   updated_at?: string;
 };
 
+type PlanEntitlement = {
+  tier: string;
+  display_name: string;
+  description?: string | null;
+  voice_assistant: boolean;
+  medication_tracking: boolean;
+  symptom_check: boolean;
+  concierge: boolean;
+  caregiver_dashboard: boolean;
+  custom_features?: Record<string, unknown>;
+  is_active: boolean;
+};
+
+type SubscriptionPlanAdmin = {
+  plan_id: string;
+  name: string;
+  description?: string | null;
+  price_eur: number;
+  price_gbp: number;
+  billing_interval?: string | null;
+  trial_days?: number | null;
+  stripe_price_id_eur?: string | null;
+  stripe_price_id_gbp?: string | null;
+  features?: string[] | null;
+  is_active: boolean;
+  is_public: boolean;
+  sort_order?: number | null;
+  entitlement?: PlanEntitlement | null;
+};
+
 const entryPoints = ["", "form", "phone", "whatsapp", "admin"];
 const userTypes = ["", "elder", "family", "admin"];
 const statuses = ["", "created", "link_sent", "consent_pending", "active", "dropped"];
-const tiers = ["trial", "unlimited", "custom"];
+const tiers = ["trial", "essential", "unlimited", "custom"];
 const languageOptions = [
   { value: "es", label: "Spanish" },
   { value: "en", label: "English" },
@@ -219,6 +249,7 @@ export default function LifecycleAdminPage() {
   const [summary, setSummary] = useState<JsonRecord | null>(null);
   const [users, setUsers] = useState<Intake[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlanAdmin[]>([]);
   const [orgFilter, setOrgFilter] = useState<"active" | "archived" | "all">("active");
   const [consentAttempts, setConsentAttempts] = useState<ConsentAttempt[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
@@ -243,18 +274,20 @@ export default function LifecycleAdminPage() {
   async function refresh() {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
-    const [summaryData, userData, orgData, consentData, commsData] = await Promise.all([
+    const [summaryData, userData, orgData, consentData, commsData, planData] = await Promise.all([
       api("/summary"),
       api(`/users?${params.toString()}`),
       api("/organizations"),
       api("/consent"),
       api("/communications"),
+      api("/plans"),
     ]);
     setSummary(summaryData);
     setUsers(userData.users ?? []);
     setOrganizations(orgData.organizations ?? []);
     setConsentAttempts(consentData.attempts ?? []);
     setCommunications(commsData.communications ?? []);
+    setPlans(planData.plans ?? []);
   }
 
   useEffect(() => {
@@ -350,21 +383,40 @@ export default function LifecycleAdminPage() {
     await refresh();
   }
 
-  async function saveTier(tier: string) {
-    await api("/tiers", {
+  async function savePlan(plan: SubscriptionPlanAdmin) {
+    const entitlement = plan.entitlement ?? {
+      tier: plan.plan_id,
+      display_name: plan.name,
+      description: plan.description ?? "",
+      voice_assistant: false,
+      medication_tracking: false,
+      symptom_check: false,
+      concierge: false,
+      caregiver_dashboard: false,
+      is_active: plan.is_active,
+      custom_features: {},
+    };
+
+    await api("/plans", {
       method: "POST",
       body: JSON.stringify({
-        tier,
-        display_name: tier[0].toUpperCase() + tier.slice(1),
-        description: `${tier} entitlement bundle`,
-        voice_assistant: tier !== "custom",
-        medication_tracking: tier !== "custom",
-        symptom_check: tier !== "custom",
-        concierge: tier !== "custom",
-        caregiver_dashboard: tier === "unlimited",
+        ...plan,
+        features: plan.features ?? [],
+        entitlement: {
+          display_name: entitlement.display_name ?? plan.name,
+          description: entitlement.description ?? plan.description ?? "",
+          voice_assistant: Boolean(entitlement.voice_assistant),
+          medication_tracking: Boolean(entitlement.medication_tracking),
+          symptom_check: Boolean(entitlement.symptom_check),
+          concierge: Boolean(entitlement.concierge),
+          caregiver_dashboard: Boolean(entitlement.caregiver_dashboard),
+          custom_features: entitlement.custom_features ?? {},
+          is_active: plan.is_active,
+        },
       }),
     });
-    setMessage(`Tier ${tier} saved.`);
+    setMessage(`${plan.name} saved.`);
+    await refresh();
   }
 
   async function openUserDetail(intake: Intake) {
@@ -479,6 +531,9 @@ export default function LifecycleAdminPage() {
   const visibleOrganizations = organizations.filter((org) => (
     orgFilter === "all" ? true : orgFilter === "active" ? org.is_active : !org.is_active
   ));
+  const planOptions = plans.length
+    ? plans.map((plan) => ({ value: plan.plan_id, label: plan.name }))
+    : tiers.map((tier) => ({ value: tier, label: tier[0].toUpperCase() + tier.slice(1) }));
   const creatingFamilyIntake = newIntake.user_type === "family";
   const canCreateIntake = Boolean(
     newIntake.first_name.trim()
@@ -536,7 +591,7 @@ export default function LifecycleAdminPage() {
                 ["entry_point", entryPoints],
                 ["user_type", userTypes],
                 ["status", statuses],
-                ["tier", ["", ...tiers]],
+                ["tier", ["", ...planOptions.map((plan) => plan.value)]],
               ].map(([key, values]) => (
                 <select key={key as keyof typeof filters} className="rounded-2xl border border-[#e4d8ce] px-4 py-3" value={filters[key as keyof typeof filters]} onChange={(e) => setFilters((prev) => ({ ...prev, [key as keyof typeof filters]: e.target.value }))}>
                   {(values as string[]).map((value) => <option key={value} value={value}>{value || String(key).replace("_", " ")}</option>)}
@@ -596,7 +651,7 @@ export default function LifecycleAdminPage() {
                   </div>
                 )}
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.entry_point} onChange={(e) => setNewIntake({ ...newIntake, entry_point: e.target.value })}>{entryPoints.filter(Boolean).map((v) => <option key={v}>{v}</option>)}</select>
-                <select className="rounded-2xl border px-4 py-3" value={newIntake.tier} onChange={(e) => setNewIntake({ ...newIntake, tier: e.target.value })}>{tiers.map((v) => <option key={v}>{v}</option>)}</select>
+                <select className="rounded-2xl border px-4 py-3" value={newIntake.tier} onChange={(e) => setNewIntake({ ...newIntake, tier: e.target.value })}>{planOptions.map((plan) => <option key={plan.value} value={plan.value}>{plan.label}</option>)}</select>
                 <select className="rounded-2xl border px-4 py-3" value={newIntake.organization_id} onChange={(e) => setNewIntake({ ...newIntake, organization_id: e.target.value })}>
                   <option value="">No organization</option>
                   {organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
@@ -631,7 +686,7 @@ export default function LifecycleAdminPage() {
             <div className="rounded-[2rem] border border-[#eadfd5] bg-white p-5">
               <h2 className="font-serif text-3xl">New organization</h2>
               <input className="mt-4 w-full rounded-2xl border px-4 py-3" placeholder="Organization name" value={newOrg.name} onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })} />
-              <select className="mt-3 w-full rounded-2xl border px-4 py-3" value={newOrg.default_tier} onChange={(e) => setNewOrg({ ...newOrg, default_tier: e.target.value })}>{tiers.map((v) => <option key={v}>{v}</option>)}</select>
+              <select className="mt-3 w-full rounded-2xl border px-4 py-3" value={newOrg.default_tier} onChange={(e) => setNewOrg({ ...newOrg, default_tier: e.target.value })}>{planOptions.map((plan) => <option key={plan.value} value={plan.value}>{plan.label}</option>)}</select>
               <button className="mt-3 rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={createOrg}>Create organization</button>
               <p className="mt-4 text-sm text-[#7d6b65]">Bulk upload requires CSV. Columns: first_name, last_name, phone. Optional: preferred_name, date_of_birth, gender, whatsapp, email, language, timezone, user_type, tier.</p>
             </div>
@@ -686,7 +741,7 @@ export default function LifecycleAdminPage() {
           </section>
         )}
 
-        {activeTab === "tiers" && <TierSection onSave={saveTier} />}
+        {activeTab === "tiers" && <TierSection plans={plans} setPlans={setPlans} onSave={savePlan} />}
         {activeTab === "communications" && <CommunicationsSection communications={communications} />}
         {activeTab === "analytics" && <AnalyticsSection summary={summary} />}
       </section>
@@ -697,6 +752,7 @@ export default function LifecycleAdminPage() {
           draft={selectedDraft}
           setDraft={setSelectedDraft}
           organizations={organizations}
+          planOptions={planOptions}
           onClose={() => setSelectedUser(null)}
           onSave={saveUserDetail}
           onToggle={() => toggleUser(selectedUser.intake)}
@@ -770,11 +826,12 @@ function IntakeTable({ users, onView, onSendLink, onTriggerConsent, onToggleEnab
   );
 }
 
-function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus, onEventTime }: {
+function UserDetailModal({ detail, draft, setDraft, organizations, planOptions, onClose, onSave, onToggle, newEvent, setNewEvent, onCreateEvent, onEventStatus, onEventTime }: {
   detail: UserDetail;
   draft: JsonRecord;
   setDraft: (next: JsonRecord) => void;
   organizations: Organization[];
+  planOptions: Array<{ value: string; label: string }>;
   onClose: () => void;
   onSave: () => void;
   onToggle: () => void;
@@ -808,7 +865,7 @@ function UserDetailModal({ detail, draft, setDraft, organizations, onClose, onSa
                 <Field label="Caregiver contact"><input className="w-full rounded-2xl border px-4 py-3" value={draft.caregiver_contact ?? ""} onChange={(e) => setDraft({ ...draft, caregiver_contact: e.target.value })} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Tier"><select className="w-full rounded-2xl border px-4 py-3" value={draft.tier ?? "trial"} onChange={(e) => setDraft({ ...draft, tier: e.target.value })}>{tiers.map((tier) => <option key={tier}>{tier}</option>)}</select></Field>
+                <Field label="Tier"><select className="w-full rounded-2xl border px-4 py-3" value={draft.tier ?? "trial"} onChange={(e) => setDraft({ ...draft, tier: e.target.value })}>{planOptions.map((plan) => <option key={plan.value} value={plan.value}>{plan.label}</option>)}</select></Field>
                 <Field label="Language"><select className="w-full rounded-2xl border px-4 py-3" value={draft.language ?? "es"} onChange={(e) => setDraft({ ...draft, language: e.target.value })}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
                 <Field label="Organization"><select className="w-full rounded-2xl border px-4 py-3" value={draft.organization_id ?? ""} onChange={(e) => setDraft({ ...draft, organization_id: e.target.value })}><option value="">None</option>{organizations.filter((org) => org.is_active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></Field>
               </div>
@@ -971,11 +1028,138 @@ function HomeCardsSection({ cards, onChange, onSave }: {
   );
 }
 
-function TierSection({ onSave }: { onSave: (tier: string) => void }) {
+function TierSection({
+  plans,
+  setPlans,
+  onSave,
+}: {
+  plans: SubscriptionPlanAdmin[];
+  setPlans: (plans: SubscriptionPlanAdmin[]) => void;
+  onSave: (plan: SubscriptionPlanAdmin) => void;
+}) {
+  const rows = plans.length
+    ? plans
+    : tiers.map((tier, index) => ({
+      plan_id: tier,
+      name: tier[0].toUpperCase() + tier.slice(1),
+      description: `${tier} plan`,
+      price_eur: tier === "trial" || tier === "custom" ? 0 : tier === "essential" ? 1900 : 2900,
+      price_gbp: tier === "trial" || tier === "custom" ? 0 : tier === "essential" ? 1600 : 2499,
+      billing_interval: "month",
+      trial_days: tier === "trial" ? 14 : 0,
+      stripe_price_id_eur: "",
+      stripe_price_id_gbp: "",
+      features: [],
+      is_active: true,
+      is_public: tier !== "custom",
+      sort_order: index * 10,
+      entitlement: {
+        tier,
+        display_name: tier[0].toUpperCase() + tier.slice(1),
+        description: `${tier} entitlement bundle`,
+        voice_assistant: tier !== "custom",
+        medication_tracking: tier !== "custom",
+        symptom_check: tier !== "custom",
+        concierge: tier === "unlimited",
+        caregiver_dashboard: tier === "unlimited",
+        custom_features: {},
+        is_active: true,
+      },
+    }));
+
+  function updatePlan(planId: string, patch: Partial<SubscriptionPlanAdmin>) {
+    setPlans(rows.map((plan) => plan.plan_id === planId ? { ...plan, ...patch } : plan));
+  }
+
+  function updateEntitlement(planId: string, patch: Partial<PlanEntitlement>) {
+    setPlans(rows.map((plan) => plan.plan_id === planId
+      ? {
+        ...plan,
+        entitlement: {
+          tier: plan.plan_id,
+          display_name: plan.name,
+          description: plan.description ?? "",
+          voice_assistant: false,
+          medication_tracking: false,
+          symptom_check: false,
+          concierge: false,
+          caregiver_dashboard: false,
+          is_active: plan.is_active,
+          custom_features: {},
+          ...(plan.entitlement ?? {}),
+          ...patch,
+        },
+      }
+      : plan));
+  }
+
   return (
     <section className="mt-5 rounded-[2rem] border border-[#eadfd5] bg-white p-5">
-      <h2 className="font-serif text-3xl">Tier bundles</h2>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">{tiers.map((tier) => <div key={tier} className="rounded-3xl border p-4"><p className="text-xl font-black capitalize">{tier}</p><p className="mt-2 text-sm text-[#7d6b65]">Controls voice, health, concierge and caregiver entitlements.</p><button className="mt-4 rounded-full bg-purple-50 px-4 py-2 font-bold text-purple-700" onClick={() => onSave(tier)}>Save default bundle</button></div>)}</div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-3xl">Plans & tiers</h2>
+          <p className="mt-2 max-w-3xl text-sm text-[#7d6b65]">Plans control what users can choose and buy. Entitlements control which app capabilities each plan unlocks.</p>
+        </div>
+        <span className="rounded-full bg-[#f8f0ff] px-4 py-2 text-sm font-bold text-purple-700">{rows.filter((plan) => plan.is_public).length} public plans</span>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        {rows.map((plan) => {
+          const entitlement = plan.entitlement;
+          const featuresText = (plan.features ?? []).join("\n");
+          return (
+            <article key={plan.plan_id} className="rounded-3xl border border-[#eadfd5] bg-[#fbf8f5] p-4">
+              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <div className="grid gap-3 md:grid-cols-[160px_1fr]">
+                    <Field label="Plan ID"><input className="w-full rounded-2xl border px-4 py-3 bg-white" value={plan.plan_id} disabled /></Field>
+                    <Field label="Display name"><input className="w-full rounded-2xl border px-4 py-3 bg-white" value={plan.name} onChange={(e) => updatePlan(plan.plan_id, { name: e.target.value })} /></Field>
+                  </div>
+                  <Field label="Description" optional><textarea className="min-h-20 w-full rounded-2xl border px-4 py-3 bg-white" value={plan.description ?? ""} onChange={(e) => updatePlan(plan.plan_id, { description: e.target.value })} /></Field>
+                  <div className="mt-3 grid gap-3 md:grid-cols-4">
+                    <Field label="EUR cents"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.price_eur} onChange={(e) => updatePlan(plan.plan_id, { price_eur: Number(e.target.value) })} /></Field>
+                    <Field label="GBP cents"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.price_gbp} onChange={(e) => updatePlan(plan.plan_id, { price_gbp: Number(e.target.value) })} /></Field>
+                    <Field label="Trial days"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" min={0} value={plan.trial_days ?? 0} onChange={(e) => updatePlan(plan.plan_id, { trial_days: Number(e.target.value) })} /></Field>
+                    <Field label="Order"><input className="w-full rounded-2xl border px-4 py-3 bg-white" type="number" value={plan.sort_order ?? 0} onChange={(e) => updatePlan(plan.plan_id, { sort_order: Number(e.target.value) })} /></Field>
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <Field label="Stripe EUR price ID" optional><input className="w-full rounded-2xl border px-4 py-3 bg-white" value={plan.stripe_price_id_eur ?? ""} onChange={(e) => updatePlan(plan.plan_id, { stripe_price_id_eur: e.target.value })} /></Field>
+                    <Field label="Stripe GBP price ID" optional><input className="w-full rounded-2xl border px-4 py-3 bg-white" value={plan.stripe_price_id_gbp ?? ""} onChange={(e) => updatePlan(plan.plan_id, { stripe_price_id_gbp: e.target.value })} /></Field>
+                  </div>
+                  <Field label="Feature bullets" optional><textarea className="min-h-24 w-full rounded-2xl border px-4 py-3 bg-white" value={featuresText} onChange={(e) => updatePlan(plan.plan_id, { features: e.target.value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean) })} /></Field>
+                </div>
+
+                <div className="rounded-3xl border border-[#eadfd5] bg-white p-4">
+                  <p className="font-black">Entitlements</p>
+                  <div className="mt-3 grid gap-2">
+                    {[
+                      ["voice_assistant", "Voice assistant"],
+                      ["medication_tracking", "Medication tracking"],
+                      ["symptom_check", "Symptom check"],
+                      ["concierge", "Concierge"],
+                      ["caregiver_dashboard", "Caregiver dashboard"],
+                    ].map(([key, label]) => (
+                      <label key={key} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfd5] px-4 py-3 text-sm font-bold">
+                        {label}
+                        <input
+                          type="checkbox"
+                          checked={Boolean(entitlement?.[key as keyof PlanEntitlement])}
+                          onChange={(e) => updateEntitlement(plan.plan_id, { [key]: e.target.checked } as Partial<PlanEntitlement>)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-2 md:grid-cols-2">
+                    <label className="flex items-center gap-2 rounded-2xl border border-[#eadfd5] px-4 py-3 text-sm font-bold"><input type="checkbox" checked={plan.is_public} onChange={(e) => updatePlan(plan.plan_id, { is_public: e.target.checked })} /> Public</label>
+                    <label className="flex items-center gap-2 rounded-2xl border border-[#eadfd5] px-4 py-3 text-sm font-bold"><input type="checkbox" checked={plan.is_active} onChange={(e) => updatePlan(plan.plan_id, { is_active: e.target.checked })} /> Active</label>
+                  </div>
+                  <button className="mt-4 w-full rounded-2xl bg-purple-700 px-5 py-3 font-bold text-white" onClick={() => onSave(plan)}>Save plan</button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

@@ -19,6 +19,7 @@ import {
   userIntakes,
   userMedications,
 } from "../../shared/schema.js";
+import { listPlans, upsertPlanWithEntitlement } from "../lib/plans.js";
 
 export const adminLifecycleRouter = Router();
 
@@ -122,6 +123,33 @@ const tierSchema = z.object({
   concierge: z.boolean().default(false),
   caregiver_dashboard: z.boolean().default(false),
   custom_features: z.record(z.unknown()).optional(),
+});
+
+const planAdminSchema = z.object({
+  plan_id: z.string().trim().min(1).regex(/^[a-z0-9_-]+$/, "Plan ID must use lowercase letters, numbers, dashes or underscores"),
+  name: z.string().trim().min(1),
+  description: z.string().optional().nullable(),
+  price_eur: z.coerce.number().int().min(0).default(0),
+  price_gbp: z.coerce.number().int().min(0).default(0),
+  billing_interval: z.string().trim().min(1).default("month"),
+  trial_days: z.coerce.number().int().min(0).max(365).default(0),
+  stripe_price_id_eur: z.string().optional().nullable(),
+  stripe_price_id_gbp: z.string().optional().nullable(),
+  features: z.array(z.string()).optional().default([]),
+  is_active: z.boolean().optional().default(true),
+  is_public: z.boolean().optional().default(true),
+  sort_order: z.coerce.number().int().optional().default(0),
+  entitlement: z.object({
+    display_name: z.string().optional(),
+    description: z.string().optional().nullable(),
+    voice_assistant: z.boolean().default(false),
+    medication_tracking: z.boolean().default(false),
+    symptom_check: z.boolean().default(false),
+    concierge: z.boolean().default(false),
+    caregiver_dashboard: z.boolean().default(false),
+    custom_features: z.record(z.unknown()).optional(),
+    is_active: z.boolean().optional().default(true),
+  }).optional(),
 });
 
 const profileUpdateSchema = z.object({
@@ -1348,16 +1376,8 @@ adminLifecycleRouter.post("/organizations/:id/bulk-intakes/import", async (req: 
 
 adminLifecycleRouter.get("/tiers", async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
-  const existing = await db.select().from(tierEntitlements).orderBy(tierEntitlements.tier);
-  if (existing.length) return res.json({ tiers: existing });
-
-  return res.json({
-    tiers: [
-      { tier: "trial", display_name: "Trial", voice_assistant: true, medication_tracking: true, symptom_check: true, concierge: true, caregiver_dashboard: false },
-      { tier: "unlimited", display_name: "Unlimited", voice_assistant: true, medication_tracking: true, symptom_check: true, concierge: true, caregiver_dashboard: true },
-      { tier: "custom", display_name: "Custom", voice_assistant: false, medication_tracking: false, symptom_check: false, concierge: false, caregiver_dashboard: false },
-    ],
-  });
+  const plans = await listPlans();
+  return res.json({ tiers: plans.map((plan) => plan.entitlement).filter(Boolean) });
 });
 
 adminLifecycleRouter.post("/tiers", async (req: Request, res: Response) => {
@@ -1384,6 +1404,20 @@ adminLifecycleRouter.post("/tiers", async (req: Request, res: Response) => {
     },
   }).returning();
   return res.json({ tier });
+});
+
+adminLifecycleRouter.get("/plans", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const plans = await listPlans();
+  return res.json({ plans });
+});
+
+adminLifecycleRouter.post("/plans", async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const parsed = planAdminSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid plan" });
+  const plan = await upsertPlanWithEntitlement(parsed.data);
+  return res.json({ plan });
 });
 
 adminLifecycleRouter.get("/communications", async (req: Request, res: Response) => {
