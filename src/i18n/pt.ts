@@ -134,6 +134,8 @@ const pt = {
     },
   },
   cognitiveDomains: {
+    attention: "Atencao",
+    language: "Linguagem",
     visual_memory: "Memoria visual",
     working_memory: "Memoria de trabalho",
     episodic_memory: "Memoria episodica",
@@ -142,6 +144,8 @@ const pt = {
     comprehension_memory: "Compreensao e recordacao",
   },
   recommendationReasons: {
+    attention: "Hoje treinamos a atencao com um exercicio suave.",
+    language: "Hoje treinamos a linguagem com um exercicio suave.",
     visual_memory: "Hoje treinamos a memoria visual com um exercicio suave.",
     working_memory: "Hoje treinamos a memoria de trabalho com um exercicio suave.",
     episodic_memory: "Hoje treinamos a memoria episodica com um exercicio suave.",

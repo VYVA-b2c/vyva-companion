@@ -135,6 +135,8 @@ const de = {
     },
   },
   cognitiveDomains: {
+    attention: "Aufmerksamkeit",
+    language: "Sprache",
     visual_memory: "Visuelles Gedachtnis",
     working_memory: "Arbeitsgedachtnis",
     episodic_memory: "Episodisches Gedachtnis",
@@ -143,6 +145,8 @@ const de = {
     comprehension_memory: "Verstehen und Erinnern",
   },
   recommendationReasons: {
+    attention: "Heute trainieren wir die Aufmerksamkeit mit einer einfachen Ubung.",
+    language: "Heute trainieren wir Sprache mit einer einfachen Ubung.",
     visual_memory: "Heute trainieren wir das visuelle Gedachtnis mit einer einfachen Ubung.",
     working_memory: "Heute trainieren wir das Arbeitsgedachtnis mit einer einfachen Ubung.",
     episodic_memory: "Heute trainieren wir das episodische Gedachtnis mit einer einfachen Ubung.",

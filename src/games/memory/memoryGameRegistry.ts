@@ -1142,12 +1142,12 @@ export const MEMORY_GAME_ORDER: MemoryGameType[] = [
 
 export const memoryGameRegistry: Record<MemoryGameType, MemoryGameDefinition> = {
   memory_match: createDefinition("memory_match", "memoryGames.memoryMatch.title", "memoryGames.memoryMatch.description", "visual_memory", "#6B21A8", "#F5F3FF", memoryMatchLevels),
-  sequence_memory: createDefinition("sequence_memory", "memoryGames.sequenceMemory.title", "memoryGames.sequenceMemory.description", "working_memory", "#0F766E", "#ECFEFF", sequenceLevels),
+  sequence_memory: createDefinition("sequence_memory", "memoryGames.sequenceMemory.title", "memoryGames.sequenceMemory.description", "attention", "#0F766E", "#ECFEFF", sequenceLevels),
   word_recall: createDefinition("word_recall", "memoryGames.wordRecall.title", "memoryGames.wordRecall.description", "episodic_memory", "#B45309", "#FFF7ED", wordRecallPlayableLevels),
   number_memory: createDefinition("number_memory", "memoryGames.numberMemory.title", "memoryGames.numberMemory.description", "working_memory", "#2563EB", "#EFF6FF", numberMemoryLevels),
   routine_memory: createDefinition("routine_memory", "memoryGames.routineMemory.title", "memoryGames.routineMemory.description", "prospective_memory", "#0A7C4E", "#ECFDF5", routineLevels),
   association_memory: createDefinition("association_memory", "memoryGames.associationMemory.title", "memoryGames.associationMemory.description", "associative_memory", "#BE185D", "#FFF1F2", associationLevels),
-  story_recall: createDefinition("story_recall", "memoryGames.storyRecall.title", "memoryGames.storyRecall.description", "comprehension_memory", "#92400E", "#FEF3C7", storyLevels),
+  story_recall: createDefinition("story_recall", "memoryGames.storyRecall.title", "memoryGames.storyRecall.description", "language", "#92400E", "#FEF3C7", storyLevels),
 };
 
 export function getGameDefinition(gameType: MemoryGameType) {

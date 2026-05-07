@@ -134,6 +134,8 @@ const fr = {
     },
   },
   cognitiveDomains: {
+    attention: "Attention",
+    language: "Langage",
     visual_memory: "Memoire visuelle",
     working_memory: "Memoire de travail",
     episodic_memory: "Memoire episodique",
@@ -142,6 +144,8 @@ const fr = {
     comprehension_memory: "Comprehension et rappel",
   },
   recommendationReasons: {
+    attention: "Aujourd'hui, nous entrainons l'attention avec un exercice doux.",
+    language: "Aujourd'hui, nous entrainons le langage avec un exercice doux.",
     visual_memory: "Aujourd'hui, nous entrainons la memoire visuelle avec un exercice doux.",
     working_memory: "Aujourd'hui, nous entrainons la memoire de travail avec un exercice doux.",
     episodic_memory: "Aujourd'hui, nous entrainons la memoire episodique avec un exercice doux.",
