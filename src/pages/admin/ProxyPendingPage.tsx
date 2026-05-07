@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { apiFetch, queryClient } from "@/lib/queryClient";
-import { CheckCircle2, Flag, UserCheck, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Flag, UserCheck, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -228,6 +229,15 @@ export default function ProxyPendingPage() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Link
+              to="/admin/lifecycle"
+              data-testid="link-proxy-back"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 shadow-sm transition hover:border-purple-200 hover:text-purple-700"
+              aria-label="Back to admin"
+            >
+              <ArrowLeft size={15} />
+              <span className="hidden sm:inline">Back to admin</span>
+            </Link>
             <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
               <ShieldAlert size={18} className="text-purple-700" />
             </div>
