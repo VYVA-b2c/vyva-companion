@@ -200,18 +200,18 @@ const App = () => (
                   <Route path="/settings/account" element={<AppShell><AccountSettings /></AppShell>} />
                   <Route path="/settings/notifications" element={<AppShell><NotificationsSettings /></AppShell>} />
                   <Route path="/" element={<AppShell><HomeScreen /></AppShell>} />
-                  <Route path="/chat" element={<AppShell><ChatScreen /></AppShell>} />
+                  <Route path="/chat" element={<AppShell><ServiceGateRoute service="chat"><ChatScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/health" element={<AppShell><HealthScreen /></AppShell>} />
                   <Route path="/health/doctor" element={<AppShell><ServiceGateRoute service="doctor"><DoctorChoiceScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/health/check-in" element={<AppShell><CheckHowIFeelScreen /></AppShell>} />
                   <Route path="/health/check-ins" element={<AppShell><CheckinHistoryScreen /></AppShell>} />
-                  <Route path="/health/symptom-check" element={<AppShell><SymptomCheckScreen /></AppShell>} />
+                  <Route path="/health/symptom-check" element={<AppShell><ServiceGateRoute service="symptomCheck"><SymptomCheckScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/health/vitals" element={<AppShell><SignosScreen /></AppShell>} />
                   <Route path="/informes" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/informes/:id" element={<AppShell><InformesScreen /></AppShell>} />
                   <Route path="/companions" element={<AppShell><CompanionsScreen /></AppShell>} />
-                  <Route path="/caregiver" element={<CaregiverDashboardPage />} />
-                  <Route path="/caregiver-dashboard" element={<CaregiverDashboardPage />} />
+                  <Route path="/caregiver" element={<ServiceGateRoute service="caregiverDashboard"><CaregiverDashboardPage /></ServiceGateRoute>} />
+                  <Route path="/caregiver-dashboard" element={<ServiceGateRoute service="caregiverDashboard"><CaregiverDashboardPage /></ServiceGateRoute>} />
                   <Route path="/social-rooms" element={<AppShell><SocialHub /></AppShell>} />
                   <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />
                   <Route path="/meds" element={<AppShell><ServiceGateRoute service="medications"><MedsScreen /></ServiceGateRoute></AppShell>} />
@@ -221,7 +221,7 @@ const App = () => (
                   <Route path="/spatial-navigator" element={<AppShell><SpatialNavigatorRoute /></AppShell>} />
                   <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
                   <Route path="/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
-                  <Route path="/concierge" element={<AppShell><ConciergeScreen /></AppShell>} />
+                  <Route path="/concierge" element={<AppShell><ServiceGateRoute service="concierge"><ConciergeScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/safe-home" element={<AppShell><SafeHomeScreen /></AppShell>} />
                   <Route path="/scam-guard" element={<AppShell><ScamGuardScreen /></AppShell>} />
                   <Route path="/history" element={<AppShell><HistoryScreen /></AppShell>} />

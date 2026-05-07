@@ -19,11 +19,15 @@ import {
   userIntakes,
   userMedications,
 } from "../../shared/schema.js";
-import { listPlans, upsertPlanWithEntitlement } from "../lib/plans.js";
+import { listPlans, normalizeSubscriptionTier, upsertPlanWithEntitlement } from "../lib/plans.js";
 
 export const adminLifecycleRouter = Router();
 
 const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL ?? "karim.assad@mokadigital.net").toLowerCase();
+
+function accessLinkTypeForTier(tier: string) {
+  return normalizeSubscriptionTier(tier) === "premium" ? "unlimited" : "trial";
+}
 
 function requireAdmin(req: Request, res: Response): boolean {
   if (!req.user || req.user.role !== "admin") {
@@ -58,7 +62,7 @@ const intakeSchema = z.object({
   user_type: userTypeSchema.default("elder"),
   entry_point: entryPointSchema.default("form"),
   organization_id: z.string().uuid().optional().nullable(),
-  tier: z.string().min(1).default("trial"),
+  tier: z.string().min(1).default("free"),
   source_payload: z.record(z.unknown()).optional(),
   metadata: z.record(z.unknown()).optional(),
   elder: z.object({
@@ -73,7 +77,7 @@ const linkSchema = z.object({
   user_id: z.string().optional().nullable(),
   organization_id: z.string().uuid().optional().nullable(),
   link_type: z.enum(["trial", "unlimited", "organization", "custom", "caregiver"]).default("trial"),
-  tier: z.string().min(1).default("trial"),
+  tier: z.string().min(1).default("free"),
   destination: z.string().min(1).default("/onboarding"),
   target_role: z.string().min(1).default("elder"),
   expires_in_days: z.coerce.number().int().min(1).max(365).default(14),
@@ -86,7 +90,7 @@ const orgSchema = z.object({
   contact_name: z.string().optional().nullable(),
   contact_email: z.string().email().optional().nullable().or(z.literal("")),
   contact_phone: z.string().optional().nullable(),
-  default_tier: z.string().min(1).default("trial"),
+  default_tier: z.string().min(1).default("free"),
 });
 
 const bulkRowSchema = z.object({
@@ -312,7 +316,7 @@ function normalizeBulkRow(row: z.infer<typeof bulkRowSchema>, defaultTier: strin
   const whatsapp = row.whatsapp.trim() ? normalizePhone(row.whatsapp) : phone;
   const language = row.language.trim() || "es";
   const timezone = row.timezone.trim() || "Europe/Madrid";
-  const tier = row.tier.trim() || defaultTier || "trial";
+  const tier = normalizeSubscriptionTier(row.tier.trim() || defaultTier || "free");
 
   return {
     first_name: firstName,
@@ -464,6 +468,7 @@ async function ensurePasswordlessUser(input: {
   const whatsappNumber = typeof input.profile?.whatsapp_number === "string" && input.profile.whatsapp_number.trim()
     ? input.profile.whatsapp_number.trim()
     : normalizePhone(input.phone);
+  const subscriptionTier = normalizeSubscriptionTier(input.tier);
 
   await database.insert(profiles).values({
     id: user.id,
@@ -476,7 +481,7 @@ async function ensurePasswordlessUser(input: {
     email: input.email || user.email || null,
     country_code: countryCode,
     timezone,
-    subscription_tier: input.tier,
+    subscription_tier: subscriptionTier,
     subscription_status: "active",
   } as typeof profiles.$inferInsert).onConflictDoUpdate({
     target: profiles.id,
@@ -490,7 +495,7 @@ async function ensurePasswordlessUser(input: {
       email: input.email || user.email || null,
       country_code: countryCode,
       timezone,
-      subscription_tier: input.tier,
+      subscription_tier: subscriptionTier,
       updated_at: new Date(),
     },
   });
@@ -779,7 +784,7 @@ adminLifecycleRouter.patch("/users/:id/profile", async (req: Request, res: Respo
   if (data.timezone !== undefined) profilePatch.timezone = data.timezone || "Europe/Madrid";
   if (data.caregiver_name !== undefined) profilePatch.caregiver_name = data.caregiver_name || null;
   if (data.caregiver_contact !== undefined) profilePatch.caregiver_contact = data.caregiver_contact || null;
-  if (data.subscription_tier !== undefined || data.tier !== undefined) profilePatch.subscription_tier = data.subscription_tier ?? data.tier;
+  if (data.subscription_tier !== undefined || data.tier !== undefined) profilePatch.subscription_tier = normalizeSubscriptionTier(data.subscription_tier ?? data.tier);
 
   const [profile] = await db
     .update(profiles)
@@ -791,7 +796,7 @@ adminLifecycleRouter.patch("/users/:id/profile", async (req: Request, res: Respo
   if (data.full_name !== undefined) intakePatch.name = data.full_name;
   if (data.phone_number !== undefined) intakePatch.phone = normalizePhone(data.phone_number ?? intake.phone);
   if (data.email !== undefined) intakePatch.email = data.email || null;
-  if (data.tier !== undefined || data.subscription_tier !== undefined) intakePatch.tier = data.tier ?? data.subscription_tier;
+  if (data.tier !== undefined || data.subscription_tier !== undefined) intakePatch.tier = normalizeSubscriptionTier(data.tier ?? data.subscription_tier);
   if (data.organization_id !== undefined) intakePatch.organization_id = data.organization_id ?? null;
 
   const [updatedIntake] = await db.update(userIntakes).set(intakePatch).where(eq(userIntakes.id, intake.id)).returning();
@@ -912,7 +917,7 @@ adminLifecycleRouter.post("/intakes", async (req: Request, res: Response) => {
     return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid intake" });
   }
 
-  const data = parsed.data;
+  const data = { ...parsed.data, tier: normalizeSubscriptionTier(parsed.data.tier) };
   const familyError = validateFamilyIntake(data);
   if (familyError) return res.status(400).json({ error: familyError });
 
@@ -1011,7 +1016,13 @@ adminLifecycleRouter.post("/access-links", async (req: Request, res: Response) =
   const parsed = linkSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid link" });
 
-  const data = parsed.data;
+  const data = {
+    ...parsed.data,
+    tier: normalizeSubscriptionTier(parsed.data.tier),
+    link_type: parsed.data.link_type === "trial" || parsed.data.link_type === "unlimited"
+      ? accessLinkTypeForTier(parsed.data.tier)
+      : parsed.data.link_type,
+  };
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + data.expires_in_days * 24 * 60 * 60 * 1000);
   const [link] = await db.insert(accessLinks).values({
@@ -1053,7 +1064,7 @@ adminLifecycleRouter.post("/intakes/:id/send-link", async (req: Request, res: Re
     user_id: targetUserId ?? intake.user_id,
     intake_id: intake.id,
     organization_id: intake.organization_id,
-    link_type: intake.tier === "unlimited" ? "unlimited" : "trial",
+    link_type: accessLinkTypeForTier(intake.tier),
     tier: intake.tier,
     destination,
     target_role: intake.user_type,
@@ -1181,7 +1192,7 @@ adminLifecycleRouter.post("/organizations", async (req: Request, res: Response) 
   if (!requireAdmin(req, res)) return;
   const parsed = orgSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid organization" });
-  const data = parsed.data;
+  const data = { ...parsed.data, default_tier: normalizeSubscriptionTier(parsed.data.default_tier) };
   const [org] = await db.insert(organizations).values({
     name: data.name,
     slug: data.slug ? slugify(data.slug) : slugify(data.name),
@@ -1336,7 +1347,7 @@ adminLifecycleRouter.post("/organizations/:id/bulk-intakes/import", async (req: 
           user_id: user.id,
           intake_id: intake.id,
           organization_id: preview.organization.id,
-          link_type: values.tier === "unlimited" ? "unlimited" : "trial",
+          link_type: accessLinkTypeForTier(values.tier),
           tier: values.tier,
           destination,
           target_role: values.user_type,

@@ -56,6 +56,10 @@ describe("Profile readiness", () => {
     expect(res.body.services.adherenceReport.ready).toBe(false);
     expect(res.body.services.sos.ready).toBe(false);
     expect(res.body.services.doctor.ready).toBe(false);
+    expect(res.body.services.chat.ready).toBe(true);
+    expect(res.body.services.concierge.ready).toBe(false);
+    expect(res.body.services.concierge.missing[0].section).toBe("subscription");
+    expect(res.body.services.symptomCheck.ready).toBe(false);
   });
 
   it("unlocks medication services when a usable medication exists", async () => {
@@ -77,6 +81,20 @@ describe("Profile readiness", () => {
     expect(res.body.profile.hasMedicationForServices).toBe(true);
     expect(res.body.services.medications.ready).toBe(true);
     expect(res.body.services.adherenceReport.ready).toBe(true);
+  });
+
+  it("unlocks premium entitlement-only services for premium profiles", async () => {
+    const userId = await createProfile({ subscription_tier: "premium" });
+
+    const res = await request(app)
+      .get("/api/profile/readiness")
+      .set("x-user-id", userId)
+      .expect(200);
+
+    expect(res.body.services.chat.ready).toBe(true);
+    expect(res.body.services.symptomCheck.ready).toBe(true);
+    expect(res.body.services.concierge.ready).toBe(true);
+    expect(res.body.services.caregiverDashboard.ready).toBe(true);
   });
 
   it("keeps local services blocked when address is too partial", async () => {

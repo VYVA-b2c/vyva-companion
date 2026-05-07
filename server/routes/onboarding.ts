@@ -586,6 +586,7 @@ onboardingRouter.post("/basics", async (req: Request, res: Response) => {
         ...(whatsapp_number        ? { whatsapp_number }        : {}),
         language,
         subscription_status: "trial",
+        subscription_tier:   "free",
         trial_ends_at:       trialEndsAt,
         current_stage:       "stage_2_preferences",
         stage_1_completed_at: new Date(),
@@ -607,6 +608,7 @@ onboardingRouter.post("/basics", async (req: Request, res: Response) => {
           ...(whatsapp_number      !== undefined && { whatsapp_number:       whatsapp_number      ?? null }),
           language,
           subscription_status:  "trial",
+          subscription_tier:    "free",
           trial_ends_at:        trialEndsAt,
           // Preserve stage if already past stage_1.
           current_stage:        nextStage,

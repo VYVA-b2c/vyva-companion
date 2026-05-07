@@ -47,6 +47,7 @@ import {
 } from "../../shared/schema.js";
 import { getDoctorMedicalProfileVariables } from "../lib/doctorMedicalProfile.js";
 import { signMedicalProfileToolToken } from "../lib/jwt.js";
+import { entitlementForTier, normalizeSubscriptionTier } from "../lib/plans.js";
 import { mergeIdentityGender, readProfileGender } from "../lib/userPersonalization.js";
 import { getActiveProfileContext } from "../lib/profileAccess.js";
 
@@ -164,12 +165,25 @@ function setupStep(section: string, reason: string): MissingSetupStep {
   };
 }
 
+function subscriptionStep(feature: string): MissingSetupStep {
+  return {
+    section: "subscription",
+    path: "/settings/subscription",
+    reason: `Your current plan does not include ${feature}.`,
+  };
+}
+
 function gate(ready: boolean, missing: MissingSetupStep[], recommended?: MissingSetupStep[]): ServiceGate {
   return {
     ready,
     missing: ready ? [] : missing,
     ...(recommended?.length ? { recommended } : {}),
   };
+}
+
+function entitlementGate(enabled: boolean, feature: string, nextGate: ServiceGate = gate(true, [])): ServiceGate {
+  if (!enabled) return gate(false, [subscriptionStep(feature)]);
+  return nextGate;
 }
 
 function hasUsableMedication(med: typeof userMedications.$inferSelect): boolean {
@@ -220,6 +234,7 @@ router.get("/readiness", async (req: Request, res: Response) => {
     const hasHealthContext = healthConditions.length > 0;
     const hasAllergies = Array.isArray(profile?.known_allergies) && profile.known_allergies.some(hasText);
     const hasGp = hasText(profile?.gp_name) || hasText(profile?.gp_phone);
+    const entitlements = await entitlementForTier(normalizeSubscriptionTier(profile?.subscription_tier));
 
     const medicationMissing = [
       setupStep("medications", "To make medication reminders and reports work, add at least one medication first."),
@@ -241,6 +256,12 @@ router.get("/readiness", async (req: Request, res: Response) => {
       ...(!hasAllergies ? [setupStep("allergies", "Add allergies so recommendations stay safer.")] : []),
       ...(!hasGp ? [setupStep("gp", "Add GP details in case follow-up is needed.")] : []),
     ];
+    const medicationGate = gate(hasMedicationForServices, medicationMissing);
+    const voiceEnabled = Boolean(entitlements?.is_active && entitlements.voice_assistant);
+    const medicationEnabled = Boolean(entitlements?.is_active && entitlements.medication_tracking);
+    const symptomCheckEnabled = Boolean(entitlements?.is_active && entitlements.symptom_check);
+    const conciergeEnabled = Boolean(entitlements?.is_active && entitlements.concierge);
+    const caregiverDashboardEnabled = Boolean(entitlements?.is_active && entitlements.caregiver_dashboard);
 
     return res.json({
       profile: {
@@ -257,20 +278,22 @@ router.get("/readiness", async (req: Request, res: Response) => {
         hasGp,
       },
       services: {
-        medications: gate(hasMedicationForServices, medicationMissing),
-        adherenceReport: gate(hasMedicationForServices, medicationMissing),
-        medicationReminders: gate(hasMedicationForServices, medicationMissing),
-        medicationInteractions: gate(hasMedicationForServices, medicationMissing),
+        medications: entitlementGate(medicationEnabled, "medication tracking", medicationGate),
+        adherenceReport: entitlementGate(medicationEnabled, "medication tracking", medicationGate),
+        medicationReminders: entitlementGate(medicationEnabled, "medication tracking", medicationGate),
+        medicationInteractions: entitlementGate(medicationEnabled, "medication tracking", medicationGate),
         sos: gate(hasDetailedAddress && hasEmergencyContact, sosMissing),
         doctor: gate(hasBasics && hasContact, doctorMissing, doctorRecommended),
         localServices: gate(hasLocalAddress, addressMissing),
         specialistFinder: gate(hasLocalAddress, addressMissing),
         reports: gate(true, []),
-        concierge: gate(true, []),
+        concierge: entitlementGate(conciergeEnabled, "concierge"),
         socialRooms: gate(true, []),
         activities: gate(true, []),
         brainTraining: gate(true, []),
-        chat: gate(true, []),
+        chat: entitlementGate(voiceEnabled, "the voice assistant"),
+        symptomCheck: entitlementGate(symptomCheckEnabled, "symptom checks"),
+        caregiverDashboard: entitlementGate(caregiverDashboardEnabled, "the caregiver dashboard"),
       },
     });
   } catch (err) {

@@ -14,6 +14,8 @@ export type ServiceId =
   | "specialistFinder"
   | "reports"
   | "concierge"
+  | "symptomCheck"
+  | "caregiverDashboard"
   | "socialRooms"
   | "activities"
   | "brainTraining"
@@ -42,9 +44,13 @@ function withReturnTo(path: string, returnTo: string): string {
 }
 
 export function serviceForPath(path: string): ServiceId | null {
+  if (path.startsWith("/chat")) return "chat";
   if (path === "/meds") return "medications";
   if (path.startsWith("/meds/adherence-report")) return "adherenceReport";
   if (path.startsWith("/health/doctor")) return "doctor";
+  if (path.startsWith("/health/symptom-check")) return "symptomCheck";
+  if (path.startsWith("/concierge")) return "concierge";
+  if (path.startsWith("/caregiver")) return "caregiverDashboard";
   return null;
 }
 
@@ -71,7 +77,7 @@ export function useServiceGate() {
       if (!firstMissing) return true;
 
       toast({
-        title: "A little setup first",
+        title: firstMissing.section === "subscription" ? "Plan upgrade needed" : "A little setup first",
         description: firstMissing.reason,
       });
       navigate(withReturnTo(firstMissing.path, returnTo));

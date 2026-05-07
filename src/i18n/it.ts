@@ -15,10 +15,10 @@ const it = {
   },
   activities: {
     chooseActivity: "Scegli un'attivita",
-    trivia: "Trivia",
+    trivia: "Attenzione",
     memory: "Gioco di memoria",
-    scrabble: "Scrabble",
-    logicPuzzle: "Puzzle logico",
+    scrabble: "Linguaggio",
+    logicPuzzle: "Funzione esecutiva",
     meditation: "Meditazione",
     breathing: "Respirazione",
     doneToday: "Fatto oggi",

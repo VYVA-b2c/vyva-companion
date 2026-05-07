@@ -1,13 +1,15 @@
 import { Router } from "express";
 import Stripe from "stripe";
 import { db } from "../db.js";
-import { profiles, billingEvents, stripeWebhooks, tierEntitlements } from "../../shared/schema.js";
+import { profiles, billingEvents, stripeWebhooks } from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
 import {
+  entitlementForTier,
   findActivePlan,
   findPlanByStripePriceId,
   listPlans,
   normalizeCurrency,
+  normalizeSubscriptionTier,
   planPrice,
   planStripePriceId,
 } from "../lib/plans.js";
@@ -37,20 +39,11 @@ function subscriptionStatusFromStripe(status: Stripe.Subscription.Status) {
 
 async function planIdFromSubscription(sub: Stripe.Subscription) {
   const metadataPlan = typeof sub.metadata?.plan_id === "string" ? sub.metadata.plan_id : null;
-  if (metadataPlan) return metadataPlan;
+  if (metadataPlan) return normalizeSubscriptionTier(metadataPlan);
 
   const priceId = sub.items.data[0]?.price?.id;
   const plan = await findPlanByStripePriceId(priceId);
-  return plan?.plan_id ?? "unlimited";
-}
-
-async function entitlementForTier(tier: string) {
-  const [entitlement] = await db
-    .select()
-    .from(tierEntitlements)
-    .where(eq(tierEntitlements.tier, tier))
-    .limit(1);
-  return entitlement ?? null;
+  return plan?.plan_id ?? "premium";
 }
 
 router.get("/plans", async (_req, res) => {
@@ -70,15 +63,18 @@ router.get("/status", async (req, res) => {
   const trialDaysRemaining = profile.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86400000))
     : 0;
+  const effectiveTier = normalizeSubscriptionTier(profile.subscription_tier);
+  const plans = await listPlans();
 
   return res.json({
     status: profile.subscription_status,
-    tier: profile.subscription_tier,
+    tier: effectiveTier,
+    stored_tier: profile.subscription_tier,
     trial_days_remaining: trialDaysRemaining,
     trial_ends_at: profile.trial_ends_at,
     has_billing_account: Boolean(profile.stripe_customer_id),
-    plan: (await listPlans()).find((plan) => plan.plan_id === profile.subscription_tier) ?? null,
-    entitlements: await entitlementForTier(profile.subscription_tier),
+    plan: plans.find((plan) => plan.plan_id === effectiveTier) ?? null,
+    entitlements: await entitlementForTier(effectiveTier),
   });
 });
 
@@ -92,7 +88,7 @@ router.post("/create-checkout", async (req, res) => {
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
   if (!profile) return res.status(404).json({ error: "Profile not found" });
 
-  const planId = typeof req.body?.plan_id === "string" ? req.body.plan_id : "unlimited";
+  const planId = typeof req.body?.plan_id === "string" ? req.body.plan_id : "premium";
   const currency = normalizeCurrency(req.body?.currency);
   const plan = await findActivePlan(planId, { publicOnly: true });
   if (!plan) return res.status(404).json({ error: "Plan not found" });
@@ -217,7 +213,7 @@ router.post("/webhook", async (req, res) => {
         const sub = event.data.object as Stripe.Subscription;
         await db.update(profiles).set({
           subscription_status: "cancelled",
-          subscription_tier: "trial",
+          subscription_tier: "free",
           updated_at: new Date(),
         }).where(eq(profiles.stripe_customer_id, sub.customer as string));
         break;

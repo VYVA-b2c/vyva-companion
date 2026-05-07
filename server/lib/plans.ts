@@ -4,26 +4,26 @@ import { subscriptionPlans, tierEntitlements } from "../../shared/schema.js";
 
 export const DEFAULT_PLAN_CATALOG = [
   {
-    plan_id: "trial",
-    name: "Free trial",
-    description: "A time-limited introduction to VYVA with core companion tools.",
+    plan_id: "free",
+    name: "Free",
+    description: "Core features forever free",
     price_eur: 0,
     price_gbp: 0,
     billing_interval: "month",
-    trial_days: 14,
+    trial_days: 7,
     stripe_price_id_eur: null,
     stripe_price_id_gbp: null,
-    features: ["Daily companion conversations", "Medication reminders", "Basic wellbeing check-ins"],
+    features: ["companionship", "brain_training", "daily_checkin"],
     is_active: true,
     is_public: true,
     sort_order: 0,
     entitlement: {
-      tier: "trial",
-      display_name: "Free trial",
-      description: "Core voice, health, and reminder features during the free trial.",
+      tier: "free",
+      display_name: "Free",
+      description: "Core VYVA companion features.",
       voice_assistant: true,
       medication_tracking: true,
-      symptom_check: true,
+      symptom_check: false,
       concierge: false,
       caregiver_dashboard: false,
       custom_features: {},
@@ -31,49 +31,36 @@ export const DEFAULT_PLAN_CATALOG = [
     },
   },
   {
-    plan_id: "essential",
-    name: "Essential",
-    description: "Everyday support for health, medication, and daily routines.",
-    price_eur: 1900,
-    price_gbp: 1600,
-    billing_interval: "month",
-    trial_days: 0,
-    stripe_price_id_eur: null,
-    stripe_price_id_gbp: null,
-    features: ["Everything in trial", "Ongoing medication tracking", "Symptom checks", "Priority app support"],
-    is_active: true,
-    is_public: true,
-    sort_order: 10,
-    entitlement: {
-      tier: "essential",
-      display_name: "Essential",
-      description: "Core paid plan for ongoing daily support.",
-      voice_assistant: true,
-      medication_tracking: true,
-      symptom_check: true,
-      concierge: false,
-      caregiver_dashboard: false,
-      custom_features: {},
-      is_active: true,
-    },
-  },
-  {
-    plan_id: "unlimited",
-    name: "Unlimited",
-    description: "Full VYVA access with concierge support and caregiver visibility.",
+    plan_id: "premium",
+    name: "Premium",
+    description: "Full VYVA experience",
     price_eur: 2900,
     price_gbp: 2499,
     billing_interval: "month",
-    trial_days: 0,
+    trial_days: 14,
     stripe_price_id_eur: null,
     stripe_price_id_gbp: null,
-    features: ["Everything in Essential", "Concierge support", "Caregiver dashboard", "Family access"],
+    features: [
+      "companionship",
+      "brain_training",
+      "daily_checkin",
+      "medication_mgmt",
+      "vital_scan",
+      "health_research",
+      "nutrition_coach",
+      "safety_agent",
+      "fall_detection",
+      "concierge",
+      "caregiver_alerts",
+      "device_triage",
+      "personalised_convos",
+    ],
     is_active: true,
     is_public: true,
-    sort_order: 20,
+    sort_order: 1,
     entitlement: {
-      tier: "unlimited",
-      display_name: "Unlimited",
+      tier: "premium",
+      display_name: "Premium",
       description: "Full VYVA support bundle.",
       voice_assistant: true,
       medication_tracking: true,
@@ -84,36 +71,20 @@ export const DEFAULT_PLAN_CATALOG = [
       is_active: true,
     },
   },
-  {
-    plan_id: "custom",
-    name: "Custom",
-    description: "Private plan for organizations, pilots, or bespoke care bundles.",
-    price_eur: 0,
-    price_gbp: 0,
-    billing_interval: "month",
-    trial_days: 0,
-    stripe_price_id_eur: null,
-    stripe_price_id_gbp: null,
-    features: ["Configured by VYVA operations"],
-    is_active: true,
-    is_public: false,
-    sort_order: 90,
-    entitlement: {
-      tier: "custom",
-      display_name: "Custom",
-      description: "Operations-managed bespoke entitlement bundle.",
-      voice_assistant: false,
-      medication_tracking: false,
-      symptom_check: false,
-      concierge: false,
-      caregiver_dashboard: false,
-      custom_features: {},
-      is_active: true,
-    },
-  },
 ] as const;
 
 export type BillingCurrency = "eur" | "gbp";
+
+const LEGACY_TIER_MAP: Record<string, string> = {
+  trial: "free",
+  essential: "premium",
+  unlimited: "premium",
+};
+
+export function normalizeSubscriptionTier(tier: string | null | undefined): string {
+  const normalized = tier?.trim().toLowerCase() || "free";
+  return LEGACY_TIER_MAP[normalized] ?? normalized;
+}
 
 export function normalizeCurrency(value: unknown): BillingCurrency {
   return typeof value === "string" && value.toLowerCase() === "gbp" ? "gbp" : "eur";
@@ -129,12 +100,49 @@ export function planStripePriceId(plan: typeof subscriptionPlans.$inferSelect, c
 }
 
 export async function ensureDefaultPlans() {
-  const existing = await db.select({ plan_id: subscriptionPlans.plan_id }).from(subscriptionPlans).limit(1);
-  if (existing.length) return;
+  const [existingPlans, existingEntitlements] = await Promise.all([
+    db.select({ plan_id: subscriptionPlans.plan_id }).from(subscriptionPlans),
+    db.select({ tier: tierEntitlements.tier }).from(tierEntitlements),
+  ]);
+  const planIds = new Set(existingPlans.map((plan) => plan.plan_id));
+  const entitlementTiers = new Set(existingEntitlements.map((entitlement) => entitlement.tier));
 
   for (const plan of DEFAULT_PLAN_CATALOG) {
-    await upsertPlanWithEntitlement(plan);
+    if (!planIds.has(plan.plan_id)) {
+      await upsertPlanWithEntitlement(plan);
+      continue;
+    }
+
+    if (!entitlementTiers.has(plan.plan_id)) {
+      const entitlement = plan.entitlement;
+      await db
+        .insert(tierEntitlements)
+        .values({
+          tier: plan.plan_id,
+          display_name: entitlement.display_name,
+          description: entitlement.description,
+          voice_assistant: entitlement.voice_assistant,
+          medication_tracking: entitlement.medication_tracking,
+          symptom_check: entitlement.symptom_check,
+          concierge: entitlement.concierge,
+          caregiver_dashboard: entitlement.caregiver_dashboard,
+          custom_features: entitlement.custom_features,
+          is_active: entitlement.is_active,
+        })
+        .onConflictDoNothing();
+    }
   }
+}
+
+export async function entitlementForTier(tier: string | null | undefined) {
+  await ensureDefaultPlans();
+  const normalizedTier = normalizeSubscriptionTier(tier);
+  const [entitlement] = await db
+    .select()
+    .from(tierEntitlements)
+    .where(eq(tierEntitlements.tier, normalizedTier))
+    .limit(1);
+  return entitlement ?? null;
 }
 
 export async function listPlans(options: { publicOnly?: boolean } = {}) {
@@ -155,12 +163,13 @@ export async function listPlans(options: { publicOnly?: boolean } = {}) {
 
 export async function findActivePlan(planId: string, options: { publicOnly?: boolean } = {}) {
   await ensureDefaultPlans();
+  const normalizedPlanId = normalizeSubscriptionTier(planId);
 
   const [row] = await db
     .select()
     .from(subscriptionPlans)
     .where(and(
-      eq(subscriptionPlans.plan_id, planId),
+      eq(subscriptionPlans.plan_id, normalizedPlanId),
       eq(subscriptionPlans.is_active, true),
       options.publicOnly ? eq(subscriptionPlans.is_public, true) : undefined,
     ))

@@ -26,6 +26,8 @@ function readiness(overrides: Partial<ReadinessResponse["services"]>): Readiness
       specialistFinder: ready(),
       reports: ready(),
       concierge: ready(),
+      symptomCheck: ready(),
+      caregiverDashboard: ready(),
       socialRooms: ready(),
       activities: ready(),
       brainTraining: ready(),
@@ -87,6 +89,10 @@ describe("service readiness gates", () => {
     expect(serviceForPath("/meds")).toBe("medications");
     expect(serviceForPath("/meds/adherence-report")).toBe("adherenceReport");
     expect(serviceForPath("/health/doctor")).toBe("doctor");
+    expect(serviceForPath("/chat")).toBe("chat");
+    expect(serviceForPath("/health/symptom-check")).toBe("symptomCheck");
+    expect(serviceForPath("/concierge")).toBe("concierge");
+    expect(serviceForPath("/caregiver")).toBe("caregiverDashboard");
     expect(serviceForPath("/activities")).toBeNull();
   });
 
@@ -112,5 +118,20 @@ describe("service readiness gates", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent("/activities");
+  });
+
+  it("redirects subscription-locked services to the plan screen", async () => {
+    renderGate("/concierge", readiness({
+      concierge: blocked("subscription", "/settings/subscription", "Your current plan does not include concierge."),
+    }));
+
+    await waitFor(() => expect(screen.getByTestId("readiness-loaded")).toHaveTextContent("true"));
+    fireEvent.click(screen.getByRole("button", { name: "Go" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/settings/subscription?returnTo=%2Fconcierge",
+      );
+    });
   });
 });

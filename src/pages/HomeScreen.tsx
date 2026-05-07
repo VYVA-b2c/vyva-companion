@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Heart, Brain, Users, ConciergeBell, Mic, RefreshCw, type LucideIcon } from "lucide-react";
+import { Heart, Brain, Users, ConciergeBell, Lock, Mic, RefreshCw, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import VoiceHero from "@/components/VoiceHero";
 import VoiceCallOverlay from "@/components/VoiceCallOverlay";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { useProfile } from "@/contexts/ProfileContext";
 import { apiFetch } from "@/lib/queryClient";
-import { useServiceGate } from "@/hooks/useServiceGate";
+import { serviceForPath, useServiceGate } from "@/hooks/useServiceGate";
 import {
   personaliseCardOrder,
   getChatNavigationCount,
@@ -150,7 +150,7 @@ function todayDateString() {
 }
 
 const HomeScreen = () => {
-  const { guardPath } = useServiceGate();
+  const { guardPath, readiness } = useServiceGate();
   const { t } = useTranslation();
   const [todayKey, setTodayKey] = useState(todayDateString);
   const [todayRefreshIndex, setTodayRefreshIndex] = useState(0);
@@ -364,6 +364,13 @@ const HomeScreen = () => {
     guardPath(path);
   };
 
+  const isSubscriptionLocked = (path: string) => {
+    const serviceId = serviceForPath(path);
+    if (!serviceId) return false;
+    const service = readiness?.services?.[serviceId];
+    return Boolean(service && !service.ready && service.missing.some((step) => step.section === "subscription"));
+  };
+
   const handleRefreshTodayCards = () => {
     setTodayRefreshIndex((current) => current + 1);
     setIsRefreshingTodayCards(true);
@@ -373,6 +380,10 @@ const HomeScreen = () => {
   };
 
   const handleCardVoice = (card: HomeAgentCard) => {
+    if (isSubscriptionLocked(card.path)) {
+      handleNavigate(card.path);
+      return;
+    }
     if (isVoiceActive) {
       stopVoice();
       return;
@@ -402,6 +413,7 @@ const HomeScreen = () => {
           {HOME_AGENT_CARDS.map((card) => {
             const theme = HOME_AGENT_THEMES[card.theme];
             const Icon = card.icon;
+            const locked = isSubscriptionLocked(card.path);
             return (
               <article
                 key={card.id}
@@ -416,7 +428,7 @@ const HomeScreen = () => {
                     handleNavigate(card.path);
                   }
                 }}
-                className="group relative min-h-[188px] overflow-visible rounded-[28px] border bg-[#FFFCF8] px-4 py-4 text-left transition-transform active:scale-[0.99]"
+                className={`group relative min-h-[188px] overflow-visible rounded-[28px] border bg-[#FFFCF8] px-4 py-4 text-left transition-transform active:scale-[0.99] ${locked ? "opacity-80" : ""}`}
                 style={{
                   borderColor: "#EDE2D1",
                   boxShadow: `0 16px 34px ${theme.glow}, 0 2px 10px rgba(43,31,24,0.05)`,
@@ -445,11 +457,17 @@ const HomeScreen = () => {
                         color: theme.micColor,
                       }}
                     >
-                      <Mic size={25} strokeWidth={2.4} />
+                      {locked ? <Lock size={22} strokeWidth={2.4} /> : <Mic size={25} strokeWidth={2.4} />}
                     </button>
                   </div>
 
                   <div className="min-w-0">
+                    {locked && (
+                      <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-[#F4EAFE] px-2.5 py-1 font-body text-[11px] font-bold text-[#6B21A8]">
+                        <Lock size={12} strokeWidth={2.5} />
+                        Plan
+                      </span>
+                    )}
                     <h2 className="font-body text-[21px] font-extrabold leading-tight text-vyva-text-1 [overflow-wrap:anywhere]">
                       {t(`home.voiceCards.${card.id}.title`)}
                     </h2>
@@ -495,6 +513,7 @@ const HomeScreen = () => {
         >
           {displayedTodayCards.map((card) => {
             const displayEmoji = getDisplayEmoji(card.emoji);
+            const locked = isSubscriptionLocked(card.route);
 
             return (
               <div
@@ -508,14 +527,19 @@ const HomeScreen = () => {
                 }}
               >
                 <div className="px-[18px] pt-[18px] pb-[14px] flex flex-col gap-[10px] flex-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span
                       className="font-body text-[11px] font-semibold px-[10px] py-[4px] rounded-full"
                       style={{ background: card.badgeBg, color: card.badgeText }}
                     >
                       {t(`home.todayForYou.cards.${card.id}.badge`)}
                     </span>
-                    {displayEmoji && (
+                    {locked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 font-body text-[11px] font-bold text-[#6B21A8]">
+                        <Lock size={12} strokeWidth={2.5} />
+                        Plan
+                      </span>
+                    ) : displayEmoji && (
                       <span className="text-[26px]" aria-hidden="true">{displayEmoji}</span>
                     )}
                   </div>
@@ -532,7 +556,7 @@ const HomeScreen = () => {
                     data-testid={`button-today-for-you-${card.id}`}
                     onClick={() => handleNavigate(card.route)}
                     className="w-full mt-1 py-[10px] rounded-[14px] font-body text-[14px] font-semibold text-white transition-all active:scale-[0.975]"
-                    style={{ background: card.badgeText }}
+                    style={{ background: locked ? "#6B21A8" : card.badgeText }}
                   >
                     {t(`home.todayForYou.cards.${card.id}.cta`)}
                   </button>
