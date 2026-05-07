@@ -25,6 +25,11 @@ import { apiFetch } from "@/lib/queryClient";
 
 const TERMS_OF_SERVICE_URL = "https://vyva.life/terms-of-service";
 const PRIVACY_POLICY_URL = "https://vyva.life/privacypolicy";
+const SUPPORT_EMAIL = "support@vyva.life";
+
+function buildMailtoUrl(subject: string, body: string) {
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 interface RowProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -118,6 +123,22 @@ export default function SettingsHome() {
     if (!opened) {
       window.location.href = url;
     }
+  };
+
+  const openSupportEmail = (subject: string, bodyIntro: string) => {
+    const body = [
+      bodyIntro,
+      "",
+      "Page:",
+      window.location.href,
+      "",
+      "App version:",
+      APP_VERSION,
+      "",
+      "Message:",
+    ].join("\n");
+
+    window.location.href = buildMailtoUrl(subject, body);
   };
 
   const handleDownloadData = async () => {
@@ -248,8 +269,22 @@ export default function SettingsHome() {
             onClick={() => openExternalLink(PRIVACY_POLICY_URL)}
             data-testid="button-settings-privacy-policy"
           />
-          <Row icon={MessageCircle} iconBg="#EEF4FF" iconColor="#2563EB" title={t("settings.home.rows.contactSupport")} />
-          <Row icon={Star} iconBg="#FFF7E8" iconColor="#C9890A" title={t("settings.home.rows.sendFeedback")} />
+          <Row
+            icon={MessageCircle}
+            iconBg="#EEF4FF"
+            iconColor="#2563EB"
+            title={t("settings.home.rows.contactSupport")}
+            onClick={() => openSupportEmail("VYVA support request", "Tell us what you need help with and we will get back to you.")}
+            data-testid="button-settings-contact-support"
+          />
+          <Row
+            icon={Star}
+            iconBg="#FFF7E8"
+            iconColor="#C9890A"
+            title={t("settings.home.rows.sendFeedback")}
+            onClick={() => openSupportEmail("VYVA app feedback", "Tell us what you liked, what felt confusing, or what you would improve.")}
+            data-testid="button-settings-send-feedback"
+          />
           <Row icon={Info} iconBg="#F5F5F4" iconColor="#57534E" title={t("settings.home.rows.appVersion")} value={APP_VERSION} />
         </Section>
 
