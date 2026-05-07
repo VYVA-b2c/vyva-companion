@@ -15,6 +15,7 @@ import { useAutoSave } from "@/hooks/useAutoSave";
 import { AutoSaveStatusBadge } from "@/components/onboarding/AutoSaveStatusBadge";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/apiError";
+import { detectBrowserLanguage, normalizeLanguageCode } from "@/i18n/detectLanguage";
 
 const LANGUAGES = [
   { value: "en", label: "🇬🇧 English" },
@@ -133,7 +134,7 @@ export default function BasicsSection() {
 
   const [form, setForm] = useState<BasicsForm>({
     full_name: "", preferred_name: "",
-    date_of_birth: "", language: "en", phone_number: "",
+    date_of_birth: "", language: detectBrowserLanguage(), phone_number: "",
     email: "",
     channel_reports: "email",
     channel_chats: "in-app",
@@ -169,7 +170,7 @@ export default function BasicsSection() {
         full_name:             (p.full_name       as string) ?? prev.full_name,
         preferred_name:        (p.preferred_name  as string) ?? prev.preferred_name,
         date_of_birth:         (p.date_of_birth   as string) ?? prev.date_of_birth,
-        language:              (p.language        as string) ?? prev.language ?? "en",
+        language:              normalizeLanguageCode(p.language as string | undefined, normalizeLanguageCode(prev.language)),
         phone_number:          (p.phone_number    as string) ?? prev.phone_number,
         email:                 (p.email           as string) ?? prev.email,
         channel_reports:       (p.channel_reports       as ChannelValue) ?? prev.channel_reports,
@@ -195,7 +196,7 @@ export default function BasicsSection() {
     preferred_name:         f.preferred_name.trim() || null,
     date_of_birth:          f.date_of_birth.trim()  || null,
     phone_number:           f.phone_number.trim(),
-    language:               f.language || "en",
+    language:               f.language || detectBrowserLanguage(),
     email:                  f.email.trim()           || null,
     channel_reports:        f.channel_reports,
     channel_chats:          f.channel_chats,

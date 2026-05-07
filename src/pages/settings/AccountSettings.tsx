@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
 import { LANGUAGES, type LanguageCode } from "@/i18n/languages";
+import { detectBrowserLanguage, normalizeLanguageCode } from "@/i18n/detectLanguage";
 import { apiFetch, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -171,15 +172,15 @@ const PHONE_COUNTRY_OPTIONS = [
   { value: "AE", dialCode: "+971", label: "AE" },
 ];
 
-const COUNTRY_DEFAULTS: Record<string, { timezone: string; language: LanguageCode }> = {
-  ES: { timezone: "europe_central", language: "es" },
-  UK: { timezone: "london", language: "en" },
-  US: { timezone: "us_eastern", language: "en" },
-  DE: { timezone: "europe_central", language: "de" },
-  FR: { timezone: "europe_central", language: "fr" },
-  IT: { timezone: "europe_central", language: "it" },
-  PT: { timezone: "europe_central", language: "pt" },
-  AE: { timezone: "dubai", language: "en" },
+const COUNTRY_DEFAULTS: Record<string, { timezone: string }> = {
+  ES: { timezone: "europe_central" },
+  UK: { timezone: "london" },
+  US: { timezone: "us_eastern" },
+  DE: { timezone: "europe_central" },
+  FR: { timezone: "europe_central" },
+  IT: { timezone: "europe_central" },
+  PT: { timezone: "europe_central" },
+  AE: { timezone: "dubai" },
 };
 
 const NAME_GENDER_HINTS: Record<"female" | "male", string[]> = {
@@ -318,10 +319,10 @@ export default function AccountSettings() {
   const { language, setLanguage } = useLanguage();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const browserLanguageRef = useRef<LanguageCode>(detectBrowserLanguage());
 
   const [saving, setSaving] = useState(false);
   const [timezoneTouched, setTimezoneTouched] = useState(false);
-  const [languageTouched, setLanguageTouched] = useState(false);
   const [genderTouched, setGenderTouched] = useState(false);
   const [genderWasInferred, setGenderWasInferred] = useState(false);
   const [form, setForm] = useState<AccountForm>({
@@ -334,7 +335,7 @@ export default function AccountSettings() {
     phoneLocal: "",
     whatsapp: "",
     email: "",
-    language,
+    language: language ?? browserLanguageRef.current,
     timezone: "europe_central",
   });
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; phone?: string }>({});
@@ -360,11 +361,10 @@ export default function AccountSettings() {
       phoneCountry: phoneParts.phoneCountry,
       phoneLocal: formatPhoneLocal(phoneParts.phoneLocal),
       email: profileQuery.data.email ?? "",
-      language: (profileQuery.data.language as LanguageCode | undefined) ?? defaultForCountry.language,
+      language: normalizeLanguageCode(profileQuery.data.language, current.language ?? browserLanguageRef.current),
       timezone: profileQuery.data.timezone ? getTimezoneValue(profileQuery.data.timezone) : defaultForCountry.timezone,
     }));
     setTimezoneTouched(Boolean(profileQuery.data.timezone));
-    setLanguageTouched(Boolean(profileQuery.data.language));
     setGenderTouched(Boolean(profileGender && profileGender !== "prefer_not"));
     setGenderWasInferred(shouldUseInferredGender);
   }, [profileQuery.data]);
@@ -398,13 +398,8 @@ export default function AccountSettings() {
     setForm((current) => ({
       ...current,
       timezone: timezoneTouched ? current.timezone : defaults.timezone,
-      language: languageTouched ? current.language : defaults.language,
     }));
-
-    if (!languageTouched && language !== defaults.language) {
-      setLanguage(defaults.language);
-    }
-  }, [form.phoneCountry, languageTouched, timezoneTouched, language, setLanguage]);
+  }, [form.phoneCountry, timezoneTouched]);
 
   const avatarUrl = profileQuery.data?.avatarUrl ?? null;
   const accountCopy = ACCOUNT_LANGUAGE_COPY[language] ?? ACCOUNT_LANGUAGE_COPY.es;
@@ -746,7 +741,6 @@ export default function AccountSettings() {
             <Select
               value={form.language}
               onValueChange={(value) => {
-                setLanguageTouched(true);
                 setLanguage(value as LanguageCode);
                 setForm((current) => ({ ...current, language: value as LanguageCode }));
               }}

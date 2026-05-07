@@ -9,6 +9,7 @@ import legacyIt from "./locales/it.json";
 import legacyPt from "./locales/pt.json";
 import legacyCy from "./locales/cy.json";
 import { DEFAULT_LANGUAGE, LANGUAGES, type LanguageCode } from "./languages";
+import { detectBrowserLanguage as detectNavigatorLanguage } from "./detectLanguage";
 import customEn from "./en";
 import customEs from "./es";
 import customFr from "./fr";
@@ -94,9 +95,7 @@ function normalizeLanguage(value: string | null | undefined): LanguageCode {
 }
 
 function detectBrowserLanguage(): LanguageCode {
-  if (typeof navigator === "undefined") return DEFAULT_LANGUAGE;
-  const browserLanguage = navigator.language.split("-")[0];
-  return normalizeLanguage(browserLanguage);
+  return detectNavigatorLanguage(DEFAULT_LANGUAGE);
 }
 
 function readStoredLanguage(): LanguageCode {

@@ -107,7 +107,7 @@ const SettingsScreen = () => {
         phone:            savedProfile.phone            ?? "",
         country:          savedProfile.country          ?? "",
         timezone:         savedProfile.timezone         ?? "",
-        language:         savedProfile.language         ?? "en",
+        language:         savedProfile.language         ?? detectBrowserLanguage(),
         street:           savedProfile.street           ?? "",
         cityState:        savedProfile.cityState        ?? "",
         postalCode:       savedProfile.postalCode       ?? "",
