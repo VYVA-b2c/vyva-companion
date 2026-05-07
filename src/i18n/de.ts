@@ -17,6 +17,7 @@ const de = {
     chooseActivity: "Aktivitat auswahlen",
     trivia: "Trivia",
     memory: "Gedachtnisspiel",
+    spatialNavigator: "Raum-Navigator",
     scrabble: "Scrabble",
     logicPuzzle: "Logikratsel",
     meditation: "Meditation",

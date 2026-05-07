@@ -17,6 +17,7 @@ const es = {
     chooseActivity: "Elige una actividad",
     trivia: "Trivia",
     memory: "Juego de memoria",
+    spatialNavigator: "Navegador espacial",
     scrabble: "Scrabble",
     logicPuzzle: "Puzzle logico",
     meditation: "Meditacion",

@@ -9,7 +9,7 @@ type SupabaseAuthResponse = {
   msg?: string;
 };
 
-type SupabaseConfig = {
+export type SupabaseConfig = {
   url: string;
   anonKey: string;
 };
@@ -43,7 +43,7 @@ async function getRuntimeSupabaseConfig(): Promise<SupabaseConfig | null> {
   return runtimeConfigPromise;
 }
 
-async function getSupabaseConfig(): Promise<SupabaseConfig | null> {
+export async function getSupabaseConfig(): Promise<SupabaseConfig | null> {
   return getBuildtimeSupabaseConfig() ?? await getRuntimeSupabaseConfig();
 }
 
