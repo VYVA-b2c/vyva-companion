@@ -91,7 +91,6 @@ type LoginCopy = {
   backToSignIn: string;
   linkSent: string;
   useWithin: string;
-  openTestLink: string;
   backToPassword: string;
   alreadyHaveAccount?: string;
   dontHaveAccount?: string;
@@ -163,7 +162,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Back to sign in",
     linkSent: "Link sent",
     useWithin: "Use it within 15 minutes.",
-    openTestLink: "Open test link",
     backToPassword: "Back to password sign in",
     alreadyHaveAccount: "Already have an account?",
     dontHaveAccount: "Don't have an account?",
@@ -233,7 +231,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Volver a entrar",
     linkSent: "Enlace enviado",
     useWithin: "Úsalo antes de 15 minutos.",
-    openTestLink: "Abrir enlace de prueba",
     alreadyHaveAccount: "Ya tienes cuenta?",
     dontHaveAccount: "No tienes cuenta?",
     backToPassword: "Volver a contraseña",
@@ -305,7 +302,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Retour à la connexion",
     linkSent: "Lien envoyé",
     useWithin: "À utiliser dans les 15 minutes.",
-    openTestLink: "Ouvrir le lien test",
     backToPassword: "Retour au mot de passe",
     guide: {
       notSure: "Un doute ?",
@@ -375,7 +371,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Zurück zur Anmeldung",
     linkSent: "Link gesendet",
     useWithin: "Innerhalb von 15 Minuten verwenden.",
-    openTestLink: "Testlink öffnen",
     backToPassword: "Zurück zum Passwort",
     guide: {
       notSure: "Unsicher?",
@@ -445,7 +440,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Torna all'accesso",
     linkSent: "Link inviato",
     useWithin: "Usalo entro 15 minuti.",
-    openTestLink: "Apri link di test",
     backToPassword: "Torna alla password",
     guide: {
       notSure: "Dubbi?",
@@ -515,7 +509,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Voltar ao início de sessão",
     linkSent: "Link enviado",
     useWithin: "Use-o nos próximos 15 minutos.",
-    openTestLink: "Abrir link de teste",
     backToPassword: "Voltar à palavra-passe",
     guide: {
       notSure: "Dúvidas?",
@@ -585,7 +578,6 @@ const LOGIN_COPY: Record<LanguageCode, LoginCopy> = {
     backToSignIn: "Yn ôl i fewngofnodi",
     linkSent: "Dolen wedi'i hanfon",
     useWithin: "Defnyddiwch o fewn 15 munud.",
-    openTestLink: "Agor dolen brawf",
     backToPassword: "Yn ôl i gyfrinair",
     guide: {
       notSure: "Ddim yn siŵr?",
@@ -658,7 +650,6 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
   const [magicSent, setMagicSent] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
   const [magicError, setMagicError] = useState<string | null>(null);
-  const [magicLink, setMagicLink] = useState<string | null>(null);
 
   const switchTab = (tab: "login" | "register") => {
     if (adminOnly && tab === "register") return;
@@ -681,7 +672,6 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
     setView("magic");
     setMagicSent(false);
     setMagicError(null);
-    setMagicLink(null);
     setShowPasswordSignIn(false);
   };
 
@@ -826,12 +816,10 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
   const handleMagicLink = async () => {
     if (magicLoading) return;
     setMagicError(null);
-    setMagicLink(null);
     setMagicLoading(true);
     try {
-      const data = await requestMagicLink(authContactPayload());
+      await requestMagicLink(authContactPayload());
       setMagicSent(true);
-      setMagicLink(data._devMagicLink ?? null);
     } catch (err) {
       setMagicError(err instanceof Error ? err.message : copy.errors.magicFailed);
     } finally {
@@ -1064,7 +1052,6 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
                       onChange={(event) => {
                         setContact(event.target.value);
                         setMagicSent(false);
-                        setMagicLink(null);
                       }}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter") return;
@@ -1206,19 +1193,6 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
                           <CheckCircle2 size={34} className="mx-auto mb-3 text-vyva-green" />
                           <p className="font-body text-[16px] font-bold">{copy.linkSent}</p>
                           <p className="mt-1 font-body text-[13px] leading-[1.55] text-vyva-text-2">{copy.useWithin}</p>
-                          {magicLink && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                window.location.href = magicLink;
-                              }}
-                              className="mt-4 inline-flex items-center gap-2 rounded-full bg-vyva-purple px-4 py-2 font-body text-[13px] font-bold text-white"
-                              data-testid="button-open-dev-magic-link"
-                            >
-                              {copy.openTestLink}
-                              <ArrowRight size={15} />
-                            </button>
-                          )}
                         </div>
                       ) : (
                         <>

@@ -24,7 +24,6 @@ interface AuthIdentifier {
 
 interface MagicLinkResponse {
   message: string;
-  _devMagicLink?: string;
 }
 
 interface AuthContextValue {

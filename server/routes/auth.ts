@@ -505,10 +505,6 @@ authRouter.post("/magic-link-request", async (req: Request, res: Response) => {
     console.log("[auth:dev] Magic login link for phone-only account:", magicLink);
   }
 
-  if (isDev) {
-    genericOk._devMagicLink = magicLink;
-  }
-
   return res.json(genericOk);
 });
 
