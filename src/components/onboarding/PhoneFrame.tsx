@@ -1,5 +1,6 @@
 import { ArrowLeft, LayoutGrid } from "lucide-react";
 import type { ReactNode } from "react";
+import { useToastSurface } from "@/hooks/useToastSurface";
 
 interface PhoneFrameProps {
   children: ReactNode;
@@ -21,9 +22,11 @@ export function PhoneFrame({
   onAllSections,
 }: PhoneFrameProps) {
   const hasTopBar = Boolean(subtitle || showBack || showAllSections);
+  const toastSurfaceRef = useToastSurface<HTMLDivElement>();
 
   return (
     <div
+      ref={toastSurfaceRef}
       data-testid="phone-frame"
       className={`relative mx-auto w-full max-w-[380px] overflow-hidden rounded-[38px] border border-[#EDE2D1] bg-[#FFFCF8] shadow-[0_24px_60px_rgba(91,33,182,0.12)] ${className}`}
       style={{ minHeight: 560 }}

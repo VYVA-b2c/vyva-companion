@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 import StatusBar from "./StatusBar";
 import BottomNav from "./BottomNav";
 import { useServiceGate } from "@/hooks/useServiceGate";
+import { useToastSurface } from "@/hooks/useToastSurface";
 
 const FULL_SCREEN_ROUTES = ["/chat"];
 const WIDE_ROUTES = ["/social-rooms"];
@@ -64,10 +65,11 @@ const AppShell = ({ children }: { children: ReactNode }) => {
   const [sosOpen, setSosOpen] = useState(false);
   const isFullScreen = FULL_SCREEN_ROUTES.includes(location.pathname);
   const isWideRoute = WIDE_ROUTES.some((route) => location.pathname.startsWith(route));
+  const toastSurfaceRef = useToastSurface<HTMLDivElement>(isFullScreen ? 24 : 112);
 
   return (
     <div className="flex min-h-screen justify-center bg-[radial-gradient(circle_at_top,#fffaf2_0%,#f7f1e9_42%,#f4efe8_100%)]">
-      <div className={`relative w-full ${isWideRoute ? "max-w-[768px]" : "max-w-[520px]"}`}>
+      <div ref={toastSurfaceRef} className={`relative w-full ${isWideRoute ? "max-w-[768px]" : "max-w-[520px]"}`}>
         {!isFullScreen && <StatusBar />}
         <main className={`min-h-screen overflow-y-auto ${isFullScreen ? "" : "pt-[76px] pb-[104px]"}`}>
           {children}
