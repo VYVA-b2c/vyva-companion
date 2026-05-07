@@ -138,7 +138,14 @@ export default function SettingsHome() {
       "Message:",
     ].join("\n");
 
-    window.location.href = buildMailtoUrl(subject, body);
+    navigator.clipboard?.writeText(SUPPORT_EMAIL).catch(() => undefined);
+    toast({
+      title: t("settings.home.rows.supportEmailReady", "Opening email draft"),
+      description: t("settings.home.rows.supportEmailCopied", "Support email copied: {{email}}", { email: SUPPORT_EMAIL }),
+    });
+    window.setTimeout(() => {
+      window.location.href = buildMailtoUrl(subject, body);
+    }, 50);
   };
 
   const handleDownloadData = async () => {
