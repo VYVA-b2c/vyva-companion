@@ -29,7 +29,7 @@ function formatLastSession(
   language: ReturnType<typeof useLanguage>["language"],
   t: ReturnType<typeof useLanguage>["t"],
 ) {
-  if (!result) return t("memory.noHistoryYet");
+  if (!result) return null;
 
   const date = new Date(result.completedAt).toLocaleDateString(language, {
     day: "numeric",
@@ -125,6 +125,7 @@ const MemoryGamesPage = () => {
   const recommendedDefinition = recommendation ? memoryGameRegistry[recommendation.gameType] : null;
   const RecommendedIcon = recommendation ? getGameIcon(recommendation.gameType) : Sparkles;
   const availableGameTypes = useMemo(() => MEMORY_GAME_ORDER, []);
+  const hasLastSession = Boolean(summary.lastSessionLabel);
 
   const openPlan = (plan: Recommendation) => {
     navigate(`/memory-games/${plan.gameType}?level=${plan.level}&variant=${plan.variantId}`);
@@ -159,11 +160,8 @@ const MemoryGamesPage = () => {
               {t("memory.trainingDaily")}
             </div>
             <h1 className="mt-4 max-w-[10ch] font-display text-[31px] leading-[1.04] text-vyva-text-1">
-              {t("memory.title")}
+              {t("activities.memory")}
             </h1>
-            <p className="mt-3 max-w-[24ch] text-[15px] leading-[1.55] text-vyva-text-2">
-              {t("memory.subtitle")}
-            </p>
           </div>
 
           <div className="relative flex h-[96px] w-[96px] flex-shrink-0 items-center justify-center rounded-[28px] bg-white shadow-vyva-card">
@@ -188,16 +186,18 @@ const MemoryGamesPage = () => {
           <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-1 shadow-sm">
             {summary.areaLabel}
           </div>
-          <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-2 shadow-sm">
-            {summary.lastSessionLabel}
-          </div>
+          {hasLastSession ? (
+            <div className="rounded-full bg-white px-3 py-2 text-[13px] font-medium text-vyva-text-2 shadow-sm">
+              {summary.lastSessionLabel}
+            </div>
+          ) : null}
         </div>
       </section>
 
       <section className="mt-5 rounded-[28px] border border-vyva-border bg-white p-4 shadow-vyva-card">
-        <div className="grid grid-cols-[88px_1fr] gap-4">
+        <div className="grid grid-cols-[76px_1fr] gap-4">
           <div
-            className="flex min-h-[108px] items-center justify-center rounded-[24px] text-white"
+            className="flex min-h-[96px] items-center justify-center rounded-[24px] text-white"
             style={{
               background: recommendedDefinition
                 ? `linear-gradient(180deg, ${recommendedDefinition.accentColor} 0%, #3D0D82 100%)`
@@ -215,9 +215,6 @@ const MemoryGamesPage = () => {
             <h2 className="mt-3 text-[26px] font-semibold leading-[1.08] text-vyva-text-1">
               {recommendation ? getGameTitle(recommendation.gameType, language) : t("common.loading")}
             </h2>
-            <p className="mt-2 text-[15px] leading-[1.55] text-vyva-text-2">
-              {recommendation?.reasonLabel ?? t("memory.recommendationLoading")}
-            </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-vyva-cream px-3 py-2 text-[13px] font-medium text-vyva-text-1">
@@ -238,7 +235,6 @@ const MemoryGamesPage = () => {
         >
           <div className="min-w-0">
             <p className="text-[20px] font-semibold">{t("memory.startRecommended")}</p>
-            <p className="mt-1 text-[14px] leading-[1.45] text-white/84">{t("memory.recommendationHint")}</p>
           </div>
           <div className="ml-4 flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-full bg-white/14">
             <ChevronRight size={22} />
@@ -262,7 +258,7 @@ const MemoryGamesPage = () => {
               <button
                 key={gameType}
                 onClick={() => plan && openPlan(plan)}
-                className="relative min-h-[224px] overflow-hidden rounded-[24px] border border-vyva-border bg-white p-4 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
+                className="relative min-h-[168px] overflow-hidden rounded-[24px] border border-vyva-border bg-white p-4 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
               >
                 <div
                   className="absolute inset-x-0 top-0 h-[6px]"
@@ -289,18 +285,6 @@ const MemoryGamesPage = () => {
                 <h3 className="mt-4 text-[22px] font-semibold leading-[1.15] text-vyva-text-1">
                   {getGameTitle(gameType, language)}
                 </h3>
-
-                <p
-                  className="mt-2 text-[14px] leading-[1.5] text-vyva-text-2"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {t(definition.descriptionKey)}
-                </p>
 
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <span
