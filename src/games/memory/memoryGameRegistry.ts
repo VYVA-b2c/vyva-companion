@@ -1132,7 +1132,6 @@ const memoryMatchLevels = buildMemoryMatchLevels(memoryMatchSets);
 
 export const MEMORY_GAME_ORDER: MemoryGameType[] = [
   "memory_match",
-  "sequence_memory",
   "word_recall",
   "number_memory",
   "association_memory",

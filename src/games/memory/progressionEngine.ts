@@ -6,11 +6,9 @@ import type { CognitiveDomain, GameResult, MemoryGameType, Recommendation } from
 
 const DOMAIN_ROTATION: CognitiveDomain[] = [
   "visual_memory",
-  "attention",
   "working_memory",
   "episodic_memory",
   "associative_memory",
-  "comprehension_memory",
 ];
 
 function clampLevel(level: number) {
