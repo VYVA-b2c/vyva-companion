@@ -20,9 +20,19 @@ import { useLanguage } from "@/i18n";
 import { getGameHistory } from "./gameStorage";
 import { getCognitiveDomainLabel, getGameTitle, memoryGameRegistry, MEMORY_GAME_ORDER } from "./memoryGameRegistry";
 import { getRecommendedLevelForGame, selectGamePlan, selectNextMemoryGame } from "./progressionEngine";
-import type { GameResult, MemoryGameType, Recommendation } from "./types";
+import type { CognitiveDomain, GameResult, MemoryGameType, Recommendation } from "./types";
 
 const FALLBACK_USER_ID = "vyva-local-user";
+const COGNITIVE_DOMAIN_ORDER: CognitiveDomain[] = [
+  "attention",
+  "language",
+  "visual_memory",
+  "working_memory",
+  "episodic_memory",
+  "prospective_memory",
+  "associative_memory",
+  "comprehension_memory",
+];
 
 function formatLastSession(
   result: GameResult | undefined,
@@ -124,6 +134,14 @@ const MemoryGamesPage = () => {
 
   const recommendedDefinition = recommendation ? memoryGameRegistry[recommendation.gameType] : null;
   const RecommendedIcon = recommendation ? getGameIcon(recommendation.gameType) : Sparkles;
+  const gameGroups = useMemo(
+    () =>
+      COGNITIVE_DOMAIN_ORDER.map((domain) => ({
+        domain,
+        gameTypes: MEMORY_GAME_ORDER.filter((gameType) => memoryGameRegistry[gameType].cognitiveDomain === domain),
+      })).filter((group) => group.gameTypes.length > 0),
+    [],
+  );
 
   const openPlan = (plan: Recommendation) => {
     navigate(`/memory-games/${plan.gameType}?level=${plan.level}&variant=${plan.variantId}`);
@@ -251,73 +269,83 @@ const MemoryGamesPage = () => {
           <h2 className="font-display text-[24px] text-vyva-text-1">{t("memory.chooseAnother")}</h2>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {MEMORY_GAME_ORDER.map((gameType) => {
-            const definition = memoryGameRegistry[gameType];
-            const plan = manualPlans[gameType];
-            const GameIcon = getGameIcon(gameType);
+        <div className="mt-4 space-y-6">
+          {gameGroups.map((group) => (
+            <div key={group.domain}>
+              <h3 className="text-[22px] font-semibold leading-tight text-vyva-text-1">
+                {getCognitiveDomainLabel(group.domain, language)}
+              </h3>
 
-            return (
-              <button
-                key={gameType}
-                onClick={() => plan && openPlan(plan)}
-                className="relative overflow-hidden rounded-[24px] border border-vyva-border bg-white p-4 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
-              >
-                <div
-                  className="absolute inset-x-0 top-0 h-[6px]"
-                  style={{ background: `linear-gradient(90deg, ${definition.accentColor} 0%, ${definition.iconBg} 100%)` }}
-                  aria-hidden="true"
-                />
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {group.gameTypes.map((gameType) => {
+                  const definition = memoryGameRegistry[gameType];
+                  const plan = manualPlans[gameType];
+                  const GameIcon = getGameIcon(gameType);
 
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    className="flex h-[68px] w-[68px] flex-shrink-0 items-center justify-center rounded-[22px]"
-                    style={{ background: definition.iconBg, color: definition.accentColor }}
-                  >
-                    <GameIcon size={30} />
-                  </div>
+                  return (
+                    <button
+                      key={gameType}
+                      onClick={() => plan && openPlan(plan)}
+                      className="relative overflow-hidden rounded-[24px] border border-vyva-border bg-white p-4 text-left shadow-vyva-card transition-transform hover:-translate-y-[1px]"
+                    >
+                      <div
+                        className="absolute inset-x-0 top-0 h-[6px]"
+                        style={{ background: `linear-gradient(90deg, ${definition.accentColor} 0%, ${definition.iconBg} 100%)` }}
+                        aria-hidden="true"
+                      />
 
-                  <div
-                    className="rounded-full px-3 py-1 text-[12px] font-semibold"
-                    style={{ background: definition.iconBg, color: definition.accentColor }}
-                  >
-                    {plan ? `${t("common.level")} ${plan.level}` : `${t("common.level")} 1`}
-                  </div>
-                </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div
+                          className="flex h-[68px] w-[68px] flex-shrink-0 items-center justify-center rounded-[22px]"
+                          style={{ background: definition.iconBg, color: definition.accentColor }}
+                        >
+                          <GameIcon size={30} />
+                        </div>
 
-                <h3 className="mt-4 text-[22px] font-semibold leading-[1.15] text-vyva-text-1">
-                  {getGameTitle(gameType, language)}
-                </h3>
+                        <div
+                          className="rounded-full px-3 py-1 text-[12px] font-semibold"
+                          style={{ background: definition.iconBg, color: definition.accentColor }}
+                        >
+                          {plan ? `${t("common.level")} ${plan.level}` : `${t("common.level")} 1`}
+                        </div>
+                      </div>
 
-                <p
-                  className="mt-2 text-[14px] leading-[1.5] text-vyva-text-2"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {t(definition.descriptionKey)}
-                </p>
+                      <h4 className="mt-4 text-[22px] font-semibold leading-[1.15] text-vyva-text-1">
+                        {getGameTitle(gameType, language)}
+                      </h4>
 
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span
-                    className="rounded-full px-3 py-2 text-[13px] font-medium"
-                    style={{ background: definition.iconBg, color: definition.accentColor }}
-                  >
-                    {getCognitiveDomainLabel(definition.cognitiveDomain, language)}
-                  </span>
-                  <div
-                    className="flex h-[36px] w-[36px] items-center justify-center rounded-full"
-                    style={{ background: definition.iconBg, color: definition.accentColor }}
-                  >
-                    <ChevronRight size={18} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+                      <p
+                        className="mt-2 text-[14px] leading-[1.5] text-vyva-text-2"
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {t(definition.descriptionKey)}
+                      </p>
+
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <span
+                          className="rounded-full px-3 py-2 text-[13px] font-medium"
+                          style={{ background: definition.iconBg, color: definition.accentColor }}
+                        >
+                          {getCognitiveDomainLabel(definition.cognitiveDomain, language)}
+                        </span>
+                        <div
+                          className="flex h-[36px] w-[36px] items-center justify-center rounded-full"
+                          style={{ background: definition.iconBg, color: definition.accentColor }}
+                        >
+                          <ChevronRight size={18} />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>
