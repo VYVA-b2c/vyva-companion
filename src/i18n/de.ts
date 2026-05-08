@@ -136,6 +136,7 @@ const de = {
   },
   cognitiveDomains: {
     attention: "Aufmerksamkeit",
+    executive_function: "Exekutive Funktion",
     language: "Sprache",
     visual_memory: "Visuelles Gedachtnis",
     working_memory: "Arbeitsgedachtnis",
@@ -146,6 +147,7 @@ const de = {
   },
   recommendationReasons: {
     attention: "Heute trainieren wir die Aufmerksamkeit mit einer einfachen Ubung.",
+    executive_function: "Heute trainieren wir die exekutive Funktion mit einer einfachen Ubung.",
     language: "Heute trainieren wir Sprache mit einer einfachen Ubung.",
     visual_memory: "Heute trainieren wir das visuelle Gedachtnis mit einer einfachen Ubung.",
     working_memory: "Heute trainieren wir das Arbeitsgedachtnis mit einer einfachen Ubung.",

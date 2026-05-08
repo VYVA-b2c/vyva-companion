@@ -16,7 +16,6 @@ export const margaret = {
     { name: "brain.activities.scrabble", done: false, icon: "type", iconBg: "bg-vyva-rose-light", iconColor: "text-vyva-rose" },
     { name: "brain.activities.logicPuzzle", done: false, icon: "puzzle", iconBg: "bg-vyva-gold-light", iconColor: "text-vyva-gold" },
     { name: "brain.activities.meditation", done: false, icon: "flower", iconBg: "bg-vyva-teal-light", iconColor: "text-vyva-teal" },
-    { name: "brain.activities.breathing", done: false, icon: "wind", iconBg: "bg-vyva-green-light", iconColor: "text-vyva-green" },
   ],
   caregivers: [
     { name: "Sarah", role: "profile.roles.daughter", initials: "SC" },

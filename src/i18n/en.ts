@@ -15,12 +15,12 @@ const en = {
   },
   activities: {
     chooseActivity: "Choose an activity",
-    trivia: "Attention",
-    memory: "Memory game",
+    trivia: "Attention Boosters",
+    memory: "Memory Games",
     spatialNavigator: "Spatial Navigator",
     scrabble: "Language",
     logicPuzzle: "Executive Function",
-    meditation: "Meditation",
+    meditation: "Meditation & Breathing",
     breathing: "Breathing",
     doneToday: "Done today",
   },
@@ -136,6 +136,7 @@ const en = {
   },
   cognitiveDomains: {
     attention: "Attention",
+    executive_function: "Executive Function",
     language: "Language",
     visual_memory: "Visual memory",
     working_memory: "Working memory",
@@ -146,6 +147,7 @@ const en = {
   },
   recommendationReasons: {
     attention: "Today we train attention with a gentle exercise.",
+    executive_function: "Today we train executive function with a gentle exercise.",
     language: "Today we train language with a gentle exercise.",
     visual_memory: "Today we train visual memory with a gentle exercise.",
     working_memory: "Today we train working memory with a gentle exercise.",
