@@ -26,6 +26,7 @@ import ActivityScreen from "./pages/ActivityScreen";
 import SpatialNavigator from "./games/SpatialNavigator";
 import MemoryGamesPage from "./games/memory/MemoryGamesPage";
 import MemoryGameRunner from "./games/memory/MemoryGameRunner";
+import DualTaskWalk from "./games/DualTaskWalk";
 import ConciergeScreen from "./pages/ConciergeScreen";
 import SafeHomeScreen from "./pages/SafeHomeScreen";
 import ScamGuardScreen from "./pages/ScamGuardScreen";
@@ -159,6 +160,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+function DualTaskWalkRoute() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  return <DualTaskWalk userId={user?.id ?? ""} onExit={() => navigate("/memory-games")} />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -221,6 +229,7 @@ const App = () => (
                   <Route path="/spatial-navigator" element={<AppShell><SpatialNavigatorRoute /></AppShell>} />
                   <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
                   <Route path="/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
+                  <Route path="/dual-task-walk" element={<DualTaskWalkRoute />} />
                   <Route path="/concierge" element={<AppShell><ServiceGateRoute service="concierge"><ConciergeScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/safe-home" element={<AppShell><SafeHomeScreen /></AppShell>} />
                   <Route path="/scam-guard" element={<AppShell><ScamGuardScreen /></AppShell>} />

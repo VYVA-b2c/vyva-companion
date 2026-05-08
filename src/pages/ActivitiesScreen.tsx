@@ -1,4 +1,4 @@
-import { BrainCircuit, Headphones, Layers, Map as MapIcon, Play, Puzzle, Route, Type, Users, Wind, type LucideIcon } from "lucide-react";
+import { BrainCircuit, Headphones, Layers, Map as MapIcon, Puzzle, Route, Type, Users, Wind, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
 import { useLanguage } from "@/i18n";
@@ -67,9 +67,10 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string; glow: 
 };
 
 const activityRoutes: Partial<Record<string, string>> = {
-  "brain.activities.triviaQuiz": "/memory-games/sequence_memory",
+  "brain.activities.triviaQuiz": "/dual-task-walk",
   "brain.activities.memoryGame": "/memory-games",
   "brain.activities.spatialNavigator": "/spatial-navigator",
+  "brain.activities.scrabble": "/memory-games/story_recall",
   "brain.activities.logicPuzzle": "/memory-games/routine_memory",
 };
 
@@ -103,18 +104,7 @@ const ActivitiesScreen = () => {
         headline={<>{t("brain.headline")}</>}
         subtitle={t("brain.subtitle", { streak: margaret.streak })}
         contextHint="brain training"
-      >
-        <button
-          type="button"
-          onClick={() => navigate("/memory-games")}
-          className="mt-3 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-full bg-white px-[20px] py-[14px] transition-all active:scale-[0.975]"
-        >
-          <Play size={16} style={{ color: "#6B21A8" }} />
-          <span className="font-body text-[16px] font-semibold leading-tight" style={{ color: "#6B21A8" }}>
-            {t("brain.startSession")}
-          </span>
-        </button>
-      </VoiceHero>
+      />
 
       <section
         className="mt-[18px] rounded-[26px] border bg-[#FFF9F1] p-4"
