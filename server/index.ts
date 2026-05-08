@@ -42,6 +42,7 @@ import specialistsRouter from "./routes/specialists.js";
 import offersRouter, { analyzeOfferDocumentHandler } from "./routes/offers.js";
 import utilitiesRouter from "./routes/utilities.js";
 import checkinsRouter, { analyzeCheckinHandler, checkinHistoryHandler, sharedCheckinReportHandler } from "./routes/checkins.js";
+import gamesRouter from "./routes/games.js";
 import { getGooglePlacesApiKey, getGooglePlacesApiKeySource } from "./lib/googlePlacesKey.js";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -112,6 +113,7 @@ app.use("/api/vitals", authMiddleware, vitalsRouter);
 app.use("/api/specialists", authMiddleware, specialistsRouter);
 app.use("/api/offers", authMiddleware, offersRouter);
 app.use("/api/utilities", authMiddleware, utilitiesRouter);
+app.use("/api/games", authMiddleware, requireUser, gamesRouter);
 app.get("/api/checkins/shared/:token", sharedCheckinReportHandler);
 app.post("/api/checkins/analyze", authMiddleware, requireUser, analyzeCheckinHandler);
 app.get("/api/checkins/history", authMiddleware, requireUser, checkinHistoryHandler);

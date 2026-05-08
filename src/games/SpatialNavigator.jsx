@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useLanguage } from "../i18n";
+import { normalizeGameLanguage } from "./shared/language";
 
 const PURPLE = "#6B21A8";
 const GOLD = "#F59E0B";
@@ -14,95 +15,6 @@ const CELL_COLORS = {
   correct: "#D1FAE5",
   wrong: "#FEE2E2",
 };
-
-const TEXT = {
-  es: {
-    loading: "Preparando tu mapa...",
-    practiceNote: "Usaremos un mapa de práctica.",
-    title: "Navegador Espacial",
-    subtitle: "Memoriza el camino. Luego dibújalo.",
-    level: "Nivel",
-    start: "¡Empezar!",
-    introHint: "Mira el camino, luego trázalo con el dedo",
-    memoriseTitle: "¡Memoriza el camino!",
-    drawTitle: "¡Ahora dibuja el camino!",
-    exit: "Salir",
-    remember: "Recuerda...",
-    seconds: "segundos",
-    drawHint: "Desliza el dedo por el camino que recuerdas",
-    done: "Listo ✓",
-    resultGreat: "¡Buen trabajo, explorador!",
-    resultTry: "¡Casi lo tienes! Inténtalo mañana.",
-    accuracy: "Precisión",
-    streak: "Racha",
-    score: "Puntuación",
-    replay: "Volver a jugar",
-    finish: "Terminar",
-    days: "días",
-    progressNext: "Sigue así para subir al Nivel",
-    readySoon: "Tu siguiente mapa está listo.",
-  },
-  de: {
-    loading: "Karte wird vorbereitet...",
-    practiceNote: "Wir nutzen eine Übungskarte.",
-    title: "Raum-Navigator",
-    subtitle: "Merke dir den Weg. Zeichne ihn danach nach.",
-    level: "Level",
-    start: "Starten!",
-    introHint: "Schau dir den Weg an und zeichne ihn mit dem Finger nach",
-    memoriseTitle: "Merke dir den Weg!",
-    drawTitle: "Zeichne jetzt den Weg!",
-    exit: "Beenden",
-    remember: "Merken...",
-    seconds: "Sekunden",
-    drawHint: "Ziehe den Finger über den Weg, an den du dich erinnerst",
-    done: "Fertig ✓",
-    resultGreat: "Sehr gut gemacht, Entdecker!",
-    resultTry: "Fast geschafft! Versuche es morgen wieder.",
-    accuracy: "Genauigkeit",
-    streak: "Serie",
-    score: "Punkte",
-    replay: "Noch einmal",
-    finish: "Fertig",
-    days: "Tage",
-    progressNext: "Mach weiter so für Level",
-    readySoon: "Deine nächste Karte ist bereit.",
-  },
-  en: {
-    loading: "Preparing your map...",
-    practiceNote: "We will use a practice map.",
-    title: "Spatial Navigator",
-    subtitle: "Memorise the path. Then draw it.",
-    level: "Level",
-    start: "Start!",
-    introHint: "Look at the path, then trace it with your finger",
-    memoriseTitle: "Memorise the path!",
-    drawTitle: "Now draw the path!",
-    exit: "Exit",
-    remember: "Remember...",
-    seconds: "seconds",
-    drawHint: "Slide your finger along the path you remember",
-    done: "Done ✓",
-    resultGreat: "Great work, explorer!",
-    resultTry: "Nearly there! Try again tomorrow.",
-    accuracy: "Accuracy",
-    streak: "Streak",
-    score: "Score",
-    replay: "Play again",
-    finish: "Finish",
-    days: "days",
-    progressNext: "Keep going to reach Level",
-    readySoon: "Your next map is ready.",
-  },
-};
-
-function copyFor(language) {
-  return TEXT[language] ?? TEXT.es;
-}
-
-function normalizeGameLanguage(language) {
-  return ["es", "de", "en"].includes(language) ? language : "es";
-}
 
 function todayKey(date = new Date()) {
   const year = date.getFullYear();
@@ -252,9 +164,34 @@ function nextCellsBetween(from, to) {
 }
 
 export default function SpatialNavigator({ userId, onExit }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const gameLanguage = normalizeGameLanguage(language);
-  const text = copyFor(gameLanguage);
+  const text = useMemo(() => ({
+    loading: t("brainGames.spatialNav.loading"),
+    practiceNote: t("brainGames.spatialNav.practiceNote"),
+    title: t("brainGames.spatialNav.title"),
+    subtitle: t("brainGames.spatialNav.subtitle"),
+    level: t("common.level"),
+    start: t("brainGames.spatialNav.start"),
+    introHint: t("brainGames.spatialNav.introHint"),
+    memoriseTitle: t("brainGames.spatialNav.memoriseTitle"),
+    drawTitle: t("brainGames.spatialNav.drawTitle"),
+    exit: t("brainGames.spatialNav.exit"),
+    remember: t("brainGames.spatialNav.remember"),
+    seconds: t("brainGames.spatialNav.seconds"),
+    drawHint: t("brainGames.spatialNav.drawHint"),
+    done: t("brainGames.spatialNav.done"),
+    resultGreat: t("brainGames.spatialNav.resultGreat"),
+    resultTry: t("brainGames.spatialNav.resultTry"),
+    accuracy: t("brainGames.spatialNav.accuracy"),
+    streak: t("brainGames.spatialNav.streak"),
+    score: t("brainGames.spatialNav.score"),
+    replay: t("brainGames.spatialNav.replay"),
+    finish: t("brainGames.spatialNav.finish"),
+    days: t("brainGames.spatialNav.days"),
+    progressNext: t("brainGames.spatialNav.progressNext"),
+    readySoon: t("brainGames.spatialNav.readySoon"),
+  }), [t]);
   const canvasRef = useRef(null);
   const countdownRef = useRef(null);
   const drawStartedAtRef = useRef(null);
