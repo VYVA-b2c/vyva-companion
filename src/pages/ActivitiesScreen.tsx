@@ -1,11 +1,11 @@
-import { BrainCircuit, Headphones, HelpCircle, Layers, Map as MapIcon, Play, Puzzle, Type, Users, Wind, type LucideIcon } from "lucide-react";
+import { BrainCircuit, Headphones, Layers, Map as MapIcon, Play, Puzzle, Route, Type, Users, Wind, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { margaret } from "@/data/mockData";
 import { useLanguage } from "@/i18n";
 import VoiceHero from "@/components/VoiceHero";
 
 const activityIcons: Record<string, LucideIcon> = {
-  "brain.activities.triviaQuiz": HelpCircle,
+  "brain.activities.triviaQuiz": Route,
   "brain.activities.memoryGame": Layers,
   "brain.activities.spatialNavigator": MapIcon,
   "brain.activities.scrabble": Type,
@@ -67,8 +67,10 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string; glow: 
 };
 
 const activityRoutes: Partial<Record<string, string>> = {
+  "brain.activities.triviaQuiz": "/memory-games/sequence_memory",
   "brain.activities.memoryGame": "/memory-games",
   "brain.activities.spatialNavigator": "/spatial-navigator",
+  "brain.activities.logicPuzzle": "/memory-games/routine_memory",
 };
 
 const ActivitiesScreen = () => {

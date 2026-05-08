@@ -136,6 +136,7 @@ const es = {
   },
   cognitiveDomains: {
     attention: "Atencion",
+    executive_function: "Funcion ejecutiva",
     language: "Lenguaje",
     visual_memory: "Memoria visual",
     working_memory: "Memoria de trabajo",
@@ -146,6 +147,7 @@ const es = {
   },
   recommendationReasons: {
     attention: "Hoy entrenamos atencion con un ejercicio suave.",
+    executive_function: "Hoy entrenamos funcion ejecutiva con un ejercicio suave.",
     language: "Hoy entrenamos lenguaje con un ejercicio suave.",
     visual_memory: "Hoy entrenamos memoria visual con un ejercicio suave.",
     working_memory: "Hoy entrenamos memoria de trabajo con un ejercicio suave.",
