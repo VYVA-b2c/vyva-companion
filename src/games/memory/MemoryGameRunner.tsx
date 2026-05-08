@@ -226,7 +226,12 @@ function getWordRecallCommandTerms(language: string) {
   }
 }
 
-const MemoryGameRunner = () => {
+type MemoryGameRunnerProps = {
+  forcedGameType?: MemoryGameType;
+  returnPath?: string;
+};
+
+const MemoryGameRunner = ({ forcedGameType, returnPath = "/memory-games" }: MemoryGameRunnerProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { gameType } = useParams<{ gameType: MemoryGameType }>();
@@ -236,7 +241,8 @@ const MemoryGameRunner = () => {
   const { speakSequence, stopTts, isTtsSpeaking } = useTtsReadout();
   const userId = user?.id ?? FALLBACK_USER_ID;
 
-  const validGameType = gameType && gameType in memoryGameRegistry ? (gameType as MemoryGameType) : null;
+  const routeGameType = forcedGameType ?? gameType;
+  const validGameType = routeGameType && routeGameType in memoryGameRegistry ? (routeGameType as MemoryGameType) : null;
   const initialLevel = Number(searchParams.get("level") ?? "1");
   const initialVariantId = searchParams.get("variant") ?? "";
 
@@ -279,6 +285,21 @@ const MemoryGameRunner = () => {
   const latestWordRecallWordsRef = useRef<string[]>([]);
   const wordRecallNarrationKeyRef = useRef<string>("");
   const wordRecallCommandCooldownRef = useRef(0);
+
+  const backToList = () => navigate(returnPath);
+  const buildGameRoute = (recommendation: Recommendation) => {
+    const query = `level=${recommendation.level}&variant=${recommendation.variantId}`;
+    if (recommendation.gameType === "sequence_memory") {
+      return `/attention-boosters/rhythm-tap?${query}`;
+    }
+    return `/memory-games/${recommendation.gameType}?${query}`;
+  };
+
+  useEffect(() => {
+    if (!forcedGameType && gameType === "sequence_memory") {
+      navigate(`/attention-boosters/rhythm-tap${location.search}`, { replace: true });
+    }
+  }, [forcedGameType, gameType, location.search, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -820,7 +841,7 @@ const MemoryGameRunner = () => {
     setActionLoading("recommended");
     try {
       const nextRecommendation = await selectNextMemoryGame(userId, language);
-      navigate(`/memory-games/${nextRecommendation.gameType}?level=${nextRecommendation.level}&variant=${nextRecommendation.variantId}`, {
+      navigate(buildGameRoute(nextRecommendation), {
         state: { sessionToken: Date.now() },
       });
     } finally {
@@ -833,7 +854,7 @@ const MemoryGameRunner = () => {
     setActionLoading("repeat");
     try {
       const sameGameRecommendation = await selectNextVariantForSameGame(userId, plan.gameType, language);
-      navigate(`/memory-games/${sameGameRecommendation.gameType}?level=${sameGameRecommendation.level}&variant=${sameGameRecommendation.variantId}`, {
+      navigate(buildGameRoute(sameGameRecommendation), {
         state: { sessionToken: Date.now() },
       });
     } finally {
@@ -845,7 +866,7 @@ const MemoryGameRunner = () => {
     return (
       <div className="px-[22px] py-8">
         <button
-          onClick={() => navigate("/memory-games")}
+          onClick={backToList}
           className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
         >
           <ArrowLeft size={18} />
@@ -883,7 +904,7 @@ const MemoryGameRunner = () => {
     return (
       <div className="px-[22px] pb-6">
         <button
-          onClick={() => navigate("/memory-games")}
+          onClick={backToList}
           className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
         >
           <ArrowLeft size={18} />
@@ -903,7 +924,7 @@ const MemoryGameRunner = () => {
             <p className="mt-2 text-[15px] leading-[1.6] text-vyva-text-2">{t("memory.stubBody")}</p>
           </div>
           <button
-            onClick={() => navigate("/memory-games")}
+            onClick={backToList}
             className="mt-5 w-full rounded-[18px] bg-vyva-purple px-5 py-4 text-[17px] font-semibold text-white"
           >
             {t("memory.backToMemory")}
@@ -1000,7 +1021,7 @@ const MemoryGameRunner = () => {
               <span className="mt-1 block text-[14px] font-medium text-vyva-text-2">{t("memory.currentLevel")}</span>
             </button>
             <button
-              onClick={() => navigate("/memory-games")}
+              onClick={backToList}
               disabled={actionLoading !== null}
               className="w-full rounded-[20px] border border-vyva-border bg-white px-5 py-5 text-left text-[18px] font-semibold text-vyva-text-1 shadow-vyva-card disabled:opacity-60"
             >
@@ -1198,7 +1219,7 @@ const MemoryGameRunner = () => {
     return (
       <div className="px-[22px] pb-6">
         <button
-          onClick={() => navigate("/memory-games")}
+          onClick={backToList}
           className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
         >
           <ArrowLeft size={18} />
@@ -1443,7 +1464,7 @@ const MemoryGameRunner = () => {
     return (
       <div className="px-[22px] pb-6">
         <button
-          onClick={() => navigate("/memory-games")}
+          onClick={backToList}
           className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
         >
           <ArrowLeft size={18} />
@@ -1593,7 +1614,7 @@ const MemoryGameRunner = () => {
   return (
     <div className="px-[22px] pb-6">
       <button
-        onClick={() => navigate("/memory-games")}
+        onClick={backToList}
         className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1 shadow-vyva-card"
       >
         <ArrowLeft size={18} />

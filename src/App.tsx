@@ -165,7 +165,7 @@ function DualTaskWalkRoute() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  return <DualTaskWalk userId={user?.id ?? ""} onExit={() => navigate("/memory-games")} />;
+  return <DualTaskWalk userId={user?.id ?? ""} onExit={() => navigate("/attention-boosters")} />;
 }
 
 const App = () => (
@@ -228,6 +228,7 @@ const App = () => (
                   <Route path="/activities" element={<AppShell><ActivitiesScreen /></AppShell>} />
                   <Route path="/activity" element={<AppShell><ActivityScreen /></AppShell>} />
                   <Route path="/attention-boosters" element={<AppShell><AttentionBoostersPage /></AppShell>} />
+                  <Route path="/attention-boosters/rhythm-tap" element={<AppShell><MemoryGameRunner forcedGameType="sequence_memory" returnPath="/attention-boosters" /></AppShell>} />
                   <Route path="/spatial-navigator" element={<AppShell><SpatialNavigatorRoute /></AppShell>} />
                   <Route path="/memory-games" element={<AppShell><MemoryGamesPage /></AppShell>} />
                   <Route path="/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
