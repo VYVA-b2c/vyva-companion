@@ -1135,9 +1135,7 @@ export const MEMORY_GAME_ORDER: MemoryGameType[] = [
   "sequence_memory",
   "word_recall",
   "number_memory",
-  "routine_memory",
   "association_memory",
-  "story_recall",
 ];
 
 export const memoryGameRegistry: Record<MemoryGameType, MemoryGameDefinition> = {

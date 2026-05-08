@@ -8,8 +8,6 @@ const DOMAIN_ROTATION: CognitiveDomain[] = [
   "visual_memory",
   "attention",
   "working_memory",
-  "executive_function",
-  "language",
   "episodic_memory",
   "associative_memory",
   "comprehension_memory",

@@ -67,9 +67,10 @@ const activityStyles: Record<string, { iconBg: string; iconColor: string; glow: 
 };
 
 const activityRoutes: Partial<Record<string, string>> = {
-  "brain.activities.triviaQuiz": "/memory-games/sequence_memory",
+  "brain.activities.triviaQuiz": "/dual-task-walk",
   "brain.activities.memoryGame": "/memory-games",
   "brain.activities.spatialNavigator": "/spatial-navigator",
+  "brain.activities.scrabble": "/memory-games/story_recall",
   "brain.activities.logicPuzzle": "/memory-games/routine_memory",
 };
 
