@@ -144,7 +144,7 @@ function getTapStats(tapLog, sequence) {
   };
 }
 
-function NumberPicker({ value, min, max, onChange, ariaLabel }) {
+function NumberPicker({ value, min, max, onChange, ariaLabel, increaseLabel, decreaseLabel }) {
   const setNext = (nextValue) => onChange(clamp(nextValue, min, max));
   const visible = [clamp(value + 1, min, max), value, clamp(value - 1, min, max)];
 
@@ -167,7 +167,7 @@ function NumberPicker({ value, min, max, onChange, ariaLabel }) {
         onClick={() => setNext(value + 1)}
         className="flex min-h-[64px] items-center justify-center text-[26px] font-semibold"
         style={{ color: BRAND.purple }}
-        aria-label="Subir número"
+        aria-label={increaseLabel}
       >
         <ChevronUp size={34} />
       </button>
@@ -183,7 +183,7 @@ function NumberPicker({ value, min, max, onChange, ariaLabel }) {
         onClick={() => setNext(value - 1)}
         className="flex min-h-[64px] items-center justify-center text-[26px] font-semibold"
         style={{ color: BRAND.purple }}
-        aria-label="Bajar número"
+        aria-label={decreaseLabel}
       >
         <ChevronDown size={34} />
       </button>
@@ -196,6 +196,7 @@ export default function DualTaskWalk({ userId, onExit }) {
   const lang = normalizeGameLanguage(language);
   const text = useMemo(() => ({
     loading: t("brainGames.dualTask.loading"),
+    back: t("common.back"),
     title: t("brainGames.dualTask.title"),
     subtitle: t("brainGames.dualTask.subtitle"),
     level: t("common.level"),
@@ -232,6 +233,10 @@ export default function DualTaskWalk({ userId, onExit }) {
     replay: t("brainGames.dualTask.replay"),
     finish: t("brainGames.dualTask.finish"),
     preparingFallback: t("brainGames.dualTask.preparingFallback"),
+    increaseNumber: t("brainGames.dualTask.increaseNumber"),
+    decreaseNumber: t("brainGames.dualTask.decreaseNumber"),
+    tutorialNumber: t("brainGames.dualTask.tutorialNumber"),
+    mathAnswer: t("brainGames.dualTask.mathAnswer"),
   }), [t]);
 
   const [screen, setScreen] = useState("loading");
@@ -720,31 +725,40 @@ export default function DualTaskWalk({ userId, onExit }) {
 
   if (screen === "intro") {
     return (
-      <div className="min-h-screen px-8 py-8" style={shellStyle}>
-        <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[820px] flex-col">
-          <div className="flex items-center justify-between">
-            <div className="text-[28px] font-bold" style={{ color: BRAND.purple }}>VYVA</div>
-            <div className="rounded-full px-5 py-3 text-[22px] font-bold text-white" style={{ background: BRAND.gold }}>
+      <div className="min-h-screen px-4 py-5 sm:px-6 md:px-8 md:py-8" style={shellStyle}>
+        <div className="mx-auto flex min-h-[calc(100vh-40px)] w-full max-w-[820px] flex-col md:min-h-[calc(100vh-64px)]">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleExit}
+              className="inline-flex min-h-[64px] items-center gap-2 rounded-[8px] bg-white px-4 text-[22px] font-bold shadow-vyva-card"
+              style={{ color: BRAND.purple }}
+            >
+              <ArrowLeft size={28} />
+              {text.back}
+            </button>
+            <div className="text-[24px] font-bold sm:text-[28px]" style={{ color: BRAND.purple }}>VYVA</div>
+            <div className="rounded-full px-4 py-3 text-[20px] font-bold text-white sm:px-5 sm:text-[22px]" style={{ background: BRAND.gold }}>
               {text.level} {currentSequence.difficulty_tier}
             </div>
           </div>
 
-          <main className="flex flex-1 flex-col justify-center py-8">
+          <main className="flex flex-1 flex-col justify-center py-6 md:py-8">
             <div className="text-center">
               <div className="text-[84px] leading-none">🧠</div>
-              <h1 className="mt-5 font-display text-[54px] font-bold leading-none">{text.title}</h1>
-              <p className="mt-5 text-[28px] leading-[1.3] text-[#5B4B71]">{text.subtitle}</p>
+              <h1 className="mt-4 font-display text-[42px] font-bold leading-none sm:text-[48px] md:mt-5 md:text-[54px]">{text.title}</h1>
+              <p className="mt-4 text-[24px] leading-[1.3] text-[#5B4B71] md:mt-5 md:text-[28px]">{text.subtitle}</p>
               {loadNote && <p className="mt-4 text-[22px] font-semibold" style={{ color: BRAND.gold }}>{loadNote}</p>}
             </div>
 
-            <div className="mt-10 grid grid-cols-2 overflow-hidden rounded-[8px] border-2 bg-white" style={{ borderColor: BRAND.border }}>
-              <div className="border-r-2 p-7 text-center" style={{ borderColor: BRAND.border }}>
-                <Brain className="mx-auto h-16 w-16" style={{ color: BRAND.purple }} />
-                <p className="mt-5 text-[28px] font-semibold leading-[1.2]">{text.countBack}</p>
+            <div className="mt-8 grid overflow-hidden rounded-[8px] border-2 bg-white sm:mt-10 sm:grid-cols-2" style={{ borderColor: BRAND.border }}>
+              <div className="border-b-2 p-5 text-center sm:border-b-0 sm:border-r-2 sm:p-7" style={{ borderColor: BRAND.border }}>
+                <Brain className="mx-auto h-14 w-14 sm:h-16 sm:w-16" style={{ color: BRAND.purple }} />
+                <p className="mt-4 text-[24px] font-semibold leading-[1.2] sm:mt-5 sm:text-[28px]">{text.countBack}</p>
               </div>
-              <div className="p-7 text-center">
-                <Eye className="mx-auto h-16 w-16" style={{ color: BRAND.gold }} />
-                <p className="mt-5 text-[28px] font-semibold leading-[1.2]">{text.tapMatch}</p>
+              <div className="p-5 text-center sm:p-7">
+                <Eye className="mx-auto h-14 w-14 sm:h-16 sm:w-16" style={{ color: BRAND.gold }} />
+                <p className="mt-4 text-[24px] font-semibold leading-[1.2] sm:mt-5 sm:text-[28px]">{text.tapMatch}</p>
               </div>
             </div>
           </main>
@@ -752,7 +766,7 @@ export default function DualTaskWalk({ userId, onExit }) {
           <button
             type="button"
             onClick={() => setScreen("tutorial")}
-            className="min-h-[72px] w-full rounded-[8px] px-8 text-[28px] font-bold text-white shadow-vyva-card"
+            className="min-h-[72px] w-full rounded-[8px] px-6 text-[26px] font-bold text-white shadow-vyva-card sm:px-8 sm:text-[28px]"
             style={{ background: BRAND.purple }}
           >
             {text.example}
@@ -764,14 +778,14 @@ export default function DualTaskWalk({ userId, onExit }) {
 
   if (screen === "tutorial") {
     return (
-      <div className="min-h-screen px-6 py-5" style={shellStyle}>
+      <div className="min-h-screen px-4 py-5 sm:px-6" style={shellStyle}>
         <div className="mx-auto flex min-h-[calc(100vh-40px)] w-full max-w-[820px] flex-col">
           <header className="flex min-h-[76px] items-center justify-between border-b-2" style={{ borderColor: BRAND.border }}>
-            <h1 className="text-[28px] font-bold">{text.tutorialTitle}</h1>
+            <h1 className="text-[24px] font-bold sm:text-[28px]">{text.tutorialTitle}</h1>
             <button
               type="button"
               onClick={() => startRound()}
-              className="min-h-[64px] rounded-[8px] px-6 text-[24px] font-bold"
+              className="min-h-[64px] rounded-[8px] px-5 text-[22px] font-bold sm:px-6 sm:text-[24px]"
               style={{ background: BRAND.softPurple, color: BRAND.purple }}
             >
               {text.skip}
@@ -783,13 +797,15 @@ export default function DualTaskWalk({ userId, onExit }) {
               <p className="text-[28px] font-semibold">
                 {text.startAt}: <span style={{ color: BRAND.purple }}>{DEMO_SEQUENCE.start_number}</span>
               </p>
-              <div className="mt-5 flex items-center justify-between gap-5">
+              <div className="mt-5 flex flex-col items-stretch gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <NumberPicker
                   value={44}
                   min={1}
                   max={100}
                   onChange={() => {}}
-                  ariaLabel="Tutorial number"
+                  ariaLabel={text.tutorialNumber}
+                  increaseLabel={text.increaseNumber}
+                  decreaseLabel={text.decreaseNumber}
                 />
                 <div className="flex min-h-[80px] flex-1 items-center justify-center rounded-[8px] text-[32px] font-bold" style={{ background: "#ECFDF3", color: "#15803D" }}>
                   <Check size={42} />
@@ -836,15 +852,15 @@ export default function DualTaskWalk({ userId, onExit }) {
     const mathDone = serial7sStep >= serialSteps;
 
     return (
-      <div className="min-h-screen px-5 py-4" style={shellStyle}>
+      <div className="min-h-screen px-4 py-4 sm:px-5" style={shellStyle}>
         <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-[820px] flex-col">
           <header className="border-b-2 pb-3" style={{ borderColor: BRAND.border }}>
             <div className="flex min-h-[70px] items-center justify-between gap-4">
-              <h1 className="text-[30px] font-bold">{text.title}</h1>
+              <h1 className="text-[26px] font-bold sm:text-[30px]">{text.title}</h1>
               <button
                 type="button"
                 onClick={handleExit}
-                className="inline-flex min-h-[64px] items-center gap-3 rounded-[8px] px-5 text-[24px] font-bold"
+                className="inline-flex min-h-[64px] items-center gap-3 rounded-[8px] px-4 text-[22px] font-bold sm:px-5 sm:text-[24px]"
                 style={{ background: "#FFF7ED", color: "#9A3412" }}
               >
                 <Square size={24} />
@@ -863,7 +879,7 @@ export default function DualTaskWalk({ userId, onExit }) {
               }`}
               style={{ borderColor: serialFeedback === "correct" ? "#16A34A" : serialFeedback === "almost" ? BRAND.gold : BRAND.border }}
             >
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <p className="text-[28px] font-bold">
                   {text.startAt}: <span style={{ color: BRAND.purple }}>{currentSequence.start_number}</span>
                 </p>
@@ -878,7 +894,7 @@ export default function DualTaskWalk({ userId, onExit }) {
                   <span className="ml-3">✓ ✓ ✓</span>
                 </div>
               ) : (
-                <div className="mt-5 flex items-center justify-between gap-5">
+                <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-[30px] font-bold leading-[1.2]">
                       {text.question} {currentMinuend} - 7?
@@ -887,21 +903,23 @@ export default function DualTaskWalk({ userId, onExit }) {
                       {text.recent}:{" "}
                       {lastThreeMath.length === 0
                         ? "—"
-                        : lastThreeMath.map((entry) => (entry.correct ? "✓" : "¡casi!")).join(" ")}
+                        : lastThreeMath.map((entry) => (entry.correct ? "OK" : text.almost)).join(" ")}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
                     <NumberPicker
                       value={pickerValue}
                       min={pickerMin}
                       max={pickerMax}
                       onChange={setPickerValue}
-                      ariaLabel="Respuesta de matemáticas"
+                      ariaLabel={text.mathAnswer}
+                      increaseLabel={text.increaseNumber}
+                      decreaseLabel={text.decreaseNumber}
                     />
                     <button
                       type="button"
                       onClick={handleSerial7sConfirm}
-                      className="inline-flex min-h-[96px] items-center gap-3 rounded-[8px] px-6 text-[26px] font-bold text-white"
+                      className="inline-flex min-h-[96px] items-center justify-center gap-3 rounded-[8px] px-6 text-[26px] font-bold text-white"
                       style={{ background: BRAND.purple }}
                     >
                       <Check size={34} />
@@ -949,15 +967,15 @@ export default function DualTaskWalk({ userId, onExit }) {
   }
 
   const result = sessionResult ?? computeScore(serial7sLog, tapLog, currentSequence, false);
-  const mathMarks = result.serial7s_log.map((entry) => (entry.correct ? "✓" : "¡casi!")).join(" ");
+  const mathMarks = result.serial7s_log.map((entry) => (entry.correct ? "OK" : text.almost)).join(" ");
   const promotionLabel =
     (userState?.current_tier ?? currentSequence.difficulty_tier) > currentSequence.difficulty_tier
       ? text.newLevel
       : `${text.keepGoing} ${text.level} ${nextTier}`;
 
   return (
-    <div className="min-h-screen px-8 py-8" style={shellStyle}>
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[820px] flex-col">
+    <div className="min-h-screen px-4 py-5 sm:px-6 md:px-8 md:py-8" style={shellStyle}>
+      <div className="mx-auto flex min-h-[calc(100vh-40px)] w-full max-w-[820px] flex-col md:min-h-[calc(100vh-64px)]">
         <div className="flex flex-1 flex-col justify-center">
           <div className="text-center text-[82px] leading-none">{resultToneGreat ? "🎉" : "😊"}</div>
           <h1 className="mt-5 text-center font-display text-[44px] font-bold leading-[1.1]">
@@ -965,7 +983,7 @@ export default function DualTaskWalk({ userId, onExit }) {
           </h1>
 
           <section className="mt-8 rounded-[8px] border-2 bg-white p-6 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
-            <div className="grid grid-cols-2 gap-5 text-center">
+            <div className="grid grid-cols-1 gap-5 text-center sm:grid-cols-2">
               <div>
                 <p className="text-[24px] font-bold text-[#5B4B71]">{text.mathTask}</p>
                 <p className="mt-2 text-[42px] font-bold" style={{ color: BRAND.purple }}>{Math.round(result.serial7s_accuracy_pct)}%</p>
@@ -987,7 +1005,7 @@ export default function DualTaskWalk({ userId, onExit }) {
             </div>
           </section>
 
-          <div className="mt-6 grid grid-cols-2 gap-5">
+          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="rounded-[8px] border-2 bg-white p-5" style={{ borderColor: BRAND.border }}>
               <div className="h-4 overflow-hidden rounded-full bg-[#EDE6F4]">
                 <div className="h-full" style={{ width: `${result.serial7s_accuracy_pct}%`, background: BRAND.purple }} />
@@ -1012,7 +1030,7 @@ export default function DualTaskWalk({ userId, onExit }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <button
             type="button"
             onClick={handleReplay}

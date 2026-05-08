@@ -197,6 +197,10 @@ const es = {
       replay: "Volver a jugar",
       finish: "Terminar",
       preparingFallback: "Usando una secuencia local de practica.",
+      increaseNumber: "Subir numero",
+      decreaseNumber: "Bajar numero",
+      tutorialNumber: "Numero del ejemplo",
+      mathAnswer: "Respuesta de matematicas",
     },
     spatialNav: {
       loading: "Preparando tu mapa...",

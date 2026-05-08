@@ -197,6 +197,10 @@ const de = {
       replay: "Nochmal spielen",
       finish: "Fertig",
       preparingFallback: "Eine lokale Ubungsfolge wird genutzt.",
+      increaseNumber: "Zahl erhohen",
+      decreaseNumber: "Zahl verringern",
+      tutorialNumber: "Beispielzahl",
+      mathAnswer: "Matheantwort",
     },
     spatialNav: {
       loading: "Karte wird vorbereitet...",

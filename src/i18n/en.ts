@@ -197,6 +197,10 @@ const en = {
       replay: "Play again",
       finish: "Finish",
       preparingFallback: "Using a local practice sequence.",
+      increaseNumber: "Increase number",
+      decreaseNumber: "Decrease number",
+      tutorialNumber: "Tutorial number",
+      mathAnswer: "Math answer",
     },
     spatialNav: {
       loading: "Preparing your map...",
