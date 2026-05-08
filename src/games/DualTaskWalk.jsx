@@ -192,9 +192,47 @@ function NumberPicker({ value, min, max, onChange, ariaLabel }) {
 }
 
 export default function DualTaskWalk({ userId, onExit }) {
-  const { language } = useLanguage();
-  const lang = normalizeLanguage(language);
-  const text = COPY[lang];
+  const { language, t } = useLanguage();
+  const lang = normalizeGameLanguage(language);
+  const text = useMemo(() => ({
+    loading: t("brainGames.dualTask.loading"),
+    title: t("brainGames.dualTask.title"),
+    subtitle: t("brainGames.dualTask.subtitle"),
+    level: t("common.level"),
+    example: t("brainGames.dualTask.example"),
+    countBack: t("brainGames.dualTask.countBack"),
+    tapMatch: t("brainGames.dualTask.tapMatch"),
+    tutorialTitle: t("brainGames.dualTask.tutorialTitle"),
+    skip: t("brainGames.dualTask.skip"),
+    start: t("brainGames.dualTask.start"),
+    startAt: t("brainGames.dualTask.startAt"),
+    previousSymbol: t("brainGames.dualTask.previousSymbol"),
+    sameSymbol: t("brainGames.dualTask.sameSymbol"),
+    tapHere: t("brainGames.dualTask.tapHere"),
+    exit: t("brainGames.dualTask.exit"),
+    confirm: t("brainGames.dualTask.confirm"),
+    step: t("brainGames.dualTask.step"),
+    of: t("brainGames.dualTask.of"),
+    question: t("brainGames.dualTask.question"),
+    recent: t("brainGames.dualTask.recent"),
+    hits: t("brainGames.dualTask.hits"),
+    almost: t("brainGames.dualTask.almost"),
+    visualDone: t("brainGames.dualTask.visualDone"),
+    resultGreat: t("brainGames.dualTask.resultGreat"),
+    resultGood: t("brainGames.dualTask.resultGood"),
+    mathTask: t("brainGames.dualTask.mathTask"),
+    visualTask: t("brainGames.dualTask.visualTask"),
+    totalScore: t("brainGames.dualTask.totalScore"),
+    streak: t("brainGames.dualTask.streak"),
+    days: t("brainGames.dualTask.days"),
+    mathLine: t("brainGames.dualTask.mathLine"),
+    visualLine: t("brainGames.dualTask.visualLine"),
+    keepGoing: t("brainGames.dualTask.keepGoing"),
+    newLevel: t("brainGames.dualTask.newLevel"),
+    replay: t("brainGames.dualTask.replay"),
+    finish: t("brainGames.dualTask.finish"),
+    preparingFallback: t("brainGames.dualTask.preparingFallback"),
+  }), [t]);
 
   const [screen, setScreen] = useState("loading");
   const [sequence, setSequence] = useState(null);
@@ -313,7 +351,7 @@ export default function DualTaskWalk({ userId, onExit }) {
 
   const loadSequence = useCallback(async (state) => {
     const tier = state?.current_tier ?? 1;
-    const languageToUse = normalizeLanguage(lang);
+    const languageToUse = normalizeGameLanguage(lang);
     const rows = await supabase
       .from("dual_task_sequences")
       .select("*")
