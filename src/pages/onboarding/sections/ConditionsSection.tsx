@@ -388,23 +388,25 @@ export default function ConditionsSection() {
                       type="button"
                       data-testid={`accordion-${group.cat}`}
                       onClick={() => !isSearching && toggleCat(group.cat)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                      className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left"
                     >
-                      <span className="text-[20px] leading-none flex-shrink-0">{cat.emoji}</span>
-                      <span className="flex-1 font-body text-[14px] font-semibold text-gray-800">{cat.label}</span>
-                      {hasSelections && (
-                        <span
-                          className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                          style={{ background: "#EDE9FE", color: "#6B21A8" }}
-                          data-testid={`badge-count-${group.cat}`}
-                        >
-                          {selectedCount} selected
-                        </span>
-                      )}
+                      <span className="text-[20px] leading-none">{cat.emoji}</span>
+                      <span className="min-w-0">
+                        <span className="block font-body text-[14px] font-semibold leading-snug text-gray-800">{cat.label}</span>
+                        {hasSelections && (
+                          <span
+                            className="mt-1 inline-flex max-w-full rounded-full px-2 py-0.5 text-[11px] font-bold"
+                            style={{ background: "#EDE9FE", color: "#6B21A8" }}
+                            data-testid={`badge-count-${group.cat}`}
+                          >
+                            {selectedCount} selected
+                          </span>
+                        )}
+                      </span>
                       {!isSearching && (
                         <ChevronDown
                           size={16}
-                          className="flex-shrink-0 text-gray-400 transition-transform duration-200"
+                          className="text-gray-400 transition-transform duration-200"
                           style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
                         />
                       )}
@@ -415,7 +417,7 @@ export default function ConditionsSection() {
                       className="overflow-hidden transition-all duration-300 ease-in-out"
                       style={{ maxHeight: isOpen ? "2000px" : "0px" }}
                     >
-                      <div className="grid grid-cols-2 gap-[8px] px-3 pb-3">
+                      <div className="grid grid-cols-1 gap-[8px] px-3 pb-3 min-[360px]:grid-cols-2">
                         {visibleItems.map((item) => {
                           const isSelected = selected.includes(item);
                           return (
@@ -479,7 +481,7 @@ export default function ConditionsSection() {
             {/* Living situation */}
             <div>
               <p className="text-xs font-bold text-gray-600 mb-2">Living situation</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                 {LIVING_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
