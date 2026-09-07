@@ -990,7 +990,7 @@ describe("triage route wizard questions", () => {
       confidence: { score: 4, label: "Strong confidence" },
     });
     expect(afterSafety.body.vitalsPrompt).toMatchObject({
-      title: "A quick vital-sign check could help",
+      title: "Would you like to share your vital signs?",
       actions: [expect.objectContaining({ id: "blood_pressure", label: "Blood pressure" })],
     });
 
@@ -1040,7 +1040,10 @@ describe("triage route wizard questions", () => {
       { id: "head_neck_pain", label: "Head or neck", value: "The pain is in my head.", kind: "location" },
       { id: "no_red_flag", label: "None", value: "No warning signs.", kind: "red_flag" },
     ]).expect(200);
-    expect(ordinaryHeadPain.body.vitalsPrompt).toBeNull();
+    expect(ordinaryHeadPain.body.vitalsPrompt).toMatchObject({
+      title: "Would you like to share your vital signs?",
+      actions: [expect.objectContaining({ id: "pulse" })],
+    });
 
     const hypertensiveHeadPain = await requestFor([
       { id: "pain", label: "Pain", value: "I have pain.", kind: "symptom" },
@@ -1053,7 +1056,10 @@ describe("triage route wizard questions", () => {
       { id: "fall", label: "Fall", value: "I had a small fall.", kind: "symptom" },
       { id: "no_red_flag", label: "None", value: "Only a small bruise.", kind: "red_flag" },
     ]).expect(200);
-    expect(simpleFall.body.vitalsPrompt).toBeNull();
+    expect(simpleFall.body.vitalsPrompt).toMatchObject({
+      title: "Would you like to share your vital signs?",
+      actions: [expect.objectContaining({ id: "pulse" })],
+    });
   });
 
   it("uses the medication guidance protocol when the first clue points to a medicine change", async () => {

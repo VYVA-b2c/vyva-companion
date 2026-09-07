@@ -688,7 +688,7 @@ describe("SymptomCheck intro chips", () => {
               spoken_text: "How strong is it?",
               question: { stage: "severity", text: "How strong is it?", choices: [] },
               vitals_prompt: {
-                title: "A quick vital-sign check could help",
+                title: "Would you like to share your vital signs?",
                 body: "Use your phone camera, enter a device reading, or skip this.",
                 actions: [{ id: "oxygen", label: "Oxygen", value: "oxygen" }],
                 camera_action: { id: "use_camera", label: "Use camera for heart and breathing", route: "/health/vitals" },
