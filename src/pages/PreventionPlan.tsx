@@ -229,6 +229,23 @@ type TodayVideo = {
   goodFor?: string[] | null;
   notFor?: string[] | null;
   momentFit?: LongevityMoment[] | null;
+  publicContent?: {
+    language: string;
+    pillar: PreventionPillar;
+    momentFit: LongevityMoment[];
+    resourceUrl: string;
+    resourceTitle: string;
+    reviewStatus: "approved" | "fallback" | "needs_review";
+    summary: string;
+    keyTakeaway: string;
+    companionAction: string;
+    activityRoute: string | null;
+    activityCta: {
+      label: string;
+      route: string;
+      reason: string;
+    } | null;
+  } | null;
 };
 
 type VideoInsight = {
@@ -646,6 +663,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "Start VYVA movement",
       brain: "Play VYVA brain games",
       strength: "Start stability exercise",
+      nourishment: "Get meal support",
       calm: "Open Breath Garden",
     },
     choosePillarLabel: "Choose a longevity pillar",
@@ -791,6 +809,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "Movimiento VYVA",
       brain: "Juegos mentales VYVA",
       strength: "Ejercicio de estabilidad",
+      nourishment: "Apoyo de comida",
       calm: "Abrir respiración",
     },
     choosePillarLabel: "Elegir un pilar de longevidad",
@@ -905,6 +924,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "Mouvement VYVA",
       brain: "Jeux cérébraux VYVA",
       strength: "Exercice de stabilité",
+      nourishment: "Aide au repas",
       calm: "Ouvrir la respiration",
     },
     choosePillarLabel: "Choisir un pilier de longévité",
@@ -1019,6 +1039,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "VYVA-Bewegung starten",
       brain: "VYVA-Denkspiele spielen",
       strength: "Stabilitätsübung starten",
+      nourishment: "Essenshilfe öffnen",
       calm: "Atemgarten öffnen",
     },
     choosePillarLabel: "Langlebigkeitsbereich wählen",
@@ -1133,6 +1154,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "Movimento VYVA",
       brain: "Giochi mentali VYVA",
       strength: "Esercizio di stabilità",
+      nourishment: "Aiuto pasto",
       calm: "Apri respiro guidato",
     },
     choosePillarLabel: "Scegli un pilastro longevità",
@@ -1247,6 +1269,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
       heart: "Movimento VYVA",
       brain: "Jogos mentais VYVA",
       strength: "Exercício de estabilidade",
+      nourishment: "Apoio à refeição",
       calm: "Abrir respiração",
     },
     choosePillarLabel: "Escolher um pilar de longevidade",
@@ -2264,23 +2287,25 @@ function isInternalResourceUrl(url: string): boolean {
 }
 
 function defaultResourceForPillar(pillar: PreventionPillar | null): { label: string; url: string } | null {
-  if (pillar === "heart") return { label: "Nearby walking ideas", url: RESOURCE_URLS.communityWalking };
+  if (pillar === "heart") return { label: "VYVA movement", url: "/social-rooms/morning-movement/exercises/tai-chi" };
   if (pillar === "brain") return { label: "Brain Coach", url: "/mind" };
-  if (pillar === "strength") return { label: "NIA exercise videos", url: RESOURCE_URLS.niaExerciseVideos };
-  if (pillar === "nourishment") return { label: "NIA food guide", url: RESOURCE_URLS.niaFood };
-  if (pillar === "calm") return { label: "NIA sleep guide", url: RESOURCE_URLS.niaSleep };
+  if (pillar === "strength") return { label: "VYVA stability exercise", url: "/social-rooms/morning-movement/exercises/seated-strength" };
+  if (pillar === "nourishment") return { label: "Meal support", url: "/concierge?source=longevity&intent=meal-support" };
+  if (pillar === "calm") return { label: "Breath Garden", url: "/games/breath-garden" };
   return null;
 }
 
 type AppActivityCta = {
   label: string;
   route: string;
+  reason?: string;
 };
 
 const APP_ACTIVITY_ROUTES_BY_PILLAR: Partial<Record<PreventionPillar, string>> = {
   heart: "/social-rooms/morning-movement/exercises/tai-chi",
   brain: "/memory-games",
   strength: "/social-rooms/morning-movement/exercises/seated-strength",
+  nourishment: "/concierge?source=longevity&intent=meal-support",
   calm: "/games/breath-garden",
 };
 
@@ -3139,13 +3164,14 @@ export default function PreventionPlan({
   const heroPreview = heroPillarId ? copy.experiencePreviews[heroPillarId] : copy.experiencePreviews.brain;
   const heroActionDuration = formatDuration(heroAction.duration_seconds, copy);
   const heroTitle = heroVideo?.title ?? (heroExperienceKind === "video" ? copy.ctaLabels.video : heroAction.title);
-  const heroVideoReason = heroVideo ? publicVideoReason(heroVideo, heroPillarId, companionLanguage) : "";
+  const heroPublicContent = heroVideo?.publicContent ?? null;
+  const heroVideoReason = heroVideo ? (heroPublicContent?.summary || publicVideoReason(heroVideo, heroPillarId, companionLanguage)) : "";
   const heroDetail = heroExperienceKind === "brain_game" && activeBrainSpark
     ? activeBrainSpark.prompt
     : heroVideo ? heroVideoReason : heroExperienceKind === "video" ? copy.defaultWhy : heroAction.detail;
   const heroKeyPoints = heroVideo ? publicVideoKeyPoints(heroVideo) : [];
-  const heroVideoTakeaway = heroVideo ? publicVideoTakeaway(heroVideo, heroPillarId, companionLanguage) : "";
-  const heroAfterWatchAction = heroVideo ? publicAfterWatchAction(heroVideo, heroAction, heroPillarId, companionLanguage) : heroAction.detail;
+  const heroVideoTakeaway = heroVideo ? (heroPublicContent?.keyTakeaway || publicVideoTakeaway(heroVideo, heroPillarId, companionLanguage)) : "";
+  const heroAfterWatchAction = heroVideo ? (heroPublicContent?.companionAction || publicAfterWatchAction(heroVideo, heroAction, heroPillarId, companionLanguage)) : heroAction.detail;
   const heroGoodFor = heroVideo ? publicVideoList(heroVideo.goodFor) : [];
   const heroNotFor = heroVideo ? publicVideoList(heroVideo.notFor) : [];
   const heroInsightPoints = Array.from(new Set([...heroKeyPoints, ...heroGoodFor])).slice(0, 3);
@@ -3156,7 +3182,7 @@ export default function PreventionPlan({
     ? [heroVideo.channel, heroVideoDuration].filter(Boolean).join(" · ")
     : [heroAction.resource_label ?? heroPreview.label, heroActionDuration, heroTimingMeta].filter(Boolean).join(" · ");
   const heroCtaLabel = heroVideo ? copy.watch : heroExperienceKind === "video" ? copy.askVyva : ctaLabelForExperience(heroExperienceKind, copy);
-  const rawHeroActivityCta = appActivityCtaForPillar(heroPillarId, copy);
+  const rawHeroActivityCta = heroPublicContent?.activityCta ?? appActivityCtaForPillar(heroPillarId, copy);
   const heroActivityCta = rawHeroActivityCta && (heroVideo || heroAction.route !== rawHeroActivityCta.route)
     ? rawHeroActivityCta
     : null;

@@ -701,6 +701,9 @@ describe("PreventionPlan", () => {
     fireEvent.click(screen.getByText("¿Por qué esto?"));
     expect(screen.getByRole("button", { name: "Juegos mentales VYVA" })).toBeVisible();
 
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar Nutrición" }));
+    expect(screen.getByRole("button", { name: "Apoyo de comida" })).toBeVisible();
+
     fireEvent.click(screen.getByRole("button", { name: "Mostrar Calma y descanso" }));
 
     expect(screen.getByRole("heading", { name: "Meditación Guiada de 10 minutos | Calma la mente y consigue paz interior" })).toBeVisible();

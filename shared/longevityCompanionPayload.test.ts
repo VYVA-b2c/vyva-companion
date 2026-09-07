@@ -210,6 +210,21 @@ describe("longevity companion payload", () => {
     expect(payload.todayVideo?.language).toBe("fr");
     expect(payload.todayVideo?.url).toBe("https://www.youtube.com/watch?v=Uplih5Mx1uw");
     expect(payload.dailySession.primaryExperience.video?.language).toBe("fr");
+    expect(payload.todayVideo?.publicContent).toMatchObject({
+      language: "fr",
+      pillar: "brain",
+      resourceUrl: "https://www.youtube.com/watch?v=Uplih5Mx1uw",
+      resourceTitle: "Les meilleurs aliments pour préserver son cerveau et ses facultés le plus longtemps possible",
+      reviewStatus: "approved",
+      activityRoute: "/memory-games",
+      activityCta: {
+        label: "Jeux cérébraux VYVA",
+        route: "/memory-games",
+      },
+    });
+    expect(payload.todayVideo?.publicContent.summary).not.toMatch(/youtube|curated|reviewed|program step|langue|personnes âgées/i);
+    expect(payload.todayVideo?.publicContent.companionAction).toContain("jeu cérébral");
+    expect(payload.dailySession.whyThis.evidence.join(" ")).not.toMatch(/Curated video|program step|youtube/i);
   });
 
   it("falls back to reviewed English videos when the profile language has no approved video set", () => {
