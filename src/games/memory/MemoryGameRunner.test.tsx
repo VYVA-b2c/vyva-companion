@@ -53,6 +53,8 @@ function renderMemoryGame(initialEntry: string) {
     <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/memory-games/:gameType" element={<MemoryGameRunner />} />
+        <Route path="/brain-coach/activity/:gameType" element={<MemoryGameRunner />} />
+        <Route path="/dev/connections" element={<MemoryGameRunner forcedGameType="association_memory" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -154,7 +156,7 @@ describe("MemoryGameRunner word recall", () => {
 
   it("runs Connections through study, neutral reset, deferred recall, and review", async () => {
     vi.mocked(saveGameResult).mockResolvedValueOnce();
-    renderMemoryGame("/memory-games/association_memory?level=3&variant=association_memory-l3-v1");
+    renderMemoryGame("/dev/connections?level=3&variant=association_memory-l3-v1");
 
     expect((await screen.findAllByText("Connections")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Remember these plans")).toBeInTheDocument();
@@ -190,9 +192,13 @@ describe("MemoryGameRunner word recall", () => {
     }));
 
     fireEvent.click(screen.getByRole("button", { name: "See results" }));
-    expect(await screen.findByRole("button", { name: "Next activity" })).toBeInTheDocument();
+    const nextRoundButton = await screen.findByRole("button", { name: "Next round" });
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Next level/i })).not.toBeInTheDocument();
+
+    fireEvent.click(nextRoundButton);
+    expect(await screen.findByText("Remember these plans")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Connections complete" })).not.toBeInTheDocument();
   });
 
   it("makes the next level explicit after reaching the 80 percent threshold", async () => {
@@ -211,7 +217,7 @@ describe("MemoryGameRunner word recall", () => {
     fireEvent.click(await screen.findByRole("button", { name: "See results" }));
     expect(await screen.findByRole("button", { name: "Next level 4" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Next activity" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next round" })).not.toBeInTheDocument();
   });
 
   it("shows Number Memory guidance before the first three-round session", async () => {

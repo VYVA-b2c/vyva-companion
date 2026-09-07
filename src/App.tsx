@@ -1129,6 +1129,7 @@ const App = () => (
                     <Route path="/dev/screen-contact-sheet" element={<ScreenContactSheet />} />
                     <Route path="/dev/profile-conditions" element={<ConditionsSection />} />
                     <Route path="/dev/remember-later" element={<RememberLaterPreviewRoute />} />
+                    <Route path="/dev/connections" element={<MemoryGameRunner forcedGameType="association_memory" returnPath="/dev/home-master/brain" />} />
                     <Route path="/dev/curious-minds" element={<CuriousMindsPreviewRoute />} />
                     <Route path="/dev/scent-memory" element={<ScentMemoryPreviewRoute />} />
                     <Route path="/dev/listen-closely" element={<ListenCloselyPreviewRoute />} />
