@@ -175,7 +175,7 @@ type LongevityPreventionPlan = {
   status: "active" | "superseded" | "archived";
 };
 
-type LongevityActionEventType = "shown" | "opened" | "done" | "too_hard" | "not_relevant";
+type LongevityActionEventType = "shown" | "opened" | "saved" | "done" | "too_hard" | "not_relevant";
 type LongevityMoment = "morning" | "midday" | "afternoon" | "evening";
 type LongevityMomentStatus = "past" | "now" | "later";
 type LongevityProgramStatus = "active" | "paused" | "completed";
@@ -252,6 +252,12 @@ type LongevityVideoResourceRow = {
   transcript_status?: LongevityVideoTranscriptStatus | null;
   key_points?: string[] | null;
   senior_takeaway?: string | null;
+  pillar?: PreventionPillar | null;
+  transcript_summary?: string | null;
+  after_watch_action?: string | null;
+  good_for?: string[] | null;
+  not_for?: string[] | null;
+  moment_fit?: LongevityMoment[] | null;
   curation_status: Exclude<LongevityVideoCurationStatus, "pending">;
   curator_agent: string;
   search_query: string;
@@ -290,6 +296,7 @@ type LongevityProgramStep = {
 type LongevityVideoResource = {
   id: string;
   provider: "youtube";
+  pillar: PreventionPillar | null;
   videoId: string;
   url: string;
   title: string;
@@ -303,6 +310,11 @@ type LongevityVideoResource = {
   transcriptStatus: LongevityVideoTranscriptStatus;
   keyPoints: string[];
   seniorTakeaway: string | null;
+  transcriptSummary: string | null;
+  afterWatchAction: string | null;
+  goodFor: string[];
+  notFor: string[];
+  momentFit: LongevityMoment[];
 };
 
 type LongevityProgramLayer = {
@@ -536,6 +548,7 @@ type LongevityProgramDayTemplate = {
 };
 
 type LongevityVideoCandidate = {
+  pillar?: PreventionPillar | null;
   videoId: string;
   url: string;
   title: string;
@@ -549,6 +562,11 @@ type LongevityVideoCandidate = {
   transcriptStatus?: LongevityVideoTranscriptStatus;
   keyPoints?: string[];
   seniorTakeaway?: string | null;
+  transcriptSummary?: string | null;
+  afterWatchAction?: string | null;
+  goodFor?: string[];
+  notFor?: string[];
+  momentFit?: LongevityMoment[];
   searchQuery: string;
   curationStatus: Exclude<LongevityVideoCurationStatus, "pending">;
 };
@@ -557,6 +575,11 @@ type LongevityVideoInsight = {
   transcriptStatus: LongevityVideoTranscriptStatus;
   keyPoints: string[];
   seniorTakeaway: string;
+  transcriptSummary?: string;
+  afterWatchAction?: string;
+  goodFor?: string[];
+  notFor?: string[];
+  momentFit?: LongevityMoment[];
 };
 
 const STARTER_PROGRAM_TEMPLATES: LongevityProgramDayTemplate[] = [
@@ -698,7 +721,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/hoPg4bkKemQ/hqdefault.jpg",
     language: "en",
     summary: "A short, calm explanation of how food choices can support brain health.",
-    selectedReason: "Short, practical, and connected to the brain and nourishment parts of the Longevity program.",
+    selectedReason: "Connects one simple food choice with memory and energy for today.",
     safetyNotes: "Educational only; no diagnosis or treatment claim.",
     searchQuery: "MIND diet brain health short Mayo Clinic video",
     curationStatus: "fallback",
@@ -712,7 +735,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/sjrEUD9RZqA/hqdefault.jpg",
     language: "en",
     summary: "A short visual cue that heart-supporting movement can stay small and doable.",
-    selectedReason: "A one-minute Mayo Clinic clip that makes heart movement feel doable: a little movement still counts.",
+    selectedReason: "Makes heart movement feel doable by keeping the first step small.",
     safetyNotes: "General wellness education only; choose comfortable movement.",
     searchQuery: "Mayo Clinic Minute a little moving goes long way heart health video",
     curationStatus: "fallback",
@@ -726,7 +749,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/R41BXXGohsU/hqdefault.jpg",
     language: "en",
     summary: "A quick visual guide for making one meal choice easier.",
-    selectedReason: "A short Mayo Clinic food clip turns nourishment into one practical choice at the next meal.",
+    selectedReason: "Turns nourishment into one practical choice at the next meal.",
     safetyNotes: "General nutrition education only; follow personal restrictions and clinician guidance.",
     searchQuery: "Mayo Clinic Minute how to choose a healthy fat video",
     curationStatus: "fallback",
@@ -740,7 +763,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/ZToicYcHIOU/hqdefault.jpg",
     language: "en",
     summary: "A simple guided meditation for a calm reset.",
-    selectedReason: "A paced video is easier to follow than another written breathing instruction.",
+    selectedReason: "Gives the pause a gentle pace to follow without overthinking it.",
     safetyNotes: "Pause or stop if the exercise feels uncomfortable.",
     searchQuery: "Daily Calm 10 Minute Mindfulness Meditation Be Present video",
     curationStatus: "fallback",
@@ -754,7 +777,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/2XVQctv5WzQ/hqdefault.jpg",
     language: "es",
     summary: "Una explicación breve sobre cómo la alimentación puede apoyar la salud cerebral.",
-    selectedReason: "Un video breve de Mayo Clinic en español, conectado con memoria y nutrición.",
+    selectedReason: "Conecta una comida sencilla con memoria y energía para elegir un cambio hoy.",
     safetyNotes: "Educación general de bienestar; no sustituye orientación clínica.",
     searchQuery: "salud cerebral memoria alimentación adultos mayores video español",
     curationStatus: "fallback",
@@ -768,7 +791,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/pEki37hCX9s/hqdefault.jpg",
     language: "es",
     summary: "Un recordatorio breve para elegir movimiento de una forma más llevadera.",
-    selectedReason: "Mayo Clinic explica en español cómo adaptar el ejercicio para que sea más fácil empezar.",
+    selectedReason: "Ayuda a escoger un movimiento breve y amable para activar el día sin hacerlo pesado.",
     safetyNotes: "Mantén el movimiento cómodo y suave; detente si algo no se siente bien.",
     searchQuery: "ejercicio corazón adultos mayores video español Mayo Clinic",
     curationStatus: "fallback",
@@ -782,7 +805,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/M0Jh5tLQRE0/hqdefault.jpg",
     language: "es",
     summary: "Una rutina breve de calentamiento para empezar movimiento con más seguridad.",
-    selectedReason: "Es un video en español, específico para adultos mayores y limitado a 10 minutos.",
+    selectedReason: "Ayuda a preparar el cuerpo antes de caminar o moverse por casa con más confianza.",
     safetyNotes: "Usa apoyo cercano y haz cada movimiento más pequeño si lo necesitas.",
     searchQuery: "ejercicios adultos mayores 10 minutos seguro español",
     curationStatus: "fallback",
@@ -796,7 +819,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/pBVof_fgLV4/hqdefault.jpg",
     language: "es",
     summary: "Un recurso visual en español sobre alimentación saludable en personas mayores.",
-    selectedReason: "Está en español y se centra directamente en alimentación para personas mayores.",
+    selectedReason: "Da ideas simples para mejorar la próxima comida sin cambiar toda la rutina.",
     safetyNotes: "Educación general; respeta alergias, preferencias y pautas del equipo sanitario.",
     searchQuery: "alimentación saludable adultos mayores español",
     curationStatus: "fallback",
@@ -810,7 +833,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/FReFf1CLf-c/hqdefault.jpg",
     language: "es",
     summary: "Una meditación guiada corta en español para una pausa tranquila.",
-    selectedReason: "Da estructura sonora y visual a una pausa de calma de solo 10 minutos.",
+    selectedReason: "Da estructura sonora y visual a una pausa de calma fácil de empezar.",
     safetyNotes: "Pausa o termina si respirar lento o cerrar los ojos no resulta cómodo.",
     searchQuery: "meditación guiada 10 minutos español calma",
     curationStatus: "fallback",
@@ -824,7 +847,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/Uplih5Mx1uw/hqdefault.jpg",
     language: "fr",
     summary: "Un guide visuel en français sur les choix alimentaires liés au cerveau.",
-    selectedReason: "Ressource en français qui relie nutrition et santé du cerveau de façon concrète.",
+    selectedReason: "Relie le repas à la mémoire avec une action simple pour aujourd'hui.",
     safetyNotes: "Information générale de bien-être; respecter les conseils médicaux personnels.",
     searchQuery: "santé du cerveau alimentation personnes âgées français",
     curationStatus: "fallback",
@@ -838,7 +861,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/OBn81SkwFtk/hqdefault.jpg",
     language: "fr",
     summary: "Une courte séance en français pour garder le mouvement simple.",
-    selectedReason: "Dix minutes en français, orientées seniors, pour un pas cardio doux.",
+    selectedReason: "Aide à garder un mouvement doux et réaliste dans la journée.",
     safetyNotes: "Choisir une version confortable et garder un appui à proximité.",
     searchQuery: "exercice doux personnes âgées 10 minutes français",
     curationStatus: "fallback",
@@ -852,7 +875,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/XOYqccktGxQ/hqdefault.jpg",
     language: "fr",
     summary: "Une séance douce en français pour travailler mobilité et stabilité.",
-    selectedReason: "Séance courte, en français, pensée pour les seniors et facile à délimiter.",
+    selectedReason: "Propose quelques mouvements pour démarrer avec plus de stabilité.",
     safetyNotes: "Utiliser un appui stable et réduire l'amplitude si nécessaire.",
     searchQuery: "gym douce senior 10 minutes français",
     curationStatus: "fallback",
@@ -866,7 +889,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/VWH4M7j0ECk/hqdefault.jpg",
     language: "fr",
     summary: "Un contenu en français sur les repères alimentaires pour seniors.",
-    selectedReason: "La vidéo traite directement l'alimentation des seniors dans la langue de l'utilisateur.",
+    selectedReason: "Transforme les repères alimentaires en une amélioration simple du prochain repas.",
     safetyNotes: "Information générale; tenir compte des allergies et restrictions personnelles.",
     searchQuery: "alimentation saine personnes âgées français",
     curationStatus: "fallback",
@@ -880,7 +903,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/T6VJVRmqVJ8/hqdefault.jpg",
     language: "fr",
     summary: "Une méditation guidée en français pour une pause calme.",
-    selectedReason: "Dix minutes guidées en français donnent une structure claire au moment calme.",
+    selectedReason: "Donne un rythme guidé pour une pause calme facile à commencer.",
     safetyNotes: "Arrêter si l'exercice n'est pas confortable.",
     searchQuery: "méditation guidée 10 minutes français calme",
     curationStatus: "fallback",
@@ -894,7 +917,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/uLLo9w4dbPA/hqdefault.jpg",
     language: "en",
     summary: "A short prompt to choose a movement commitment that fits the day.",
-    selectedReason: "Tiny commitment, official public-health source, and easy to act on immediately.",
+    selectedReason: "Turns movement into one small commitment that is easy to start today.",
     safetyNotes: "Keep activity gentle and choose what feels comfortable.",
     searchQuery: "older adults gentle physical activity motivation short HHS video",
     curationStatus: "fallback",
@@ -908,7 +931,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/q-_BWXpM-Y0/hqdefault.jpg",
     language: "en",
     summary: "A short warm-up before doing anything more active.",
-    selectedReason: "Designed for older adults and short enough to be a realistic first step.",
+    selectedReason: "Makes the next movement feel easier by starting with a gentle warm-up.",
     safetyNotes: "Use support nearby and stop if any movement feels wrong today.",
     searchQuery: "National Institute on Aging 5 minute warm up older adults video",
     curationStatus: "fallback",
@@ -922,7 +945,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/BzpaQ0F49JE/hqdefault.jpg",
     language: "en",
     summary: "A visual nutrition guide for thinking about protein as part of healthy ageing.",
-    selectedReason: "Matches the program's breakfast and strength-support focus.",
+    selectedReason: "Connects breakfast with energy and strength through one simple food cue.",
     safetyNotes: "General nutrition education; respect allergies, preferences, and clinician guidance.",
     searchQuery: "nutrition tips adults over 60 protein breakfast short video",
     curationStatus: "fallback",
@@ -950,7 +973,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/BHY0FxzoKZE/hqdefault.jpg",
     language: "en",
     summary: "A visual explanation of why movement and brain health belong together.",
-    selectedReason: "Useful bridge between the brain and heart pillars.",
+    selectedReason: "Shows how light movement can support both energy and brain health.",
     safetyNotes: "Educational only; choose gentle movement that fits your body.",
     searchQuery: "brain changing benefits of exercise short video",
     curationStatus: "fallback",
@@ -992,7 +1015,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/6O_jxyC-eu0/hqdefault.jpg",
     language: "en",
     summary: "A simple visual guide for making one meal or hydration choice easier.",
-    selectedReason: "Directly matches the older-adult nourishment part of the program.",
+    selectedReason: "Makes the next meal easier to improve with one visible choice.",
     safetyNotes: "General nutrition education; follow personal dietary restrictions.",
     searchQuery: "healthy eating older adults simple plate tips video",
     curationStatus: "fallback",
@@ -1020,7 +1043,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/LyR0l_GEgZI/hqdefault.jpg",
     language: "en",
     summary: "A low-intensity indoor movement option for today.",
-    selectedReason: "Specific, visual, and usable when a walk outside is not the best fit.",
+    selectedReason: "Gives an indoor movement option for days when going outside is not the best fit.",
     safetyNotes: "Keep it gentle and stop if you feel unwell.",
     searchQuery: "British Heart Foundation low intensity aerobic 10 minute home workout video",
     curationStatus: "fallback",
@@ -1034,7 +1057,7 @@ const FALLBACK_VIDEO_LIBRARY: Record<string, LongevityVideoCandidate> = {
     thumbnailUrl: "https://i.ytimg.com/vi/G1lwVhnnkoU/hqdefault.jpg",
     language: "en",
     summary: "A bounded strength and movement routine for older adults.",
-    selectedReason: "Short, older-adult specific, and structured enough to follow.",
+    selectedReason: "Gives a clear first movement step without needing a full workout.",
     safetyNotes: "Use support nearby and make the movements smaller when needed.",
     searchQuery: "National Institute on Aging 10 minute workout older adults strength balance video",
     curationStatus: "fallback",
@@ -1264,6 +1287,58 @@ const FALLBACK_VIDEO_INSIGHTS_BY_ID: Record<string, LongevityVideoInsight> = {
     ],
     seniorTakeaway: "Use the guided sequence only where it feels comfortable and let that be enough.",
   },
+};
+
+const DEFAULT_VIDEO_METADATA_BY_PILLAR: Record<PreventionPillar, {
+  transcriptSummary: string;
+  afterWatchAction: string;
+  goodFor: string[];
+  notFor: string[];
+  momentFit: LongevityMoment[];
+}> = {
+  heart: {
+    transcriptSummary: "A short movement cue can make heart support feel concrete today.",
+    afterWatchAction: "Choose the gentlest version and do one comfortable round.",
+    goodFor: ["Days when a small movement cue would help you begin."],
+    notFor: ["Skip or ask for a gentler option if movement feels unsteady today."],
+    momentFit: ["afternoon"],
+  },
+  brain: {
+    transcriptSummary: "A short visual guide can make today's memory focus easier to act on.",
+    afterWatchAction: "Try one tiny memory or word step while the idea is fresh.",
+    goodFor: ["A short brain-health cue before a light memory activity."],
+    notFor: ["Choose a game instead if a video feels passive today."],
+    momentFit: ["afternoon"],
+  },
+  strength: {
+    transcriptSummary: "A short guided movement can make steadiness practice easier to start.",
+    afterWatchAction: "Do the first movement with a stable support nearby, then stop if that is enough.",
+    goodFor: ["A supported movement start on lower-energy days."],
+    notFor: ["Avoid movements that feel uncomfortable or hard to control."],
+    momentFit: ["afternoon"],
+  },
+  nourishment: {
+    transcriptSummary: "A visual food cue can make the next meal simpler to improve.",
+    afterWatchAction: "Pick one familiar food or drink upgrade for the next meal.",
+    goodFor: ["Breakfast, lunch, or a simple meal decision."],
+    notFor: ["Respect allergies, preferences, and personal food guidance."],
+    momentFit: ["morning", "midday"],
+  },
+  calm: {
+    transcriptSummary: "A guided pause can give the calm step a clear beginning and end.",
+    afterWatchAction: "Follow the first few minutes, then stop early if that feels right.",
+    goodFor: ["A brief reset before rest or after a busy moment."],
+    notFor: ["Keep eyes open or stop if the practice feels uncomfortable."],
+    momentFit: ["morning", "evening"],
+  },
+};
+
+const DEFAULT_GENERIC_VIDEO_METADATA = {
+  transcriptSummary: "A short visual cue can make one wellness step easier to start today.",
+  afterWatchAction: "Choose the smallest useful next step and let that count.",
+  goodFor: ["A simple wellness cue when the day needs structure."],
+  notFor: ["Ask VYVA for a gentler option if it does not feel right today."],
+  momentFit: ["afternoon"] as LongevityMoment[],
 };
 
 const PILLAR_VIDEO_RESOURCE_KEYS_BY_LANGUAGE: Record<string, Record<PreventionPillar, string>> = {
@@ -2921,11 +2996,22 @@ function mapVideoRow(row: LongevityVideoResourceRow): LongevityVideoResource {
     summary: row.summary,
     selectedReason: row.selected_reason,
     curationStatus: row.curation_status,
+    pillar: row.pillar ?? null,
+    transcriptSummary: row.transcript_summary ?? null,
+    afterWatchAction: row.after_watch_action ?? null,
+    goodFor: row.good_for ?? [],
+    notFor: row.not_for ?? [],
+    momentFit: row.moment_fit ?? [],
   });
   const keyPoints = normalizedVideoKeyPoints(row.key_points);
+  const pillar = normalizePreventionPillar(row.pillar) ?? inferFallbackVideoPillar(row.video_id);
+  const goodFor = normalizedVideoList(row.good_for);
+  const notFor = normalizedVideoList(row.not_for);
+  const momentFit = normalizedMomentFit(row.moment_fit);
   return {
     id: row.id,
     provider: row.provider,
+    pillar,
     videoId: row.video_id,
     url: row.url,
     title: row.title,
@@ -2939,6 +3025,11 @@ function mapVideoRow(row: LongevityVideoResourceRow): LongevityVideoResource {
     transcriptStatus: normalizeVideoTranscriptStatus(row.transcript_status ?? fallback.transcriptStatus),
     keyPoints: keyPoints.length ? keyPoints : fallback.keyPoints,
     seniorTakeaway: sentence(row.senior_takeaway ?? fallback.seniorTakeaway),
+    transcriptSummary: sentence(row.transcript_summary ?? fallback.transcriptSummary ?? row.summary ?? ""),
+    afterWatchAction: sentence(row.after_watch_action ?? fallback.afterWatchAction ?? row.senior_takeaway ?? fallback.seniorTakeaway),
+    goodFor: goodFor.length ? goodFor : normalizedVideoList(fallback.goodFor),
+    notFor: notFor.length ? notFor : normalizedVideoList(fallback.notFor),
+    momentFit: momentFit.length ? momentFit : normalizedMomentFit(fallback.momentFit),
   };
 }
 
@@ -3039,9 +3130,44 @@ function normalizedVideoKeyPoints(value: unknown): string[] {
     .slice(0, 3);
 }
 
-function fallbackVideoInsightFor(candidate: Pick<LongevityVideoCandidate, "videoId" | "summary" | "selectedReason" | "curationStatus">): LongevityVideoInsight {
+function normalizedVideoList(value: unknown, limit = 3): string[] {
+  return arrayOfText(value)
+    .map((item) => sentence(item))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function normalizedMomentFit(value: unknown): LongevityMoment[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is LongevityMoment => LONGEVITY_MOMENT_ORDER.includes(item as LongevityMoment))
+    : [];
+}
+
+function inferFallbackVideoPillar(videoId: string): PreventionPillar | null {
+  const match = Object.entries(FALLBACK_VIDEO_LIBRARY)
+    .find(([, candidate]) => candidate.videoId === videoId);
+  if (!match) return null;
+  return PREVENTION_PILLARS.find((pillar) => match[0].startsWith(`${pillar}-`)) ?? null;
+}
+
+function videoMetadataDefaults(pillar: PreventionPillar | null | undefined) {
+  return pillar ? DEFAULT_VIDEO_METADATA_BY_PILLAR[pillar] : DEFAULT_GENERIC_VIDEO_METADATA;
+}
+
+function fallbackVideoInsightFor(candidate: Pick<LongevityVideoCandidate, "videoId" | "summary" | "selectedReason" | "curationStatus" | "pillar" | "transcriptSummary" | "afterWatchAction" | "goodFor" | "notFor" | "momentFit">): LongevityVideoInsight {
+  const pillar = candidate.pillar ?? inferFallbackVideoPillar(candidate.videoId);
+  const defaults = videoMetadataDefaults(pillar);
   const reviewed = FALLBACK_VIDEO_INSIGHTS_BY_ID[candidate.videoId];
-  if (reviewed) return reviewed;
+  if (reviewed) {
+    return {
+      ...reviewed,
+      transcriptSummary: sentence(candidate.transcriptSummary ?? reviewed.transcriptSummary ?? candidate.summary ?? defaults.transcriptSummary),
+      afterWatchAction: sentence(candidate.afterWatchAction ?? reviewed.afterWatchAction ?? reviewed.seniorTakeaway ?? defaults.afterWatchAction),
+      goodFor: normalizedVideoList(candidate.goodFor).length ? normalizedVideoList(candidate.goodFor) : normalizedVideoList(reviewed.goodFor).length ? normalizedVideoList(reviewed.goodFor) : defaults.goodFor,
+      notFor: normalizedVideoList(candidate.notFor).length ? normalizedVideoList(candidate.notFor) : normalizedVideoList(reviewed.notFor).length ? normalizedVideoList(reviewed.notFor) : defaults.notFor,
+      momentFit: normalizedMomentFit(candidate.momentFit).length ? normalizedMomentFit(candidate.momentFit) : normalizedMomentFit(reviewed.momentFit).length ? normalizedMomentFit(reviewed.momentFit) : defaults.momentFit,
+    };
+  }
   const keyPoints = normalizedVideoKeyPoints([
     candidate.summary,
     candidate.selectedReason,
@@ -3050,21 +3176,37 @@ function fallbackVideoInsightFor(candidate: Pick<LongevityVideoCandidate, "video
     transcriptStatus: candidate.curationStatus === "fallback" ? "manual_reviewed" : "pending",
     keyPoints: keyPoints.length ? keyPoints : ["Use this as a short visual cue, then keep today's next step small."],
     seniorTakeaway: candidate.summary || candidate.selectedReason || "Use this as a short visual cue, then keep today's next step small.",
+    transcriptSummary: sentence(candidate.transcriptSummary ?? candidate.summary ?? defaults.transcriptSummary),
+    afterWatchAction: sentence(candidate.afterWatchAction ?? defaults.afterWatchAction),
+    goodFor: normalizedVideoList(candidate.goodFor).length ? normalizedVideoList(candidate.goodFor) : defaults.goodFor,
+    notFor: normalizedVideoList(candidate.notFor).length ? normalizedVideoList(candidate.notFor) : defaults.notFor,
+    momentFit: normalizedMomentFit(candidate.momentFit).length ? normalizedMomentFit(candidate.momentFit) : defaults.momentFit,
   };
 }
 
 function videoCandidateWithInsights(candidate: LongevityVideoCandidate): LongevityVideoCandidate {
-  const fallback = fallbackVideoInsightFor(candidate);
+  const pillar = candidate.pillar ?? inferFallbackVideoPillar(candidate.videoId);
+  const fallback = fallbackVideoInsightFor({ ...candidate, pillar });
   const keyPoints = normalizedVideoKeyPoints(candidate.keyPoints);
+  const goodFor = normalizedVideoList(candidate.goodFor);
+  const notFor = normalizedVideoList(candidate.notFor);
+  const momentFit = normalizedMomentFit(candidate.momentFit);
   return {
     ...candidate,
+    pillar,
     transcriptStatus: normalizeVideoTranscriptStatus(candidate.transcriptStatus ?? fallback.transcriptStatus),
     keyPoints: keyPoints.length ? keyPoints : fallback.keyPoints,
     seniorTakeaway: sentence(candidate.seniorTakeaway ?? fallback.seniorTakeaway),
+    transcriptSummary: sentence(candidate.transcriptSummary ?? fallback.transcriptSummary ?? candidate.summary ?? ""),
+    afterWatchAction: sentence(candidate.afterWatchAction ?? fallback.afterWatchAction ?? candidate.seniorTakeaway ?? fallback.seniorTakeaway),
+    goodFor: goodFor.length ? goodFor : normalizedVideoList(fallback.goodFor),
+    notFor: notFor.length ? notFor : normalizedVideoList(fallback.notFor),
+    momentFit: momentFit.length ? momentFit : normalizedMomentFit(fallback.momentFit),
   };
 }
 
-function liveVideoInsightForStep(step: LongevityProgramDayRow, summary: string | null): Pick<LongevityVideoCandidate, "transcriptStatus" | "keyPoints" | "seniorTakeaway"> {
+function liveVideoInsightForStep(step: LongevityProgramDayRow, summary: string | null): Pick<LongevityVideoCandidate, "transcriptStatus" | "keyPoints" | "seniorTakeaway" | "transcriptSummary" | "afterWatchAction" | "goodFor" | "notFor" | "momentFit"> {
+  const defaults = videoMetadataDefaults(step.pillar);
   const keyPoints = normalizedVideoKeyPoints([
     step.objective,
     summary,
@@ -3074,6 +3216,11 @@ function liveVideoInsightForStep(step: LongevityProgramDayRow, summary: string |
     transcriptStatus: "pending",
     keyPoints,
     seniorTakeaway: `Use the video as today's ${PILLAR_LABELS[step.pillar]} cue, then try one small companion step.`,
+    transcriptSummary: summary || step.objective || defaults.transcriptSummary,
+    afterWatchAction: step.action_detail || defaults.afterWatchAction,
+    goodFor: defaults.goodFor,
+    notFor: defaults.notFor,
+    momentFit: defaults.momentFit,
   };
 }
 
@@ -3153,7 +3300,6 @@ function fallbackVideoCandidatesForStep(
     templateCandidate,
     ...Object.values(FALLBACK_VIDEO_LIBRARY).filter((candidate) => candidate.language === normalizedLanguage && candidate.searchQuery === step.video_query),
     ...Object.values(FALLBACK_VIDEO_LIBRARY).filter((candidate) => candidate.language === normalizedLanguage),
-    ...Object.values(FALLBACK_VIDEO_LIBRARY).filter((candidate) => !suppressed.has(candidate.videoId)),
   ].filter((candidate): candidate is LongevityVideoCandidate => Boolean(candidate))
     .map(videoCandidateWithInsights);
 
@@ -3177,7 +3323,7 @@ async function searchYoutubeCandidates(input: {
 }): Promise<LongevityVideoCandidate[]> {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key) return [];
-  const language = normalizeLanguage(input.profile.language_preference);
+  const language = normalizeVideoLanguage(input.profile.language_preference);
   const query = `${input.step.video_query} senior friendly calm`;
   try {
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
@@ -3222,6 +3368,7 @@ async function searchYoutubeCandidates(input: {
       const durationSeconds = isoDurationToSeconds(item.contentDetails?.duration);
       const insight = liveVideoInsightForStep(input.step, summary);
       return videoCandidateWithInsights({
+        pillar: input.step.pillar,
         videoId,
         url: exactYoutubeWatchUrl(videoId),
         title,
@@ -3230,11 +3377,16 @@ async function searchYoutubeCandidates(input: {
         thumbnailUrl: item.snippet?.thumbnails?.high?.url ?? item.snippet?.thumbnails?.medium?.url ?? item.snippet?.thumbnails?.default?.url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
         language,
         summary,
-        selectedReason: `Matched today's ${PILLAR_LABELS[input.step.pillar]} program step.`,
-        safetyNotes: "Auto-selected with senior-friendly safety filters; user can choose a smaller version.",
+        selectedReason: `Gives today's ${PILLAR_LABELS[input.step.pillar]} focus one clear visual cue.`,
+        safetyNotes: "Keep it comfortable and choose a smaller version if needed.",
         transcriptStatus: insight.transcriptStatus,
         keyPoints: insight.keyPoints,
         seniorTakeaway: insight.seniorTakeaway,
+        transcriptSummary: insight.transcriptSummary,
+        afterWatchAction: insight.afterWatchAction,
+        goodFor: insight.goodFor,
+        notFor: insight.notFor,
+        momentFit: insight.momentFit,
         searchQuery: query,
         curationStatus: "ready",
       });
@@ -3251,10 +3403,15 @@ async function curateVideoCandidate(input: {
   feedbackHistory: LongevityActionEventRow[];
   rotationDate: string;
 }): Promise<LongevityVideoCandidate | null> {
+  const language = normalizeVideoLanguage(input.profile.language_preference);
+  if (language !== "en") {
+    return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.rotationDate, language)[0] ?? null;
+  }
+
   const liveCandidates = await searchYoutubeCandidates(input);
-  const live = liveCandidates[0];
+  const live = liveCandidates.find((candidate) => normalizeVideoLanguage(candidate.language) === language);
   if (live) return live;
-  return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.rotationDate, input.profile.language_preference)[0] ?? null;
+  return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.rotationDate, language)[0] ?? null;
 }
 
 async function getOrCreateLongevityProgram(input: {
@@ -3264,6 +3421,7 @@ async function getOrCreateLongevityProgram(input: {
   rotationDate: string;
 }): Promise<LongevityProgramRow> {
   const priorityPillar = priorityPillarForPlan(input.plan);
+  const desiredLanguage = normalizeLanguage(input.profile.language_preference);
   const existing = await optionalQuery<LongevityProgramRow>("longevity_programs", `
     select *
     from public.longevity_programs
@@ -3273,7 +3431,18 @@ async function getOrCreateLongevityProgram(input: {
     order by created_at desc
     limit 1
   `, [input.userId, LONGEVITY_PROGRAM_KEY]);
-  if (existing[0]) return existing[0];
+  if (existing[0]) {
+    if (normalizeLanguage(existing[0].language) !== desiredLanguage) {
+      const updated = await optionalQuery<LongevityProgramRow>("longevity_programs", `
+        update public.longevity_programs
+        set language = $2, updated_at = now()
+        where id = $1::uuid
+        returning *
+      `, [existing[0].id, desiredLanguage]);
+      return updated[0] ?? { ...existing[0], language: desiredLanguage, updated_at: new Date().toISOString() };
+    }
+    return existing[0];
+  }
 
   const startDate = input.rotationDate;
   const inserted = await optionalQuery<LongevityProgramRow>("longevity_programs", `
@@ -3289,7 +3458,7 @@ async function getOrCreateLongevityProgram(input: {
     orderedStarterProgramTemplates(priorityPillar).map((template) => template.pillar),
     startDate,
     LONGEVITY_PROGRAM_TOTAL_DAYS,
-    normalizeLanguage(input.profile.language_preference),
+    desiredLanguage,
   ]);
   return inserted[0] ?? fallbackProgramRow({ userId: input.userId, profile: input.profile, priorityPillar, startDate, rotationDate: input.rotationDate });
 }
@@ -3359,19 +3528,23 @@ async function getTodayProgramDay(input: {
 async function getCachedProgramVideo(input: {
   step: LongevityProgramDayRow;
   feedbackHistory: LongevityActionEventRow[];
+  language: string | null | undefined;
 }): Promise<{ row: LongevityVideoResourceRow; status: LongevityVideoCurationStatus } | null> {
   const suppressed = suppressedVideoIds(input.feedbackHistory);
+  const desiredLanguage = normalizeVideoLanguage(input.language);
   const rows = await optionalQuery<LongevityVideoResourceRow>("longevity_video_resources", `
     select *
     from public.longevity_video_resources
     where program_day_id = $1::uuid
+      and language = $2
       and (expires_at is null or expires_at > now())
     order by fetched_at desc
     limit 6
-  `, [input.step.id]);
+  `, [input.step.id, desiredLanguage]);
   const usable = rows.find((row) =>
     isExactYoutubeWatchUrl(row.url)
     && !suppressed.has(row.video_id)
+    && normalizeVideoLanguage(row.language) === desiredLanguage
     && videoCandidateIsSafe({
       videoId: row.video_id,
       url: row.url,
@@ -3396,20 +3569,29 @@ async function getOrCreateProgramVideo(input: {
   feedbackHistory: LongevityActionEventRow[];
   rotationDate: string;
 }): Promise<{ video: LongevityVideoResource | null; status: LongevityVideoCurationStatus }> {
-  const cached = await getCachedProgramVideo({ step: input.step, feedbackHistory: input.feedbackHistory });
+  const cached = await getCachedProgramVideo({ step: input.step, feedbackHistory: input.feedbackHistory, language: input.profile.language_preference });
   if (cached) return { video: mapVideoRow(cached.row), status: cached.status };
 
   const candidate = await curateVideoCandidate(input);
   if (!candidate) return { video: null, status: "failed" };
+  const candidatePillar = candidate.pillar ?? input.step.pillar;
+  const candidateTranscriptSummary = sentence(candidate.transcriptSummary ?? candidate.summary ?? "");
+  const candidateAfterWatchAction = sentence(candidate.afterWatchAction ?? candidate.seniorTakeaway ?? input.step.action_detail);
+  const candidateGoodFor = normalizedVideoList(candidate.goodFor);
+  const candidateNotFor = normalizedVideoList(candidate.notFor);
+  const candidateMomentFit = normalizedMomentFit(candidate.momentFit);
 
   const inserted = await optionalQuery<LongevityVideoResourceRow>("longevity_video_resources", `
     insert into public.longevity_video_resources (
       program_day_id, user_id, provider, video_id, url, title, channel, duration_seconds, thumbnail_url,
       language, summary, selected_reason, safety_notes, transcript_status, key_points, senior_takeaway,
+      pillar, transcript_summary, after_watch_action, good_for, not_for, moment_fit,
       curation_status, curator_agent, search_query, expires_at
     ) values (
       $1::uuid, $2, 'youtube', $3, $4, $5, $6, $7, $8,
-      $9, $10, $11, $12, $13, $14::text[], $15, $16, $17, $18, now() + interval '30 days'
+      $9, $10, $11, $12, $13, $14::text[], $15,
+      $16, $17, $18, $19::text[], $20::text[], $21::text[],
+      $22, $23, $24, now() + interval '30 days'
     )
     on conflict (program_day_id, video_id) do update
       set fetched_at = now(),
@@ -3418,7 +3600,13 @@ async function getOrCreateProgramVideo(input: {
           safety_notes = excluded.safety_notes,
           transcript_status = excluded.transcript_status,
           key_points = excluded.key_points,
-          senior_takeaway = excluded.senior_takeaway
+          senior_takeaway = excluded.senior_takeaway,
+          pillar = excluded.pillar,
+          transcript_summary = excluded.transcript_summary,
+          after_watch_action = excluded.after_watch_action,
+          good_for = excluded.good_for,
+          not_for = excluded.not_for,
+          moment_fit = excluded.moment_fit
     returning *
   `, [
     input.step.id,
@@ -3436,6 +3624,12 @@ async function getOrCreateProgramVideo(input: {
     candidate.transcriptStatus ?? "pending",
     normalizedVideoKeyPoints(candidate.keyPoints),
     candidate.seniorTakeaway ?? null,
+    candidatePillar,
+    candidateTranscriptSummary || null,
+    candidateAfterWatchAction || null,
+    candidateGoodFor,
+    candidateNotFor,
+    candidateMomentFit,
     candidate.curationStatus,
     LONGEVITY_CURATOR_AGENT,
     candidate.searchQuery,
@@ -3459,6 +3653,12 @@ async function getOrCreateProgramVideo(input: {
     transcript_status: candidate.transcriptStatus ?? "pending",
     key_points: normalizedVideoKeyPoints(candidate.keyPoints),
     senior_takeaway: candidate.seniorTakeaway ?? null,
+    pillar: candidatePillar,
+    transcript_summary: candidateTranscriptSummary || null,
+    after_watch_action: candidateAfterWatchAction || null,
+    good_for: candidateGoodFor,
+    not_for: candidateNotFor,
+    moment_fit: candidateMomentFit,
     curation_status: candidate.curationStatus,
     curator_agent: LONGEVITY_CURATOR_AGENT,
     search_query: candidate.searchQuery,
@@ -3502,6 +3702,12 @@ export function buildFallbackLongevityProgramLayer(input: {
       transcriptStatus: video.transcriptStatus ?? "manual_reviewed",
       keyPoints: normalizedVideoKeyPoints(video.keyPoints),
       seniorTakeaway: video.seniorTakeaway ?? video.summary,
+      pillar: video.pillar ?? stepRow.pillar,
+      transcriptSummary: video.transcriptSummary ?? video.summary,
+      afterWatchAction: video.afterWatchAction ?? video.seniorTakeaway ?? stepRow.action_detail,
+      goodFor: normalizedVideoList(video.goodFor),
+      notFor: normalizedVideoList(video.notFor),
+      momentFit: normalizedMomentFit(video.momentFit),
     } : null,
     videoCurationStatus: video ? video.curationStatus : "failed",
   };
@@ -3803,7 +4009,7 @@ function programStepToAction(
     resource_title: video?.title ?? null,
     duration_seconds: video?.durationSeconds ?? null,
     safety_notes: video?.safetyNotes ?? null,
-    prompt: `Help me with today's Longevity program step: ${title}. ${challenge ? `Challenge: ${challenge.prompt}.` : ""} ${whyToday}.${videoContext}`,
+    prompt: `Help me with today's Longevity activity: ${title}. ${challenge ? `Challenge: ${challenge.prompt}.` : ""} ${whyToday}.${videoContext}`,
     source: "program",
     challenge: recentHard ? null : challenge,
     gameOptions: recentHard || gameOptions.length === 0 ? null : gameOptions,
@@ -4041,6 +4247,7 @@ function videoFromCompanionAction(action: LongevityCompanionAction, language?: s
   return {
     id: action.content_id ?? action.action_key,
     provider: "youtube",
+    pillar: curatedMatch?.pillar ?? action.pillar ?? null,
     videoId,
     url: exactYoutubeWatchUrl(videoId),
     title: action.resource_title ?? curatedMatch?.title ?? action.title,
@@ -4054,6 +4261,11 @@ function videoFromCompanionAction(action: LongevityCompanionAction, language?: s
     transcriptStatus: curatedMatch?.transcriptStatus ?? "pending",
     keyPoints: normalizedVideoKeyPoints(curatedMatch?.keyPoints),
     seniorTakeaway: curatedMatch?.seniorTakeaway ?? action.detail ?? null,
+    transcriptSummary: curatedMatch?.transcriptSummary ?? curatedMatch?.summary ?? action.detail ?? null,
+    afterWatchAction: curatedMatch?.afterWatchAction ?? curatedMatch?.seniorTakeaway ?? action.detail ?? null,
+    goodFor: normalizedVideoList(curatedMatch?.goodFor),
+    notFor: normalizedVideoList(curatedMatch?.notFor),
+    momentFit: normalizedMomentFit(curatedMatch?.momentFit),
   };
 }
 
@@ -4620,7 +4832,7 @@ function normalizePreventionPillar(value: unknown): PreventionPillar | null {
 }
 
 function normalizeLongevityActionEventType(value: unknown): LongevityActionEventType | null {
-  return ["shown", "opened", "done", "too_hard", "not_relevant"].includes(String(value))
+  return ["shown", "opened", "saved", "done", "too_hard", "not_relevant"].includes(String(value))
     ? value as LongevityActionEventType
     : null;
 }
@@ -4657,7 +4869,21 @@ async function recordLongevityActionEvent(input: {
   ]);
 }
 
-function isCachedLongevityCompanionPayload(value: unknown, activeMoment: LongevityMoment): value is LongevityCompanionPayload {
+function cachedPayloadMatchesLanguage(payload: Partial<LongevityCompanionPayload>, language: string | null | undefined): boolean {
+  const desiredLanguage = normalizeVideoLanguage(language);
+  const payloadLanguage = typeof payload.todayVideo?.language === "string"
+    ? normalizeVideoLanguage(payload.todayVideo.language)
+    : typeof payload.activeProgram?.language === "string"
+      ? normalizeVideoLanguage(payload.activeProgram.language)
+      : desiredLanguage;
+  return payloadLanguage === desiredLanguage;
+}
+
+function isCachedLongevityCompanionPayload(
+  value: unknown,
+  activeMoment: LongevityMoment,
+  language: string | null | undefined,
+): value is LongevityCompanionPayload {
   const payload = safeJson<Partial<LongevityCompanionPayload> | null>(value, null);
   return Boolean(
     payload
@@ -4665,6 +4891,7 @@ function isCachedLongevityCompanionPayload(value: unknown, activeMoment: Longevi
     && payload.currentMomentSession
     && payload.currentMomentSession.moment === activeMoment
     && payload.activeMoment === activeMoment
+    && cachedPayloadMatchesLanguage(payload, language)
     && payload.primaryAction
     && payload.todayFocus,
   );
@@ -4674,6 +4901,7 @@ async function getCachedLongevityMomentPayload(input: {
   userId: string;
   rotationDate: string;
   activeMoment: LongevityMoment;
+  language: string | null | undefined;
 }): Promise<LongevityCompanionPayload | null> {
   const rows = await optionalQuery<{ payload: unknown }>("longevity_moment_sessions", `
     select payload
@@ -4692,7 +4920,7 @@ async function getCachedLongevityMomentPayload(input: {
     limit 1
   `, [input.userId, input.rotationDate, input.activeMoment]);
   const payload = rows[0]?.payload;
-  return isCachedLongevityCompanionPayload(payload, input.activeMoment)
+  return isCachedLongevityCompanionPayload(payload, input.activeMoment, input.language)
     ? safeJson<LongevityCompanionPayload>(payload, {} as LongevityCompanionPayload)
     : null;
 }
@@ -5210,7 +5438,12 @@ router.get("/prevention/companion/:userId", async (req: Request, res: Response) 
     ]);
     const rotationDate = todaySeed(profile.timezone);
     const activeMoment = activeLongevityMoment(profile.timezone);
-    const cachedPayload = await getCachedLongevityMomentPayload({ userId, rotationDate, activeMoment });
+    const cachedPayload = await getCachedLongevityMomentPayload({
+      userId,
+      rotationDate,
+      activeMoment,
+      language: profile.language_preference,
+    });
     if (cachedPayload) return res.json(cachedPayload);
 
     const dailyContent = await getDailyContentBundle(userId, conditions, profile, activeMoment);

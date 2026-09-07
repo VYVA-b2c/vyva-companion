@@ -20,11 +20,11 @@ describe("brainCoachCatalog", () => {
     const activeActivities = BRAIN_COACH_ACTIVITY_CATALOG.filter((activity) => activity.status === "active");
     const ids = activeActivities.map((activity) => activity.id);
 
-    expect(activeActivities).toHaveLength(17);
+    expect(activeActivities).toHaveLength(16);
     expect(new Set(ids).size).toBe(ids.length);
     expect(getBrainCoachActivitiesForModule("memory")).toHaveLength(8);
     expect(getBrainCoachActivitiesForModule("reflexes")).toHaveLength(3);
-    expect(getBrainCoachActivitiesForModule("thinking")).toHaveLength(4);
+    expect(getBrainCoachActivitiesForModule("thinking")).toHaveLength(3);
     expect(getBrainCoachActivitiesForModule("senses")).toHaveLength(2);
   });
 
@@ -52,7 +52,6 @@ describe("brainCoachCatalog", () => {
     ]);
     expect(getBrainCoachActivitiesForModule("thinking").map(({ id }) => id)).toEqual([
       "curious_minds",
-      "routine_memory",
       "number_trails",
       "category_sort",
     ]);
@@ -63,6 +62,11 @@ describe("brainCoachCatalog", () => {
     expect(BRAIN_COACH_ACTIVITY_CATALOG.find(({ id }) => id === "routine_memory")?.progression).toEqual({
       kind: "levels",
       maxLevel: 5,
+    });
+    expect(BRAIN_COACH_ACTIVITY_CATALOG.find(({ id }) => id === "routine_memory")?.status).toBe("hidden");
+    expect(BRAIN_COACH_ACTIVITY_CATALOG.find(({ id }) => id === "number_memory")?.progression).toEqual({
+      kind: "levels",
+      maxLevel: 30,
     });
   });
 

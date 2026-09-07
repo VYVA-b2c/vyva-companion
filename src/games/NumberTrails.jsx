@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MousePointer2, Play, Route, Smile, Sparkles, Square, Timer, Zap } from "lucide-react";
+import { MousePointer2, Play, Route, Smile, Sparkles, Timer, Zap } from "lucide-react";
 import { useLanguage } from "@/i18n";
-import { BrainCoachFullscreenActivity, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
-import { VyvaWordmark } from "@/components/VyvaWordmark";
+import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import { gameData } from "./shared/gameDataApi";
 import BrainGameCompletionDialog from "./shared/BrainGameCompletionDialog";
 import { recordCognitiveSession } from "./shared/brainCoachSessions";
@@ -409,7 +408,7 @@ function TrailCanvas({
   return (
     <div
       ref={ref}
-      className={`nt-canvas nt-canvas-${mode} relative w-full overflow-hidden rounded-[8px] border-2 bg-white`}
+      className={`nt-canvas nt-canvas-${mode} relative w-full overflow-hidden rounded-[26px] border bg-white`}
       style={{
         height: size.height,
         borderColor: mode === "playing" ? BRAND.border : "#EFE4D5",
@@ -1213,36 +1212,21 @@ export default function NumberTrails({
       : formatTemplate(text.instruction, { n: nodes[nodes.length - 1]?.label ?? nodes.length });
 
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.exit}
+        onBack={handleExit}
         testId="number-trails-flow-shell"
         presentationId="brain_coach.activity_session.improve_thinking.number_trails.intro.touch"
         sceneId="brain_coach.activity_session.improve_thinking.number_trails"
         sceneKind="intro"
         sceneLayout="trail_preview"
       >
-        <main className="min-h-screen px-5 pb-8 pt-5" style={{ background: BRAND.bg }}>
+        <main className="pb-6" data-testid="number-trails-intro">
         <div className="mx-auto flex w-full max-w-[780px] flex-col gap-5">
-          <div className="flex items-center justify-between gap-4">
-            <VyvaWordmark className="h-auto w-[108px] sm:w-[136px]" />
-            <button
-              type="button"
-              onClick={handleExit}
-              className="flex min-h-[64px] items-center gap-3 rounded-full bg-white px-5 text-[22px] font-bold shadow-vyva-card"
-              style={{ color: BRAND.ink }}
-            >
-              <ArrowLeft size={24} />
-              {text.exit}
-            </button>
-          </div>
-
-          <section className="rounded-[8px] border bg-white p-6 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+          <section className="rounded-[28px] border bg-white p-6 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
             <div className="flex flex-col items-center text-center">
-              <div className="flex h-[92px] w-[92px] items-center justify-center rounded-[8px]" style={{ background: BRAND.softPurple, color: BRAND.purple }}>
-                <Route size={52} />
-              </div>
-              <h1 className="mt-5 font-display text-[46px] font-bold leading-[1.05]" style={{ color: BRAND.ink }}>{text.title}</h1>
-              <p className="mt-3 text-[26px] font-semibold leading-[1.3]" style={{ color: BRAND.muted }}>{text.subtitle}</p>
+              <p className="text-[24px] font-bold leading-[1.3]" style={{ color: BRAND.muted }}>{text.subtitle}</p>
 
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <span className="rounded-full px-5 py-3 text-[22px] font-extrabold" style={{ background: "#FEF3C7", color: "#92400E" }}>
@@ -1281,7 +1265,7 @@ export default function NumberTrails({
           </section>
         </div>
         </main>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
@@ -1290,17 +1274,19 @@ export default function NumberTrails({
     const handNode = tutorialAnimating ? TUTORIAL_NODES[tutorialIndex] : null;
 
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.exit}
+        onBack={handleExit}
         testId="number-trails-flow-shell"
         presentationId="brain_coach.activity_session.improve_thinking.number_trails.tutorial.touch"
         sceneId="brain_coach.activity_session.improve_thinking.number_trails"
         sceneKind="tutorial"
         sceneLayout="trail_example"
       >
-        <main className="min-h-screen px-5 pb-8 pt-5" style={{ background: BRAND.bg }}>
+        <main className="pb-6">
         <div className="mx-auto flex w-full max-w-[780px] flex-col gap-5">
-          <div className="flex items-center justify-between gap-4 rounded-[8px] border bg-white p-4 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+          <div className="flex items-center justify-between gap-4 rounded-[24px] border bg-white p-4 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
             <h1 className="text-[26px] font-extrabold leading-[1.15]" style={{ color: BRAND.ink }}>{text.example}</h1>
             <button
               type="button"
@@ -1312,7 +1298,7 @@ export default function NumberTrails({
             </button>
           </div>
 
-          <section className="rounded-[8px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+          <section className="rounded-[28px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
             <TrailCanvas
               nodes={TUTORIAL_NODES}
               completedLabels={tutorialCompleted}
@@ -1324,43 +1310,32 @@ export default function NumberTrails({
               handNode={handNode}
             />
 
-            <div className="mt-5 rounded-[8px] px-4 py-4 text-center text-[24px] font-extrabold leading-[1.2]" style={{ background: "#FFF7ED", color: "#92400E" }}>
+            <div className="mt-5 rounded-[20px] px-4 py-4 text-center text-[24px] font-extrabold leading-[1.2]" style={{ background: "#FFF7ED", color: "#92400E" }}>
               {text.tapInOrder}
             </div>
           </section>
         </div>
         </main>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
   if (screen === "playing") {
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.exit}
+        onBack={handleExit}
         testId="number-trails-flow-shell"
         presentationId="brain_coach.activity_session.improve_thinking.number_trails.playing.touch"
         sceneId="brain_coach.activity_session.improve_thinking.number_trails"
         sceneKind="playing"
         sceneLayout="trail_canvas"
       >
-        <main className="min-h-screen px-4 pb-6 pt-4" style={{ background: BRAND.bg }}>
+        <main className="pb-6">
         <div className="mx-auto flex w-full max-w-[820px] flex-col gap-4">
-          <header className="rounded-[8px] border bg-white p-4 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="font-display text-[34px] font-bold leading-[1.05]" style={{ color: BRAND.ink }}>{text.title}</h1>
-              <button
-                type="button"
-                onClick={handleExit}
-                className="flex min-h-[64px] items-center gap-3 rounded-full border-2 bg-white px-5 text-[22px] font-extrabold"
-                style={{ borderColor: BRAND.border, color: BRAND.ink }}
-              >
-                <Square size={24} fill={BRAND.ink} />
-                {text.exit}
-              </button>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3 text-[26px] font-extrabold" style={{ color: BRAND.purple }}>
+          <header className="rounded-[24px] border bg-white p-4 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+            <div className="flex items-center justify-center gap-3 text-[24px] font-extrabold" style={{ color: BRAND.purple }}>
               <Timer size={30} />
               <span>{formatClock(elapsedMs)}</span>
             </div>
@@ -1383,7 +1358,7 @@ export default function NumberTrails({
             mode="playing"
           />
 
-          <footer className="rounded-[8px] border bg-white px-5 py-4 text-center shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+          <footer className="rounded-[24px] border bg-white px-5 py-4 text-center shadow-vyva-card" style={{ borderColor: BRAND.border }}>
             <p className="text-[24px] font-extrabold leading-[1.25]" style={{ color: BRAND.ink }}>
               {formatTemplate(text.nextTarget, { label: nextNode?.label ?? "-" })}
             </p>
@@ -1395,7 +1370,7 @@ export default function NumberTrails({
           </footer>
         </div>
         </main>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
@@ -1421,8 +1396,11 @@ export default function NumberTrails({
   const promotionProgress = clamp(Number(resultState.consecutive_wins ?? 0) / 3, 0, 1);
 
   return (
-    <BrainCoachFullscreenActivity
+    <BrainCoachActivityShell
       title={text.title}
+      backLabel={text.exit}
+      onBack={handleExit}
+      showHeader={false}
       testId="number-trails-flow-shell"
       presentationId="brain_coach.activity_session.improve_thinking.number_trails.result.touch"
       sceneId="brain_coach.activity_session.improve_thinking.number_trails"
@@ -1528,6 +1506,6 @@ export default function NumberTrails({
           }
         }
       `}</style>
-    </BrainCoachFullscreenActivity>
+    </BrainCoachActivityShell>
   );
 }

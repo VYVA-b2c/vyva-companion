@@ -1008,8 +1008,8 @@ const pt = {
       description: "Ordene atividades do dia e treine a memoria pratica.",
     },
     associationMemory: {
-      title: "Associacao",
-      description: "Relacione nomes, objetos e imagens.",
+      title: "Ligações",
+      description: "Recorde pessoas, lugares e detalhes práticos.",
     },
     storyRecall: {
       title: "Historias curtas",

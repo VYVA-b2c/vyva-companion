@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
   Brain,
   Check,
   ChevronDown,
   ChevronUp,
   CircleHelp,
   Eye,
-  Square,
 } from "lucide-react";
 import { useLanguage } from "@/i18n";
-import { BrainCoachFullscreenActivity, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
+import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import { gameData } from "./shared/gameDataApi";
 import BrainGameCompletionDialog from "./shared/BrainGameCompletionDialog";
 import { recordCognitiveSession } from "./shared/brainCoachSessions";
@@ -182,7 +180,7 @@ function NumberPicker({ value, min, max, onChange, ariaLabel, increaseLabel, dec
 
   return (
     <div
-      className="grid w-[118px] grid-rows-[44px_56px_44px] overflow-hidden rounded-[8px] border-2 bg-white sm:w-[178px] sm:grid-rows-[64px_76px_64px]"
+      className="grid w-[118px] grid-rows-[44px_56px_44px] overflow-hidden rounded-[22px] border bg-white sm:w-[178px] sm:grid-rows-[64px_76px_64px]"
       style={{ borderColor: BRAND.border }}
       onWheel={(event) => {
         event.preventDefault();
@@ -798,12 +796,6 @@ export default function DualTaskWalk({ userId, onExit }) {
     background: BRAND.bg,
     color: BRAND.ink,
   };
-  const fixedShellStyle = {
-    ...shellStyle,
-    paddingTop: "max(8px, env(safe-area-inset-top))",
-    paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-  };
-
   if (screen === "loading") {
     return (
       <BrainCoachLoadingState
@@ -818,26 +810,20 @@ export default function DualTaskWalk({ userId, onExit }) {
 
   if (screen === "intro") {
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.back}
+        onBack={handleExit}
         testId="dual-task-walk-flow-shell"
         presentationId="brain_coach.activity_session.train_reflexes.dual_task_walk.intro.touch"
         sceneId="brain_coach.activity_session.train_reflexes.dual_task_walk"
         sceneKind="intro"
         sceneLayout="dual_task_preview"
       >
-        <div className="h-[100dvh] overflow-hidden px-4 sm:px-6 md:px-8" style={fixedShellStyle}>
-        <div className="mx-auto flex h-full w-full max-w-[820px] flex-col">
-          <div className="flex shrink-0 items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleExit}
-              className="inline-flex min-h-[64px] items-center gap-3 rounded-full bg-white px-5 text-[22px] font-bold text-vyva-text-1 shadow-vyva-card"
-            >
-              <ArrowLeft size={24} />
-              {text.back}
-            </button>
-            <div className="flex min-h-[64px] items-center rounded-full px-5 text-[22px] font-bold text-white shadow-vyva-card" style={{ background: BRAND.gold }}>
+        <div className="pb-6" data-testid="dual-task-intro">
+        <div className="mx-auto flex w-full max-w-[820px] flex-col rounded-[28px] border border-[#EEE8F1] bg-white p-5 shadow-vyva-card sm:p-6">
+          <div className="flex shrink-0 items-center justify-center gap-3">
+            <div className="flex min-h-[56px] items-center rounded-full bg-[#FEF3C7] px-5 text-[21px] font-bold text-[#92400E]">
               {text.level} {currentSequence.difficulty_tier} - {currentBand.label}
             </div>
             {tutorialSeen ? (
@@ -853,22 +839,20 @@ export default function DualTaskWalk({ userId, onExit }) {
             ) : null}
           </div>
 
-          <main className="flex min-h-0 flex-1 flex-col justify-center py-4 md:py-6">
+          <main className="flex min-h-0 flex-1 flex-col justify-center py-5">
             <div className="text-center">
-              <div className="text-[60px] leading-none md:text-[68px]">🧠</div>
-              <h1 className="mt-3 font-display text-[40px] font-bold leading-none md:text-[46px]">{text.title}</h1>
-              <p className="mx-auto mt-3 max-w-[26ch] text-[24px] leading-[1.35] text-[#5B4B71]">{text.subtitle}</p>
+              <p className="mx-auto max-w-[26ch] text-[22px] font-bold leading-[1.35] text-[#5B4B71]">{text.subtitle}</p>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 md:mt-7">
-              <div className="flex min-h-[124px] items-center gap-4 rounded-[8px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
-                <div className="flex h-[64px] w-[64px] flex-shrink-0 items-center justify-center rounded-[8px]" style={{ background: BRAND.softPurple }}>
+              <div className="flex min-h-[124px] items-center gap-4 rounded-[24px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+                <div className="flex h-[64px] w-[64px] flex-shrink-0 items-center justify-center rounded-[20px]" style={{ background: BRAND.softPurple }}>
                   <Brain className="h-10 w-10" style={{ color: BRAND.purple }} />
                 </div>
                 <p className="text-[24px] font-bold leading-[1.2]">{text.countBack}</p>
               </div>
-              <div className="flex min-h-[124px] items-center gap-4 rounded-[8px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
-                <div className="flex h-[64px] w-[64px] flex-shrink-0 items-center justify-center rounded-[8px] bg-[#FFF7ED]">
+              <div className="flex min-h-[124px] items-center gap-4 rounded-[24px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BRAND.border }}>
+                <div className="flex h-[64px] w-[64px] flex-shrink-0 items-center justify-center rounded-[20px] bg-[#FFF7ED]">
                   <Eye className="h-10 w-10" style={{ color: BRAND.gold }} />
                 </div>
                 <p className="text-[24px] font-bold leading-[1.2]">{text.tapMatch}</p>
@@ -879,39 +863,33 @@ export default function DualTaskWalk({ userId, onExit }) {
           <button
             type="button"
             onClick={() => startRound()}
-            className="min-h-[72px] w-full shrink-0 rounded-[8px] px-6 text-[26px] font-bold text-white shadow-vyva-card sm:px-8 sm:text-[28px]"
+            className="min-h-[72px] w-full shrink-0 rounded-full px-6 text-[26px] font-bold text-white shadow-vyva-card sm:px-8 sm:text-[28px]"
             style={{ background: BRAND.purple }}
           >
             {text.start}
           </button>
         </div>
         </div>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
   if (screen === "tutorial") {
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.back}
+        onBack={handleExit}
         testId="dual-task-walk-flow-shell"
         presentationId="brain_coach.activity_session.train_reflexes.dual_task_walk.tutorial.touch"
         sceneId="brain_coach.activity_session.train_reflexes.dual_task_walk"
         sceneKind="tutorial"
         sceneLayout="dual_task_example"
       >
-        <div className="h-[100dvh] overflow-hidden px-3 sm:px-5 md:px-6" style={fixedShellStyle}>
-        <div className="mx-auto flex h-full w-full max-w-[820px] flex-col">
-          <header className="flex min-h-[64px] shrink-0 items-center justify-between gap-3">
+        <div className="pb-6">
+        <div className="mx-auto flex w-full max-w-[820px] flex-col">
+          <header className="flex min-h-[64px] shrink-0 items-center gap-3">
             <h1 className="min-w-0 font-display text-[34px] font-bold leading-tight sm:text-[40px]">{text.tutorialTitle}</h1>
-            <button
-              type="button"
-              onClick={closeTutorial}
-              className="min-h-[64px] shrink-0 rounded-full px-5 text-[22px] font-bold sm:px-6 sm:text-[24px]"
-              style={{ background: BRAND.softPurple, color: BRAND.purple }}
-            >
-              {text.skip}
-            </button>
           </header>
 
           <main className="flex min-h-0 flex-1 flex-col justify-center py-3">
@@ -959,14 +937,14 @@ export default function DualTaskWalk({ userId, onExit }) {
           <button
             type="button"
             onClick={closeTutorial}
-            className="min-h-[72px] w-full shrink-0 rounded-[8px] px-8 text-[28px] font-bold text-white shadow-vyva-card"
+            className="min-h-[72px] w-full shrink-0 rounded-full px-8 text-[28px] font-bold text-white shadow-vyva-card"
             style={{ background: BRAND.purple }}
           >
             {text.tutorialUnderstand}
           </button>
         </div>
         </div>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
@@ -974,29 +952,19 @@ export default function DualTaskWalk({ userId, onExit }) {
     const mathDone = serial7sStep >= serialSteps;
 
     return (
-      <BrainCoachFullscreenActivity
+      <BrainCoachActivityShell
         title={text.title}
+        backLabel={text.exit}
+        onBack={handleExit}
         testId="dual-task-walk-flow-shell"
         presentationId="brain_coach.activity_session.train_reflexes.dual_task_walk.playing.touch"
         sceneId="brain_coach.activity_session.train_reflexes.dual_task_walk"
         sceneKind="playing"
         sceneLayout="dual_task_board"
       >
-        <div className="h-[100dvh] overflow-hidden px-3 sm:px-4 md:px-5" style={fixedShellStyle}>
-        <div className="mx-auto flex h-full w-full max-w-[820px] flex-col gap-2">
+        <div className="pb-6">
+        <div className="mx-auto flex w-full max-w-[820px] flex-col gap-3">
           <header className="shrink-0">
-            <div className="flex min-h-[52px] items-center justify-between gap-3 sm:min-h-[64px]">
-              <h1 className="min-w-0 font-display text-[20px] font-bold leading-[1.05] sm:text-[30px]">{text.title}</h1>
-              <button
-                type="button"
-                onClick={handleExit}
-                className="inline-flex min-h-[46px] shrink-0 items-center gap-2 rounded-full px-4 text-[18px] font-bold sm:min-h-[64px] sm:gap-3 sm:px-5 sm:text-[24px]"
-                style={{ background: "#FFF7ED", color: "#9A3412" }}
-              >
-                <Square size={22} />
-                {text.exit}
-              </button>
-            </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#EDE6F4]">
               <div className="h-full transition-[width] duration-100" style={{ width: `${roundProgress * 100}%`, background: BRAND.purple }} />
             </div>
@@ -1004,7 +972,7 @@ export default function DualTaskWalk({ userId, onExit }) {
 
           <main className="flex min-h-0 flex-1 flex-col gap-2">
             <section
-              className={`flex min-h-0 shrink-0 flex-col rounded-[8px] border-2 bg-white p-3 transition-colors sm:p-4 ${
+              className={`flex min-h-0 shrink-0 flex-col rounded-[24px] border bg-white p-3 transition-colors sm:p-4 ${
                 serialFeedback === "correct" ? "bg-[#ECFDF3]" : serialFeedback === "almost" ? "bg-[#FFFBEB]" : ""
               }`}
               style={{
@@ -1022,7 +990,7 @@ export default function DualTaskWalk({ userId, onExit }) {
               </div>
 
               {mathDone ? (
-                <div className="mt-2 flex min-h-0 flex-1 items-center justify-center rounded-[8px] text-[30px] font-bold sm:text-[32px]" style={{ background: "#ECFDF3", color: "#15803D" }}>
+                <div className="mt-2 flex min-h-0 flex-1 items-center justify-center rounded-[20px] text-[30px] font-bold sm:text-[32px]" style={{ background: "#ECFDF3", color: "#15803D" }}>
                   <Check size={46} />
                   <span className="ml-3">✓ ✓ ✓</span>
                 </div>
@@ -1056,7 +1024,7 @@ export default function DualTaskWalk({ userId, onExit }) {
                       type="button"
                       onClick={handleSerial7sConfirm}
                       disabled={!pickerTouched}
-                      className="inline-flex min-h-[72px] items-center justify-center gap-2 rounded-[8px] px-3 text-[20px] font-bold leading-[1.05] text-white transition-opacity disabled:opacity-45 sm:min-h-[96px] sm:gap-3 sm:px-6 sm:text-[26px]"
+                      className="inline-flex min-h-[72px] items-center justify-center gap-2 rounded-full px-3 text-[20px] font-bold leading-[1.05] text-white transition-opacity disabled:opacity-45 sm:min-h-[96px] sm:gap-3 sm:px-6 sm:text-[26px]"
                       style={{ background: pickerTouched ? BRAND.purple : "#9CA3AF" }}
                     >
                       <Check size={28} />
@@ -1068,7 +1036,7 @@ export default function DualTaskWalk({ userId, onExit }) {
             </section>
 
             <section
-              className={`flex min-h-0 flex-1 flex-col rounded-[8px] border-2 bg-white p-3 transition-colors sm:p-4 ${
+              className={`flex min-h-0 flex-1 flex-col rounded-[24px] border bg-white p-3 transition-colors sm:p-4 ${
                 lastTapResult === "hit" ? "bg-[#ECFDF3]" : lastTapResult === "fp" ? "bg-[#FEF2F2]" : ""
               }`}
               style={{ borderColor: lastTapResult === "hit" ? "#16A34A" : lastTapResult === "fp" ? "#DC2626" : BRAND.border }}
@@ -1093,7 +1061,7 @@ export default function DualTaskWalk({ userId, onExit }) {
                 type="button"
                 onClick={handleTap}
                 disabled={symbolsComplete}
-                className="mx-auto flex min-h-[108px] w-full max-w-[560px] shrink-0 items-center justify-center rounded-[8px] px-6 text-center text-[24px] font-bold leading-[1.05] text-white disabled:opacity-60 sm:min-h-[200px] sm:px-8 sm:text-[32px]"
+                className="mx-auto flex min-h-[108px] w-full max-w-[560px] shrink-0 items-center justify-center rounded-[28px] px-6 text-center text-[24px] font-bold leading-[1.05] text-white disabled:opacity-60 sm:min-h-[200px] sm:px-8 sm:text-[32px]"
                 style={{ background: lastTapResult === "hit" ? "#16A34A" : lastTapResult === "fp" ? "#DC2626" : BRAND.purple }}
               >
                 {text.tapHere}
@@ -1102,7 +1070,7 @@ export default function DualTaskWalk({ userId, onExit }) {
           </main>
         </div>
         </div>
-      </BrainCoachFullscreenActivity>
+      </BrainCoachActivityShell>
     );
   }
 
@@ -1126,8 +1094,11 @@ export default function DualTaskWalk({ userId, onExit }) {
       : `${text.keepGoing} ${text.level} ${nextTier}`;
 
   return (
-    <BrainCoachFullscreenActivity
+    <BrainCoachActivityShell
       title={text.title}
+      backLabel={text.exit}
+      onBack={handleExit}
+      showHeader={false}
       testId="dual-task-walk-flow-shell"
       presentationId="brain_coach.activity_session.train_reflexes.dual_task_walk.result.touch"
       sceneId="brain_coach.activity_session.train_reflexes.dual_task_walk"
@@ -1193,7 +1164,7 @@ export default function DualTaskWalk({ userId, onExit }) {
           }
         />
       </div>
-    </BrainCoachFullscreenActivity>
+    </BrainCoachActivityShell>
   );
 }
 

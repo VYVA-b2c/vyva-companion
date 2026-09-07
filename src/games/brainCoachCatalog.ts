@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { VyvaIconAccent } from "@/components/brand/VyvaIcon";
+import { NUMBER_MEMORY_MAX_LEVEL } from "./memory/numberMemoryData";
 import { BRAIN_COACH_MAX_LEVEL } from "./shared/brainCoachProgression";
 import type { CognitiveDomain, MemoryGameType } from "./memory/types";
 
@@ -215,18 +216,19 @@ function memoryActivity(
   gameType: MemoryGameType,
   config: Omit<BrainCoachActivityDefinition, "moduleId" | "kind" | "status" | "runner" | "route" | "titleKey" | "descriptionKey" | "iconBg" | "iconColor" | "progression" | "memoryGameType"> & {
     moduleId?: BrainCoachModuleId;
+    status?: BrainCoachActivityStatus;
     title?: string;
     description?: string;
     progression?: BrainCoachActivityProgression;
   },
 ): BrainCoachActivityDefinition {
   const definition = MEMORY_GAME_META[gameType];
-  const { moduleId = "memory", ...activityConfig } = config;
+  const { moduleId = "memory", status = "active", ...activityConfig } = config;
 
   return {
     moduleId,
     kind: "game",
-    status: "active",
+    status,
     runner: { type: "memory-engine", gameType },
     route: `/memory-games/${gameType}`,
     titleKey: definition.titleKey,
@@ -288,10 +290,10 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
     id: "association_memory",
     cognitiveDomains: ["associative_memory"],
     testId: "brain-coach-activity-association-memory",
-    title: "Association",
-    description: "Study one link, then choose its match.",
+    title: "Connections",
+    description: "Remember who is going where and what they are bringing.",
     trainsKey: "brainCoach.activities.associationMemory.trains",
-    trains: "Associative memory",
+    trains: "People, places, and details",
     durationKey: "brainCoach.activities.associationMemory.duration",
     duration: "3 min",
     actionLabelKey: "brainCoach.actions.startGame",
@@ -337,7 +339,7 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
     cognitiveDomains: ["working_memory", "attention"],
     testId: "brain-coach-activity-number-memory",
     title: "Number Memory",
-    description: "Study digits, hide them, then enter the order.",
+    description: "Watch one digit at a time, then recall the sequence.",
     trainsKey: "brainCoach.activities.numberMemory.trains",
     trains: "Working memory",
     durationKey: "brainCoach.activities.numberMemory.duration",
@@ -347,6 +349,7 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
     icon: Hash,
     iconAccent: "dot",
     borderColor: "#BFDBFE",
+    progression: { kind: "levels", maxLevel: NUMBER_MEMORY_MAX_LEVEL },
   }),
   {
     id: "spatial_navigator",
@@ -383,10 +386,10 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
     runner: { type: "component", componentId: "dual-task-walk" },
     route: "/dual-task-walk",
     testId: "brain-coach-activity-dual-task-walk",
-    titleKey: "brainGames.attentionBoosters.dualTask.title",
-    title: "Dual Task Walk",
-    descriptionKey: "brainGames.attentionBoosters.dualTask.description",
-    description: "Count backwards while reacting to matching symbols.",
+    titleKey: "brainGames.dualTask.title",
+    title: "Dual Task",
+    descriptionKey: "brainGames.dualTask.subtitle",
+    description: "Count and react at the same time.",
     trainsKey: "brainCoach.activities.dualTaskWalk.trains",
     trains: "Split attention",
     durationKey: "brainCoach.activities.dualTaskWalk.duration",
@@ -409,10 +412,10 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
     runner: { type: "memory-engine", gameType: "sequence_memory" },
     route: "/attention-boosters/rhythm-tap",
     testId: "brain-coach-activity-rhythm-sequence",
-    titleKey: "brainCoach.activities.rhythmSequence.title",
-    title: "Rhythm Sequence",
-    descriptionKey: "brainCoach.activities.rhythmSequence.description",
-    description: "Watch a pattern, then tap it back in order.",
+    titleKey: "memoryGames.sequenceMemory.title",
+    title: "Sequences",
+    descriptionKey: "memoryGames.sequenceMemory.description",
+    description: "Remember the order of colours, numbers, or objects.",
     trainsKey: "brainCoach.activities.rhythmSequence.trains",
     trains: "Fast focus",
     durationKey: "brainCoach.activities.rhythmSequence.duration",
@@ -456,6 +459,7 @@ export const BRAIN_COACH_ACTIVITY_CATALOG: BrainCoachActivityDefinition[] = [
   memoryActivity("routine_memory", {
     id: "routine_memory",
     moduleId: "thinking",
+    status: "hidden",
     cognitiveDomains: ["executive_function", "prospective_memory"],
     testId: "brain-coach-activity-routine-memory",
     title: "Routine Memory",

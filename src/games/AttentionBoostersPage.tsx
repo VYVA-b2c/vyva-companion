@@ -12,7 +12,6 @@ export default function AttentionBoostersPage() {
     <BrainCoachFlowShell
       testId="attention-boosters-flow-shell"
       title={title}
-      subtitle={t(module.descriptionKey, module.description)}
       icon={module.icon}
       iconAccent={module.iconAccent}
       iconBg={module.tone.iconBg}

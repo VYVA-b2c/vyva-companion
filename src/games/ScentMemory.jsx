@@ -488,10 +488,7 @@ export default function ScentMemory({ userId, onExit }) {
       <div className="mx-auto w-full max-w-[780px]" style={{ color: BRAND.ink }}>
         {screen === "error" ? (
           <section className="rounded-[28px] border bg-white p-5 text-center shadow-[0_18px_46px_rgba(54,35,78,0.10)] sm:p-6" style={{ borderColor: "#EEE8F1" }}>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px]" style={{ background: BRAND.softPurple, color: BRAND.purple }}>
-              <Flower2 size={36} aria-hidden="true" />
-            </div>
-            <h1 className="mt-4 font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] sm:text-[32px]">{t("games.scentMemory.title", "Scent Memory")}</h1>
+            <h1 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] sm:text-[32px]">{t("games.scentMemory.unavailable", "This memory could not open")}</h1>
             <p className="mt-3 text-[16px] font-semibold leading-relaxed" style={{ color: BRAND.muted }}>{loadError}</p>
             <button
               type="button"
@@ -508,10 +505,9 @@ export default function ScentMemory({ userId, onExit }) {
         {screen === "tutorial" ? (
           <section className="rounded-[28px] border bg-white p-4 text-center shadow-[0_18px_46px_rgba(54,35,78,0.10)] sm:p-5" style={{ borderColor: "#EEE8F1" }}>
             <ScentTutorialVisual visual={scentVisual} />
-            <h1 className="mt-3 font-display text-[24px] font-semibold leading-tight tracking-[-0.03em] sm:text-[27px]">{t("games.scentMemory.title", "Scent Memory")}</h1>
-            <p className="mt-1 text-[15px] font-extrabold leading-tight sm:text-[16px]" style={{ color: BRAND.muted }}>
+            <h1 className="mt-3 font-display text-[24px] font-semibold leading-tight tracking-[-0.03em] sm:text-[27px]">
               {t("games.scentMemory.tutorialSubtitle", "Look. Remember. Share if you want.")}
-            </p>
+            </h1>
 
             <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
               {[
@@ -554,13 +550,9 @@ export default function ScentMemory({ userId, onExit }) {
                 {t("games.scentMemory.instructions", "Guidance")}
               </button>
             </div>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px]" style={{ background: BRAND.softGold, color: BRAND.gold }}>
-              <Flower2 size={36} strokeWidth={2.4} aria-hidden="true" />
-            </div>
-            <h1 className="mt-4 font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] sm:text-[32px]">{t("games.scentMemory.title", "Scent Memory")}</h1>
-            <p className="mt-1.5 text-[16px] font-extrabold" style={{ color: BRAND.muted }}>
+            <h1 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] sm:text-[32px]">
               {t("games.scentMemory.intro", "Look, then remember.")}
-            </p>
+            </h1>
 
             <div className="mt-6 rounded-[26px] border p-4" style={{ background: "#FFFCF8", borderColor: "#F3D9B7" }}>
               <div className="relative overflow-hidden rounded-[22px] bg-[#F7EFE7]">

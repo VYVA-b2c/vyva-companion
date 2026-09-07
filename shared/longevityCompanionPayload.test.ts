@@ -188,6 +188,30 @@ describe("longevity companion payload", () => {
     expect(payload.dailySession.primaryExperience.video?.language).toBe("es");
   });
 
+  it("uses reviewed French videos for a French profile when available", () => {
+    const payload = composeLongevityCompanionPayload({
+      plan: basePlan,
+      profile: { first_name: "Karim", language_preference: "fr", timezone: "Europe/Madrid" },
+      conditions: ["memory support"],
+      vitals: null,
+      meds: null,
+      cognitive: { sessions_this_week: 0, accuracy_trend: "stable" },
+      mood: null,
+      symptoms: null,
+      dailyContent: fivePillarDailyContent,
+      feedbackHistory: [],
+      rotationDate: "2026-08-31",
+      activeMoment: "afternoon",
+    });
+
+    expect(payload.pillarActions.brain.resource_url).toBe("https://www.youtube.com/watch?v=Uplih5Mx1uw");
+    expect(payload.pillarActions.heart.resource_url).toBe("https://www.youtube.com/watch?v=OBn81SkwFtk");
+    expect(payload.pillarActions.strength.resource_url).toBe("https://www.youtube.com/watch?v=XOYqccktGxQ");
+    expect(payload.todayVideo?.language).toBe("fr");
+    expect(payload.todayVideo?.url).toBe("https://www.youtube.com/watch?v=Uplih5Mx1uw");
+    expect(payload.dailySession.primaryExperience.video?.language).toBe("fr");
+  });
+
   it("falls back to reviewed English videos when the profile language has no approved video set", () => {
     const payload = composeLongevityCompanionPayload({
       plan: basePlan,
@@ -277,6 +301,11 @@ describe("longevity companion payload", () => {
     expect(payload.videoCurationStatus).toBe("fallback");
     expect(payload.todayVideo?.transcriptStatus).toBe("manual_reviewed");
     expect(payload.todayVideo?.seniorTakeaway).toContain("choose one brain-friendly food");
+    expect(payload.todayVideo?.transcriptSummary).toContain("food choices can support brain health");
+    expect(payload.todayVideo?.afterWatchAction).toContain("memory");
+    expect(payload.todayVideo?.goodFor.length).toBeGreaterThan(0);
+    expect(payload.todayVideo?.notFor.length).toBeGreaterThan(0);
+    expect(payload.todayVideo?.momentFit).toContain("afternoon");
     expect(payload.todayVideo?.keyPoints).toEqual(expect.arrayContaining([
       "Brain-friendly eating works best as a simple pattern, not a perfect rule.",
     ]));

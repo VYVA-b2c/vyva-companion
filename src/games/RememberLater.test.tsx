@@ -212,6 +212,31 @@ describe("RememberLater helpers", () => {
     expect(new Set(titles).size).toBeGreaterThan(1);
   });
 
+  it("uses mastery wording instead of promising another level at the final tier", () => {
+    const message = getRememberLaterResultMessage({
+      t: translateFallback,
+      result: {
+        round_id: "round-max",
+        difficulty_tier: 20,
+        score: 600,
+        pm_hits: 1,
+        ongoing_correct: 0,
+        ongoing_total: 3,
+      },
+      resultCountsForLevel: false,
+      resultToneHit: true,
+      promotedThisRound: false,
+      progressWins: 0,
+      progressWinsNeeded: 3,
+      nextTier: 20,
+      nextTierBand: { label: "Mastery" },
+      completedMilestone: null,
+    });
+
+    expect(message.detail).toMatch(/highest level/i);
+    expect(message.detail).not.toMatch(/toward Level 20/i);
+  });
+
   it("keeps early tiers approachable without making them feel trivial", () => {
     const normalized = normalizeRememberLaterRound({
       ...testRound,
@@ -396,8 +421,8 @@ describe("RememberLater component", () => {
 
     render(<RememberLater userId="user-1" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
 
-    expect(await screen.findByRole("heading", { name: "Remember Later" })).toBeInTheDocument();
-    expect(screen.getByText("Watch for two things.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Watch for two things." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remember Later", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("See a circle")).toBeInTheDocument();
     expect(screen.getByText("See the bell")).toBeInTheDocument();
     expect(screen.getByText("Anything else: wait.")).toBeInTheDocument();
@@ -597,7 +622,7 @@ describe("RememberLater component", () => {
   it("explains when recall alone does not move the level bar", async () => {
     const userState = {
       ...getDefaultRememberLaterUserState("user-1"),
-      current_tier: 20,
+      current_tier: 1,
       has_seen_tutorial: true,
     };
     gameDataMock.queue.push(
@@ -622,10 +647,12 @@ describe("RememberLater component", () => {
     });
 
     expect(await screen.findByRole("heading", { name: /caught the reminder|Good recall|reminder stayed/i })).toBeInTheDocument();
-    expect(screen.getByText(/Reminder button remembered/i)).toBeInTheDocument();
+    expect(screen.getByText(/You remembered the reminder/i)).toBeInTheDocument();
     expect(screen.getByText("Matching task")).toBeInTheDocument();
     expect(screen.getByText("0%")).toBeInTheDocument();
-    expect(screen.getByText(/strengthen the target taps|matching improves|purple target rule/i)).toBeInTheDocument();
+    expect(screen.getByText(/Improve your matching accuracy next round so it counts toward Level 2/i)).toBeInTheDocument();
+    expect(screen.getByText("Progress to Level 2")).toBeInTheDocument();
+    expect(screen.getByText("0 of 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next round" })).toBeInTheDocument();
   }, 10_000);
 });

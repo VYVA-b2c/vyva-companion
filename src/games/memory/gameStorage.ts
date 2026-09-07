@@ -144,6 +144,7 @@ function resultToSessionPayload(result: GameResult) {
     metadata: {
       variantId: normalized.variantId,
       mistakes: normalized.mistakes,
+      ...normalized.metadata,
     },
   };
 }
@@ -168,6 +169,7 @@ function sessionToGameResult(session: CognitiveSessionDto, fallbackUserId: strin
     completedAt: session.playedAt,
     language: (session.language ?? "es") as GameResult["language"],
     clientResultId: session.clientResultId ?? undefined,
+    metadata,
   });
 }
 

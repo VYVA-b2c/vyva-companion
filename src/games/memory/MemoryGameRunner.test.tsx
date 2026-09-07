@@ -18,6 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 vi.mock("@/hooks/useVyvaVoice", () => ({
+  useOptionalVyvaVoice: () => null,
   useTtsReadout: () => ({
     speakSequence: mocks.speakSequence,
     stopTts: mocks.stopTts,
@@ -151,37 +152,80 @@ describe("MemoryGameRunner word recall", () => {
     }));
   });
 
-  it("uses fewer Association choices in Foundation and more in Challenge", async () => {
-    const { unmount } = renderMemoryGame("/memory-games/association_memory?level=1&variant=association_memory-l1-v1");
+  it("runs Connections through study, neutral reset, deferred recall, and review", async () => {
+    vi.mocked(saveGameResult).mockResolvedValueOnce();
+    renderMemoryGame("/memory-games/association_memory?level=3&variant=association_memory-l3-v1");
 
-    expect(await screen.findByText("Remember one link.")).toBeInTheDocument();
-    expect(screen.getByText("apple")).toBeInTheDocument();
-    expect(screen.getByText("fruit")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ready to choose" }));
+    expect((await screen.findAllByText("Connections")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Remember these plans")).toBeInTheDocument();
+    expect(screen.getByText("red folder")).toBeInTheDocument();
+    expect(screen.getByText("striped umbrella")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start recall" }));
 
-    expect(await screen.findByText("What matches this?")).toBeInTheDocument();
-    expect(screen.getAllByTestId("association-choice")).toHaveLength(2);
+    expect(screen.getByText("Clear your mind")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "11" }));
+    fireEvent.click(screen.getByRole("button", { name: "15" }));
+    fireEvent.click(screen.getByRole("button", { name: "18" }));
 
-    unmount();
-    renderMemoryGame("/memory-games/association_memory?level=11&variant=association_memory-l11-v1");
+    expect(screen.getByText(/Question 1\/4/)).toBeInTheDocument();
+    expect(screen.queryByText("Correct connection")).not.toBeInTheDocument();
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+    }
 
-    expect(await screen.findByText("Level 11 - Challenge")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ready to choose" }));
+    expect(await screen.findByText("Review")).toBeInTheDocument();
+    expect(screen.getAllByText("Correct connection")).toHaveLength(4);
+    expect(saveGameResult).toHaveBeenCalledWith(expect.objectContaining({
+      gameType: "association_memory",
+      score: 0,
+      accuracy: 0,
+      metadata: expect.objectContaining({
+        roundVersion: "connections_v2",
+        associationCount: 3,
+        questionCount: 4,
+        correctCount: 0,
+        questionsAnswered: 0,
+        resetKind: "number_order",
+      }),
+    }));
 
-    expect(await screen.findByText("What matches this?")).toBeInTheDocument();
-    expect(screen.getAllByTestId("association-choice")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "See results" }));
+    expect(await screen.findByRole("button", { name: "Next activity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Next level/i })).not.toBeInTheDocument();
   });
 
-  it("shows Number Memory order and level mode before recall", async () => {
+  it("makes the next level explicit after reaching the 80 percent threshold", async () => {
+    vi.mocked(saveGameResult).mockResolvedValueOnce();
+    renderMemoryGame("/memory-games/association_memory?level=3&variant=association_memory-l3-v1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Start recall" }));
+    fireEvent.click(screen.getByRole("button", { name: "11" }));
+    fireEvent.click(screen.getByRole("button", { name: "15" }));
+    fireEvent.click(screen.getByRole("button", { name: "18" }));
+    fireEvent.click(screen.getByRole("button", { name: "library" }));
+    fireEvent.click(screen.getByRole("button", { name: "Daniel" }));
+    fireEvent.click(screen.getByRole("button", { name: "green notebook" }));
+    fireEvent.click(screen.getByRole("button", { name: "Maya" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "See results" }));
+    expect(await screen.findByRole("button", { name: "Next level 4" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next activity" })).not.toBeInTheDocument();
+  });
+
+  it("shows Number Memory guidance before the first three-round session", async () => {
     renderMemoryGame("/memory-games/number_memory?level=6&variant=number_memory-l6-v1");
 
-    expect(await screen.findByText("Level 6 - Build")).toBeInTheDocument();
-    expect(screen.getByText("Reverse order")).toBeInTheDocument();
-    expect(screen.getByText("4 digits")).toBeInTheDocument();
+    expect(await screen.findByText("Level 6")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remember in the same order" })).toBeInTheDocument();
+    expect(screen.getByText("Watch or listen, then repeat the numbers in the same order.")).toBeInTheDocument();
+    expect(screen.queryByText(/Example:/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide digits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    expect(await screen.findByLabelText("Type the digits in reverse")).toBeInTheDocument();
+    expect(await screen.findByText("Round 1 of 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Let’s start" })).toBeInTheDocument();
   });
 
   it("shows Rhythm Tap instructions once and reopens them from the icon", async () => {
@@ -204,9 +248,9 @@ describe("MemoryGameRunner word recall", () => {
     renderMemoryGame("/memory-games/memory_match?level=1&variant=memory_match-l1-v1");
 
     expect(await screen.findByRole("heading", { name: "Find the pairs" })).toBeInTheDocument();
-    expect(screen.getByText("Different pictures? Both cards turn back. Try another pair.")).toBeInTheDocument();
+    expect(screen.queryByText("Different pictures? Both cards turn back. Try another pair.")).not.toBeInTheDocument();
     expect(screen.getByText("Find all 3 pairs to finish. There is no timer.")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Do not show these instructions again." })).toBeChecked();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Start Level 1" }));
 
@@ -220,8 +264,8 @@ describe("MemoryGameRunner word recall", () => {
   it("starts Visual Memory above Level 1 without repeating basic instructions", async () => {
     renderMemoryGame("/memory-games/memory_match?level=2&variant=memory_match-l2-v1");
 
-    expect(await screen.findByRole("heading", { name: /Visual memory/i })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Find the pairs" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /matching pairs/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /Visual memory/i })).toHaveLength(1);
     expect(screen.queryByText("Tap two cards to find the pair.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Instructions" })).toBeInTheDocument();
   });

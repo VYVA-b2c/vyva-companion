@@ -1961,7 +1961,7 @@ export const longevityActionEvents = pgTable("longevity_action_events", {
   index("idx_longevity_action_events_resource_created").on(t.resource_id, t.created_at.desc()),
   check("lae_pillar_check", sql`${t.pillar} is null or ${t.pillar} in ('heart','brain','strength','nourishment','calm')`),
   check("lae_moment_check", sql`${t.moment} is null or ${t.moment} in ('morning','midday','afternoon','evening')`),
-  check("lae_event_type_check", sql`${t.event_type} in ('shown','opened','done','too_hard','not_relevant')`),
+  check("lae_event_type_check", sql`${t.event_type} in ('shown','opened','saved','done','too_hard','not_relevant')`),
 ]);
 
 export const insertLongevityActionEventSchema = createInsertSchema(longevityActionEvents).omit({ id: true, created_at: true });
@@ -2034,6 +2034,12 @@ export const longevityVideoResources = pgTable("longevity_video_resources", {
   transcript_status: text("transcript_status").notNull().default("pending"),
   key_points: text("key_points").array().notNull().default(sql`array[]::text[]`),
   senior_takeaway: text("senior_takeaway"),
+  pillar: text("pillar"),
+  transcript_summary: text("transcript_summary"),
+  after_watch_action: text("after_watch_action"),
+  good_for: text("good_for").array().notNull().default(sql`array[]::text[]`),
+  not_for: text("not_for").array().notNull().default(sql`array[]::text[]`),
+  moment_fit: text("moment_fit").array().notNull().default(sql`array[]::text[]`),
   curation_status: text("curation_status").notNull().default("fallback"),
   curator_agent: text("curator_agent").notNull().default("vyva-longevity-video-curator-v1"),
   search_query: text("search_query").notNull(),
@@ -2043,9 +2049,12 @@ export const longevityVideoResources = pgTable("longevity_video_resources", {
 }, (t) => [
   uniqueIndex("idx_longevity_video_resources_day_video").on(t.program_day_id, t.video_id),
   index("idx_longevity_video_resources_user_created").on(t.user_id, t.created_at.desc()),
+  index("idx_longevity_video_resources_user_pillar").on(t.user_id, t.pillar, t.created_at.desc()),
   check("longevity_video_resources_provider_check", sql`${t.provider} = 'youtube'`),
   check("longevity_video_resources_curation_status_check", sql`${t.curation_status} in ('ready','fallback','failed')`),
   check("longevity_video_resources_transcript_status_check", sql`${t.transcript_status} in ('pending','available','unavailable','manual_reviewed')`),
+  check("longevity_video_resources_pillar_check", sql`${t.pillar} is null or ${t.pillar} in ('heart','brain','strength','nourishment','calm')`),
+  check("longevity_video_resources_moment_fit_check", sql`${t.moment_fit} <@ array['morning','midday','afternoon','evening']::text[]`),
 ]);
 
 export const insertLongevityProgramSchema = createInsertSchema(longevityPrograms).omit({ id: true, created_at: true, updated_at: true });

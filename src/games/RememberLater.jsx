@@ -132,7 +132,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly0",
       summary: "Now strengthen the matching side of the round.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly0",
-      detail: "You touched the reminder button. Stay here and strengthen the target taps too.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
     {
       titleKey: "games.rememberLater.resultTitles.reminderOnly1",
@@ -140,7 +140,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly1",
       summary: "The future action landed. Next, aim for more target taps.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly1",
-      detail: "The reminder was there; this level will count when the matching improves too.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
     {
       titleKey: "games.rememberLater.resultTitles.reminderOnly2",
@@ -148,7 +148,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly2",
       summary: "That memory moment was useful practice; the level waits for cleaner matching.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly2",
-      detail: "You remembered the future action. Keep the purple target rule just as steady.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
   ],
   missed: [
@@ -841,13 +841,21 @@ export function getRememberLaterResultMessage({
     band: nextTierBand.label,
     count: progressWinsNeeded,
     level: nextTier,
+    nextLevel: Math.min(MAX_TIER, nextTier + 1),
     milestone: completedMilestone ?? t("games.rememberLater.verdictLevelUp", "Level up"),
   };
+  const detail = outcome === "reminderOnly" && nextTier >= MAX_TIER
+    ? t(
+      "games.rememberLater.resultDetails.reminderOnlyMax",
+      "Nice work. Improve your matching accuracy next round to complete a balanced round at the highest level.",
+      params,
+    )
+    : t(variant.detailKey, variant.detail, params);
 
   return {
     title: t(variant.titleKey, variant.title, params),
     summary: t(variant.summaryKey, variant.summary, params),
-    detail: t(variant.detailKey, variant.detail, params),
+    detail,
   };
 }
 
@@ -1429,6 +1437,7 @@ export default function RememberLater({
 
   const resultToneHit = (sessionResult?.pm_hits ?? 0) > 0;
   const nextTier = userState?.current_tier ?? normalizedRound?.difficulty_tier ?? 1;
+  const isAtMaxTier = nextTier >= MAX_TIER;
   const nextTierBand = getBrainCoachLevelBand(nextTier);
   const currentTierBand = normalizedRound ? getBrainCoachLevelBand(normalizedRound.difficulty_tier) : nextTierBand;
   const progressWins = userState?.consecutive_wins ?? 0;
@@ -1470,14 +1479,16 @@ export default function RememberLater({
       : resultCountsForLevel
         ? t("games.rememberLater.verdictCounted", "Good round")
         : resultToneHit
-          ? t("games.rememberLater.verdictMemoryCredit", "Reminder button remembered")
+          ? t("games.rememberLater.verdictMemoryCredit", "You remembered the reminder")
           : t("games.rememberLater.verdictNotCounted", "Stay with this level")
     : "";
   const resultWhy = sessionResult
     ? resultCountsForLevel
       ? t("games.rememberLater.resultWhyCounted", "You used both buttons at the right time.")
       : resultToneHit
-        ? t("games.rememberLater.resultWhyMemoryCredit", "You touched the reminder button. Stay here and strengthen the target taps too.")
+        ? isAtMaxTier
+          ? t("games.rememberLater.resultWhyMemoryCreditMax", "Nice work. Improve your matching accuracy next round to complete a balanced round at the highest level.")
+          : t("games.rememberLater.resultWhyMemoryCredit", "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.", { nextLevel: nextTier + 1 })
         : t("games.rememberLater.resultWhyNeedsRecall", "Stay here and strengthen this level. Use purple for targets and the reminder button for reminders.")
     : "";
   const resultMessage = getRememberLaterResultMessage({
@@ -1530,10 +1541,9 @@ export default function RememberLater({
               <p className="inline-flex rounded-full px-4 py-2 text-[17px] font-black sm:text-[18px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
                 {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBand.label}
               </p>
-              <h1 className="mt-4 font-display text-[38px] leading-tight sm:text-[44px]">{t("games.rememberLater.title", "Remember Later")}</h1>
-              <p className="mt-2 max-w-[560px] text-[22px] font-extrabold leading-snug sm:text-[24px]" style={{ color: BRAND.muted }}>
+              <h1 className="mt-4 max-w-[560px] font-display text-[30px] font-semibold leading-snug sm:text-[34px]" style={{ color: BRAND.ink }}>
                 {t("games.rememberLater.introLead", "Watch for two things.")}
-              </p>
+              </h1>
               <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-full border bg-white px-4 py-3 text-[17px] font-extrabold leading-snug shadow-[0_10px_24px_rgba(80,52,109,0.08)]" style={{ borderColor: BRAND.border, color: BRAND.muted }}>
                 <input
                   type="checkbox"
@@ -1719,8 +1729,14 @@ export default function RememberLater({
                 <p className="mt-1 text-[15px] font-extrabold leading-snug">{resultMessage.detail || resultWhy}</p>
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-[15px] font-black">
-                    <span>{t("games.rememberLater.promotionProgress", "Level progress")}</span>
-                    <span>{progressWins}/3</span>
+                    <span>
+                      {isAtMaxTier
+                        ? t("games.rememberLater.masteryProgress", "Balanced-round progress")
+                        : t("games.rememberLater.promotionProgress", "Progress to Level {level}", {
+                          level: nextTier + 1,
+                        })}
+                    </span>
+                    <span>{t("games.rememberLater.progressCount", "{count} of 3", { count: progressWins })}</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-white/70">
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, (progressWins / 3) * 100)}%`, background: BRAND.purple }} />

@@ -1215,8 +1215,8 @@ const fr = {
       description: "Classez les activites du jour et entrainez la memoire pratique.",
     },
     associationMemory: {
-      title: "Association",
-      description: "Associez des noms, des objets et des images.",
+      title: "Connexions",
+      description: "Retenez des personnes, des lieux et des détails pratiques.",
     },
     storyRecall: {
       title: "Histoires courtes",

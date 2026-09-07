@@ -25,6 +25,10 @@ function visualResult(level: number, accuracy: number, minutesAgo: number): Game
   };
 }
 
+function numberResult(level: number, accuracy: number): GameResult {
+  return { ...visualResult(level, accuracy, 0), gameType: "number_memory", cognitiveDomain: "working_memory", variantId: `number_memory-l${level}-v1` };
+}
+
 describe("memory game progression", () => {
   it("keeps repeat on the current level below the level-up threshold", () => {
     expect(getRepeatLevelForResult(3, MEMORY_LEVEL_UP_ACCURACY - 1)).toBe(3);
@@ -36,6 +40,16 @@ describe("memory game progression", () => {
 
   it("does not move beyond the maximum level", () => {
     expect(getRepeatLevelForResult(20, 100)).toBe(20);
+  });
+
+  it("allows Number Memory to advance from legacy Level 20 while other games remain capped", () => {
+    expect(getRepeatLevelForResult(20, 100, "number_memory")).toBe(21);
+    expect(getRepeatLevelForResult(30, 100, "number_memory")).toBe(30);
+    expect(getRepeatLevelForResult(20, 100, "word_recall")).toBe(20);
+  });
+
+  it("recommends Level 21 after a successful legacy Number Memory Level 20 result", () => {
+    expect(getRecommendedLevelForGame([numberResult(20, 100)], "number_memory")).toBe(21);
   });
 
   it("can exclude the just-played variant before storage history catches up", () => {

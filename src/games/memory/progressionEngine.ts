@@ -23,8 +23,17 @@ export type VisualMemoryLevelProgress = {
   nextLevel: number;
 };
 
-export function getRepeatLevelForResult(currentLevel: number, accuracy: number) {
-  return clampBrainCoachLevel(accuracy >= MEMORY_LEVEL_UP_ACCURACY ? currentLevel + 1 : currentLevel);
+function getMaximumLevel(gameType?: MemoryGameType) {
+  if (!gameType) return BRAIN_COACH_MAX_LEVEL;
+  return getGameDefinition(gameType).levels.reduce((maximum, entry) => Math.max(maximum, entry.level), 1);
+}
+
+function clampGameLevel(level: number, gameType?: MemoryGameType) {
+  return Math.min(getMaximumLevel(gameType), Math.max(1, Math.round(level)));
+}
+
+export function getRepeatLevelForResult(currentLevel: number, accuracy: number, gameType?: MemoryGameType) {
+  return clampGameLevel(accuracy >= MEMORY_LEVEL_UP_ACCURACY ? currentLevel + 1 : currentLevel, gameType);
 }
 
 function getConsecutiveVisualMemoryRounds(history: GameResult[], level: number) {
@@ -72,16 +81,16 @@ export function getRecommendedLevelForGame(history: GameResult[], gameType: Memo
   if (gameType === "memory_match") {
     const latestLevel = gameHistory[0].level;
     const completedLevel = getConsecutiveVisualMemoryRounds(history, latestLevel) >= VISUAL_MEMORY_ROUNDS_TO_ADVANCE;
-    return clampBrainCoachLevel(completedLevel ? latestLevel + 1 : latestLevel);
+    return clampGameLevel(completedLevel ? latestLevel + 1 : latestLevel, gameType);
   }
 
   const recent = gameHistory.slice(0, 3);
   const latestLevel = gameHistory[0].level;
   const averageAccuracy = recent.reduce((sum, entry) => sum + entry.accuracy, 0) / recent.length;
 
-  if (averageAccuracy >= MEMORY_LEVEL_UP_ACCURACY) return clampBrainCoachLevel(latestLevel + 1);
-  if (averageAccuracy < 50) return clampBrainCoachLevel(latestLevel - 1);
-  return clampBrainCoachLevel(latestLevel);
+  if (averageAccuracy >= MEMORY_LEVEL_UP_ACCURACY) return clampGameLevel(latestLevel + 1, gameType);
+  if (averageAccuracy < 50) return clampGameLevel(latestLevel - 1, gameType);
+  return clampGameLevel(latestLevel, gameType);
 }
 
 export function pickVariantForGame(history: GameResult[], gameType: MemoryGameType, level: number) {

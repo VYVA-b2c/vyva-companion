@@ -69,4 +69,5 @@ export type GameResult = {
   completedAt: string;
   language: LanguageCode;
   clientResultId?: string;
+  metadata?: Record<string, unknown>;
 };

@@ -243,11 +243,6 @@ describe("app shell route layout", () => {
   });
 
   it.each([
-    "/mind-memory",
-    "/brain-coach/remember",
-    "/brain-coach/focus",
-    "/brain-coach/think",
-    "/brain-coach/calm",
     "/brain-coach/activity/listen_closely",
     "/memory-games",
     "/memory-games/remember-later",
@@ -264,11 +259,16 @@ describe("app shell route layout", () => {
 
   it.each([
     "/mind-memory/cognitive-assessment",
-  ])("keeps the global bottom dock available on Brain Coach assessment route %s", (pathname) => {
+    "/mind-memory",
+    "/brain-coach/remember",
+    "/brain-coach/focus",
+    "/brain-coach/think",
+    "/brain-coach/calm",
+  ])("keeps the global bottom dock available on canonical Brain Coach route %s", (pathname) => {
     expect(usesBrainCoachDocklessRoute(pathname)).toBe(false);
   });
 
-  it("hides the bottom dock on the canonical Brain Coach main menu", () => {
+  it("shows the bottom dock on the canonical Brain Coach main menu", () => {
     render(
       <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/mind-memory"]}>
         <AppShell>
@@ -277,7 +277,7 @@ describe("app shell route layout", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByTestId("bottom-nav")).not.toBeInTheDocument();
+    expect(screen.getByTestId("bottom-nav")).toBeInTheDocument();
   });
 
   it("hides the bottom dock inside Brain Coach module hubs", () => {
@@ -290,6 +290,26 @@ describe("app shell route layout", () => {
     );
 
     expect(screen.queryByTestId("bottom-nav")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["/mind-memory", false],
+    ["/brain-coach/remember", false],
+    ["/brain-coach/activity/remember_later", true],
+    ["/memory-games", true],
+  ] as const)("starts the owned Brain Coach surface flush with the viewport on %s", (path, dockless) => {
+    render(
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}>
+        <AppShell>
+          <div>Brain Coach page content</div>
+        </AppShell>
+      </MemoryRouter>,
+    );
+
+    const content = screen.getByTestId("app-shell-scroll");
+    expect(content).toHaveClass("pt-0");
+    expect(content).not.toHaveClass("pt-6");
+    expect(content).toHaveClass(dockless ? "pb-0" : "pb-[112px]");
   });
 
   it.each([

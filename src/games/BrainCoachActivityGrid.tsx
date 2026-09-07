@@ -28,7 +28,6 @@ export default function BrainCoachActivityGrid({ moduleId }: BrainCoachActivityG
             type="button"
             onClick={() => navigate(getBrainCoachActivityPath(activity.id))}
             title={copy.title}
-            description={copy.description}
             icon={activity.icon}
             iconAccent={activity.iconAccent}
             iconBg={activity.iconBg}

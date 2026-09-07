@@ -970,8 +970,8 @@ const de = {
       description: "Ordnen Sie Tagesaktivitaten und trainieren Sie praktisches Gedachtnis.",
     },
     associationMemory: {
-      title: "Assoziation",
-      description: "Verbinden Sie Namen, Gegenstande und Bilder.",
+      title: "Verbindungen",
+      description: "Merken Sie sich Personen, Orte und praktische Details.",
     },
     storyRecall: {
       title: "Kurze Geschichten",

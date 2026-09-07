@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MindMemoryScreen from "./MindMemoryScreen";
+import { HOME_MASTER_THEME_STORAGE_KEY } from "@/hooks/useHomeMasterTheme";
 
 const guardPathMock = vi.hoisted(() => vi.fn());
 
@@ -15,9 +16,9 @@ vi.mock("@/hooks/useServiceGate", () => ({
   useServiceGate: () => ({ guardPath: guardPathMock }),
 }));
 
-vi.mock("@/components/VyvaSessionCta", () => ({
-  default: ({ label, testId, className }: { label?: string; testId?: string; className?: string }) => (
-    <button type="button" data-testid={testId} className={className}>
+vi.mock("@/components/CanonicalDetailFlowShell", () => ({
+  CanonicalVoiceButton: ({ label, testId }: { label?: string; testId?: string }) => (
+    <button type="button" data-testid={testId}>
       {label}
     </button>
   ),
@@ -42,6 +43,7 @@ function renderMindMemory() {
 describe("MindMemoryScreen", () => {
   beforeEach(() => {
     guardPathMock.mockClear();
+    window.localStorage.setItem(HOME_MASTER_THEME_STORAGE_KEY, "light");
   });
 
   it("uses the canonical health-hub structure for Brain Coach", () => {
@@ -56,19 +58,31 @@ describe("MindMemoryScreen", () => {
     expect(screen.queryByText("Cognitive Assessment")).not.toBeInTheDocument();
 
     const expectedCards = [
-      ["card-mind-memory-strengthen-memory", "Remember", "Memory and recall", "8 activities", "bridge"],
-      ["card-mind-memory-train-reflexes", "Focus & React", "Attention and response", "3 activities", "pulse"],
-      ["card-mind-memory-boost-focus", "Think & Plan", "Planning and rules", "4 activities", "knobs"],
-      ["card-mind-memory-sharpen-senses", "Calm & Notice", "Calm and sensory awareness", "2 activities", "signal"],
+      ["card-mind-memory-strengthen-memory", "Remember", "8 activities", "bridge"],
+      ["card-mind-memory-train-reflexes", "Focus & React", "3 activities", "pulse"],
+      ["card-mind-memory-boost-focus", "Think & Plan", "3 activities", "knobs"],
+      ["card-mind-memory-sharpen-senses", "Calm & Notice", "2 activities", "signal"],
     ] as const;
 
-    for (const [testId, title, detail, count, iconAccent] of expectedCards) {
+    for (const [testId, title, count, iconAccent] of expectedCards) {
       expect(screen.getByTestId(testId)).toHaveAttribute("data-vyva-card-layout", "canonical-health-hub-action");
       expect(screen.getByTestId(testId)).toHaveTextContent(title);
-      expect(screen.getByTestId(`${testId}-detail`)).toHaveTextContent(detail);
       expect(screen.getByTestId(`${testId}-status`)).toHaveTextContent(count);
-      expect(screen.getByTestId(`${testId}-icon`)).toHaveAttribute("data-vyva-icon-tile", iconAccent);
+      expect(screen.getByTestId(testId).querySelector(`[data-vyva-icon-tile="${iconAccent}"]`)).toBeInTheDocument();
     }
+
+    expect(screen.queryByText("Memory and recall")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attention and response")).not.toBeInTheDocument();
+    expect(screen.queryByText("Planning and rules")).not.toBeInTheDocument();
+    expect(screen.queryByText("Calm and sensory awareness")).not.toBeInTheDocument();
+  });
+
+  it("uses the canonical dark surfaces when the saved theme is dark", () => {
+    window.localStorage.setItem(HOME_MASTER_THEME_STORAGE_KEY, "dark");
+    renderMindMemory();
+
+    expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-home-master-theme", "dark");
+    expect(screen.getByTestId("card-mind-memory-strengthen-memory")).toHaveClass("bg-white/[0.08]");
   });
 
   it.each([

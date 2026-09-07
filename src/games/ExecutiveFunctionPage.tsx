@@ -12,7 +12,6 @@ export default function ExecutiveFunctionPage() {
     <BrainCoachFlowShell
       testId="executive-function-flow-shell"
       title={title}
-      subtitle={t(module.descriptionKey, module.description)}
       icon={module.icon}
       iconAccent={module.iconAccent}
       iconBg={module.tone.iconBg}

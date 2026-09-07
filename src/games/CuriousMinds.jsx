@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BrainCircuit, Check, CircleHelp, Lightbulb, MessageCircle, PartyPopper, RefreshCw, Sparkles } from "lucide-react";
+import { BrainCircuit, Check, CircleHelp, MessageCircle, PartyPopper, RefreshCw, Sparkles } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import { apiFetch } from "@/lib/queryClient";
@@ -387,10 +387,7 @@ export default function CuriousMinds({
       <div className="mx-auto w-full max-w-[780px]" style={{ color: BRAND.ink }}>
         {screen === "tutorial" ? (
           <section className="mt-6 rounded-[28px] border bg-white p-5 text-center shadow-vyva-card sm:p-6" style={{ borderColor: BRAND.border }}>
-            <div className="mx-auto flex h-[84px] w-[84px] items-center justify-center rounded-[24px]" style={{ background: BRAND.softPurple, color: BRAND.purple }}>
-              <Lightbulb size={46} aria-hidden="true" />
-            </div>
-            <h1 className="mt-5 font-display text-[36px] leading-tight sm:text-[42px]">{t("games.curiousMinds.tutorialTitle", "How it works")}</h1>
+            <h2 className="font-display text-[36px] leading-tight sm:text-[42px]">{t("games.curiousMinds.tutorialTitle", "How it works")}</h2>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {[
                 { Icon: Sparkles, label: t("games.curiousMinds.tutorialGuess", "Guess first"), bg: "#FAF7FF" },
@@ -424,10 +421,7 @@ export default function CuriousMinds({
 
         {screen === "error" ? (
           <section className="mt-6 rounded-[28px] border bg-white p-6 text-center shadow-vyva-card" style={{ borderColor: BRAND.border }}>
-            <div className="mx-auto flex h-[92px] w-[92px] items-center justify-center rounded-[24px]" style={{ background: BRAND.softPurple, color: BRAND.purple }}>
-              <BrainCircuit size={52} aria-hidden="true" />
-            </div>
-            <h1 className="mt-6 font-display text-[40px] leading-tight">{t("games.curiousMinds.title", "Curious Minds")}</h1>
+            <h1 className="font-display text-[34px] leading-tight">{t("games.curiousMinds.unavailable", "This activity could not open")}</h1>
             <p className="mt-4 text-[24px] font-bold" style={{ color: BRAND.muted }}>{loadError}</p>
             <button
               type="button"
