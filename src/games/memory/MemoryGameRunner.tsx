@@ -640,6 +640,9 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   };
   const buildGameRoute = (recommendation: Recommendation) => {
     const query = `level=${recommendation.level}&variant=${recommendation.variantId}`;
+    if (location.pathname === "/dev/connections" && recommendation.gameType === "association_memory") {
+      return `/dev/connections?${query}`;
+    }
     const activity = getBrainCoachActivityByMemoryGame(recommendation.gameType);
     return activity
       ? `${getBrainCoachActivityPath(activity.id)}?${query}`
@@ -1592,7 +1595,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
         userId={userId}
         language={language}
         onBack={backToList}
-        onOpenRecommended={openRecommended}
         onOpenSameGame={openSameGame}
         actionLoading={actionLoading}
       />
