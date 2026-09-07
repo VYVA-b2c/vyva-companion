@@ -315,6 +315,27 @@ type LongevityVideoResource = {
   goodFor: string[];
   notFor: string[];
   momentFit: LongevityMoment[];
+  publicContent: LongevityPublicVideoContent;
+};
+
+type LongevityAppActivityCta = {
+  label: string;
+  route: string;
+  reason: string;
+};
+
+type LongevityPublicVideoContent = {
+  language: string;
+  pillar: PreventionPillar;
+  momentFit: LongevityMoment[];
+  resourceUrl: string;
+  resourceTitle: string;
+  reviewStatus: "approved" | "fallback" | "needs_review";
+  summary: string;
+  keyTakeaway: string;
+  companionAction: string;
+  activityRoute: string | null;
+  activityCta: LongevityAppActivityCta | null;
 };
 
 type LongevityProgramLayer = {
@@ -1365,6 +1386,80 @@ const PILLAR_VIDEO_RESOURCE_KEYS_BY_LANGUAGE: Record<string, Record<PreventionPi
   },
 };
 
+const INTERNAL_PUBLIC_CONTENT_PATTERN = /\b(?:language|langue|idioma|specific|spécifique|específico|older adults|seniors?|personnes âgées|personas mayores|reviewed|curation|curated|fallback|api|youtube|program step|auto-selected|filters?)\b|\b(?:\d+\s*(?:minutes?|minutos?|min)|dix minutes)\b/i;
+
+const PUBLIC_VIDEO_SUMMARY_BY_LANGUAGE: Record<string, Record<PreventionPillar, string>> = {
+  en: {
+    heart: "This gives today's heart focus one gentle movement idea you can actually start.",
+    brain: "This turns brain health into one small, memorable choice for today.",
+    strength: "This helps make movement feel steadier and easier to begin.",
+    nourishment: "This makes the next meal easier to improve with one simple choice.",
+    calm: "This gives the calm moment a clear pace to follow.",
+  },
+  es: {
+    heart: "Esto convierte el cuidado del corazón en un movimiento suave para empezar hoy.",
+    brain: "Esto transforma la salud cerebral en una elección pequeña y fácil de recordar.",
+    strength: "Esto ayuda a que el movimiento se sienta más estable y fácil de iniciar.",
+    nourishment: "Esto hace más fácil mejorar la próxima comida con una elección sencilla.",
+    calm: "Esto da un ritmo claro para una pausa con más calma.",
+  },
+  fr: {
+    heart: "Cela transforme le soin du cœur en un mouvement doux à commencer aujourd'hui.",
+    brain: "Cela rend le soutien du cerveau plus concret avec un petit choix facile à retenir.",
+    strength: "Cela aide à commencer le mouvement avec plus de stabilité.",
+    nourishment: "Cela rend le prochain repas plus facile à améliorer avec un choix simple.",
+    calm: "Cela donne un rythme clair pour une pause plus calme.",
+  },
+};
+
+const PUBLIC_VIDEO_ACTION_BY_LANGUAGE: Record<string, Record<PreventionPillar, string>> = {
+  en: {
+    heart: "After watching, start one gentle VYVA movement and stop when it feels like enough.",
+    brain: "After watching, play one short brain game while the idea is fresh.",
+    strength: "After watching, try one supported stability exercise with a chair nearby.",
+    nourishment: "After watching, choose one familiar food or drink upgrade for the next meal.",
+    calm: "After watching, follow one short breathing reset or ask VYVA to make it gentler.",
+  },
+  es: {
+    heart: "Después de verlo, empieza un movimiento suave de VYVA y para cuando sea suficiente.",
+    brain: "Después de verlo, juega un ejercicio mental breve mientras la idea está fresca.",
+    strength: "Después de verlo, prueba un ejercicio de estabilidad con apoyo cerca.",
+    nourishment: "Después de verlo, elige una mejora familiar para la próxima comida o bebida.",
+    calm: "Después de verlo, sigue una pausa breve de respiración o pide a VYVA una versión más suave.",
+  },
+  fr: {
+    heart: "Après la vidéo, commencer un mouvement doux VYVA et s'arrêter quand cela suffit.",
+    brain: "Après la vidéo, jouer à un jeu cérébral court pendant que l'idée est fraîche.",
+    strength: "Après la vidéo, essayer un exercice de stabilité avec un appui proche.",
+    nourishment: "Après la vidéo, choisir une amélioration familière pour le prochain repas ou la prochaine boisson.",
+    calm: "Après la vidéo, suivre une courte pause de respiration ou demander à VYVA une version plus douce.",
+  },
+};
+
+const APP_ACTIVITY_CTA_BY_LANGUAGE: Record<string, Record<PreventionPillar, LongevityAppActivityCta>> = {
+  en: {
+    heart: { label: "Start VYVA movement", route: "/social-rooms/morning-movement/exercises/tai-chi", reason: "A guided exercise turns the idea into movement now." },
+    brain: { label: "Play VYVA brain games", route: "/memory-games", reason: "A short game makes the brain step active instead of passive." },
+    strength: { label: "Start stability exercise", route: "/social-rooms/morning-movement/exercises/seated-strength", reason: "A supported exercise keeps the step practical." },
+    nourishment: { label: "Get meal support", route: "/concierge?source=longevity&intent=meal-support", reason: "Meal support helps turn the video into a real food choice." },
+    calm: { label: "Open breathing reset", route: "/games/breath-garden", reason: "A guided reset gives calm a clear next step." },
+  },
+  es: {
+    heart: { label: "Movimiento VYVA", route: "/social-rooms/morning-movement/exercises/tai-chi", reason: "Un ejercicio guiado convierte la idea en movimiento ahora." },
+    brain: { label: "Juegos mentales VYVA", route: "/memory-games", reason: "Un juego corto hace que el paso cerebral sea activo." },
+    strength: { label: "Ejercicio de estabilidad", route: "/social-rooms/morning-movement/exercises/seated-strength", reason: "Un ejercicio con apoyo mantiene el paso práctico." },
+    nourishment: { label: "Apoyo de comida", route: "/concierge?source=longevity&intent=meal-support", reason: "El apoyo de comida ayuda a convertir el video en una elección real." },
+    calm: { label: "Abrir respiración", route: "/games/breath-garden", reason: "Una pausa guiada da un siguiente paso claro." },
+  },
+  fr: {
+    heart: { label: "Mouvement VYVA", route: "/social-rooms/morning-movement/exercises/tai-chi", reason: "Un exercice guidé transforme l'idée en mouvement maintenant." },
+    brain: { label: "Jeux cérébraux VYVA", route: "/memory-games", reason: "Un jeu court rend l'étape cérébrale active." },
+    strength: { label: "Exercice de stabilité", route: "/social-rooms/morning-movement/exercises/seated-strength", reason: "Un exercice avec appui garde l'étape pratique." },
+    nourishment: { label: "Aide au repas", route: "/concierge?source=longevity&intent=meal-support", reason: "L'aide au repas transforme la vidéo en choix concret." },
+    calm: { label: "Ouvrir la respiration", route: "/games/breath-garden", reason: "Une pause guidée donne une prochaine étape claire." },
+  },
+};
+
 function emptyDailyContentBundle(): LongevityCompanionPayload["dailyContent"] {
   return {
     exercise: null,
@@ -1684,6 +1779,50 @@ function normalizeLanguage(value: string | null | undefined): string {
 function normalizeVideoLanguage(value: string | null | undefined): string {
   const language = normalizeLanguage(value);
   return PILLAR_VIDEO_RESOURCE_KEYS_BY_LANGUAGE[language] ? language : "en";
+}
+
+function publicContentLanguage(value: string | null | undefined): string {
+  const language = normalizeLanguage(value);
+  return PUBLIC_VIDEO_SUMMARY_BY_LANGUAGE[language] ? language : "en";
+}
+
+function publicVideoText(value: string | null | undefined, fallback: string): string {
+  const cleaned = sentence(oneLine(value ?? ""));
+  return cleaned && !INTERNAL_PUBLIC_CONTENT_PATTERN.test(cleaned) ? cleaned : fallback;
+}
+
+function appActivityCtaForPillar(pillar: PreventionPillar | null | undefined, language?: string | null): LongevityAppActivityCta | null {
+  if (!pillar) return null;
+  const lang = publicContentLanguage(language);
+  return APP_ACTIVITY_CTA_BY_LANGUAGE[lang]?.[pillar] ?? APP_ACTIVITY_CTA_BY_LANGUAGE.en[pillar] ?? null;
+}
+
+function buildPublicVideoContent(video: Omit<LongevityVideoResource, "publicContent">, language?: string | null): LongevityPublicVideoContent {
+  const pillar = video.pillar ?? inferFallbackVideoPillar(video.videoId) ?? "brain";
+  const lang = publicContentLanguage(language ?? video.language);
+  const fallbackSummary = PUBLIC_VIDEO_SUMMARY_BY_LANGUAGE[lang]?.[pillar] ?? PUBLIC_VIDEO_SUMMARY_BY_LANGUAGE.en[pillar];
+  const fallbackAction = PUBLIC_VIDEO_ACTION_BY_LANGUAGE[lang]?.[pillar] ?? PUBLIC_VIDEO_ACTION_BY_LANGUAGE.en[pillar];
+  const activityCta = appActivityCtaForPillar(pillar, lang);
+  return {
+    language: lang,
+    pillar,
+    momentFit: video.momentFit,
+    resourceUrl: video.url,
+    resourceTitle: video.title,
+    reviewStatus: video.transcriptStatus === "manual_reviewed" ? "approved" : video.transcriptStatus === "available" ? "approved" : "fallback",
+    summary: publicVideoText(video.transcriptSummary ?? video.summary ?? video.selectedReason, fallbackSummary),
+    keyTakeaway: publicVideoText(video.seniorTakeaway ?? video.selectedReason, fallbackSummary),
+    companionAction: activityCta ? fallbackAction : publicVideoText(video.afterWatchAction ?? video.seniorTakeaway, fallbackAction),
+    activityRoute: activityCta?.route ?? null,
+    activityCta,
+  };
+}
+
+function withPublicVideoContent(video: Omit<LongevityVideoResource, "publicContent">, language?: string | null): LongevityVideoResource {
+  return {
+    ...video,
+    publicContent: buildPublicVideoContent(video, language),
+  };
 }
 
 async function getRecentDailyContentIds(userId: string): Promise<string[]> {
@@ -3008,7 +3147,7 @@ function mapVideoRow(row: LongevityVideoResourceRow): LongevityVideoResource {
   const goodFor = normalizedVideoList(row.good_for);
   const notFor = normalizedVideoList(row.not_for);
   const momentFit = normalizedMomentFit(row.moment_fit);
-  return {
+  return withPublicVideoContent({
     id: row.id,
     provider: row.provider,
     pillar,
@@ -3030,7 +3169,7 @@ function mapVideoRow(row: LongevityVideoResourceRow): LongevityVideoResource {
     goodFor: goodFor.length ? goodFor : normalizedVideoList(fallback.goodFor),
     notFor: notFor.length ? notFor : normalizedVideoList(fallback.notFor),
     momentFit: momentFit.length ? momentFit : normalizedMomentFit(fallback.momentFit),
-  };
+  }, row.language);
 }
 
 function fallbackProgramRow(input: {
@@ -3686,7 +3825,7 @@ export function buildFallbackLongevityProgramLayer(input: {
   return {
     activeProgram: mapProgramRow(program),
     todayProgramStep: mapProgramDayRow(stepRow),
-    todayVideo: video ? {
+    todayVideo: video ? withPublicVideoContent({
       id: randomUUID(),
       provider: "youtube",
       videoId: video.videoId,
@@ -3708,7 +3847,7 @@ export function buildFallbackLongevityProgramLayer(input: {
       goodFor: normalizedVideoList(video.goodFor),
       notFor: normalizedVideoList(video.notFor),
       momentFit: normalizedMomentFit(video.momentFit),
-    } : null,
+    }, video.language) : null,
     videoCurationStatus: video ? video.curationStatus : "failed",
   };
 }
@@ -3776,7 +3915,9 @@ function routeForCompanionAction(title: string, pillar: PreventionPillar | null)
   if (pillar === "heart" && (text.includes("movement") || text.includes("exercise") || text.includes("walk"))) return "/social-rooms/morning-movement/exercises/tai-chi";
   if (text.includes("walk") || text.includes("chair") || text.includes("strength") || pillar === "strength") return "/health/exercises/gentle-walk";
   if (text.includes("medicine") || text.includes("medication")) return "/health/medications";
-  if (text.includes("food") || text.includes("protein") || text.includes("water") || pillar === "nourishment") return null;
+  if (text.includes("food") || text.includes("protein") || text.includes("water") || text.includes("meal") || pillar === "nourishment") {
+    return "/concierge?source=longevity&intent=meal-support";
+  }
   if (text.includes("concierge")) return "/concierge";
   return null;
 }
@@ -3820,6 +3961,7 @@ function resourceForCompanionAction(title: string, pillar: PreventionPillar | nu
   }
   if (pillar === "heart") return { resource_label: "Nearby walking ideas", resource_url: "/social-rooms/activities?source=longevity&intent=nearby-walk&format=nearby&interests=walking,nature,community,learning" };
   if (pillar === "brain") return { resource_label: "Brain Coach", resource_url: "/mind" };
+  if (pillar === "nourishment") return { resource_label: "Meal support", resource_url: "/concierge?source=longevity&intent=meal-support" };
   if (pillar === "calm") return { resource_label: "Breath Garden", resource_url: "/games/breath-garden" };
   return null;
 }
@@ -4244,7 +4386,7 @@ function videoFromCompanionAction(action: LongevityCompanionAction, language?: s
   if (!videoId) return null;
   const curated = reviewedVideoCandidateForPillar(action.pillar, language);
   const curatedMatch = curated?.videoId === videoId ? curated : null;
-  return {
+  return withPublicVideoContent({
     id: action.content_id ?? action.action_key,
     provider: "youtube",
     pillar: curatedMatch?.pillar ?? action.pillar ?? null,
@@ -4266,7 +4408,7 @@ function videoFromCompanionAction(action: LongevityCompanionAction, language?: s
     goodFor: normalizedVideoList(curatedMatch?.goodFor),
     notFor: normalizedVideoList(curatedMatch?.notFor),
     momentFit: normalizedMomentFit(curatedMatch?.momentFit),
-  };
+  }, curatedMatch?.language ?? language);
 }
 
 function buildPrimaryExperience(action: LongevityCompanionAction, video: LongevityVideoResource | null, language?: string | null): LongevityPrimaryExperience {
@@ -4349,7 +4491,7 @@ function buildDailySession(input: {
   });
   const evidence = [
     input.programStep ? `Program day ${input.programStep.dayIndex}: ${input.programStep.theme}.` : null,
-    primaryExperience.video ? `Curated video: ${primaryExperience.video.title}.` : null,
+    primaryExperience.video ? primaryExperience.video.publicContent.summary : null,
     input.primaryAction.source === "feedback_memory" || companionAction.source === "feedback_memory" ? "Recent feedback asked VYVA to make this easier." : null,
     ...input.signals.slice(0, 3).map((signalItem) => `${signalItem.label}: ${signalItem.detail}`),
   ].filter((item): item is string => Boolean(item));
@@ -4606,7 +4748,7 @@ function buildMomentSession(input: {
   const programEvidence = input.programStep && action.source === "program"
     ? `Program day ${input.programStep.dayIndex}: ${input.programStep.theme}.`
     : null;
-  const videoEvidence = primaryExperience.video ? `Curated video: ${primaryExperience.video.title}.` : null;
+  const videoEvidence = primaryExperience.video ? primaryExperience.video.publicContent.summary : null;
   const summary = signalItem
     ? `${definition.label} fits because ${lowerFirstText(signalItem.detail)}`
     : `${definition.label} is a practical time for ${lowerFirstText(action.title)}.`;
