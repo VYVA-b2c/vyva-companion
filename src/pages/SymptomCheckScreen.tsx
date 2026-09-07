@@ -229,6 +229,7 @@ type VoiceTriageVitalsPrompt = {
     value: string;
   }>;
   camera_action?: { id: string; label: string; route: string };
+  connected_device_action?: { id: string; label: string; action_ids: string[] };
   manual_action?: { id: string; label: string };
   skip_action?: { id: string; label: string };
 };
@@ -1067,6 +1068,16 @@ export function VoiceTriageLivePanel({
                   {vitalsPrompt.camera_action.label}
                 </button>
               ) : null}
+              {vitalsPrompt.connected_device_action ? (
+                <button
+                  type="button"
+                  disabled={!canTapAnswer}
+                  onClick={() => setShowVitalsCapture(true)}
+                  className={`vyva-tap min-h-[54px] rounded-[8px] border px-3 text-[14px] font-black disabled:cursor-not-allowed disabled:opacity-55 ${isDark ? "border-[#6EE7B7]/30 bg-[#123D35] text-[#A7F3D0]" : "border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]"}`}
+                >
+                  {vitalsPrompt.connected_device_action.label}
+                </button>
+              ) : null}
               {vitalsPrompt.manual_action ? (
                 <button
                   type="button"
@@ -1091,7 +1102,10 @@ export function VoiceTriageLivePanel({
             {showVitalsCapture ? (
               <div className="mt-3 rounded-[16px] border border-[#D9CFE0] bg-white/90 p-3" data-testid="voice-triage-vitals-capture">
                 <VitalsAcquisitionPanel
-                  actions={[{ id: "camera_vitals", label: vitalsPrompt.camera_action?.label || "Camera: heart & breathing" }, ...vitalsPrompt.actions]}
+                  actions={[
+                    ...(vitalsPrompt.camera_action ? [{ id: "camera_vitals" as const, label: vitalsPrompt.camera_action.label }] : []),
+                    ...vitalsPrompt.actions,
+                  ]}
                   disabled={!canTapAnswer}
                   onApply={(values, _disclosure, affectsTriage, source) => applyVoiceVitals(values, affectsTriage, source)}
                 />

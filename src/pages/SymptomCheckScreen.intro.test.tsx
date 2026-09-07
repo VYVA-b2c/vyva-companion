@@ -688,9 +688,9 @@ describe("SymptomCheck intro chips", () => {
               spoken_text: "How strong is it?",
               question: { stage: "severity", text: "How strong is it?", choices: [] },
               vitals_prompt: {
-                title: "Would you like to share your vital signs?",
-                body: "Use your phone camera, enter a device reading, or skip this.",
-                actions: [{ id: "oxygen", label: "Oxygen", value: "oxygen" }],
+                title: "Can you share your Pulse?",
+                body: "If you can safely take this reading, tell VYVA the value.",
+                actions: [{ id: "pulse", label: "Pulse", value: "pulse" }],
                 camera_action: { id: "use_camera", label: "Use camera for heart and breathing", route: "/health/vitals" },
                 manual_action: { id: "enter_reading", label: "Enter a device reading" },
                 skip_action: { id: "skip_vitals", label: "Skip for now" },
@@ -710,6 +710,38 @@ describe("SymptomCheck intro chips", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onAnswer).toHaveBeenCalledWith({ choiceId: "skip_vitals", utterance: "Skip vitals for now" });
+  });
+
+  it("does not offer camera capture for an oxygen reading", () => {
+    render(
+      <MemoryRouter>
+        <VoiceTriageLivePanel
+          session={{
+            conversation_id: "voice-oxygen",
+            status: "active",
+            latest_response: {
+              ok: true,
+              status: "active",
+              spoken_text: "Can you share your oxygen level?",
+              question: { stage: "severity", text: "How strong is it?", choices: [] },
+              vitals_prompt: {
+                title: "Can you share your Oxygen?",
+                body: "If you can safely take this reading, tell VYVA the value.",
+                actions: [{ id: "oxygen", label: "Oxygen", value: "oxygen" }],
+                manual_action: { id: "enter_reading", label: "Share a reading" },
+                skip_action: { id: "skip_vitals", label: "Skip for now" },
+              },
+            },
+          }}
+          stageId="severity"
+          modality="voice"
+          onAnswer={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("button", { name: /camera/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share a reading" })).toBeVisible();
   });
 
   it("leaves the single voice entry point to the shared Home header", () => {

@@ -461,14 +461,19 @@ function toolResponseFor(input: {
     safety_level: input.status === "emergency" ? "emergency" : "continue",
     vitals_prompt: vitalsPrompt ? {
       ...vitalsPrompt,
-      camera_action: {
+      ...(vitalsPrompt.actions.some((action) => action.id === "pulse") ? { camera_action: {
         id: "use_camera",
         label: "Use camera for heart and breathing",
         route: "/health/vitals",
-      },
+      } } : {}),
+      ...(vitalsPrompt.deviceAccess.status === "connected" ? { connected_device_action: {
+        id: "read_connected_device",
+        label: "Use connected device",
+        action_ids: vitalsPrompt.deviceAccess.actionIds,
+      } } : {}),
       manual_action: {
         id: "enter_reading",
-        label: "Enter a device reading",
+        label: "Share a reading",
       },
       skip_action: {
         id: "skip_vitals",

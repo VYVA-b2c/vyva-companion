@@ -990,8 +990,9 @@ describe("triage route wizard questions", () => {
       confidence: { score: 4, label: "Strong confidence" },
     });
     expect(afterSafety.body.vitalsPrompt).toMatchObject({
-      title: "Would you like to share your vital signs?",
+      title: "Can you share your Blood pressure?",
       actions: [expect.objectContaining({ id: "blood_pressure", label: "Blood pressure" })],
+      deviceAccess: { status: "not_connected", actionIds: [] },
     });
 
     const afterSkip = await request(app())
@@ -1028,6 +1029,7 @@ describe("triage route wizard questions", () => {
       { id: "walking_only", label: "Mild", value: "It is mild or only with activity.", kind: "red_flag" },
     ]).expect(200);
     expect(breathing.body.vitalsPrompt.actions.map((action: { id: string }) => action.id)).toEqual(["oxygen"]);
+    expect(breathing.body.vitalsPrompt.title).toBe("Can you share your Oxygen?");
 
     const cardiacBreathing = await requestFor([
       { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
@@ -1040,10 +1042,7 @@ describe("triage route wizard questions", () => {
       { id: "head_neck_pain", label: "Head or neck", value: "The pain is in my head.", kind: "location" },
       { id: "no_red_flag", label: "None", value: "No warning signs.", kind: "red_flag" },
     ]).expect(200);
-    expect(ordinaryHeadPain.body.vitalsPrompt).toMatchObject({
-      title: "Would you like to share your vital signs?",
-      actions: [expect.objectContaining({ id: "pulse" })],
-    });
+    expect(ordinaryHeadPain.body.vitalsPrompt).toBeNull();
 
     const hypertensiveHeadPain = await requestFor([
       { id: "pain", label: "Pain", value: "I have pain.", kind: "symptom" },
@@ -1056,9 +1055,30 @@ describe("triage route wizard questions", () => {
       { id: "fall", label: "Fall", value: "I had a small fall.", kind: "symptom" },
       { id: "no_red_flag", label: "None", value: "Only a small bruise.", kind: "red_flag" },
     ]).expect(200);
-    expect(simpleFall.body.vitalsPrompt).toMatchObject({
-      title: "Would you like to share your vital signs?",
-      actions: [expect.objectContaining({ id: "pulse" })],
+    expect(simpleFall.body.vitalsPrompt).toBeNull();
+  });
+
+  it("offers to read a condition-relevant connected device directly", async () => {
+    const response = await request(app())
+      .post("/api/triage/message")
+      .send({
+        locale: "en",
+        messages: [{ role: "user", content: "I feel short of breath." }],
+        healthMemory: { devices: "Connected pulse oximeter" },
+        wizard: {
+          mode: "without_vitals",
+          quickAnswers: [
+            { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
+            { id: "walking_only", label: "Mild", value: "It is mild or only with activity.", kind: "red_flag" },
+          ],
+        },
+      })
+      .expect(200);
+
+    expect(response.body.vitalsPrompt).toMatchObject({
+      title: "VYVA can check your Oxygen",
+      actions: [expect.objectContaining({ id: "oxygen" })],
+      deviceAccess: { status: "connected", actionIds: ["oxygen"] },
     });
   });
 
