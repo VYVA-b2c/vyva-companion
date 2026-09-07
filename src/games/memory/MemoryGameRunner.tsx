@@ -12,7 +12,7 @@ import {
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
-import { useTtsReadout } from "@/hooks/useVyvaVoice";
+import { useOptionalVyvaVoice, useTtsReadout } from "@/hooks/useVyvaVoice";
 import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import VoiceActionFulfillmentPanel from "@/components/VoiceActionFulfillmentPanel";
 import {
@@ -493,6 +493,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const { speakSequence, stopTts, isTtsSpeaking } = useTtsReadout();
+  const voice = useOptionalVyvaVoice();
   const userId = user?.id ?? FALLBACK_USER_ID;
   const assessmentPractice = cognitiveAssessmentPracticeStateFromRoute(location.state);
 
@@ -508,7 +509,34 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     round: 1,
     mode: "forward",
     phase: "ready",
+    language,
+    presentation_mode: "audio_visual",
   });
+  const numberMemoryVoiceConnected = voice?.status === "connected";
+  const sendVoiceContextUpdate = voice?.sendContextUpdate;
+  const numberMemoryVoiceProtocolSentRef = useRef(false);
+
+  useEffect(() => {
+    if (!numberMemoryVoiceConnected) {
+      numberMemoryVoiceProtocolSentRef.current = false;
+      return;
+    }
+    if (numberMemoryVoiceContext.activity !== "number_memory") return;
+    if (!numberMemoryVoiceProtocolSentRef.current) {
+      numberMemoryVoiceProtocolSentRef.current = true;
+      sendVoiceContextUpdate?.(JSON.stringify({
+        event: "number_memory_voice_protocol",
+        contract: "number_memory_voice_v1",
+        instructions: "Match the active language. Ask if the user is ready. Drive the game only with the five number-memory client tools. During presentation, call get_next_number_memory_digit in order and speak only the single returned digit, with no commentary. Respect digit_not_ready before retrying. After the final digit call begin_number_memory_recall. Never repeat a sequence after recall starts, reveal correctness between rounds, or score an answer yourself. Convert an unambiguous spoken answer to ASCII digits and submit it only with submit_number_memory_answer. For ambiguous speech, ask once more without calling a scoring tool. Use number_memory_not_sure when the user says they are not sure. Tool errors are recoverable; follow the returned code.",
+      }));
+    }
+    sendVoiceContextUpdate?.(JSON.stringify({
+      event: "number_memory_state_changed",
+      ...numberMemoryVoiceContext,
+      language,
+      presentation_mode: "audio_visual",
+    }));
+  }, [language, numberMemoryVoiceConnected, numberMemoryVoiceContext, sendVoiceContextUpdate]);
   const renderBrainRunnerScreen = (
     screenKey: string,
     sceneKind: string,
@@ -1582,6 +1610,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
         onBack={backToList}
         onOpenSameGame={openSameGame}
         actionLoading={actionLoading}
+        voiceConnected={numberMemoryVoiceConnected}
         onVoiceContextChange={setNumberMemoryVoiceContext}
       />
     ), "default", numberMemoryVoiceContext);

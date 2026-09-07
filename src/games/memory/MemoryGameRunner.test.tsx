@@ -218,13 +218,14 @@ describe("MemoryGameRunner word recall", () => {
     renderMemoryGame("/memory-games/number_memory?level=6&variant=number_memory-l6-v1");
 
     expect(await screen.findByText("Level 6")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Same order" })).toBeInTheDocument();
-    expect(screen.getByText("Example: 4 · 7 · 2 → 4 7 2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remember in the same order" })).toBeInTheDocument();
+    expect(screen.getByText("Watch or listen, then repeat the numbers in the same order.")).toBeInTheDocument();
+    expect(screen.queryByText(/Example:/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByText("Round 1 of 3")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show numbers" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Let’s start" })).toBeInTheDocument();
   });
 
   it("shows Rhythm Tap instructions once and reopens them from the icon", async () => {

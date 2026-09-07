@@ -33,6 +33,7 @@ import {
 import { deriveVoiceSessionPhase, type VoiceSessionPhase } from "@/lib/voiceSessionState";
 import { recordVoiceTimelineEvent } from "@/lib/voiceTimeline";
 import { dispatchOnboardingElevenLabsOutput } from "@/lib/onboardingElevenLabsRuntimeAdapter";
+import { requestNumberMemoryVoiceTool, type NumberMemoryVoiceToolName } from "@/lib/numberMemoryVoiceBridge";
 import {
   selectSpeechVoice,
   supportsSpeechPlayback,
@@ -1728,6 +1729,16 @@ function useVyvaVoiceController() {
           },
           clientTools: {
             ...(sessionOptions.clientTools ?? {}),
+            ...Object.fromEntries(([
+              "start_number_memory_round",
+              "get_next_number_memory_digit",
+              "begin_number_memory_recall",
+              "submit_number_memory_answer",
+              "number_memory_not_sure",
+            ] satisfies NumberMemoryVoiceToolName[]).map((name) => [name, async (parameters: unknown) => {
+              const result = await requestNumberMemoryVoiceTool(name, toolParameters(parameters));
+              return JSON.stringify(result);
+            }])),
             sync_dr_ai_screen: async (parameters: unknown) => {
               const params = toolParameters(parameters);
               const conversationId = toolString(params, "conversation_id") || readVoiceSessionId();
