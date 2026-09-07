@@ -129,6 +129,7 @@ describe("triage telemetry", () => {
       "uncertainty",
       "urgency",
       "vitalsNotes",
+      "vitalsSnapshot",
       "watchSigns",
     ].sort());
     expect(report.summary).toMatchObject({

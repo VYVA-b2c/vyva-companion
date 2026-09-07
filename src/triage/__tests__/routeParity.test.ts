@@ -29,6 +29,7 @@ const summaryShapeKeys = [
   "uncertainty",
   "urgency",
   "vitalsNotes",
+  "vitalsSnapshot",
   "watchSigns",
 ].sort();
 
