@@ -85,7 +85,10 @@ describe("SymptomCheck report service actions", () => {
     const reportAnswer = screen.getByTestId("card-report-answer");
     expect(reportAnswer).toHaveTextContent("Doctor today");
     expect(reportAnswer).toHaveAttribute("data-theme-surface", "canonical-dark");
+    expect(reportAnswer).toHaveAttribute("data-recommendation-tone", "urgent");
+    expect(reportAnswer).not.toHaveTextContent("VYVA has turned your answers into a simple plan below.");
     expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Talk to a doctor today");
+    expect(screen.getByTestId("button-report-done")).toBeVisible();
   });
 
   it("puts an emergency call action on the live next step when an emergency number is known", () => {
@@ -104,9 +107,22 @@ describe("SymptomCheck report service actions", () => {
     expect(screen.getByTestId("button-report-emergency")).toHaveTextContent("Call 112");
     expect(screen.queryByTestId("report-next-step-actions")).not.toBeInTheDocument();
     expect(screen.getByTestId("card-report-emergency")).toHaveTextContent("Call 112 now");
+    expect(screen.getByTestId("card-report-answer")).toHaveAttribute("data-recommendation-tone", "urgent");
   });
 
-  it("keeps one direct GP primary action and moves share controls behind disclosure", () => {
+  it("uses amber for timely review recommendations", () => {
+    renderReport({}, { summaryOverride: { urgency: "routine", nextStepLevel: "doctor_24_48" } });
+
+    expect(screen.getByTestId("card-report-answer")).toHaveAttribute("data-recommendation-tone", "timely");
+  });
+
+  it("uses green for home-monitoring recommendations", () => {
+    renderReport({}, { summaryOverride: { urgency: "self_care", nextStepLevel: "monitor" } });
+
+    expect(screen.getByTestId("card-report-answer")).toHaveAttribute("data-recommendation-tone", "monitor");
+  });
+
+  it("keeps one direct GP primary action and one persistent report share action", () => {
     renderReport({
       gpPhone: "+34 612 345 678",
       gpEmail: "gp@example.com",
@@ -114,31 +130,20 @@ describe("SymptomCheck report service actions", () => {
 
     expect(screen.getByTestId("button-report-call-gp")).toHaveTextContent("Call GP");
     expect(screen.queryByTestId("report-next-step-actions")).not.toBeInTheDocument();
-    expect(screen.getByTestId("button-report-share")).not.toBeVisible();
-    expect(screen.getByTestId("button-report-view-reports")).not.toBeVisible();
-
-    fireEvent.click(screen.getByText("Result details"));
-    fireEvent.click(screen.getByTestId("button-report-detail-share"));
-    fireEvent.click(screen.getByText("Share or save"));
-
-    expect(screen.getByTestId("button-report-share")).toBeVisible();
-    expect(screen.getByTestId("button-report-view-reports")).toBeVisible();
+    expect(screen.getByTestId("link-report-share-doctor")).toHaveAttribute("href", expect.stringMatching(/^sms:/));
+    expect(screen.getByTestId("button-report-share-footer")).toBeVisible();
+    expect(screen.queryByTestId("report-result-details")).not.toBeInTheDocument();
   });
 
-  it("offers doctor contact setup from the doctor details row when GP contact is missing", async () => {
+  it("opens doctor support directly when GP contact is missing", async () => {
     renderReport();
 
     expect(screen.getByTestId("button-report-doctor")).toHaveTextContent("Talk to doctor");
     expect(screen.queryByTestId("report-next-step-actions")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Result details"));
-    fireEvent.click(screen.getByTestId("button-report-detail-share"));
-    fireEvent.click(screen.getByText("Details for doctor"));
-    const addDoctor = screen.getByTestId("button-report-add-doctor-contact");
-
-    fireEvent.click(addDoctor);
+    fireEvent.click(screen.getByTestId("button-report-doctor"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-path")).toHaveTextContent("/onboarding/profile/gp");
+      expect(screen.getByTestId("location-path")).toHaveTextContent("/health/doctor");
     });
   });
 
@@ -173,7 +178,7 @@ describe("SymptomCheck report service actions", () => {
     expect(screen.queryByText("Get support package")).not.toBeInTheDocument();
   });
 
-  it("shows a concise action plan, context confidence, and collapsed supporting detail", () => {
+  it("shows a concise linear report without a secondary details dashboard", () => {
     renderReport({}, {
       summaryOverride: {
         recommendations: [
@@ -199,20 +204,12 @@ describe("SymptomCheck report service actions", () => {
     });
 
     expect(screen.queryByTestId("card-report-next-step-explainer")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Drink water now");
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Rest somewhere cool");
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Call a doctor if symptoms worsen");
-    expect(screen.getByTestId("card-report-context-confidence")).toHaveTextContent("Strong confidence");
-    expect(screen.getByTestId("card-report-context-confidence")).toHaveTextContent("blood pressure");
-    fireEvent.click(screen.getByText("Result details"));
-    fireEvent.click(screen.getByTestId("button-report-detail-context"));
-    expect(screen.getByTestId("button-report-missing-signal-bloodPressure")).toHaveTextContent("Check blood pressure now");
-    fireEvent.click(screen.getByTestId("button-report-missing-signal-bloodPressure"));
-    expect(screen.getByPlaceholderText("120/80")).toBeVisible();
-    expect(screen.getByText("Why this answer")).toBeVisible();
-    expect(screen.getByText("What to watch for")).toBeVisible();
-    expect(screen.getByText("Readings used")).toBeVisible();
-    expect(screen.getByTestId("button-report-detail-full")).toBeVisible();
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Drink water now");
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Rest somewhere cool");
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Call a doctor if symptoms worsen");
+    expect(screen.getByTestId("card-report-vitals-summary")).toHaveTextContent("Heart Rate: 72 bpm");
+    expect(screen.getByTestId("card-report-actionable-uncertainty")).toHaveTextContent("blood pressure");
+    expect(screen.queryByTestId("report-result-details")).not.toBeInTheDocument();
     expect(screen.getByTestId("card-report-watch-highlight")).toHaveTextContent("Chest pain");
   });
 
@@ -237,13 +234,21 @@ describe("SymptomCheck report service actions", () => {
     const interpretation = screen.getByTestId("card-report-interpretation");
     expect(interpretation).toHaveTextContent("What your answers mean");
     expect(doNow.compareDocumentPosition(interpretation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByTestId("card-report-possible-patterns")).toHaveTextContent("Activity-related breathing pattern");
-    expect(screen.getByTestId("report-uncertainty")).toHaveTextContent("cannot confirm a cause");
+    const possibleSituations = screen.getByTestId("card-report-possible-patterns");
+    const stepPlan = screen.getByTestId("card-report-plan-details");
+    expect(possibleSituations).toHaveTextContent("Activity-related breathing pattern");
+    expect(possibleSituations).toHaveTextContent("More consistent");
+    expect(screen.getByText(/Based on:/).closest("p")).not.toBeVisible();
+    fireEvent.click(screen.getByText("Why?"));
+    expect(screen.getByText(/Based on:/).closest("p")).toBeVisible();
+    expect(possibleSituations.compareDocumentPosition(stepPlan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(stepPlan).toHaveTextContent("Practical actions for the next step");
+    expect(screen.queryByTestId("report-uncertainty")).not.toBeInTheDocument();
     expect(screen.getByTestId("report-reassessment-window")).toHaveTextContent("Recheck in 24 hours");
     expect(screen.getByTestId("card-report-watch-highlight")).toHaveTextContent("Breathing becomes difficult at rest");
   });
 
-  it("does not show possible causes for an emergency outcome", () => {
+  it("shows possible causes as secondary context for an emergency outcome", () => {
     renderReport({}, {
       summaryOverride: {
         urgency: "urgent",
@@ -255,10 +260,11 @@ describe("SymptomCheck report service actions", () => {
     });
 
     expect(screen.getByTestId("card-report-interpretation")).toBeInTheDocument();
-    expect(screen.queryByTestId("card-report-possible-patterns")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("report-uncertainty")).not.toBeInTheDocument();
+    expect(screen.getByTestId("card-report-possible-patterns")).toBeInTheDocument();
   });
 
-  it("renders vital refinement as an action, not a passive note", () => {
+  it("does not reintroduce a details dashboard for a report that mentions a missing vital", () => {
     renderReport({}, {
       summaryOverride: {
         chiefComplaint: "Blood pressure feels high",
@@ -267,14 +273,8 @@ describe("SymptomCheck report service actions", () => {
       },
     });
 
-    expect(screen.getByTestId("card-report-vital-refinement-note")).toHaveTextContent("Check blood pressure now");
-    expect(screen.getByTestId("button-report-vital-add-bloodPressure")).toHaveTextContent("Add reading");
+    expect(screen.getByTestId("button-report-doctor")).toHaveTextContent("Talk to doctor");
     expect(screen.queryByText("A relevant reading can help VYVA update this assessment. Phone estimates are useful for trends; device or manual readings are stronger evidence.")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Result details"));
-    fireEvent.click(screen.getByTestId("button-report-detail-context"));
-    fireEvent.click(screen.getByTestId("button-report-vital-add-bloodPressure"));
-
-    expect(screen.getByPlaceholderText("120/80")).toBeVisible();
+    expect(screen.queryByTestId("report-result-details")).not.toBeInTheDocument();
   });
 });

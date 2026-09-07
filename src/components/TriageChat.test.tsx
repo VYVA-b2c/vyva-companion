@@ -546,7 +546,7 @@ describe("TriageChat MediSearch follow-ups", () => {
     expect(screen.getByText("Choose the closest answer")).toBeInTheDocument();
   });
 
-  it("keeps question rationale out of the flow and offers contextual readings compactly", async () => {
+  it("uses a dedicated condition-aware vitals checkpoint before completing the assessment", async () => {
     apiFetchMock
       .mockResolvedValueOnce(triageResponse({
         role: "assistant",
@@ -576,6 +576,16 @@ describe("TriageChat MediSearch follow-ups", () => {
           { signal_type: "bp_diastolic", current_reading: null, compatible_methods: ["web_bluetooth", "device_photo", "voice", "manual"] },
         ],
         devices: [],
+      }))
+      .mockResolvedValueOnce(triageResponse({
+        role: "assistant",
+        content: "Thanks. I’ll continue without a reading.",
+        done: false,
+        quickReplies,
+        wizardStage: "onset",
+        wizardStageLabel: "Timing",
+        vitalsPrompt: null,
+        evidenceSources: [],
       }));
 
     renderTriageChat({
@@ -592,17 +602,16 @@ describe("TriageChat MediSearch follow-ups", () => {
     expect(screen.queryByText("Why this question?")).not.toBeInTheDocument();
     expect(screen.queryByText("How strong it feels helps choose the safest next step.")).not.toBeInTheDocument();
     expect(screen.queryByTestId("triage-guidance-plan")).not.toBeInTheDocument();
-    expect(screen.getByTestId("triage-contextual-vitals-prompt")).toHaveTextContent("Check vital signs");
+    expect(screen.getByTestId("triage-contextual-vitals-prompt")).toHaveTextContent("A reading could improve your result");
+    expect(screen.getByTestId("triage-contextual-vitals-prompt")).toHaveTextContent("If you can, one reading may help");
     expect(screen.getByTestId("triage-contextual-vitals-prompt")).toHaveTextContent("Optional");
-    expect(screen.getByTestId("triage-contextual-vitals-prompt")).toHaveAttribute("open");
-    expect(screen.getByText("A quick vital-sign check can help Dr. AI assess you more safely. You can skip this.")).toBeVisible();
     expect(screen.getByText("Only do this if it is easy and safe. You can keep answering without it.")).toBeVisible();
     expect(screen.getByTestId("triage-camera-vitals-reminder")).toHaveTextContent("camera can estimate your heart rate and breathing rate");
-    expect(screen.getByRole("button", { name: "Camera: heart & breathing" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Pulse" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Blood pressure" })).toBeVisible();
+    expect(screen.getByTestId("button-triage-vitals-skip")).toHaveTextContent("I can’t measure this");
 
-    fireEvent.click(screen.getByRole("button", { name: "Camera: heart & breathing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse" }));
 
     expect(await screen.findByRole("button", { name: "Bluetooth device" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Camera scan" })).toBeVisible();
@@ -610,6 +619,15 @@ describe("TriageChat MediSearch follow-ups", () => {
     expect(screen.getByRole("button", { name: "Speak reading" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Type reading" })).toBeVisible();
     expect(apiFetchMock.mock.calls.filter(([url]) => url === "/api/triage/message")).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId("button-triage-vitals-skip"));
+
+    await waitFor(() => {
+      expect(apiFetchMock.mock.calls.filter(([url]) => url === "/api/triage/message")).toHaveLength(2);
+    });
+    const skipRequest = apiFetchMock.mock.calls.filter(([url]) => url === "/api/triage/message")[1]?.[1];
+    expect(JSON.parse(String(skipRequest?.body)).wizard.declinedScanTypes).toContain("vitals");
+    expect(await screen.findByText("Thanks. I’ll continue without a reading.")).toBeVisible();
   });
 
   it("shows only four answer buttons until More choices is opened", async () => {

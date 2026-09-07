@@ -350,20 +350,14 @@ describe("Informes report detail actions", () => {
     expect(screen.getByTestId("card-report-emergency")).toHaveTextContent("Call 112 now");
   });
 
-  it("offers doctor setup when no GP contact exists", async () => {
+  it("opens doctor support directly when no GP contact exists", async () => {
     renderDetail({});
 
     expect(await screen.findByTestId("button-report-doctor")).toHaveTextContent("Talk to doctor");
-    fireEvent.click(screen.getByText("Result details"));
-    fireEvent.click(screen.getByTestId("button-report-detail-share"));
-    fireEvent.click(screen.getByText("Details for doctor"));
-    const addDoctor = screen.getByTestId("button-report-add-doctor-contact");
-    expect(screen.getByTestId("button-report-doctor-help-inline")).toBeInTheDocument();
-
-    fireEvent.click(addDoctor);
+    fireEvent.click(screen.getByTestId("button-report-doctor"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-path")).toHaveTextContent("/onboarding/profile/gp");
+      expect(screen.getByTestId("location-path")).toHaveTextContent("/health/doctor");
     });
   });
 });

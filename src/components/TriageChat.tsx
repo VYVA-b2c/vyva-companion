@@ -154,6 +154,10 @@ type TriageVitalsPrompt = {
   title: string;
   body: string;
   actions: TriageVitalsPromptAction[];
+  deviceAccess?: {
+    status: "connected" | "not_connected";
+    actionIds: TriageVitalsPromptAction["id"][];
+  };
 };
 
 type WizardEntryMode = "with_vitals" | "without_vitals";
@@ -518,9 +522,6 @@ export default function TriageChat({
   const [questionReason, setQuestionReason] = useState<string | null>(() => initialDraft?.questionReason ?? null);
   const [profileContextUsed, setProfileContextUsed] = useState(() => Boolean(initialDraft?.profileContextUsed));
   const [vitalsPrompt, setVitalsPrompt] = useState<TriageVitalsPrompt | null>(() => initialDraft?.vitalsPrompt ?? null);
-  const [contextualVitalsOpen, setContextualVitalsOpen] = useState(
-    () => presentationStage === "severity" && Boolean(initialDraft?.vitalsPrompt),
-  );
   const [guidancePlan, setGuidancePlan] = useState<TriageGuidancePlan | null>(() => initialDraft?.guidancePlan ?? null);
   const [scanResults, setScanResults] = useState<TriageScanResult[]>(() => initialDraft?.scanResults ?? []);
   const [declinedScanTypes, setDeclinedScanTypes] = useState<TriageScanType[]>(() => initialDraft?.declinedScanTypes ?? []);
@@ -614,12 +615,6 @@ export default function TriageChat({
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [requestError]);
-
-  useEffect(() => {
-    if (presentationStage === "severity" && vitalsPrompt) {
-      setContextualVitalsOpen(true);
-    }
-  }, [presentationStage, vitalsPrompt]);
 
   const animateMessage = useCallback(
     (_msgIdx: number, _fullText: string, onDone?: () => void) => {
@@ -1202,6 +1197,20 @@ export default function TriageChat({
     setDeclinedScanTypes((current) => current.includes(type) ? current : [...current, type]);
   };
 
+  const continueAfterVitals = async () => {
+    setVitalsPrompt(null);
+    await sendToApi(messages, selectedQuickAnswers, scanResults, declinedScanTypes, acquiredVitals);
+  };
+
+  const skipContextualVitals = async () => {
+    const nextDeclinedScanTypes = declinedScanTypes.includes("vitals")
+      ? declinedScanTypes
+      : [...declinedScanTypes, "vitals" as const];
+    setDeclinedScanTypes(nextDeclinedScanTypes);
+    setVitalsPrompt(null);
+    await sendToApi(messages, selectedQuickAnswers, scanResults, nextDeclinedScanTypes, acquiredVitals);
+  };
+
   const handleAcceptScan = async (result: TriageScanResult) => {
     const nextScanResults = [
       ...scanResults.filter((scan) => scan.type !== result.type),
@@ -1611,35 +1620,39 @@ export default function TriageChat({
           )}
 
           {canAnswer && vitalsPrompt ? (
-            <details
-              open={contextualVitalsOpen}
-              onToggle={(event) => setContextualVitalsOpen(event.currentTarget.open)}
+            <section
               data-testid="triage-contextual-vitals-prompt"
-              className={`group mx-auto w-full max-w-[520px] rounded-[22px] border shadow-[0_8px_22px_rgba(0,0,0,0.10)] ${isDark ? "border-white/[0.13] bg-[#352842]" : "border-[#DDD6FE] bg-white"}`}
+              aria-labelledby="triage-vitals-heading"
+              className={`mx-auto w-full max-w-[560px] overflow-hidden rounded-[28px] border shadow-[0_18px_42px_rgba(63,45,35,0.10)] ${isDark ? "border-white/[0.14] bg-[#2B2035]" : "border-[#D8C7FF] bg-white"}`}
             >
-              <summary className="vyva-tap flex min-h-[64px] cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7024C4] focus-visible:ring-offset-2">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] bg-[#F3E8FF] text-vyva-purple">
-                  <Activity size={20} strokeWidth={2.7} aria-hidden="true" />
+              <div className={`px-5 pb-4 pt-5 text-center sm:px-6 ${isDark ? "bg-[#352842]" : "bg-[linear-gradient(135deg,#FFFFFF_0%,#F7F1FF_100%)]"}`}>
+                <span className={`mx-auto flex h-12 w-12 items-center justify-center rounded-[17px] ${isDark ? "bg-[#45325E]" : "bg-[#F3E8FF]"}`}>
+                  <Activity size={23} strokeWidth={2.7} className="text-vyva-purple" aria-hidden="true" />
                 </span>
-                <span className={`min-w-0 flex-1 text-left font-body text-[16px] font-black ${isDark ? "text-[#FFF8FF]" : "text-vyva-text-1"}`}>
-                  {t("health.symptomCheck.chat.addReading", "Check vital signs")}
-                </span>
-                <span className={`rounded-full px-2.5 py-1 font-body text-[11px] font-black uppercase tracking-[0.08em] ${isDark ? "bg-[#45325E] text-[#D4B5FF]" : "bg-[#F5F3FF] text-vyva-purple"}`}>
-                  {t("health.symptomCheck.chat.optional", "Optional")}
-                </span>
-                <ChevronDown size={18} className="flex-shrink-0 text-vyva-purple transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="px-4 pt-3">
-                <p className={`font-body text-[14px] font-bold leading-snug ${isDark ? "text-[#F4ECFA]" : "text-vyva-text-1"}`}>
-                  {t("health.symptomCheck.chat.readingHelper", "A quick vital-sign check can help Dr. AI assess you more safely. You can skip this.")}
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <h2 id="triage-vitals-heading" className={`font-body text-[22px] font-black leading-tight ${isDark ? "text-[#FFF8FF]" : "text-vyva-text-1"}`}>
+                    {t("health.symptomCheck.chat.vitalsCheckpointTitle", "A reading could improve your result")}
+                  </h2>
+                  <span className={`rounded-full px-2.5 py-1 font-body text-[10px] font-black uppercase tracking-[0.08em] ${isDark ? "bg-[#45325E] text-[#D4B5FF]" : "bg-white text-vyva-purple"}`}>
+                    {t("health.symptomCheck.chat.optional", "Optional")}
+                  </span>
+                </div>
+                <p className={`mt-2 font-body text-[16px] font-black leading-snug ${isDark ? "text-[#F4ECFA]" : "text-vyva-text-1"}`}>
+                  {vitalsPrompt.title}
                 </p>
                 {vitalsPrompt.body ? (
-                  <p className={`mt-1.5 font-body text-[12px] font-semibold leading-snug ${isDark ? "text-[#D2C6DC]" : "text-vyva-text-2"}`}>
+                  <p className={`mx-auto mt-1.5 max-w-[440px] font-body text-[13px] font-semibold leading-relaxed ${isDark ? "text-[#D2C6DC]" : "text-vyva-text-2"}`}>
                     {vitalsPrompt.body}
                   </p>
                 ) : null}
+                {vitalsPrompt.deviceAccess?.status === "connected" ? (
+                  <p className={`mx-auto mt-3 max-w-[440px] rounded-[14px] px-3 py-2 font-body text-[13px] font-black ${isDark ? "bg-[#173C32] text-[#A7F3D0]" : "bg-[#ECFDF5] text-[#047857]"}`} data-testid="triage-connected-vitals-message">
+                    {t("health.symptomCheck.chat.connectedVitalsReady", "A connected device is available. VYVA can use its current reading directly.")}
+                  </p>
+                ) : null}
+                {vitalsPrompt.actions.some((action) => action.id === "pulse") ? (
                 <div
-                  className={`mt-3 flex items-start gap-2 rounded-[14px] px-3 py-2.5 ${isDark ? "bg-[#45325E] text-[#F4ECFA]" : "bg-[#F5F3FF] text-vyva-text-2"}`}
+                  className={`mx-auto mt-3 flex max-w-[440px] items-start gap-2 rounded-[14px] px-3 py-2.5 text-left ${isDark ? "bg-[#45325E] text-[#F4ECFA]" : "bg-white text-vyva-text-2"}`}
                   data-testid="triage-camera-vitals-reminder"
                 >
                   <Camera size={18} className="mt-0.5 shrink-0 text-vyva-purple" aria-hidden="true" />
@@ -1647,21 +1660,26 @@ export default function TriageChat({
                     {t("health.symptomCheck.chat.cameraVitalsReminder", "Your phone camera can estimate your heart rate and breathing rate—no extra device needed.")}
                   </p>
                 </div>
+                ) : null}
                 {readingDisclosure ? <p className="mt-2 rounded-[14px] bg-[#ECFDF5] px-3 py-2 font-body text-[12px] font-black text-[#047857]" data-testid="triage-reading-disclosure">{readingDisclosure}</p> : null}
               </div>
               <VitalsAcquisitionPanel
-                actions={[
-                  {
-                    id: "camera_vitals",
-                    label: t("health.symptomCheck.chat.cameraVitals", "Camera: heart & breathing"),
-                  },
-                  ...vitalsPrompt.actions,
-                ]}
+                actions={vitalsPrompt.actions}
                 assessmentSessionId={assessmentSessionId}
                 disabled={!canAnswer}
                 onApply={applyAcquiredReading}
               />
-            </details>
+              <div className={`grid gap-2 border-t px-4 pb-4 pt-3 sm:grid-cols-2 ${isDark ? "border-white/[0.12]" : "border-[#EEE7F3]"}`}>
+                {readingDisclosure ? (
+                  <button type="button" onClick={() => void continueAfterVitals()} disabled={!canAnswer} data-testid="button-triage-vitals-continue" className="vyva-tap min-h-[52px] rounded-full bg-vyva-purple px-5 font-body text-[15px] font-black text-white disabled:opacity-55">
+                    {t("common.continue", "Continue")}
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => void skipContextualVitals()} disabled={!canAnswer} data-testid="button-triage-vitals-skip" className={`vyva-tap min-h-[52px] rounded-full border px-5 font-body text-[14px] font-black disabled:opacity-55 ${isDark ? "border-white/[0.16] bg-[#352842] text-[#F4ECFA]" : "border-[#D9CFE0] bg-white text-[#5B4B63]"}`}>
+                  {t("health.symptomCheck.chat.cannotMeasure", "I can’t measure this")}
+                </button>
+              </div>
+            </section>
           ) : null}
 
           {canShowMedicalFollowups && (
