@@ -243,7 +243,7 @@ describe("SymptomCheck report service actions", () => {
     expect(screen.getByTestId("card-report-watch-highlight")).toHaveTextContent("Breathing becomes difficult at rest");
   });
 
-  it("does not show possible causes for an emergency outcome", () => {
+  it("shows possible causes as secondary context for an emergency outcome", () => {
     renderReport({}, {
       summaryOverride: {
         urgency: "urgent",
@@ -255,7 +255,7 @@ describe("SymptomCheck report service actions", () => {
     });
 
     expect(screen.getByTestId("card-report-interpretation")).toBeInTheDocument();
-    expect(screen.queryByTestId("card-report-possible-patterns")).not.toBeInTheDocument();
+    expect(screen.getByTestId("card-report-possible-patterns")).toBeInTheDocument();
   });
 
   it("renders vital refinement as an action, not a passive note", () => {

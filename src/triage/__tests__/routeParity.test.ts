@@ -551,6 +551,7 @@ describe("triage route outcome parity", () => {
     ], {}, "Breathing feels harder than usual");
 
     expect(result.summary.interpretation).toContain("not a diagnosis");
+    expect(result.summary.interpretation).not.toContain("Taken together");
     expect(result.summary.possiblePatterns?.map((pattern) => pattern.id)).toContain("airway_infection");
     expect(result.summary.possiblePatterns?.[0].supportingAnswers.length).toBeGreaterThan(0);
     expect(result.summary.uncertainty?.join(" ")).toContain("cannot confirm a cause");
@@ -559,15 +560,16 @@ describe("triage route outcome parity", () => {
     expect(result.summary.clinicalHandoff?.keyPoints).toContain("Few days");
   });
 
-  it("suppresses possible causes when an emergency warning sign is present", () => {
+  it("keeps possible causes secondary to urgent action when an emergency warning sign is present", () => {
     const result = fallback([
       { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
       { id: "cannot_speak_breathing", label: "Gasping or cannot speak", value: "I cannot speak a full sentence.", kind: "red_flag" },
     ], {}, "Severe breathing trouble");
 
     expect(result.summary.nextStepLevel).toBe("emergency");
-    expect(result.summary.possiblePatterns).toEqual([]);
+    expect(result.summary.possiblePatterns?.length).toBeGreaterThan(0);
     expect(result.summary.interpretation).toContain("warning sign");
+    expect(result.summary.interpretation).toContain("must not delay emergency help");
     expect(result.summary.reassessmentWindow).toContain("Seek emergency help now");
   });
 
@@ -587,7 +589,7 @@ describe("triage route outcome parity", () => {
       { id: "standing_dizziness", label: "Happens when standing up", value: "It happens when standing.", kind: "trend" },
     ]), "en");
 
-    expect(refined.possiblePatterns?.map((pattern) => pattern.id)).toEqual(["postural"]);
+    expect(refined.possiblePatterns?.map((pattern) => pattern.id)).toEqual(["postural", "metabolic_dizzy"]);
     expect(refined.possiblePatterns?.join(" ")).not.toContain("invented_diagnosis");
   });
 });

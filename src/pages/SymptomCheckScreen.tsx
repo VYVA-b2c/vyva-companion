@@ -3373,7 +3373,7 @@ export function ReportScreen({
           </section>
         ) : null}
 
-        {!isEmergency && visiblePatterns.length ? (
+        {visiblePatterns.length ? (
           <section className={`mt-3 rounded-[20px] border p-3 sm:p-4 ${isDark ? "border-white/[0.12] bg-[#2D2038]" : "border-[#E8DED4] bg-white"}`} data-testid="card-report-possible-patterns">
             <p className="font-body text-[12px] font-extrabold uppercase tracking-[0.1em] text-vyva-text-3">{t("health.symptomCheck.report.possibleSituations", "Possible situations")}</p>
             <p className="mt-1 font-body text-[13px] font-bold leading-snug text-vyva-text-2">{t("health.symptomCheck.report.notDiagnosis", "These are patterns your answers can sometimes fit, not a diagnosis.")}</p>
@@ -4227,6 +4227,26 @@ export function SymptomReportPreviewScreen() {
     nextStepLevel: "doctor_24_48",
     triageReasons: ["The symptom is ongoing but no emergency warning sign was selected."],
     watchSigns: ["Symptoms get worse or new symptoms appear."],
+    interpretation: "This symptom is moderate, has been present for several days, and is not clearly improving. Its persistence makes a clinical review more useful than continued observation alone. The possibilities below help organize what may be contributing; this is not a diagnosis.",
+    possiblePatterns: [
+      {
+        id: "medicine_or_recovery",
+        label: "Recovery, hydration, or medicine effect",
+        explanation: "A recent illness, reduced fluid intake, poor sleep, or a medicine change can produce an ongoing symptom pattern.",
+        supportingAnswers: ["Present for several days", "Not clearly improving"],
+        clarifyingSigns: ["Recent illness, fluid intake, sleep, and medicine changes"],
+      },
+      {
+        id: "medical_change",
+        label: "Another medical change worth checking",
+        explanation: "Infection, inflammation, blood sugar, anaemia, or another condition can overlap, depending on the symptom and examination.",
+        supportingAnswers: ["Ongoing symptom"],
+        clarifyingSigns: ["Focused examination and relevant measurements or tests"],
+      },
+    ],
+    uncertainty: ["The questionnaire cannot confirm which cause is responsible or replace an examination."],
+    reassessmentWindow: "Arrange review within 24 to 48 hours. Recheck sooner if symptoms worsen.",
+    changePlanTriggers: ["Symptoms become strong, new warning signs appear, or you feel unsafe."],
     contextBrief: "Your symptom description, timing, and safety answers were reviewed together.",
     contextConfidence: {
       score: 4,
