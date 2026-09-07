@@ -854,6 +854,7 @@ export function VoiceTriageLivePanel({
   const showTypedAnswerComposer = stageId !== "checking"
     && stageId !== "review"
     && !usesNumericSeverityScale
+    && !vitalsPrompt
     && !isEmergency
     && !isComplete
     && !isFailed;
@@ -1046,7 +1047,16 @@ export function VoiceTriageLivePanel({
         ) : null}
 
         {!isEmergency && !isComplete && vitalsPrompt?.actions?.length ? (
-          <div className="mt-4 rounded-[8px] border border-[#B8E3D0] bg-[#E6F8F4] p-3">
+          <section className={`mt-4 overflow-hidden rounded-[24px] border shadow-[0_16px_36px_rgba(63,45,35,0.10)] ${isDark ? "border-white/[0.14] bg-[#2B2035]" : "border-[#D8C7FF] bg-white"}`} data-testid="voice-triage-vitals-checkpoint">
+            <div className={`px-4 pb-4 pt-5 text-center ${isDark ? "bg-[#352842]" : "bg-[linear-gradient(135deg,#FFFFFF_0%,#F7F1FF_100%)]"}`}>
+              <span className={`mx-auto flex h-11 w-11 items-center justify-center rounded-[16px] ${isDark ? "bg-[#45325E]" : "bg-[#F3E8FF]"}`}>
+                <Activity size={21} strokeWidth={2.7} className="text-vyva-purple" />
+              </span>
+              <p className={`mt-3 font-body text-[20px] font-black leading-tight ${isDark ? "text-[#FFF8FF]" : "text-vyva-text-1"}`}>
+                {t("health.symptomCheck.chat.vitalsCheckpointTitle", "A reading could improve your result")}
+              </p>
+            </div>
+            <div className="p-3">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[15px] bg-[#E6FAFD] text-[#0E7490]">
                 <Activity size={20} strokeWidth={2.7} />
@@ -1114,7 +1124,8 @@ export function VoiceTriageLivePanel({
                 />
               </div>
             ) : null}
-          </div>
+            </div>
+          </section>
         ) : null}
 
         {stageId !== "review" && question?.reason ? (
@@ -3461,12 +3472,33 @@ export function ReportScreen({
           </section>
         ) : null}
 
-        <div className="flex min-w-0 justify-center" data-testid="report-footer-actions">
+        {doctorShareHref ? (
+          <a
+            href={doctorShareHref}
+            aria-label={t("health.symptomCheck.report.shareWithDoctor", "Share with doctor")}
+            title={doctorShareTarget?.name}
+            data-testid="link-report-share-doctor"
+            className="vyva-tap inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[16px] bg-vyva-purple px-4 text-center font-body text-[14px] font-black leading-tight text-white shadow-[0_10px_22px_rgba(107,33,168,0.18)]"
+          >
+            <Send size={17} className="flex-shrink-0" />
+            {t("health.symptomCheck.report.shareWithDoctor", "Share with doctor")}
+          </a>
+        ) : null}
+
+        <div className="grid min-w-0 grid-cols-2 gap-2" data-testid="report-footer-actions">
+          <button
+            type="button"
+            onClick={onDone}
+            data-testid="button-report-done"
+            className={`vyva-tap min-h-[48px] min-w-0 rounded-[16px] border px-3 text-center font-body text-[14px] font-black leading-tight ${isDark ? "border-[#4A3657] bg-[#24182E] text-[#EEE4F8]" : "border-[#E7DCF8] bg-[#FBF8FF] text-vyva-purple"}`}
+          >
+            {t("health.symptomCheck.report.returnToHealth", "Return to My Health")}
+          </button>
           <button
             type="button"
             onClick={handleShare}
             data-testid="button-report-share-footer"
-            className={`vyva-tap inline-flex min-h-[48px] min-w-[150px] items-center justify-center gap-2 rounded-[16px] border px-4 text-center font-body text-[14px] font-black leading-tight ${isDark ? "border-[#4A3657] bg-[#24182E] text-[#D8B4FE]" : "border-[#E7DCF8] bg-[#FBF8FF] text-vyva-purple"}`}
+            className="vyva-tap inline-flex min-h-[48px] min-w-0 items-center justify-center gap-2 rounded-[16px] bg-vyva-purple px-3 text-center font-body text-[14px] font-black leading-tight text-white shadow-[0_10px_22px_rgba(107,33,168,0.18)]"
           >
             <Share2 size={17} className="flex-shrink-0" />
             {t("health.symptomCheck.report.shareShort", "Share")}

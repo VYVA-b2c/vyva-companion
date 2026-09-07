@@ -88,7 +88,7 @@ describe("SymptomCheck report service actions", () => {
     expect(reportAnswer).toHaveAttribute("data-recommendation-tone", "urgent");
     expect(reportAnswer).not.toHaveTextContent("VYVA has turned your answers into a simple plan below.");
     expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Talk to a doctor today");
-    expect(screen.queryByTestId("button-report-done")).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-report-done")).toBeVisible();
   });
 
   it("puts an emergency call action on the live next step when an emergency number is known", () => {
@@ -130,6 +130,7 @@ describe("SymptomCheck report service actions", () => {
 
     expect(screen.getByTestId("button-report-call-gp")).toHaveTextContent("Call GP");
     expect(screen.queryByTestId("report-next-step-actions")).not.toBeInTheDocument();
+    expect(screen.getByTestId("link-report-share-doctor")).toHaveAttribute("href", expect.stringMatching(/^sms:/));
     expect(screen.getByTestId("button-report-share-footer")).toBeVisible();
     expect(screen.queryByTestId("report-result-details")).not.toBeInTheDocument();
   });

@@ -1373,11 +1373,8 @@ test("symptom check restores a completed report until done", async ({ page }) =>
   await continuePastSymptomEmergencyModal(page);
   await startSymptomCheckWithTypedClue(page, "bad headache");
   await expect(page.getByTestId("button-report-done")).toBeVisible();
-  await page.getByTestId("report-result-details").locator(":scope > summary").click();
-  await page.getByTestId("button-report-detail-share").click();
-  await expect(page.getByTestId("button-report-add-doctor-contact")).toBeVisible();
-  await expect(page.getByTestId("button-report-doctor-help-inline")).toBeVisible();
   await expect(page.getByTestId("link-report-share-doctor")).toHaveCount(0);
+  await expect(page.getByTestId("button-report-share-footer")).toBeVisible();
   await expect.poll(async () => page.evaluate((key) => JSON.parse(sessionStorage.getItem(key) ?? "null")?.step, symptomCheckDraftKey)).toBe("report");
 
   await page.goto("/health", { waitUntil: "domcontentloaded" });
@@ -1433,13 +1430,6 @@ test("symptom check prepares a direct doctor share link when a doctor contact is
   await startSymptomCheckWithTypedClue(page, "bad headache");
   await expect(page).toHaveURL(/\/informes\/triage-share-smoke$/);
   await expect(page.getByTestId("symptom-check-shell")).toHaveAttribute("data-stage-id", "save_share_summary");
-  const resultDetails = page.getByTestId("report-result-details");
-  await expect(resultDetails).toBeVisible();
-  await resultDetails.locator(":scope > summary").click();
-  const shareDetails = page.getByTestId("button-report-detail-share");
-  await expect(shareDetails).toBeVisible();
-  await shareDetails.click();
-
   const shareDoctorLink = page.getByTestId("link-report-share-doctor");
   await expect(shareDoctorLink).toBeVisible();
   await expect(shareDoctorLink).toContainText("Share with doctor");
