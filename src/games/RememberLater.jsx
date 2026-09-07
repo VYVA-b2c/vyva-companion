@@ -1567,6 +1567,15 @@ export default function RememberLater({
   const nextTierBandLabel = t(`brainCoach.progression.bands.${nextTierBand.id}`, nextTierBand.label);
   const currentTierBandLabel = t(`brainCoach.progression.bands.${currentTierBand.id}`, currentTierBand.label);
   const progressWins = userState?.consecutive_wins ?? 0;
+  const levelRequirements = getRememberLaterLevelRequirements(normalizedRound?.difficulty_tier ?? nextTier);
+  const qualificationRule = t(
+    "games.rememberLater.qualificationRule",
+    "A round counts when you catch the reminder, reach {overall}% overall, and {matching}% on matching.",
+    {
+      overall: levelRequirements.combinedAccuracyPct,
+      matching: levelRequirements.matchingAccuracyPct,
+    },
+  );
   const ongoingRuleLabel = normalizedRound ? ruleLabel(normalizedRound.ongoing_task_rule, t) : "";
   const ongoingRuleIsColor = normalizedRound ? isColorRule(normalizedRound.ongoing_task_rule) : false;
   const matchButtonLabel = normalizedRound
@@ -1722,9 +1731,10 @@ export default function RememberLater({
                   {t("games.rememberLater.firstRoundOnly", "First round only. After this, levels start right away.")}
                 </p>
               </div>
-              <p className="rounded-full px-4 py-3 text-center text-[17px] font-black" style={{ background: "#ECFDF5", color: BRAND.teal }}>
-                {t("games.rememberLater.countedRoundIntro", "3 good rounds = next level.")}
-              </p>
+              <div className="rounded-[20px] px-4 py-3 text-[15px] font-extrabold leading-snug" style={{ background: "#ECFDF5", color: BRAND.teal }}>
+                <p className="font-black">{t("games.rememberLater.countedRoundIntro", "3 qualifying rounds in a row = next level.")}</p>
+                <p className="mt-1">{qualificationRule}</p>
+              </div>
             </div>
 
             <button
@@ -1873,6 +1883,9 @@ export default function RememberLater({
                   <p className="mt-2 text-[14px] font-bold">
                     {t("games.rememberLater.currentLevel", "Current level")}: {nextTier} - {nextTierBandLabel}
                   </p>
+                  {!isAtMaxTier ? (
+                    <p className="mt-2 text-[14px] font-extrabold leading-snug">{qualificationRule}</p>
+                  ) : null}
                 </div>
               </div>
             }

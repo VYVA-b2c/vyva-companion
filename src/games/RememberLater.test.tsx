@@ -438,7 +438,8 @@ describe("RememberLater component", () => {
     expect(screen.getByText("See the bell")).toBeInTheDocument();
     expect(screen.getByText("Anything else: wait.")).toBeInTheDocument();
     expect(screen.getByText(/First round only/i)).toBeInTheDocument();
-    expect(screen.getByText(/3 good rounds/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 qualifying rounds in a row/i)).toBeInTheDocument();
+    expect(screen.getByText("A round counts when you catch the reminder, reach 60% overall, and 50% on matching.")).toBeInTheDocument();
     expect(screen.getByText("Tap purple")).toBeInTheDocument();
     expect(screen.getByText("Touch this button")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Do not show these instructions again." })).toBeChecked();
