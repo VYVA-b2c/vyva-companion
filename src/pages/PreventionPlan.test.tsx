@@ -739,6 +739,12 @@ describe("PreventionPlan", () => {
     expect(screen.queryByText("Why this?")).not.toBeInTheDocument();
     expect(screen.getByTestId("longevity-pillar-selector-rail")).toHaveClass("no-scrollbar", "snap-x");
 
+    fireEvent.click(screen.getByRole("button", { name: "Pas pour moi" }));
+    expect(screen.getByText("Qu'est-ce qui ne convenait pas ?")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Trop ennuyeux" })).toHaveStyle({ color: "#3B2D45" });
+    expect(screen.getByRole("button", { name: "Trop difficile" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Pas pour moi" }));
+
     fireEvent.click(screen.getByText("Pourquoi ceci ?"));
     expect(screen.getByRole("button", { name: "Jeux cérébraux VYVA" })).toBeVisible();
 

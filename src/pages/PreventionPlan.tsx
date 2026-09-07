@@ -3400,7 +3400,8 @@ export default function PreventionPlan({
                           key={reason}
                           type="button"
                           onClick={() => handleFeedbackReason(reason)}
-                          className={["min-h-8 rounded-full border px-3 font-body text-[11px] font-black", isDark ? "border-white/[0.12] bg-white/[0.06] text-[#F8F2FF]" : "border-[#E6D9EC] bg-white text-[#5A4B62]"].join(" ")}
+                          className={["min-h-9 rounded-full border px-3.5 font-body text-[12px] font-black leading-tight shadow-sm transition", isDark ? "border-white/[0.24] bg-white/[0.12] text-[#FFF8FF]" : "border-[#CDB7DC] bg-[#FFF7EF] text-[#3B2D45] shadow-[0_4px_10px_rgba(80,52,109,0.08)]"].join(" ")}
+                          style={{ color: isDark ? "#FFF8FF" : "#3B2D45" }}
                         >
                           {copy.feedbackReasons[reason]}
                         </button>
