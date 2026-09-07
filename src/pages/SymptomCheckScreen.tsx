@@ -97,6 +97,7 @@ interface TriageSummary {
   watchSigns?: string[];
   profileConsiderations?: string[];
   vitalsNotes?: string[];
+  vitalsSnapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scanResults?: TriageScanResult[];
   scanNotes?: string[];
   interpretation?: string;
@@ -346,6 +347,7 @@ type SavedTriageReport = {
   watch_signs?: string[];
   profile_considerations?: string[];
   vitals_notes?: string[];
+  vitals_snapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scan_results?: TriageScanResult[];
   scan_notes?: string[];
   interpretation?: string | null;
@@ -377,6 +379,7 @@ export function triageSummaryFromSavedReport(report: SavedTriageReport | null | 
     watchSigns: report.watch_signs ?? [],
     profileConsiderations: report.profile_considerations ?? [],
     vitalsNotes: report.vitals_notes ?? [],
+    vitalsSnapshot: report.vitals_snapshot ?? undefined,
     scanResults: report.scan_results ?? [],
     scanNotes: report.scan_notes ?? [],
     interpretation: report.interpretation ?? undefined,
@@ -4739,6 +4742,7 @@ export default function SymptomCheckScreen() {
         watch_signs: triageSummary.watchSigns ?? [],
         profile_considerations: triageSummary.profileConsiderations ?? [],
         vitals_notes: triageSummary.vitalsNotes ?? [],
+        vitals_snapshot: triageSummary.vitalsSnapshot ?? null,
         interpretation: triageSummary.interpretation ?? null,
         possible_patterns: triageSummary.possiblePatterns ?? [],
         uncertainty: triageSummary.uncertainty ?? [],

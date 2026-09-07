@@ -90,6 +90,7 @@ const summaryShapeKeys = [
   "uncertainty",
   "urgency",
   "vitalsNotes",
+  "vitalsSnapshot",
   "watchSigns",
 ].sort();
 
@@ -571,6 +572,16 @@ describe("triage route wizard questions", () => {
       urgency: "urgent",
       nextStepLevel: "doctor_today",
       nextStepLabel: "Talk to a doctor today",
+      vitalsSnapshot: {
+        capturedAt: expect.any(String),
+        readings: [expect.objectContaining({
+          key: "oxygenSaturation",
+          value: 92,
+          unit: "%",
+          source: "manual_entry",
+          affectsTriage: true,
+        })],
+      },
     });
     expect(events.map((event) => event.name)).toEqual([
       "triage_started",

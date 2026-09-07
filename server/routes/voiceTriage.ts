@@ -638,6 +638,7 @@ async function saveCompletedVoiceReport(input: {
     watch_signs: summary.watchSigns ?? [],
     profile_considerations: summary.profileConsiderations ?? [],
     vitals_notes: summary.vitalsNotes ?? [],
+    vitals_snapshot: summary.vitalsSnapshot ?? null,
     interpretation: summary.interpretation ?? null,
     possible_patterns: summary.possiblePatterns ?? [],
     uncertainty: summary.uncertainty ?? [],

@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { db, pool } from "../db.js";
-import { caregiverAlerts, profiles, triageReports, vitalsReadings, medicationAdherence, userMedications } from "../../shared/schema.js";
+import { caregiverAlerts, profiles, triageReports, vitalsReadings, medicationAdherence, userMedications, type TriageReportVitalsSnapshot } from "../../shared/schema.js";
 import { VITALS_READING_SOURCES, type VitalsReadingSource } from "../../shared/vitalsEvidence.js";
 import { unitForSignal, type VitalsSignalKey } from "../../shared/vitalsSignalCatalog.js";
 import type { TriageScanResult } from "../../shared/triageScans.js";
@@ -61,6 +61,7 @@ async function ensureReportsPersistenceTables() {
           watch_signs text[] not null default '{}',
           profile_considerations text[] not null default '{}',
           vitals_notes text[] not null default '{}',
+          vitals_snapshot jsonb,
           scan_results jsonb not null default '[]'::jsonb,
           scan_notes text[] not null default '{}',
           interpretation text,
@@ -88,6 +89,7 @@ async function ensureReportsPersistenceTables() {
           add column if not exists watch_signs text[] not null default '{}',
           add column if not exists profile_considerations text[] not null default '{}',
           add column if not exists vitals_notes text[] not null default '{}',
+          add column if not exists vitals_snapshot jsonb,
           add column if not exists scan_results jsonb not null default '[]'::jsonb,
           add column if not exists scan_notes text[] not null default '{}',
           add column if not exists interpretation text,
@@ -148,6 +150,7 @@ export async function saveTriageReport(params: {
   watch_signs?: string[];
   profile_considerations?: string[];
   vitals_notes?: string[];
+  vitals_snapshot?: TriageReportVitalsSnapshot | null;
   scan_results?: TriageScanResult[];
   scan_notes?: string[];
   interpretation?: string | null;
@@ -175,6 +178,7 @@ export async function saveTriageReport(params: {
     watch_signs: params.watch_signs ?? [],
     profile_considerations: params.profile_considerations ?? [],
     vitals_notes: params.vitals_notes ?? [],
+    vitals_snapshot: params.vitals_snapshot ?? null,
     scan_results: params.scan_results ?? [],
     scan_notes: params.scan_notes ?? [],
     interpretation: params.interpretation ?? null,
@@ -490,6 +494,16 @@ const triageSchema = z.object({
   watch_signs:       z.array(z.string()).default([]),
   profile_considerations: z.array(z.string()).default([]),
   vitals_notes:      z.array(z.string()).default([]),
+  vitals_snapshot: z.object({
+    capturedAt: z.string(),
+    readings: z.array(z.object({
+      key: z.enum(["bpm", "respiratoryRate", "oxygenSaturation", "temperatureC", "systolicBp", "diastolicBp", "glucoseMgdl", "painScore", "energyLevel"]),
+      value: z.number(),
+      unit: z.string(),
+      source: z.enum(VITALS_READING_SOURCES),
+      affectsTriage: z.boolean(),
+    })),
+  }).nullable().optional(),
   scan_results:      z.array(triageScanResultSchema).default([]),
   scan_notes:        z.array(z.string()).default([]),
   interpretation:    z.string().nullable().optional(),
