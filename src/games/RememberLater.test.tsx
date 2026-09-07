@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
 import RememberLater, {
   buildLocalRememberLaterRounds,
+  getRememberLaterRoundVariationKey,
   computeRememberLaterScore,
   getDefaultRememberLaterUserState,
   getRememberLaterLevelRequirements,
@@ -406,6 +407,7 @@ describe("RememberLater helpers", () => {
 describe("RememberLater component", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     document.cookie = "remember_later_tutorial_seen_v1=; Max-Age=0; Path=/";
     setLanguage("en");
     gameDataMock.calls.length = 0;
@@ -678,6 +680,71 @@ describe("RememberLater component", () => {
     expect(await screen.findByRole("button", { name: "Appuie quand tu vois un carre" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Appuie quand tu vois un cercle" })).not.toBeInTheDocument();
   }, 10_000);
+
+  it("does not reopen the same local round after a reload before completion", async () => {
+    const firstRender = render(<RememberLater onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a circle")).toBeInTheDocument();
+    firstRender.unmount();
+
+    render(<RememberLater onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a square")).toBeInTheDocument();
+    expect(screen.queryByText("See a circle")).not.toBeInTheDocument();
+  });
+
+  it("rotates through local content when signed-in round loading fails", async () => {
+    gameDataMock.queue.push(
+      { data: null, error: new Error("state unavailable") },
+      { data: null, error: new Error("content unavailable") },
+      { data: null, error: new Error("content unavailable") },
+      { data: null, error: new Error("content unavailable") },
+    );
+    const firstRender = render(<RememberLater userId="preview-user" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a circle")).toBeInTheDocument();
+    firstRender.unmount();
+
+    gameDataMock.queue.push(
+      { data: null, error: new Error("state unavailable") },
+      { data: null, error: new Error("content unavailable") },
+      { data: null, error: new Error("content unavailable") },
+      { data: null, error: new Error("content unavailable") },
+    );
+    render(<RememberLater userId="preview-user" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a square")).toBeInTheDocument();
+    expect(screen.queryByText("See a circle")).not.toBeInTheDocument();
+  });
+
+  it("rotates through local content when signed-in round content is empty", async () => {
+    gameDataMock.queue.push(
+      { data: getDefaultRememberLaterUserState("preview-user"), error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    );
+    const firstRender = render(<RememberLater userId="preview-user" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a circle")).toBeInTheDocument();
+    firstRender.unmount();
+
+    gameDataMock.queue.push(
+      { data: getDefaultRememberLaterUserState("preview-user"), error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    );
+    render(<RememberLater userId="preview-user" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+    expect(await screen.findByText("See a square")).toBeInTheDocument();
+  });
+
+  it("rejects a different row with identical round content", () => {
+    const repeated = { ...testRound, id: "duplicate-content" };
+    const different = { ...testRound, id: "different-content", ongoing_task_rule: "shape_square" };
+    const variationToken = `variation:${getRememberLaterRoundVariationKey(testRound)}`;
+
+    expect(pickRememberLaterRound(
+      [repeated, different],
+      [],
+      [],
+      () => 0,
+      [variationToken],
+    )?.id).toBe("different-content");
+  });
 
   it("explains when recall alone does not move the level bar", async () => {
     const userState = {
