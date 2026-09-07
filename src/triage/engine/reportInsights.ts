@@ -137,7 +137,6 @@ export function buildTriageInsights(input: { locale: string; symptomId?: string;
   const hasVitals = Object.values(wizard?.vitals ?? {}).some((value) => typeof value === "number");
   const interpretation = interpretationFor(locale, level, summary, wizard);
   const uncertainty = uniq([
-    l(locale, c("A questionnaire cannot confirm a cause or rule out every condition.", "Un cuestionario no confirma una causa ni descarta todas las condiciones.", "Un questionnaire ne confirme pas une cause et n'exclut pas toutes les maladies.")),
     hasVitals ? "" : l(locale, c("No current measured vital signs were available for this interpretation.", "No habia constantes vitales actuales medidas para esta interpretacion.", "Aucune constante vitale actuelle mesuree n'etait disponible pour cette interpretation.")),
   ]);
   const reassessmentWindow = reassessment(locale, level);

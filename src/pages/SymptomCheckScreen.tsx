@@ -3362,12 +3362,6 @@ export function ReportScreen({
                   {t("health.symptomCheck.report.whatAnswersMean", "What your answers mean")}
                 </p>
                 <p className="mt-1 font-body text-[14px] font-bold leading-relaxed text-vyva-text-2 sm:text-[15px]">{summary.interpretation}</p>
-                {summary.uncertainty?.length ? (
-                  <div className={`mt-2 border-t pt-2 ${isDark ? "border-white/[0.1]" : "border-[#E7DCF8]"}`} data-testid="report-uncertainty">
-                    <p className="font-body text-[11px] font-extrabold uppercase tracking-[0.08em] text-vyva-text-3">{t("health.symptomCheck.report.whatWeCannotTell", "What we cannot tell")}</p>
-                    <p className="mt-1 font-body text-[12px] font-semibold leading-relaxed text-vyva-text-2">{summary.uncertainty.join(" ")}</p>
-                  </div>
-                ) : null}
               </div>
             </div>
           </section>
@@ -4244,7 +4238,7 @@ export function SymptomReportPreviewScreen() {
         clarifyingSigns: ["Focused examination and relevant measurements or tests"],
       },
     ],
-    uncertainty: ["The questionnaire cannot confirm which cause is responsible or replace an examination."],
+    uncertainty: [],
     reassessmentWindow: "Arrange review within 24 to 48 hours. Recheck sooner if symptoms worsen.",
     changePlanTriggers: ["Symptoms become strong, new warning signs appear, or you feel unsafe."],
     contextBrief: "Your symptom description, timing, and safety answers were reviewed together.",

@@ -554,7 +554,7 @@ describe("triage route outcome parity", () => {
     expect(result.summary.interpretation).not.toContain("Taken together");
     expect(result.summary.possiblePatterns?.map((pattern) => pattern.id)).toContain("airway_infection");
     expect(result.summary.possiblePatterns?.[0].supportingAnswers.length).toBeGreaterThan(0);
-    expect(result.summary.uncertainty?.join(" ")).toContain("cannot confirm a cause");
+    expect(result.summary.uncertainty?.join(" ")).toContain("No current measured vital signs");
     expect(result.summary.reassessmentWindow).toBeTruthy();
     expect(result.summary.changePlanTriggers?.length).toBeGreaterThan(0);
     expect(result.summary.clinicalHandoff?.keyPoints).toContain("Few days");

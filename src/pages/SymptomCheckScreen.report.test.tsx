@@ -238,7 +238,7 @@ describe("SymptomCheck report service actions", () => {
     expect(interpretation).toHaveTextContent("What your answers mean");
     expect(doNow.compareDocumentPosition(interpretation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByTestId("card-report-possible-patterns")).toHaveTextContent("Activity-related breathing pattern");
-    expect(screen.getByTestId("report-uncertainty")).toHaveTextContent("cannot confirm a cause");
+    expect(screen.queryByTestId("report-uncertainty")).not.toBeInTheDocument();
     expect(screen.getByTestId("report-reassessment-window")).toHaveTextContent("Recheck in 24 hours");
     expect(screen.getByTestId("card-report-watch-highlight")).toHaveTextContent("Breathing becomes difficult at rest");
   });
@@ -255,6 +255,7 @@ describe("SymptomCheck report service actions", () => {
     });
 
     expect(screen.getByTestId("card-report-interpretation")).toBeInTheDocument();
+    expect(screen.queryByTestId("report-uncertainty")).not.toBeInTheDocument();
     expect(screen.getByTestId("card-report-possible-patterns")).toBeInTheDocument();
   });
 
