@@ -357,6 +357,15 @@ describe("RememberLater helpers", () => {
     ])?.id).toBe("fresh-round");
   });
 
+  it("never returns an explicitly excluded just-finished round", () => {
+    const rounds = [
+      { ...testRound, id: "finished-round" },
+      { ...testRound, id: "next-round", ongoing_task_rule: "shape_square" },
+    ];
+
+    expect(pickRememberLaterRound(rounds, [], [], () => 0, ["finished-round"])?.id).toBe("next-round");
+  });
+
   it("builds varied local rounds within the same level", () => {
     const rounds = buildLocalRememberLaterRounds(1);
     const firstThreeSignatures = rounds.slice(0, 3).map((round) => {
@@ -618,6 +627,57 @@ describe("RememberLater component", () => {
     expect(screen.queryByText("Anything else: wait.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start round" })).not.toBeInTheDocument();
   });
+
+  it("keeps a French level-two session localized and advances to a different round", async () => {
+    setLanguage("fr");
+    const userState = {
+      ...getDefaultRememberLaterUserState("user-1"),
+      current_tier: 2,
+      has_seen_tutorial: true,
+    };
+    const firstRound = { ...levelOneComponentRound, id: "level-2-round-a", difficulty_tier: 2 };
+    const secondRound = {
+      ...levelOneComponentRound,
+      id: "level-2-round-b",
+      difficulty_tier: 2,
+      ongoing_task_rule: "shape_square",
+      filler_stream: [
+        { type: "icon", value: "cue", icon: "cue", matches_rule: false, cue: true },
+        { type: "shape", value: "square", matches_rule: true },
+      ],
+    };
+    gameDataMock.queue.push(
+      { data: userState, error: null },
+      { data: [], error: null },
+      { data: [firstRound], error: null },
+      { data: { id: "session-fr-1" }, error: null },
+      { data: userState, error: null },
+    );
+
+    render(<RememberLater userId="user-1" onExit={vi.fn()} countdownStepMs={TEST_COUNTDOWN_STEP_MS} />);
+
+    const reminderButton = await screen.findByRole("button", { name: /Cloche.*Appuie sur ce bouton/i });
+    expect(screen.getByText("Niveau 2 - Fondation")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Appuie quand tu vois un cercle" })).toBeInTheDocument();
+    fireEvent.click(reminderButton);
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 1800)); });
+    fireEvent.click(screen.getByRole("button", { name: "Appuie quand tu vois un cercle" }));
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 2500)); });
+
+    expect(await screen.findByRole("button", { name: "Manche suivante" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terminer" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next round" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Finish" })).not.toBeInTheDocument();
+
+    gameDataMock.queue.push(
+      { data: [{ round_id: firstRound.id }], error: null },
+      { data: [firstRound, secondRound], error: null },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Manche suivante" }));
+
+    expect(await screen.findByRole("button", { name: "Appuie quand tu vois un carre" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Appuie quand tu vois un cercle" })).not.toBeInTheDocument();
+  }, 10_000);
 
   it("explains when recall alone does not move the level bar", async () => {
     const userState = {
