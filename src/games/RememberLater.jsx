@@ -63,6 +63,9 @@ const LOCAL_TUTORIAL_KEY = "rememberLater:tutorialSeen:v1";
 const LOCAL_TUTORIAL_COOKIE = "remember_later_tutorial_seen_v1";
 const LOCAL_STATE_KEY = "rememberLater:state:v1";
 const LOCAL_SESSIONS_KEY = "rememberLater:sessions:v1";
+const RECENT_ROUNDS_KEY = "rememberLater:recentRounds:v1";
+const RECENT_ROUND_LIMIT = 8;
+const VARIATION_KEY_PREFIX = "variation:";
 
 const COLOR_HEX = {
   red: "#DC2626",
@@ -540,13 +543,38 @@ export function shouldShowRememberLaterIntro(state, round) {
   return !state?.has_seen_tutorial && effectiveTier <= 1;
 }
 
+export function getRememberLaterRoundVariationKey(round) {
+  const normalized = normalizeRememberLaterRound(round);
+  const intentions = normalized.intentions.map((intention) => [
+    intention.type,
+    intention.cue_icon ?? null,
+    intention.cue_position_index ?? null,
+    intention.target_delay_seconds ?? null,
+  ]);
+  const stream = normalized.filler_stream.map((item) => [
+    item.type,
+    item.value,
+    Boolean(item.matches_rule),
+    Boolean(item.cue),
+  ]);
+  return JSON.stringify([normalized.round_type, normalized.ongoing_task_rule, intentions, stream]);
+}
+
 export function pickRememberLaterRound(rounds, todaySessions = [], historySessions = [], random = Math.random, excludedRoundIds = []) {
   const normalizedRounds = rounds.map(normalizeRememberLaterRound).filter((round) => round.filler_stream.length > 0);
+  const excludedVariationKeys = new Set(
+    excludedRoundIds
+      .filter((value) => String(value).startsWith(VARIATION_KEY_PREFIX))
+      .map((value) => String(value).slice(VARIATION_KEY_PREFIX.length)),
+  );
   const usedToday = new Set([
     ...todaySessions.map((session) => session.round_id).filter(Boolean),
-    ...excludedRoundIds.filter(Boolean),
+    ...excludedRoundIds.filter((value) => value && !String(value).startsWith(VARIATION_KEY_PREFIX)),
   ]);
-  const unusedToday = normalizedRounds.filter((round) => !usedToday.has(round.id));
+  const unusedToday = normalizedRounds.filter((round) => (
+    !usedToday.has(round.id)
+    && !excludedVariationKeys.has(getRememberLaterRoundVariationKey(round))
+  ));
 
   if (unusedToday.length > 0) {
     return unusedToday[Math.floor(random() * unusedToday.length)];
@@ -765,6 +793,31 @@ function writeLocalRememberLaterSession(result, playedAt = new Date()) {
   };
   const nextSessions = [...readLocalRememberLaterSessions(), nextSession].slice(-500);
   writeLocalJson(LOCAL_SESSIONS_KEY, nextSessions);
+}
+
+function readRecentlyPresentedRoundIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(RECENT_ROUNDS_KEY) ?? "[]");
+    return Array.isArray(stored) ? stored.filter(Boolean).slice(-(RECENT_ROUND_LIMIT * 2)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberPresentedRound(round) {
+  if (!round?.id || typeof window === "undefined") return;
+  const variationToken = `${VARIATION_KEY_PREFIX}${getRememberLaterRoundVariationKey(round)}`;
+  const recent = readRecentlyPresentedRoundIds().filter((value) => value !== round.id && value !== variationToken);
+  try {
+    window.sessionStorage.setItem(
+      RECENT_ROUNDS_KEY,
+      JSON.stringify([...recent, round.id, variationToken].slice(-(RECENT_ROUND_LIMIT * 2))),
+    );
+  } catch {
+    // A private browser context may disable session storage. Round history still
+    // prevents repeats after a completed session.
+  }
 }
 
 function getTodayLocalRememberLaterSessions(date = new Date()) {
@@ -1046,7 +1099,19 @@ export default function RememberLater({
       console.warn("Remember Later could not load today's rounds.", todaySessionsResult.error);
     }
 
-    const freshRound = pickRememberLaterRound(roundsResult.data ?? [], todaySessionsResult.data ?? [], [], Math.random, excludedRoundIds);
+    const availableRounds = Array.isArray(roundsResult.data) ? roundsResult.data : [];
+    if (availableRounds.length === 0) {
+      const localRounds = buildLocalRememberLaterRounds(tier);
+      return pickRememberLaterRound(
+        localRounds,
+        getTodayLocalRememberLaterSessions(),
+        readLocalRememberLaterSessions(),
+        () => 0,
+        excludedRoundIds,
+      ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+    }
+
+    const freshRound = pickRememberLaterRound(availableRounds, todaySessionsResult.data ?? [], [], Math.random, excludedRoundIds);
     if (freshRound && !(todaySessionsResult.data ?? []).some((session) => session.round_id === freshRound.id)) {
       return freshRound;
     }
@@ -1063,7 +1128,7 @@ export default function RememberLater({
       console.warn("Remember Later could not load round history.", historyResult.error);
     }
 
-    return pickRememberLaterRound(roundsResult.data ?? [], todaySessionsResult.data ?? [], historyResult.data ?? [], Math.random, excludedRoundIds) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+    return pickRememberLaterRound(availableRounds, todaySessionsResult.data ?? [], historyResult.data ?? [], Math.random, excludedRoundIds) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
   }, [userId]);
 
   const loadGame = useCallback(async () => {
@@ -1075,10 +1140,14 @@ export default function RememberLater({
     sessionSavedRef.current = false;
     try {
       const state = await loadUserState();
-      const nextRound = await loadRound(Number(state.current_tier ?? 1));
+      const nextRound = await loadRound(
+        Number(state.current_tier ?? 1),
+        readRecentlyPresentedRoundIds(),
+      );
       const shouldShowIntro = shouldShowRememberLaterIntro(state, nextRound);
       setUserState(state);
       setRound(nextRound);
+      rememberPresentedRound(nextRound);
       setCurrentIndex(0);
       setSessionResult(null);
       setAutoStartAfterLoad(!shouldShowIntro);
@@ -1091,10 +1160,19 @@ export default function RememberLater({
           has_seen_tutorial: readLocalTutorialSeen(),
         })
         : readLocalRememberLaterState();
+      const fallbackRounds = buildLocalRememberLaterRounds(Number(fallbackState.current_tier ?? 1));
+      const fallbackRound = pickRememberLaterRound(
+        fallbackRounds,
+        getTodayLocalRememberLaterSessions(),
+        readLocalRememberLaterSessions(),
+        () => 0,
+        readRecentlyPresentedRoundIds(),
+      ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
       setUserState(fallbackState);
-      setRound(normalizeRememberLaterRound(FALLBACK_ROUND));
+      setRound(fallbackRound);
+      rememberPresentedRound(fallbackRound);
       setLoadError(t("games.rememberLater.practiceFallback", "We will use a short practice round."));
-      setAutoStartAfterLoad(!shouldShowRememberLaterIntro(fallbackState, FALLBACK_ROUND));
+      setAutoStartAfterLoad(!shouldShowRememberLaterIntro(fallbackState, fallbackRound));
       setScreen("intro");
     }
   }, [loadRound, loadUserState, stopTimers, t, userId]);
@@ -1380,6 +1458,10 @@ export default function RememberLater({
     const nextState = userStateRef.current ?? await loadUserState();
     const nextTier = Number(nextState.current_tier ?? 1);
     const completedRoundId = sessionResult?.round_id ?? roundRef.current?.id ?? null;
+    const excludedRoundIds = Array.from(new Set([
+      ...readRecentlyPresentedRoundIds(),
+      completedRoundId,
+    ].filter(Boolean)));
     setScreen("loading");
     setLoadError("");
     setAutoStartAfterLoad(false);
@@ -1388,8 +1470,9 @@ export default function RememberLater({
     sessionSavedRef.current = false;
 
     try {
-      const nextRound = await loadRound(nextTier, completedRoundId ? [completedRoundId] : []);
+      const nextRound = await loadRound(nextTier, excludedRoundIds);
       setRound(nextRound);
+      rememberPresentedRound(nextRound);
       setCurrentIndex(0);
       setSessionResult(null);
       setAutoStartAfterLoad(true);
@@ -1402,9 +1485,10 @@ export default function RememberLater({
         getTodayLocalRememberLaterSessions(),
         readLocalRememberLaterSessions(),
         () => 0,
-        completedRoundId ? [completedRoundId] : [],
+        excludedRoundIds,
       ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
       setRound(nextRound);
+      rememberPresentedRound(nextRound);
       setCurrentIndex(0);
       setSessionResult(null);
       setLoadError(t("games.rememberLater.practiceFallback", "We will use a short practice round."));
