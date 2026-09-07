@@ -26,10 +26,10 @@ function substitute(value, replacements) {
 function validateManifest(value) {
   requireString(value.name, "manifest.name");
   requireString(value.slug, "manifest.slug");
-  if (!Array.isArray(value.tools) || value.tools.length !== 3) throw new Error("manifest.tools must contain exactly three tools");
+  if (!Array.isArray(value.tools) || value.tools.length !== 4) throw new Error("manifest.tools must contain exactly four tools");
   const names = value.tools.map((tool) => tool?.tool_config?.name).sort();
-  if (names.join(",") !== "retrieve_medical_profile,sync_dr_ai_screen,vyva_triage_step") {
-    throw new Error("Dr. AI requires retrieve_medical_profile, sync_dr_ai_screen, and vyva_triage_step");
+  if (names.join(",") !== "open_dr_ai_vitals,retrieve_medical_profile,sync_dr_ai_screen,vyva_triage_step") {
+    throw new Error("Dr. AI requires profile, triage, screen-sync, and vitals-capture tools");
   }
   const sync = value.tools.find((tool) => tool.tool_config.name === "sync_dr_ai_screen")?.tool_config;
   if (!sync?.expects_response) throw new Error("sync_dr_ai_screen must wait for the client response");
@@ -47,11 +47,15 @@ function validateManifest(value) {
     "Treat a successful profile response as the authoritative VYVA context available for this session",
     "Do not say that you cannot access information the profile tool returned",
     "Current answers and current vitals always take precedence over stored context",
+    "When vitals_prompt is present, it is the canonical question for this turn",
+    "phone camera can estimate heart and breathing rate",
+    "Never offer vitals during an emergency",
+    "one short neutral holding phrase",
   ];
   for (const rule of requiredConversationRules) {
     if (!prompt.includes(rule)) throw new Error(`Dr. AI system prompt is missing required conversation rule: ${rule}`);
   }
-  if (value.privacy?.record_voice !== false || value.privacy?.retention_days !== 0 || value.privacy?.delete_audio !== true) {
+  if (value.privacy?.record_voice !== false || value.privacy?.retention_days !== -1 || value.privacy?.delete_audio !== true) {
     throw new Error("Dr. AI manifest must use maximum privacy defaults");
   }
 }
@@ -93,10 +97,7 @@ async function resolveAgentId() {
 }
 
 async function verifyLiveAgent({ agentId, expectedToolIds }) {
-  const [agent, speechEngine] = await Promise.all([
-    api(`/v1/convai/agents/${encodeURIComponent(agentId)}`),
-    api(`/v1/speech-engine/${encodeURIComponent(agentId)}`),
-  ]);
+  const agent = await api(`/v1/convai/agents/${encodeURIComponent(agentId)}`);
   const livePrompt = agent?.conversation_config?.agent?.prompt?.prompt;
   const expectedPrompt = manifest.conversation_config.agent.prompt.prompt;
   if (livePrompt !== expectedPrompt) {
@@ -110,7 +111,7 @@ async function verifyLiveAgent({ agentId, expectedToolIds }) {
   if (!expectedToolIds.every((toolId) => installedToolIds.includes(toolId))) {
     throw new Error("Agent verification failed: required tools are not installed");
   }
-  if (speechEngine?.privacy?.record_voice !== false || speechEngine?.privacy?.retention_days !== 0) {
+  if (agent?.platform_settings?.privacy?.record_voice !== false || agent?.platform_settings?.privacy?.zero_retention_mode !== true) {
     throw new Error("Agent verification failed: maximum privacy settings were not applied");
   }
   return agent;
@@ -118,13 +119,16 @@ async function verifyLiveAgent({ agentId, expectedToolIds }) {
 
 if (verifyLive && !apply) {
   const agentId = requireString(await resolveAgentId(), "ELEVENLABS_DR_AI_AGENT_ID or matching live agent");
+  const liveAgent = await api(`/v1/convai/agents/${encodeURIComponent(agentId)}`);
+  const attachedToolIds = new Set(liveAgent?.conversation_config?.agent?.prompt?.tool_ids || []);
   const toolsResponse = await api("/v1/convai/tools?page_size=100");
   const workspaceTools = Array.isArray(toolsResponse) ? toolsResponse : toolsResponse?.tools || [];
   const expectedToolIds = manifest.tools.map((tool) => {
     const name = tool.tool_config.name;
     const matches = workspaceTools.filter((candidate) => candidate?.tool_config?.name === name);
-    if (matches.length !== 1) throw new Error(`Expected exactly one live ElevenLabs tool named ${name}; found ${matches.length}`);
-    return matches[0].id;
+    const attachedMatches = matches.filter((candidate) => attachedToolIds.has(candidate.id));
+    if (attachedMatches.length !== 1) throw new Error(`Expected exactly one ${name} tool attached to Dr. AI; found ${attachedMatches.length}`);
+    return attachedMatches[0].id;
   });
   await verifyLiveAgent({ agentId, expectedToolIds });
   console.log(`VYVA Dr. AI live configuration matches the manifest: ${agentId}`);
@@ -144,26 +148,30 @@ const resolved = substitute(manifest, {
 const toolsResponse = await api("/v1/convai/tools?page_size=100");
 const workspaceTools = Array.isArray(toolsResponse) ? toolsResponse : toolsResponse?.tools || [];
 const toolIds = [];
+let agentId = await resolveAgentId();
+const currentAgent = agentId ? await api(`/v1/convai/agents/${encodeURIComponent(agentId)}`) : null;
+const currentToolIds = new Set(currentAgent?.conversation_config?.agent?.prompt?.tool_ids || []);
 for (const tool of resolved.tools) {
   const name = tool.tool_config.name;
   const matches = workspaceTools.filter((candidate) => candidate?.tool_config?.name === name);
-  if (matches.length > 1) throw new Error(`Multiple ElevenLabs tools named ${name}; resolve duplicates before provisioning`);
+  const attachedMatches = matches.filter((candidate) => currentToolIds.has(candidate.id));
+  if (attachedMatches.length > 1) throw new Error(`Dr. AI has multiple attached ElevenLabs tools named ${name}; resolve duplicates before provisioning`);
+  const existing = attachedMatches[0] || (matches.length === 1 ? matches[0] : null);
+  if (!existing && matches.length > 1) throw new Error(`Multiple unattached ElevenLabs tools named ${name}; resolve duplicates before provisioning`);
   let saved;
-  if (matches[0]) {
-    saved = await api(`/v1/convai/tools/${encodeURIComponent(matches[0].id)}`, { method: "PATCH", body: JSON.stringify(tool) });
+  if (existing) {
+    saved = await api(`/v1/convai/tools/${encodeURIComponent(existing.id)}`, { method: "PATCH", body: JSON.stringify(tool) });
   } else {
     saved = await api("/v1/convai/tools", { method: "POST", body: JSON.stringify(tool) });
   }
-  toolIds.push(saved.id || matches[0]?.id);
+  toolIds.push(saved.id || existing?.id);
 }
-
-let agentId = await resolveAgentId();
 
 const agentPayload = {
   name: resolved.name,
   tags: resolved.tags,
+  platform_settings: { privacy: resolved.privacy },
   conversation_config: {
-    ...resolved.conversation_config,
     agent: {
       ...resolved.conversation_config.agent,
       prompt: {
@@ -180,11 +188,6 @@ if (agentId) {
   const created = await api("/v1/convai/agents/create", { method: "POST", body: JSON.stringify(agentPayload) });
   agentId = requireString(created?.agent_id, "created agent_id");
 }
-
-await api(`/v1/speech-engine/${encodeURIComponent(agentId)}`, {
-  method: "PATCH",
-  body: JSON.stringify({ privacy: resolved.privacy }),
-});
 
 await verifyLiveAgent({ agentId, expectedToolIds: toolIds });
 

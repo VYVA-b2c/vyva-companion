@@ -17,6 +17,7 @@ import {
 } from "@/components/health/SeverityScaleControl";
 import { SymptomSafetyChoiceCard } from "@/components/health/SymptomSafetyChoiceCard";
 import { SymptomChoiceCard } from "@/components/health/SymptomChoiceCard";
+import { VitalsAcquisitionPanel, type TriageVitalValues } from "@/components/VitalsAcquisitionPanel";
 import { VyvaIcon, type VyvaIconAccent } from "@/components/brand/VyvaIcon";
 import { PrototypeSymptomAssessmentShell } from "@/pages/HomeNavPrototypeScreens";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ import {
   emitVoiceTriageTouchAnswer,
   readVoiceSessionId,
   VYVA_DR_AI_SCREEN_SYNC_REQUEST_EVENT,
+  VYVA_DR_AI_VITALS_OPEN_EVENT,
   VYVA_VOICE_SESSION_CHANGED_EVENT,
   type DrAiScreenSyncRequestDetail,
 } from "@/lib/voiceSessionBridge";
@@ -226,6 +228,9 @@ type VoiceTriageVitalsPrompt = {
     label: string;
     value: string;
   }>;
+  camera_action?: { id: string; label: string; route: string };
+  manual_action?: { id: string; label: string };
+  skip_action?: { id: string; label: string };
 };
 
 type VoiceTriageActionOption = {
@@ -775,6 +780,8 @@ type VoiceTriageAnswerInput = {
   choiceId?: string | null;
   utterance: string;
   vitalsText?: string | null;
+  vitalsSource?: "phone_estimate" | "manual_entry" | "connected_device" | "clinical";
+  vitalsAffectsTriage?: boolean;
 };
 
 export function VoiceTriageLivePanel({
@@ -848,6 +855,25 @@ export function VoiceTriageLivePanel({
     && !isFailed;
   const emergencyContact = latest?.emergencyContact;
   const cleanTypedAnswer = typedAnswer.trim();
+  const [showVitalsCapture, setShowVitalsCapture] = useState(false);
+  useEffect(() => {
+    const open = () => setShowVitalsCapture(true);
+    window.addEventListener(VYVA_DR_AI_VITALS_OPEN_EVENT, open);
+    return () => window.removeEventListener(VYVA_DR_AI_VITALS_OPEN_EVENT, open);
+  }, []);
+  const applyVoiceVitals = (values: TriageVitalValues, affectsTriage: boolean, source: "phone_estimate" | "manual_entry" | "connected_device" | "clinical") => {
+    const parts = [
+      typeof values.bpm === "number" ? `heart rate ${values.bpm}` : "",
+      typeof values.respiratoryRate === "number" ? `breathing rate ${values.respiratoryRate}` : "",
+      typeof values.oxygenSaturation === "number" ? `oxygen ${values.oxygenSaturation}` : "",
+      typeof values.temperatureC === "number" ? `temperature ${values.temperatureC}` : "",
+      typeof values.systolicBp === "number" && typeof values.diastolicBp === "number" ? `${values.systolicBp} over ${values.diastolicBp}` : "",
+      typeof values.glucoseMgdl === "number" ? `glucose ${values.glucoseMgdl}` : "",
+    ].filter(Boolean).join(", ");
+    if (!parts) return;
+    setShowVitalsCapture(false);
+    onAnswer?.({ utterance: parts, vitalsText: parts, vitalsSource: source, vitalsAffectsTriage: affectsTriage });
+  };
   const submitTypedAnswer = () => {
     if (!cleanTypedAnswer || !canTapAnswer) return;
     onAnswer?.({ utterance: cleanTypedAnswer });
@@ -1031,18 +1057,46 @@ export function VoiceTriageLivePanel({
               </div>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {vitalsPrompt.actions.slice(0, 2).map((action) => (
+              {vitalsPrompt.camera_action ? (
                 <button
-                  key={action.id}
                   type="button"
                   disabled={!canTapAnswer}
-                  onClick={() => onAnswer?.({ utterance: action.value, vitalsText: action.value })}
+                  onClick={() => setShowVitalsCapture(true)}
+                  className="vyva-tap min-h-[54px] rounded-[8px] bg-[#7024C4] px-3 text-[14px] font-black text-white disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {vitalsPrompt.camera_action.label}
+                </button>
+              ) : null}
+              {vitalsPrompt.manual_action ? (
+                <button
+                  type="button"
+                  disabled={!canTapAnswer}
+                  onClick={() => setShowVitalsCapture(true)}
                   className="vyva-tap min-h-[54px] rounded-[8px] border border-[#B8E3D0] bg-white px-3 text-[14px] font-black text-[#087F76] disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  {action.label}
+                  {vitalsPrompt.manual_action.label}
                 </button>
-              ))}
+              ) : null}
+              {vitalsPrompt.skip_action ? (
+                <button
+                  type="button"
+                  disabled={!canTapAnswer}
+                  onClick={() => onAnswer?.({ choiceId: "skip_vitals", utterance: "Skip vitals for now" })}
+                  className={`vyva-tap min-h-[54px] rounded-[8px] border px-3 text-[14px] font-black disabled:cursor-not-allowed disabled:opacity-55 ${isDark ? "border-white/[0.14] bg-[#352842] text-[#F4ECFA]" : "border-[#D9CFE0] bg-white text-[#5B4B63]"}`}
+                >
+                  {vitalsPrompt.skip_action.label}
+                </button>
+              ) : null}
             </div>
+            {showVitalsCapture ? (
+              <div className="mt-3 rounded-[16px] border border-[#D9CFE0] bg-white/90 p-3" data-testid="voice-triage-vitals-capture">
+                <VitalsAcquisitionPanel
+                  actions={[{ id: "camera_vitals", label: vitalsPrompt.camera_action?.label || "Camera: heart & breathing" }, ...vitalsPrompt.actions]}
+                  disabled={!canTapAnswer}
+                  onApply={(values, _disclosure, affectsTriage, source) => applyVoiceVitals(values, affectsTriage, source)}
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -4328,6 +4382,8 @@ export default function SymptomCheckScreen() {
           utterance: answer.utterance,
           choice_id: answer.choiceId ?? undefined,
           vitals_text: answer.vitalsText ?? undefined,
+          vitals_source: answer.vitalsSource ?? undefined,
+          vitals_affects_triage: answer.vitalsAffectsTriage ?? undefined,
         }),
       });
       if (!res.ok) throw new Error(`${res.status}`);

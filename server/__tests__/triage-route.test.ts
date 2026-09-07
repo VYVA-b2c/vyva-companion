@@ -990,9 +990,27 @@ describe("triage route wizard questions", () => {
       confidence: { score: 4, label: "Strong confidence" },
     });
     expect(afterSafety.body.vitalsPrompt).toMatchObject({
-      title: "If you can, one reading may help",
+      title: "A quick vital-sign check could help",
       actions: [expect.objectContaining({ id: "blood_pressure", label: "Blood pressure" })],
     });
+
+    const afterSkip = await request(app())
+      .post("/api/triage/message")
+      .send({
+        locale: "en",
+        messages: [{ role: "user", content: "I feel dizzy" }],
+        healthMemory: { conditions: "Hypertension and high blood pressure." },
+        wizard: {
+          mode: "without_vitals",
+          declinedScanTypes: ["vitals"],
+          quickAnswers: [
+            { id: "dizzy", label: "Dizzy", value: "I feel dizzy.", kind: "symptom" },
+            { id: "no_red_flag", label: "No warning signs", value: "No warning signs.", kind: "red_flag" },
+          ],
+        },
+      })
+      .expect(200);
+    expect(afterSkip.body.vitalsPrompt).toBeNull();
   });
 
   it("ranks optional readings from the symptom, location, answers, and profile", async () => {

@@ -670,6 +670,48 @@ describe("SymptomCheck intro chips", () => {
     expect(screen.queryByText("Why VYVA is asking this")).not.toBeInTheDocument();
   });
 
+  it("offers inline camera capture, manual readings, and a one-time skip for useful vitals", () => {
+    const onAnswer = vi.fn();
+    apiFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ readings: [], signals: [], devices: [] }),
+    });
+    render(
+      <MemoryRouter>
+        <VoiceTriageLivePanel
+          session={{
+            conversation_id: "voice-vitals",
+            status: "active",
+            latest_response: {
+              ok: true,
+              status: "active",
+              spoken_text: "How strong is it?",
+              question: { stage: "severity", text: "How strong is it?", choices: [] },
+              vitals_prompt: {
+                title: "A quick vital-sign check could help",
+                body: "Use your phone camera, enter a device reading, or skip this.",
+                actions: [{ id: "oxygen", label: "Oxygen", value: "oxygen" }],
+                camera_action: { id: "use_camera", label: "Use camera for heart and breathing", route: "/health/vitals" },
+                manual_action: { id: "enter_reading", label: "Enter a device reading" },
+                skip_action: { id: "skip_vitals", label: "Skip for now" },
+              },
+            },
+          }}
+          stageId="severity"
+          modality="voice"
+          onAnswer={onAnswer}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Use camera for heart and breathing" }));
+    expect(screen.getByTestId("voice-triage-vitals-capture")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Enter a device reading" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect(onAnswer).toHaveBeenCalledWith({ choiceId: "skip_vitals", utterance: "Skip vitals for now" });
+  });
+
   it("leaves the single voice entry point to the shared Home header", () => {
     const onTalkToVyva = vi.fn();
     render(<IntroScreen onStart={vi.fn()} onTalkToVyva={onTalkToVyva} />);

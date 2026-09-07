@@ -61,6 +61,8 @@ const voiceTriageToolSchema = z.object({
   utterance: z.string().trim().max(2000).optional().default(""),
   choice_id: z.string().trim().max(120).optional().nullable(),
   vitals_text: z.string().trim().max(1000).optional().nullable(),
+  vitals_source: z.enum(["phone_estimate", "manual_entry", "connected_device", "clinical"]).optional().nullable(),
+  vitals_affects_triage: z.boolean().optional().nullable(),
   channel: z.string().trim().max(80).optional().default("voice_app"),
 });
 
@@ -69,6 +71,8 @@ const voiceTriageAnswerSchema = z.object({
   utterance: z.string().trim().max(2000).optional().default(""),
   choice_id: z.string().trim().max(120).optional().nullable(),
   vitals_text: z.string().trim().max(1000).optional().nullable(),
+  vitals_source: z.enum(["phone_estimate", "manual_entry", "connected_device", "clinical"]).optional().nullable(),
+  vitals_affects_triage: z.boolean().optional().nullable(),
 });
 
 let ensureVoiceTriageSessionsPromise: Promise<void> | null = null;
@@ -117,6 +121,7 @@ function safeWizard(value: unknown): TriageWizardContext {
     mode: record.mode === "with_vitals" ? "with_vitals" : "without_vitals",
     vitalsScanCompleted: Boolean(record.vitalsScanCompleted),
     vitals: safeObject(record.vitals) as TriageWizardContext["vitals"],
+    vitalsEvidence: safeObject(record.vitalsEvidence) as TriageWizardContext["vitalsEvidence"],
     quickAnswers: Array.isArray(record.quickAnswers)
       ? record.quickAnswers.filter((item): item is TriageWizardAnswer => {
         const answer = safeObject(item);
@@ -334,7 +339,7 @@ export function selectChoiceFromVoice(input: {
   }) ?? null;
 }
 
-function parseVitalsText(vitalsText?: string | null): TriageWizardContext["vitals"] {
+export function parseVoiceVitalsText(vitalsText?: string | null): TriageWizardContext["vitals"] {
   const text = normalizeText(vitalsText ?? "");
   if (!text) return {};
   const vitals: NonNullable<TriageWizardContext["vitals"]> = {};
@@ -347,11 +352,18 @@ function parseVitalsText(vitalsText?: string | null): TriageWizardContext["vital
   if (oxygen) vitals.oxygenSaturation = Number(oxygen[1]);
   const pulse = text.match(/\b(?:pulse|heart rate|bpm)\s*(?:is|at)?\s*(\d{2,3})\b/);
   if (pulse) vitals.bpm = Number(pulse[1]);
+  const breathing = text.match(/\b(?:breathing rate|respiratory rate|respirations?|breaths?(?: per minute)?)\s*(?:is|at)?\s*(\d{1,2})\b/);
+  if (breathing) vitals.respiratoryRate = Number(breathing[1]);
   const temp = text.match(/\b(?:temperature|temp|fever)\s*(?:is|at)?\s*(\d{2}(?:\.\d)?)\b/);
   if (temp) vitals.temperatureC = Number(temp[1]);
   const glucose = text.match(/\b(?:glucose|sugar)\s*(?:is|at)?\s*(\d{2,3})\b/);
   if (glucose) vitals.glucoseMgdl = Number(glucose[1]);
   return vitals;
+}
+
+export function isVitalsSkip(choiceId: string | null | undefined, utterance: string) {
+  if (choiceId === "skip_vitals") return true;
+  return /\b(skip|not now|no thanks|continue without|later)\b/i.test(utterance);
 }
 
 export function voiceQuestionFor(response: TriageStepResponse) {
@@ -440,13 +452,29 @@ function toolResponseFor(input: {
   staffReviewRequested?: boolean;
 }) {
   const question = voiceQuestionFor(input.response);
+  const vitalsPrompt = input.response.vitalsPrompt ?? null;
   return {
     ok: true,
     status: input.status,
     spoken_text: input.response.content,
     ...(question ? { question } : {}),
     safety_level: input.status === "emergency" ? "emergency" : "continue",
-    vitals_prompt: input.response.vitalsPrompt ?? null,
+    vitals_prompt: vitalsPrompt ? {
+      ...vitalsPrompt,
+      camera_action: {
+        id: "use_camera",
+        label: "Use camera for heart and breathing",
+        route: "/health/vitals",
+      },
+      manual_action: {
+        id: "enter_reading",
+        label: "Enter a device reading",
+      },
+      skip_action: {
+        id: "skip_vitals",
+        label: "Skip for now",
+      },
+    } : null,
     caregiver_alert_requested: Boolean(input.sentTo?.length),
     staff_review_requested: Boolean(input.staffReviewRequested),
     action_options: actionOptionsFor(input),
@@ -586,6 +614,7 @@ async function upsertStartedSession(params: {
 async function saveCompletedVoiceReport(input: {
   userId: string;
   response: TriageStepResponse;
+  wizard: TriageWizardContext;
 }) {
   const summary = input.response.summary;
   if (!summary) return { reportId: null, sentTo: [] as string[], staffReviewRequested: false };
@@ -612,8 +641,8 @@ async function saveCompletedVoiceReport(input: {
     clinical_handoff: summary.clinicalHandoff ?? null,
     scan_results: summary.scanResults ?? [],
     scan_notes: summary.scanNotes ?? [],
-    bpm: null,
-    respiratory_rate: null,
+    bpm: input.wizard.vitals?.bpm ?? null,
+    respiratory_rate: input.wizard.vitals?.respiratoryRate ?? null,
     duration_seconds: null,
   });
 
@@ -667,6 +696,8 @@ type VoiceTriageSessionTurnInput = {
   utterance: string;
   choiceId?: string | null;
   vitalsText?: string | null;
+  vitalsSource?: "phone_estimate" | "manual_entry" | "connected_device" | "clinical" | null;
+  vitalsAffectsTriage?: boolean | null;
   timelineSource: string;
 };
 
@@ -684,6 +715,20 @@ async function runVoiceTriageSessionTurnUnlocked(input: VoiceTriageSessionTurnIn
 
   const priorMessages = safeMessages(session.messages_json);
   const priorWizard = safeWizard(session.wizard_json);
+  const priorResponse = safeObject(session.latest_response_json);
+  const priorVitalsPrompt = safeObject(priorResponse.vitals_prompt);
+  if (Object.keys(priorVitalsPrompt).length && isVitalsSkip(input.choiceId, input.utterance)) {
+    const nextWizard: TriageWizardContext = {
+      ...priorWizard,
+      declinedScanTypes: [...new Set([...(priorWizard.declinedScanTypes ?? []), "vitals" as const])],
+    };
+    const toolResponse = { ...priorResponse, vitals_prompt: null };
+    await db
+      .update(voiceTriageSessions)
+      .set({ wizard_json: nextWizard, latest_response_json: toolResponse, updated_at: sql`now()` })
+      .where(eq(voiceTriageSessions.id, session.id));
+    return toolResponse;
+  }
   const selectedChoice = selectChoiceFromVoice({
     choiceId: input.choiceId ?? null,
     utterance: input.utterance,
@@ -694,13 +739,22 @@ async function runVoiceTriageSessionTurnUnlocked(input: VoiceTriageSessionTurnIn
     : (priorWizard.quickAnswers ?? []);
   const vitals = {
     ...(priorWizard.vitals ?? {}),
-    ...parseVitalsText(input.vitalsText),
+    ...parseVoiceVitalsText(input.vitalsText),
   };
+  const parsedVitalKeys = Object.keys(parseVoiceVitalsText(input.vitalsText)) as Array<keyof NonNullable<TriageWizardContext["vitals"]>>;
+  const nextVitalsEvidence = { ...(priorWizard.vitalsEvidence ?? {}) };
+  for (const key of parsedVitalKeys) {
+    nextVitalsEvidence[key] = {
+      source: input.vitalsSource ?? "manual_entry",
+      affectsTriage: input.vitalsAffectsTriage ?? input.vitalsSource !== "phone_estimate",
+    };
+  }
   const nextWizard: TriageWizardContext = {
     ...priorWizard,
     mode: priorWizard.mode ?? "without_vitals",
     vitalsScanCompleted: Boolean(priorWizard.vitalsScanCompleted || Object.keys(vitals).length),
     vitals,
+    vitalsEvidence: nextVitalsEvidence,
     quickAnswers: nextQuickAnswers,
   };
   const userText = selectedChoice?.value || input.utterance || "I am not sure.";
@@ -716,7 +770,7 @@ async function runVoiceTriageSessionTurnUnlocked(input: VoiceTriageSessionTurnIn
   const nextMessages = [...messages, { role: "assistant", content: response.content }].slice(-20);
   const status = statusForResponse(response);
   const completion = status === "complete"
-    ? await saveCompletedVoiceReport({ userId: input.userId, response })
+    ? await saveCompletedVoiceReport({ userId: input.userId, response, wizard: nextWizard })
     : { reportId: null, sentTo: [] as string[], staffReviewRequested: false };
   const emergencySentTo = status === "emergency"
     ? await recordEmergencyVoiceHandoff({
@@ -830,6 +884,8 @@ export async function elevenLabsTriageStepToolHandler(req: Request, res: Respons
       utterance: parsed.data.utterance,
       choiceId: parsed.data.choice_id ?? null,
       vitalsText: parsed.data.vitals_text ?? null,
+      vitalsSource: parsed.data.vitals_source ?? null,
+      vitalsAffectsTriage: parsed.data.vitals_affects_triage ?? null,
       timelineSource: "elevenlabs_tool",
     });
 
@@ -926,6 +982,8 @@ export async function voiceTriageSessionAnswerHandler(req: Request, res: Respons
       utterance,
       choiceId,
       vitalsText,
+      vitalsSource: parsed.data.vitals_source ?? null,
+      vitalsAffectsTriage: parsed.data.vitals_affects_triage ?? null,
       timelineSource: "app_touch",
     });
 

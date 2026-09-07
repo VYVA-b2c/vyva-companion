@@ -25,6 +25,7 @@ import {
 } from "@/lib/voiceCanvasBridge";
 import {
   ensureVoiceSessionId,
+  openDrAiVitalsCapture,
   readVoiceSessionId,
   requestDrAiScreenSync,
   VYVA_VOICE_TRIAGE_TOUCH_ANSWER_EVENT,
@@ -1752,6 +1753,10 @@ function useVyvaVoiceController() {
                 conversation_id: conversationId,
                 ...(rendered ? {} : { reason: "screen_sync_timeout" }),
               });
+            },
+            open_dr_ai_vitals: async () => {
+              openDrAiVitalsCapture();
+              return JSON.stringify({ ok: true, opened: true, surface: "inline_vitals_capture" });
             },
             open_app_action: async (parameters: unknown) => {
               const params = toolParameters(parameters);

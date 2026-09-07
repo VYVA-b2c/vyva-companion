@@ -928,6 +928,7 @@ function vitalsAction(
 function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undefined, locale: string, healthMemory?: TriageHealthMemory): TriageVitalsPrompt {
   if (stage === "symptom" || stage === "red_flag" || stage === "support" || stage === "complete") return null;
   if (!selectedAnswers(wizard).some((answer) => answer.kind === "red_flag") || selectedSafetyAnswer(wizard)) return null;
+  if (wizard?.declinedScanTypes?.includes("vitals")) return null;
   const symptomId = selectedSymptomId(wizard);
   const risks = profileRiskFlags(healthMemory);
   const answerIds = new Set(selectedAnswers(wizard).map((answer) => answer.id));
@@ -979,8 +980,8 @@ function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undef
     .map((item) => item.action);
   if (!actions.length) return null;
   return {
-    title: text(locale, "If you can, one reading may help", "Si puedes, una medicion puede ayudar"),
-    body: text(locale, "Only do this if it is easy and safe. You can keep answering without it.", "Hazlo solo si es facil y seguro. Puedes seguir respondiendo sin eso."),
+    title: text(locale, "A quick vital-sign check could help", "Una comprobacion rapida de constantes puede ayudar"),
+    body: text(locale, "Use your phone camera to estimate heart and breathing rate, enter a device reading, or skip this. Only do it if it is easy and safe.", "Usa la camara del telefono para estimar el pulso y la respiracion, introduce una medicion o salta este paso. Hazlo solo si es facil y seguro."),
     actions,
   };
 }
