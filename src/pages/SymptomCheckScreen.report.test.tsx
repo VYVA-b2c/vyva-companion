@@ -199,9 +199,9 @@ describe("SymptomCheck report service actions", () => {
     });
 
     expect(screen.queryByTestId("card-report-next-step-explainer")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Drink water now");
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Rest somewhere cool");
-    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Call a doctor if symptoms worsen");
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Drink water now");
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Rest somewhere cool");
+    expect(screen.getByTestId("card-report-plan-details")).toHaveTextContent("Call a doctor if symptoms worsen");
     expect(screen.getByTestId("card-report-context-confidence")).toHaveTextContent("Strong confidence");
     expect(screen.getByTestId("card-report-context-confidence")).toHaveTextContent("blood pressure");
     fireEvent.click(screen.getByText("Result details"));
@@ -237,7 +237,10 @@ describe("SymptomCheck report service actions", () => {
     const interpretation = screen.getByTestId("card-report-interpretation");
     expect(interpretation).toHaveTextContent("What your answers mean");
     expect(doNow.compareDocumentPosition(interpretation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByTestId("card-report-possible-patterns")).toHaveTextContent("Activity-related breathing pattern");
+    const possibleSituations = screen.getByTestId("card-report-possible-patterns");
+    const stepPlan = screen.getByTestId("card-report-plan-details");
+    expect(possibleSituations).toHaveTextContent("Activity-related breathing pattern");
+    expect(possibleSituations.compareDocumentPosition(stepPlan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByTestId("report-uncertainty")).not.toBeInTheDocument();
     expect(screen.getByTestId("report-reassessment-window")).toHaveTextContent("Recheck in 24 hours");
     expect(screen.getByTestId("card-report-watch-highlight")).toHaveTextContent("Breathing becomes difficult at rest");

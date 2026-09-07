@@ -3290,65 +3290,6 @@ export function ReportScreen({
               </button>
             </div>
           </div>
-          <details className={`group border-t ${isDark ? "border-white/[0.12] bg-[#2D2038]" : "border-[#EFE5DA] bg-white"}`} data-testid="card-report-plan-details">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 sm:px-4">
-              <span className="flex min-w-0 items-center gap-3">
-                <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[13px] ${isDark ? "bg-[#45325E]" : "bg-[#F5F3FF]"}`}>
-                  <VyvaIcon icon={ClipboardList} accent="step" size={18} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-body text-[15px] font-black text-vyva-text-1">
-                    {t("health.symptomCheck.report.yourStepPlan", "Your {{count}}-step plan", { count: planSteps.length })}
-                  </span>
-                  <span className="mt-0.5 block font-body text-[12px] font-bold text-vyva-text-3">
-                    {t("health.symptomCheck.report.openPlanDetails", "Open for the practical details")}
-                  </span>
-                </span>
-              </span>
-              <ChevronLeft size={18} className="-rotate-90 flex-shrink-0 text-vyva-purple transition-transform group-open:rotate-90" />
-            </summary>
-            <div className="grid gap-3 border-t border-[#EFE5DA] p-3 sm:gap-4 sm:p-4">
-              <ol className="grid gap-2 sm:gap-3">
-              {planSteps.map((recommendation, index) => (
-                <li key={`${recommendation}-${index}`} className="flex items-start gap-3 rounded-[16px] border border-[#F1E8DE] bg-[#FFFCF8] p-2.5 sm:rounded-[20px] sm:p-3">
-                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-black text-white sm:h-8 sm:w-8 sm:text-[13px]">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 pt-0.5 font-body text-[14px] font-bold leading-snug text-vyva-text-1 sm:text-[16px]">
-                    {recommendation}
-                  </span>
-                </li>
-              ))}
-              </ol>
-              {supportActions.length ? (
-              <div className={`rounded-[22px] border p-3 ${isDark ? "border-white/[0.14] bg-[#3B294C]" : "border-[#E7DCF8] bg-[#F8F5FF]"}`} data-testid="report-support-actions">
-                <p className={`font-body text-[12px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-[#D8B4FE]" : "text-vyva-purple"}`}>
-                  {t("health.symptomCheck.report.supportOptions", "Useful support")}
-                </p>
-                <div className="mt-3 grid min-w-0 gap-2 lg:grid-cols-3">
-                  {supportActions.map((action) => {
-                    const Icon = action.Icon;
-                    const className = `vyva-tap inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-[16px] border px-3 py-3 text-center font-body text-[14px] font-semibold leading-[1.4] tracking-[-0.005em] shadow-sm ${isDark ? "border-white/[0.14] bg-[#2D2038] text-[#D8B4FE]" : "border-[#E7DCF8] bg-white text-vyva-purple"}`;
-                    if (action.href) {
-                      return (
-                        <a key={action.kind} href={action.href} aria-label={action.ariaLabel} data-testid={`button-report-support-${action.kind}`} className={className}>
-                          <Icon size={18} className="flex-shrink-0" />
-                          <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{action.label}</span>
-                        </a>
-                      );
-                    }
-                    return (
-                      <button key={action.kind} type="button" onClick={action.onClick} aria-label={action.ariaLabel} data-testid={`button-report-support-${action.kind}`} className={className}>
-                        <Icon size={18} className="flex-shrink-0" />
-                        <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{action.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              ) : null}
-            </div>
-          </details>
         </section>
 
         {summary.interpretation ? (
@@ -3383,6 +3324,66 @@ export function ReportScreen({
             </div>
           </section>
         ) : null}
+
+        <details className={`group mt-3 overflow-hidden rounded-[20px] border ${isDark ? "border-white/[0.12] bg-[#2D2038]" : "border-[#E8DED4] bg-white"}`} data-testid="card-report-plan-details">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 sm:px-4">
+            <span className="flex min-w-0 items-center gap-3">
+              <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[13px] ${isDark ? "bg-[#45325E]" : "bg-[#F5F3FF]"}`}>
+                <VyvaIcon icon={ClipboardList} accent="step" size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-body text-[15px] font-black text-vyva-text-1">
+                  {t("health.symptomCheck.report.yourStepPlan", "Your {{count}}-step plan", { count: planSteps.length })}
+                </span>
+                <span className="mt-0.5 block font-body text-[12px] font-bold text-vyva-text-3">
+                  {t("health.symptomCheck.report.openPlanDetails", "Open for the practical details")}
+                </span>
+              </span>
+            </span>
+            <ChevronLeft size={18} className="-rotate-90 flex-shrink-0 text-vyva-purple transition-transform group-open:rotate-90" />
+          </summary>
+          <div className={`grid gap-3 border-t p-3 sm:gap-4 sm:p-4 ${isDark ? "border-white/[0.12]" : "border-[#EFE5DA]"}`}>
+            <ol className="grid gap-2 sm:gap-3">
+            {planSteps.map((recommendation, index) => (
+              <li key={`${recommendation}-${index}`} className={`flex items-start gap-3 rounded-[16px] border p-2.5 sm:rounded-[20px] sm:p-3 ${isDark ? "border-white/[0.1] bg-[#352842]" : "border-[#F1E8DE] bg-[#FFFCF8]"}`}>
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-vyva-purple font-body text-[12px] font-black text-white sm:h-8 sm:w-8 sm:text-[13px]">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 pt-0.5 font-body text-[14px] font-bold leading-snug text-vyva-text-1 sm:text-[16px]">
+                  {recommendation}
+                </span>
+              </li>
+            ))}
+            </ol>
+            {supportActions.length ? (
+            <div className={`rounded-[22px] border p-3 ${isDark ? "border-white/[0.14] bg-[#3B294C]" : "border-[#E7DCF8] bg-[#F8F5FF]"}`} data-testid="report-support-actions">
+              <p className={`font-body text-[12px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-[#D8B4FE]" : "text-vyva-purple"}`}>
+                {t("health.symptomCheck.report.supportOptions", "Useful support")}
+              </p>
+              <div className="mt-3 grid min-w-0 gap-2 lg:grid-cols-3">
+                {supportActions.map((action) => {
+                  const Icon = action.Icon;
+                  const className = `vyva-tap inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-[16px] border px-3 py-3 text-center font-body text-[14px] font-semibold leading-[1.4] tracking-[-0.005em] shadow-sm ${isDark ? "border-white/[0.14] bg-[#2D2038] text-[#D8B4FE]" : "border-[#E7DCF8] bg-white text-vyva-purple"}`;
+                  if (action.href) {
+                    return (
+                      <a key={action.kind} href={action.href} aria-label={action.ariaLabel} data-testid={`button-report-support-${action.kind}`} className={className}>
+                        <Icon size={18} className="flex-shrink-0" />
+                        <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{action.label}</span>
+                      </a>
+                    );
+                  }
+                  return (
+                    <button key={action.kind} type="button" onClick={action.onClick} aria-label={action.ariaLabel} data-testid={`button-report-support-${action.kind}`} className={className}>
+                      <Icon size={18} className="flex-shrink-0" />
+                      <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{action.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            ) : null}
+          </div>
+        </details>
       </section>
 
       <div className="mx-auto mt-3 flex w-[calc(100%_-_28px)] max-w-[330px] flex-col gap-3 pb-[152px] sm:max-w-[760px] sm:pb-[168px]">
