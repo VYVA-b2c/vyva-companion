@@ -1773,6 +1773,17 @@ export type ParticipationNotificationRow = typeof participationNotifications.$in
 // NEW TABLE: triage_reports — persisted completed TriageSummary + vitals
 // ============================================================
 
+export type TriageReportVitalsSnapshot = {
+  capturedAt: string;
+  readings: Array<{
+    key: "bpm" | "respiratoryRate" | "oxygenSaturation" | "temperatureC" | "systolicBp" | "diastolicBp" | "glucoseMgdl" | "painScore" | "energyLevel";
+    value: number;
+    unit: string;
+    source: "phone_estimate" | "manual_entry" | "connected_device" | "clinical";
+    affectsTriage: boolean;
+  }>;
+};
+
 export const triageReports = pgTable("triage_reports", {
   id:               uuid("id").primaryKey().defaultRandom(),
   user_id:          text("user_id").notNull(),
@@ -1788,6 +1799,7 @@ export const triageReports = pgTable("triage_reports", {
   watch_signs:       text("watch_signs").array().notNull().default([]),
   profile_considerations: text("profile_considerations").array().notNull().default([]),
   vitals_notes:      text("vitals_notes").array().notNull().default([]),
+  vitals_snapshot:   jsonb("vitals_snapshot").$type<TriageReportVitalsSnapshot>(),
   scan_results:      jsonb("scan_results").$type<TriageScanResult[]>().notNull().default(sql`'[]'::jsonb`),
   scan_notes:        text("scan_notes").array().notNull().default([]),
   interpretation:    text("interpretation"),

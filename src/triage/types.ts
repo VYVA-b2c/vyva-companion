@@ -100,6 +100,7 @@ export type TriageSummary = {
   watchSigns?: string[];
   profileConsiderations?: string[];
   vitalsNotes?: string[];
+  vitalsSnapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scanResults?: TriageScanResult[];
   scanNotes?: string[];
   interpretation?: string;

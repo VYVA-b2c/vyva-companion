@@ -632,6 +632,33 @@ export function vitalsNotesFor(locale: string, wizard: TriageWizardContext | und
   return notes.slice(0, 4);
 }
 
+function vitalsSnapshotFor(wizard: TriageWizardContext | undefined): TriageSummary["vitalsSnapshot"] {
+  const units: Record<keyof NonNullable<TriageWizardContext["vitals"]>, string> = {
+    bpm: "bpm",
+    respiratoryRate: "breaths/min",
+    oxygenSaturation: "%",
+    temperatureC: "°C",
+    systolicBp: "mmHg",
+    diastolicBp: "mmHg",
+    glucoseMgdl: "mg/dL",
+    painScore: "/10",
+    energyLevel: "/10",
+  };
+  const readings = Object.entries(wizard?.vitals ?? {}).flatMap(([rawKey, rawValue]) => {
+    if (typeof rawValue !== "number") return [];
+    const key = rawKey as keyof typeof units;
+    const evidence = wizard?.vitalsEvidence?.[key];
+    return [{
+      key,
+      value: rawValue,
+      unit: units[key],
+      source: evidence?.source ?? "manual_entry" as const,
+      affectsTriage: evidence?.affectsTriage ?? true,
+    }];
+  });
+  return readings.length ? { capturedAt: new Date().toISOString(), readings } : undefined;
+}
+
 function concernLabel(locale: string, level: TriageScanResult["concernLevel"]) {
   if (level === "urgent") return text(locale, "concerning", "preocupante");
   if (level === "watch") return text(locale, "worth watching", "para vigilar");
@@ -886,6 +913,7 @@ export function evaluateTriageSafetyFloor(
       ...(summary.vitalsNotes ?? []),
       ...vitalsNotesFor(locale, wizard),
     ].slice(0, 3),
+    vitalsSnapshot: vitalsSnapshotFor(wizard) ?? null,
     scanResults,
     scanNotes: uniqueStrings([
       ...(summary.scanNotes ?? []),

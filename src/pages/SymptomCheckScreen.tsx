@@ -97,6 +97,7 @@ interface TriageSummary {
   watchSigns?: string[];
   profileConsiderations?: string[];
   vitalsNotes?: string[];
+  vitalsSnapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scanResults?: TriageScanResult[];
   scanNotes?: string[];
   interpretation?: string;
@@ -229,6 +230,7 @@ type VoiceTriageVitalsPrompt = {
     value: string;
   }>;
   camera_action?: { id: string; label: string; route: string };
+  connected_device_action?: { id: string; label: string; action_ids: string[] };
   manual_action?: { id: string; label: string };
   skip_action?: { id: string; label: string };
 };
@@ -345,6 +347,7 @@ type SavedTriageReport = {
   watch_signs?: string[];
   profile_considerations?: string[];
   vitals_notes?: string[];
+  vitals_snapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scan_results?: TriageScanResult[];
   scan_notes?: string[];
   interpretation?: string | null;
@@ -376,6 +379,7 @@ export function triageSummaryFromSavedReport(report: SavedTriageReport | null | 
     watchSigns: report.watch_signs ?? [],
     profileConsiderations: report.profile_considerations ?? [],
     vitalsNotes: report.vitals_notes ?? [],
+    vitalsSnapshot: report.vitals_snapshot ?? undefined,
     scanResults: report.scan_results ?? [],
     scanNotes: report.scan_notes ?? [],
     interpretation: report.interpretation ?? undefined,
@@ -1067,6 +1071,16 @@ export function VoiceTriageLivePanel({
                   {vitalsPrompt.camera_action.label}
                 </button>
               ) : null}
+              {vitalsPrompt.connected_device_action ? (
+                <button
+                  type="button"
+                  disabled={!canTapAnswer}
+                  onClick={() => setShowVitalsCapture(true)}
+                  className={`vyva-tap min-h-[54px] rounded-[8px] border px-3 text-[14px] font-black disabled:cursor-not-allowed disabled:opacity-55 ${isDark ? "border-[#6EE7B7]/30 bg-[#123D35] text-[#A7F3D0]" : "border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]"}`}
+                >
+                  {vitalsPrompt.connected_device_action.label}
+                </button>
+              ) : null}
               {vitalsPrompt.manual_action ? (
                 <button
                   type="button"
@@ -1091,7 +1105,10 @@ export function VoiceTriageLivePanel({
             {showVitalsCapture ? (
               <div className="mt-3 rounded-[16px] border border-[#D9CFE0] bg-white/90 p-3" data-testid="voice-triage-vitals-capture">
                 <VitalsAcquisitionPanel
-                  actions={[{ id: "camera_vitals", label: vitalsPrompt.camera_action?.label || "Camera: heart & breathing" }, ...vitalsPrompt.actions]}
+                  actions={[
+                    ...(vitalsPrompt.camera_action ? [{ id: "camera_vitals" as const, label: vitalsPrompt.camera_action.label }] : []),
+                    ...vitalsPrompt.actions,
+                  ]}
                   disabled={!canTapAnswer}
                   onApply={(values, _disclosure, affectsTriage, source) => applyVoiceVitals(values, affectsTriage, source)}
                 />
@@ -4725,6 +4742,7 @@ export default function SymptomCheckScreen() {
         watch_signs: triageSummary.watchSigns ?? [],
         profile_considerations: triageSummary.profileConsiderations ?? [],
         vitals_notes: triageSummary.vitalsNotes ?? [],
+        vitals_snapshot: triageSummary.vitalsSnapshot ?? null,
         interpretation: triageSummary.interpretation ?? null,
         possible_patterns: triageSummary.possiblePatterns ?? [],
         uncertainty: triageSummary.uncertainty ?? [],

@@ -169,6 +169,10 @@ type TriageVitalsPrompt = {
   title: string;
   body: string;
   actions: TriageVitalsPromptAction[];
+  deviceAccess: {
+    status: "connected" | "not_connected";
+    actionIds: TriageVitalsPromptAction["id"][];
+  };
 } | null;
 
 type TriageGuidancePlanResponse = TriageGuidancePlan;
@@ -925,10 +929,27 @@ function vitalsAction(
   return { id, label: text(locale, labelEn, labelEs), value: text(locale, valueEn, valueEs), icon, tone };
 }
 
+function connectedVitalActionIds(
+  devices: string | undefined,
+  actions: TriageVitalsPromptAction[],
+): TriageVitalsPromptAction["id"][] {
+  const text = (devices ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!text || /\b(no|without|none)\b.{0,24}\b(device|monitor|watch|sensor)/.test(text)) return [];
+  const patterns: Record<TriageVitalsPromptAction["id"], RegExp> = {
+    oxygen: /\b(oximeter|pulse ox|spo2|oxygen)/,
+    pulse: /\b(smart ?watch|fitbit|garmin|heart rate|pulse|oximeter)/,
+    blood_pressure: /\b(blood pressure|bp monitor|pressure cuff|sphygmomanometer)/,
+    temperature: /\b(thermometer|temperature sensor)/,
+    glucose: /\b(glucose|glucometer|cgm|dexcom|libre)/,
+  };
+  return actions.filter((action) => patterns[action.id].test(text)).map((action) => action.id);
+}
+
 function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undefined, locale: string, healthMemory?: TriageHealthMemory): TriageVitalsPrompt {
   if (stage === "symptom" || stage === "red_flag" || stage === "support" || stage === "complete") return null;
   if (!selectedAnswers(wizard).some((answer) => answer.kind === "red_flag") || selectedSafetyAnswer(wizard)) return null;
   if (wizard?.declinedScanTypes?.includes("vitals")) return null;
+  if (wizard?.vitalsScanCompleted || Object.values(wizard?.vitals ?? {}).some((value) => typeof value === "number")) return null;
   const symptomId = selectedSymptomId(wizard);
   const risks = profileRiskFlags(healthMemory);
   const answerIds = new Set(selectedAnswers(wizard).map((answer) => answer.id));
@@ -979,10 +1000,20 @@ function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undef
     .slice(0, 2)
     .map((item) => item.action);
   if (!actions.length) return null;
+  const connectedActionIds = connectedVitalActionIds(healthMemory?.devices, actions);
+  const requestedLabels = actions.map((action) => action.label).join(actions.length > 1 ? " and " : "");
   return {
-    title: text(locale, "A quick vital-sign check could help", "Una comprobacion rapida de constantes puede ayudar"),
-    body: text(locale, "Use your phone camera to estimate heart and breathing rate, enter a device reading, or skip this. Only do it if it is easy and safe.", "Usa la camara del telefono para estimar el pulso y la respiracion, introduce una medicion o salta este paso. Hazlo solo si es facil y seguro."),
+    title: connectedActionIds.length
+      ? text(locale, `VYVA can check your ${requestedLabels}`, `VYVA puede comprobar ${requestedLabels}`)
+      : text(locale, `Can you share your ${requestedLabels}?`, `Puedes compartir ${requestedLabels}?`),
+    body: connectedActionIds.length
+      ? text(locale, "A relevant device is connected. With your permission, VYVA can read its latest available measurement directly.", "Hay un dispositivo relevante conectado. Con tu permiso, VYVA puede leer directamente su ultima medicion disponible.")
+      : text(locale, "If you can safely take this reading, tell VYVA the value to refine your assessment. You can also skip it.", "Si puedes tomar esta medicion de forma segura, indica el valor a VYVA para precisar la evaluacion. Tambien puedes omitirla."),
     actions,
+    deviceAccess: {
+      status: connectedActionIds.length ? "connected" : "not_connected",
+      actionIds: connectedActionIds,
+    },
   };
 }
 

@@ -26,10 +26,10 @@ function substitute(value, replacements) {
 function validateManifest(value) {
   requireString(value.name, "manifest.name");
   requireString(value.slug, "manifest.slug");
-  if (!Array.isArray(value.tools) || value.tools.length !== 4) throw new Error("manifest.tools must contain exactly four tools");
+  if (!Array.isArray(value.tools) || value.tools.length !== 5) throw new Error("manifest.tools must contain exactly five tools");
   const names = value.tools.map((tool) => tool?.tool_config?.name).sort();
-  if (names.join(",") !== "open_dr_ai_vitals,retrieve_medical_profile,sync_dr_ai_screen,vyva_triage_step") {
-    throw new Error("Dr. AI requires profile, triage, screen-sync, and vitals-capture tools");
+  if (names.join(",") !== "open_dr_ai_vitals,read_dr_ai_vitals,retrieve_medical_profile,sync_dr_ai_screen,vyva_triage_step") {
+    throw new Error("Dr. AI requires profile, triage, screen-sync, vitals-capture, and connected-device tools");
   }
   const sync = value.tools.find((tool) => tool.tool_config.name === "sync_dr_ai_screen")?.tool_config;
   if (!sync?.expects_response) throw new Error("sync_dr_ai_screen must wait for the client response");
@@ -48,9 +48,10 @@ function validateManifest(value) {
     "Do not say that you cannot access information the profile tool returned",
     "Current answers and current vitals always take precedence over stored context",
     "When vitals_prompt is present, it is the canonical question for this turn",
-    "phone camera can estimate heart and breathing rate",
     "Never offer vitals during an emergency",
     "one short neutral holding phrase",
+    "Never claim the camera measures oxygen, blood pressure, temperature, or glucose",
+    "VYVA has access to a relevant connected device",
   ];
   for (const rule of requiredConversationRules) {
     if (!prompt.includes(rule)) throw new Error(`Dr. AI system prompt is missing required conversation rule: ${rule}`);

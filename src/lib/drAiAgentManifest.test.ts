@@ -42,6 +42,7 @@ describe("Dr. AI ElevenLabs manifest", () => {
   it("declares the complete profile, triage, and UI tool set", () => {
     expect(manifest.tools.map((tool) => tool.tool_config.name).sort()).toEqual([
       "open_dr_ai_vitals",
+      "read_dr_ai_vitals",
       "retrieve_medical_profile",
       "sync_dr_ai_screen",
       "vyva_triage_step",
@@ -53,9 +54,11 @@ describe("Dr. AI ElevenLabs manifest", () => {
   it("requires the canonical vitals offer and prevents unexplained silence", () => {
     const prompt = manifest.conversation_config.agent.prompt.prompt;
     expect(prompt).toContain("When vitals_prompt is present, it is the canonical question for this turn");
-    expect(prompt).toContain("phone camera can estimate heart and breathing rate");
-    expect(prompt).toContain("use camera, enter a device reading, or skip");
+    expect(prompt).toContain("camera capture is offered only when camera_action is present");
+    expect(prompt).toContain("Always allow skip");
     expect(prompt).toContain("Never offer vitals during an emergency");
     expect(prompt).toContain("one short neutral holding phrase");
+    expect(prompt).toContain("Never claim the camera measures oxygen, blood pressure, temperature, or glucose");
+    expect(prompt).toContain("VYVA has access to a relevant connected device");
   });
 });
