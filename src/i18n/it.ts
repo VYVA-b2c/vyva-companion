@@ -940,6 +940,7 @@ const it = {
     remembered: "Parole ricordate",
     missedWords: "Parole mancanti",
     correctWords: "Parole corrette",
+    incorrectWords: "Scelte da rivedere",
     muteAudio: "Disattivare audio",
     unmuteAudio: "Attivare audio",
     listenAgain: "Ascoltare di nuovo le parole",

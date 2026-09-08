@@ -1310,6 +1310,7 @@
     remembered: "Remembered words",
     missedWords: "Words you missed",
     correctWords: "Correct words",
+    incorrectWords: "Choices to review",
     muteAudio: "Mute audio",
     unmuteAudio: "Turn audio on",
     listenAgain: "Listen to the words again",

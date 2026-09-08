@@ -221,7 +221,35 @@ function buildWordRecallLevels(sets: WordRecallSet[]): MemoryGameLevel[] {
 
   return levelSpecs.map((spec) => ({
     level: spec.level,
-    variants: sets.map((set, index) => {
+    variants: sets.map((_set, index) => {
+      const themeIndex = (index + spec.level - 1) % sets.length;
+      const set = sets[themeIndex];
+      const rotatedThemeWords = [
+        ...set.words.slice((spec.level + index - 1) % set.words.length),
+        ...set.words.slice(0, (spec.level + index - 1) % set.words.length),
+      ];
+      const mixedWords: WordRecallItem[] = [];
+
+      if (spec.level >= 9) {
+        for (let step = 0; mixedWords.length < spec.count && step < sets.length * 6; step += 1) {
+          const sourceSet = sets[(themeIndex + step * 3) % sets.length];
+          const candidate = sourceSet.words[(spec.level + index + step * 2) % sourceSet.words.length];
+          if (!mixedWords.some((item) => item.labels.es === candidate.labels.es)) mixedWords.push(candidate);
+        }
+      }
+
+      const selectedWords = (spec.level >= 9 ? mixedWords : rotatedThemeWords).slice(0, spec.count);
+      const selectedSpanishWords = new Set(selectedWords.map((item) => item.labels.es));
+      const distractorCandidates = [
+        ...set.distractors.slice((spec.level + index) % set.distractors.length),
+        ...set.distractors.slice(0, (spec.level + index) % set.distractors.length),
+        ...sets.flatMap((entry) => [...entry.distractors, ...entry.words]),
+      ];
+      const selectedDistractors = distractorCandidates.filter((item, candidateIndex, candidates) => (
+        !selectedSpanishWords.has(item.labels.es)
+        && candidates.findIndex((candidate) => candidate.labels.es === item.labels.es) === candidateIndex
+      )).slice(0, spec.count + 1);
+
       const content = languages.reduce((accumulator, language) => {
         const distractionType = spec.distractionType;
 
@@ -229,8 +257,8 @@ function buildWordRecallLevels(sets: WordRecallSet[]): MemoryGameLevel[] {
           title: set.titles[language],
           prompt: set.prompts[language],
           payload: {
-            words: set.words.slice(0, spec.count).map((item) => item.labels[language]),
-            distractors: set.distractors.slice(0, spec.count + 1).map((item) => item.labels[language]),
+            words: selectedWords.map((item) => item.labels[language]),
+            distractors: selectedDistractors.map((item) => item.labels[language]),
             distractionType,
             levelBand: getBrainCoachLevelBand(spec.level).label,
             recallMode: spec.level >= 15 ? "mastery" : spec.level >= 9 ? "delayed" : "guided",

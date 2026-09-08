@@ -134,8 +134,8 @@ type CompletionMetrics = {
 };
 
 type CompletionDetails = {
-  rememberedWords?: string[];
   correctWords?: string[];
+  incorrectWords?: string[];
   missedWords?: string[];
   expectedAnswer?: string;
   givenAnswer?: string;
@@ -242,6 +242,31 @@ function dedupeWords(words: string[]) {
     }
   });
   return unique;
+}
+
+export function scoreWordRecallChoices(targetWords: string[], selectedWords: string[]) {
+  const rememberedWords = dedupeWords(selectedWords);
+  const correctWords = targetWords.filter((targetWord) =>
+    rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
+  );
+  const wrongWords = rememberedWords.filter(
+    (candidate) => !targetWords.some((targetWord) => wordsMatch(candidate, targetWord)),
+  );
+  const missedWords = targetWords.filter(
+    (targetWord) => !rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
+  );
+  const decisionCount = correctWords.length + wrongWords.length + missedWords.length;
+  const accuracy = Math.round((correctWords.length / Math.max(1, decisionCount)) * 100);
+
+  return {
+    rememberedWords,
+    correctWords,
+    wrongWords,
+    missedWords,
+    accuracy,
+    score: accuracy,
+    mistakes: wrongWords.length + missedWords.length,
+  };
 }
 
 function getPayloadString(payload: Record<string, unknown>, key: string, fallback = "") {
@@ -1670,24 +1695,24 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
           disabled={actionLoading !== null}
           details={completionDetails && (
             <div className="grid gap-2">
-                {completionDetails.rememberedWords && completionDetails.rememberedWords.length > 0 && (
-                  <div className="rounded-[16px] border border-vyva-border bg-[#F8FAFC] p-2.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.remembered")}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {completionDetails.rememberedWords.map((word) => (
-                        <span key={`remembered-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 {completionDetails.correctWords && completionDetails.correctWords.length > 0 && (
                   <div className="rounded-[16px] border border-[#CFE9D9] bg-[#F0FDF4] p-2.5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.correctWords")}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {completionDetails.correctWords.map((word) => (
                         <span key={`correct-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {completionDetails.incorrectWords && completionDetails.incorrectWords.length > 0 && (
+                  <div className="rounded-[16px] border border-[#F3D0D0] bg-[#FFF5F5] p-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.incorrectWords", "Choices to review")}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {completionDetails.incorrectWords.map((word) => (
+                        <span key={`incorrect-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
                           {word}
                         </span>
                       ))}
@@ -1833,29 +1858,25 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
   const finishWordRecall = () => {
     stopWordRecallAudio();
-    const rememberedWords = dedupeWords(wordRecallSelectedWords);
-    const correctWords = wordRecallWords.filter((targetWord) =>
-      rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
-    );
-    const wrongWords = rememberedWords.filter(
-      (candidate) => !wordRecallWords.some((targetWord) => wordsMatch(candidate, targetWord)),
-    );
-    const missedWords = wordRecallWords.filter(
-      (targetWord) => !rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
-    );
-    const accuracy = Math.round((correctWords.length / Math.max(1, wordRecallWords.length)) * 100);
-    const score = Math.round((correctWords.length / Math.max(1, wordRecallWords.length)) * 100);
+    const {
+      correctWords,
+      wrongWords,
+      missedWords,
+      accuracy,
+      score,
+      mistakes,
+    } = scoreWordRecallChoices(wordRecallWords, wordRecallSelectedWords);
     const nextDurationSeconds = getDurationSeconds(startedAt);
 
     setCompletionDetails({
-      rememberedWords,
       correctWords,
+      incorrectWords: wrongWords,
       missedWords,
     });
     setCompletionMetrics({
       score,
       accuracy,
-      mistakes: wrongWords.length,
+      mistakes,
       durationSeconds: nextDurationSeconds,
     });
   };

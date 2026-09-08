@@ -93,6 +93,20 @@ describe("memory game registry", () => {
     expect(memoryGameRegistry.number_memory.levels.every((level) => level.variants.length === 12)).toBe(true);
   });
 
+  it("changes Word Recall content across levels and variants", () => {
+    const levels = memoryGameRegistry.word_recall.levels;
+    const firstVariantSignatures = levels.map((level) => getWordRecallSignature(level.variants[0]));
+
+    firstVariantSignatures.slice(1).forEach((signature, index) => {
+      expect(signature).not.toBe(firstVariantSignatures[index]);
+    });
+
+    levels.forEach((level) => {
+      const signatures = level.variants.map(getWordRecallSignature);
+      expect(new Set(signatures).size).toBe(signatures.length);
+    });
+  });
+
   it("localizes every Connections variant in all supported languages", () => {
     const languages = ["en", "es", "fr", "de", "it", "pt"] as const;
     memoryGameRegistry.association_memory.levels.forEach((level) => {
@@ -129,4 +143,9 @@ function getPairSignature(variant: MemoryGameVariant) {
   const pairs = (content.payload.pairItems as Array<{ emoji: string; label: string }>) ?? [];
 
   return pairs.map((item) => `${item.emoji}:${item.label}`).join("|");
+}
+
+function getWordRecallSignature(variant: MemoryGameVariant) {
+  const content = variant.content.en ?? variant.content.es;
+  return ((content.payload.words as string[]) ?? []).join("|");
 }

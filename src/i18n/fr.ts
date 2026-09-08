@@ -1147,6 +1147,7 @@ const fr = {
     remembered: "Mots retenus",
     missedWords: "Mots oublies",
     correctWords: "Mots corrects",
+    incorrectWords: "Choix à revoir",
     muteAudio: "Couper le son",
     unmuteAudio: "Activer le son",
     listenAgain: "Ecouter encore les mots",

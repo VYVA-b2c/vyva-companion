@@ -1039,6 +1039,7 @@ const es = {
     remembered: "Palabras recordadas",
     missedWords: "Palabras que faltaban",
     correctWords: "Palabras correctas",
+    incorrectWords: "Opciones para revisar",
     muteAudio: "Silenciar audio",
     unmuteAudio: "Activar audio",
     listenAgain: "Escuchar las palabras otra vez",

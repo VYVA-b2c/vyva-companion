@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
 import { getGameHistory, saveGameResult } from "./gameStorage";
 import type { GameResult } from "./types";
-import MemoryGameRunner from "./MemoryGameRunner";
+import MemoryGameRunner, { scoreWordRecallChoices } from "./MemoryGameRunner";
 
 const mocks = vi.hoisted(() => ({
   speakSequence: vi.fn(),
@@ -114,6 +114,17 @@ async function completeLevelOneVisualMemoryBoard() {
 }
 
 describe("MemoryGameRunner word recall", () => {
+  it("penalizes selecting distractors instead of awarding full accuracy", () => {
+    expect(scoreWordRecallChoices(
+      ["bread", "milk", "cheese"],
+      ["bread", "milk", "cheese", "table", "coat", "door", "dog"],
+    )).toMatchObject({
+      accuracy: 43,
+      score: 43,
+      mistakes: 4,
+    });
+  });
+
   it("never narrates Word Recall even when the saved audio preference is enabled", async () => {
     window.localStorage.setItem("vyva_memory_audio_muted", "false");
     renderWordRecall();

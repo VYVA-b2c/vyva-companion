@@ -940,6 +940,7 @@ const pt = {
     remembered: "Palavras recordadas",
     missedWords: "Palavras em falta",
     correctWords: "Palavras corretas",
+    incorrectWords: "Opções a rever",
     muteAudio: "Silenciar audio",
     unmuteAudio: "Ativar audio",
     listenAgain: "Ouvir as palavras outra vez",

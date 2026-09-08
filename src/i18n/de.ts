@@ -902,6 +902,7 @@ const de = {
     remembered: "Erinnerte Worter",
     missedWords: "Fehlende Worter",
     correctWords: "Richtige Worter",
+    incorrectWords: "Auswahl zum Überprüfen",
     muteAudio: "Audio stummschalten",
     unmuteAudio: "Audio einschalten",
     listenAgain: "Worter noch einmal anhören",
