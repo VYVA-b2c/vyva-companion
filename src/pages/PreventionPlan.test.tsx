@@ -470,6 +470,12 @@ describe("PreventionPlan", () => {
     expect(screen.getByText("Brain-friendly eating works best as a simple pattern, not a perfect rule.")).not.toBeVisible();
     expect(screen.getByText("One useful swap today is easier to keep than a full meal overhaul.")).not.toBeVisible();
     fireEvent.click(screen.getByText("Why this?").closest("summary")!);
+    expect(screen.getByTestId("longevity-personal-context")).toHaveTextContent("Why it fits you");
+    expect(screen.getByTestId("longevity-personal-context")).toHaveTextContent("No recent Brain Coach sessions are logged");
+    expect(screen.getByTestId("longevity-impact-summary")).toHaveTextContent("Benefit");
+    expect(screen.getByTestId("longevity-impact-summary")).toHaveTextContent("If you skip it regularly");
+    expect(screen.getByTestId("longevity-impact-summary")).toHaveTextContent("Exercises attention and recall");
+    expect(screen.getByTestId("longevity-impact-summary")).not.toHaveTextContent("comes first today because");
     expect(screen.getByText("From the video")).toBeVisible();
     expect(screen.getByText("Use the video as a cue to choose one brain-friendly food today, then keep the memory step short.")).toBeVisible();
     expect(screen.getByText("Brain-friendly eating works best as a simple pattern, not a perfect rule.")).toBeVisible();
@@ -553,6 +559,32 @@ describe("PreventionPlan", () => {
     expect(screen.getByRole("heading", { name: "10-minute Workout for Older Adults" })).toBeVisible();
   });
 
+  it("refreshes the recommendation after the user says they already watched it", async () => {
+    renderPlan();
+    await screen.findByRole("heading", { name: "Mayo Clinic Minute: Can the MIND diet improve brain health?" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Watched already" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Got it. VYVA will adjust the next suggestion.");
+    await waitFor(() => {
+      const companionRequests = apiFetchMock.mock.calls.filter(([url]) =>
+        url === "/api/prevention/companion/11111111-1111-4111-8111-111111111111",
+      );
+      expect(companionRequests).toHaveLength(2);
+    });
+
+    const feedbackCall = apiFetchMock.mock.calls.findIndex(([url]) => url === "/api/prevention/feedback");
+    const refreshedCompanionCall = apiFetchMock.mock.calls.findLastIndex(([url]) =>
+      url === "/api/prevention/companion/11111111-1111-4111-8111-111111111111",
+    );
+    expect(feedbackCall).toBeGreaterThanOrEqual(0);
+    expect(refreshedCompanionCall).toBeGreaterThan(feedbackCall);
+    expect(apiFetchMock).toHaveBeenCalledWith("/api/prevention/feedback", expect.objectContaining({
+      body: expect.stringContaining("\"feedbackReason\":\"watched_already\""),
+    }));
+  });
+
   it("switches the hero banner to another pillar and opens its exact video", async () => {
     renderPlan();
     fireEvent.click(await screen.findByRole("button", { name: "Show Heart & circulation" }));
@@ -609,6 +641,9 @@ describe("PreventionPlan", () => {
       expect(screen.getByRole("heading", { name: state.title })).toBeVisible();
       expect(screen.getByText(state.meta)).toBeVisible();
       expect(screen.getByRole("button", { name: "Watch" })).toBeVisible();
+      if (state.button === "Show Strength & stability") {
+        expect(screen.getByTestId("longevity-personal-context")).toHaveTextContent("Strength & stability is steady");
+      }
     }
 
     expect(screen.queryByText("NIA fall guide")).not.toBeInTheDocument();
@@ -699,6 +734,9 @@ describe("PreventionPlan", () => {
     expect(screen.getByTestId("longevity-pillar-selector-rail")).toHaveClass("no-scrollbar", "snap-x");
 
     fireEvent.click(screen.getByText("¿Por qué esto?"));
+    expect(screen.getByTestId("longevity-personal-context")).toHaveTextContent("Por qué encaja contigo");
+    expect(screen.getByTestId("longevity-impact-summary")).toHaveTextContent("Beneficio");
+    expect(screen.getByTestId("longevity-impact-summary")).toHaveTextContent("Si lo omites con frecuencia");
     expect(screen.getByRole("button", { name: "Juegos mentales VYVA" })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Mostrar Nutrición" }));

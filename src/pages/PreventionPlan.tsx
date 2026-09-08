@@ -516,6 +516,128 @@ function previewMomentCopyForLanguage(language: string | null | undefined): Reco
   return PREVIEW_MOMENT_COPY_BY_LANGUAGE[code] ?? PREVIEW_MOMENT_COPY;
 }
 
+type PreventionImpactCopy = { contextLabel: string; benefitLabel: string; riskLabel: string; benefit: string; risk: string };
+
+function preventionImpactCopy(pillar: PreventionPillar | null, language: string | null | undefined): PreventionImpactCopy {
+  const code = copyLanguageCode(language);
+  const contextLabels = {
+    en: "Why it fits you",
+    es: "Por qué encaja contigo",
+    fr: "Pourquoi cela vous correspond",
+    de: "Warum es zu Ihnen passt",
+    it: "Perché è adatto a te",
+    pt: "Porque se adequa a si",
+  } as const;
+  const impact = {
+    en: {
+      benefitLabel: "Benefit",
+      riskLabel: "If you skip it regularly",
+      heart: ["Supports circulation, stamina, and confidence during everyday activity.", "Stamina can gradually fall, making walking and daily tasks feel harder."],
+      brain: ["Exercises attention and recall so everyday thinking stays active.", "Fewer mental challenges can mean less practice for memory, focus, and problem-solving."],
+      strength: ["Helps maintain the leg strength and balance used for standing, walking, and recovering from a misstep.", "Strength and steadiness can decline, increasing difficulty with daily movement and the chance of a fall."],
+      nourishment: ["Supports steadier energy, hydration, and the nutrients your body needs to function well.", "Low fluid or nutrient intake can worsen fatigue, weakness, dizziness, and recovery."],
+      calm: ["Helps lower tension and supports more restorative sleep and recovery.", "Stress and poor recovery can build up, affecting sleep, energy, and concentration."],
+    },
+    es: {
+      benefitLabel: "Beneficio",
+      riskLabel: "Si lo omites con frecuencia",
+      heart: ["Favorece la circulación, la resistencia y la confianza durante la actividad diaria.", "La resistencia puede disminuir poco a poco y hacer que caminar o las tareas diarias cuesten más."],
+      brain: ["Ejercita la atención y la memoria para mantener activo el pensamiento cotidiano.", "Con menos retos mentales hay menos práctica para la memoria, la concentración y la resolución de problemas."],
+      strength: ["Ayuda a mantener la fuerza de las piernas y el equilibrio necesarios para levantarse, caminar y corregir un tropiezo.", "La fuerza y la estabilidad pueden disminuir, dificultando el movimiento diario y aumentando el riesgo de caída."],
+      nourishment: ["Favorece una energía más estable, la hidratación y los nutrientes que el cuerpo necesita.", "Una ingesta insuficiente de líquidos o nutrientes puede empeorar el cansancio, la debilidad, el mareo y la recuperación."],
+      calm: ["Ayuda a reducir la tensión y favorece un sueño y una recuperación más reparadores.", "El estrés y la falta de recuperación pueden acumularse y afectar al sueño, la energía y la concentración."],
+    },
+    fr: {
+      benefitLabel: "Bénéfice",
+      riskLabel: "Si vous le faites rarement",
+      heart: ["Soutient la circulation, l'endurance et l'assurance dans les activités quotidiennes.", "L'endurance peut diminuer progressivement et rendre la marche ou les tâches quotidiennes plus difficiles."],
+      brain: ["Exerce l'attention et la mémoire pour entretenir les capacités de réflexion au quotidien.", "Moins de défis mentaux signifie moins d'entraînement pour la mémoire, l'attention et la résolution de problèmes."],
+      strength: ["Aide à préserver la force des jambes et l'équilibre nécessaires pour se lever, marcher et rattraper un faux pas.", "La force et la stabilité peuvent diminuer, compliquant les déplacements et augmentant le risque de chute."],
+      nourishment: ["Favorise une énergie plus stable, une bonne hydratation et les apports dont le corps a besoin.", "Un apport insuffisant en liquides ou nutriments peut aggraver fatigue, faiblesse, vertiges et récupération."],
+      calm: ["Aide à réduire la tension et favorise un sommeil et une récupération plus réparateurs.", "Le stress et le manque de récupération peuvent s'accumuler et affecter le sommeil, l'énergie et l'attention."],
+    },
+    de: {
+      benefitLabel: "Nutzen",
+      riskLabel: "Wenn Sie es regelmäßig auslassen",
+      heart: ["Unterstützt Kreislauf, Ausdauer und Sicherheit bei alltäglichen Aktivitäten.", "Die Ausdauer kann allmählich nachlassen, sodass Gehen und tägliche Aufgaben schwerer fallen."],
+      brain: ["Trainiert Aufmerksamkeit und Erinnern, damit das Denken im Alltag aktiv bleibt.", "Weniger geistige Herausforderungen bedeuten weniger Übung für Gedächtnis, Konzentration und Problemlösung."],
+      strength: ["Hilft, Beinkraft und Gleichgewicht fürs Aufstehen, Gehen und Abfangen eines Fehltritts zu erhalten.", "Kraft und Stabilität können abnehmen, alltägliche Bewegung erschweren und das Sturzrisiko erhöhen."],
+      nourishment: ["Unterstützt gleichmäßigere Energie, Flüssigkeitsversorgung und wichtige Nährstoffe.", "Zu wenig Flüssigkeit oder Nährstoffe können Müdigkeit, Schwäche, Schwindel und Erholung verschlechtern."],
+      calm: ["Hilft, Anspannung zu senken und erholsameren Schlaf und Regeneration zu fördern.", "Stress und fehlende Erholung können sich aufbauen und Schlaf, Energie und Konzentration beeinträchtigen."],
+    },
+    it: {
+      benefitLabel: "Beneficio",
+      riskLabel: "Se lo salti regolarmente",
+      heart: ["Sostiene circolazione, resistenza e sicurezza nelle attività quotidiane.", "La resistenza può diminuire gradualmente, rendendo più faticosi camminare e svolgere le attività quotidiane."],
+      brain: ["Allena attenzione e memoria per mantenere attivo il pensiero quotidiano.", "Meno stimoli mentali significano meno allenamento per memoria, concentrazione e soluzione dei problemi."],
+      strength: ["Aiuta a mantenere forza nelle gambe ed equilibrio per alzarsi, camminare e recuperare da un passo falso.", "Forza e stabilità possono diminuire, rendendo più difficili i movimenti quotidiani e aumentando il rischio di caduta."],
+      nourishment: ["Favorisce energia più stabile, idratazione e i nutrienti di cui il corpo ha bisogno.", "Pochi liquidi o nutrienti possono peggiorare stanchezza, debolezza, capogiri e recupero."],
+      calm: ["Aiuta a ridurre la tensione e favorisce sonno e recupero più ristoratori.", "Stress e scarso recupero possono accumularsi e influire su sonno, energia e concentrazione."],
+    },
+    pt: {
+      benefitLabel: "Benefício",
+      riskLabel: "Se deixar de fazer com frequência",
+      heart: ["Apoia a circulação, a resistência e a confiança nas atividades diárias.", "A resistência pode diminuir gradualmente, tornando a caminhada e as tarefas diárias mais difíceis."],
+      brain: ["Exercita a atenção e a memória para manter o pensamento ativo no dia a dia.", "Menos desafios mentais significam menos treino para memória, concentração e resolução de problemas."],
+      strength: ["Ajuda a manter a força das pernas e o equilíbrio usados para levantar, caminhar e corrigir um passo em falso.", "A força e a estabilidade podem diminuir, dificultando o movimento diário e aumentando o risco de queda."],
+      nourishment: ["Apoia energia mais estável, hidratação e os nutrientes de que o corpo precisa.", "Poucos líquidos ou nutrientes podem piorar cansaço, fraqueza, tonturas e recuperação."],
+      calm: ["Ajuda a reduzir a tensão e favorece um sono e uma recuperação mais reparadores.", "O stress e a falta de recuperação podem acumular-se e afetar o sono, a energia e a concentração."],
+    },
+  } as const;
+  const localized = impact[code as keyof typeof impact] ?? impact.en;
+  const [benefit, risk] = localized[pillar ?? "brain"];
+  return {
+    contextLabel: contextLabels[code as keyof typeof contextLabels] ?? contextLabels.en,
+    benefitLabel: localized.benefitLabel,
+    riskLabel: localized.riskLabel,
+    benefit,
+    risk,
+  };
+}
+
+function pillarStatusContext(label: string, status: PreventionPillarStatus, language: string | null | undefined): string {
+  const code = copyLanguageCode(language);
+  const messages = {
+    en: {
+      thriving: `Your current plan shows strong progress in ${label}; this step helps protect it.`,
+      steady: `Your current plan shows ${label} is steady; this step helps preserve that ability.`,
+      needs_attention: `Your current plan marks ${label} as needing attention; this is a small way to work on it.`,
+      priority_focus: `Your current plan identifies ${label} as a priority; this step directly supports that goal.`,
+    },
+    es: {
+      thriving: `Tu plan actual muestra un buen progreso en ${label}; este paso ayuda a conservarlo.`,
+      steady: `Tu plan actual indica que ${label} está estable; este paso ayuda a conservar esa capacidad.`,
+      needs_attention: `Tu plan actual indica que ${label} necesita atención; este es un paso pequeño para trabajarlo.`,
+      priority_focus: `Tu plan actual identifica ${label} como prioridad; este paso apoya directamente ese objetivo.`,
+    },
+    fr: {
+      thriving: `Votre plan montre de bons progrès pour ${label} ; cette étape aide à les préserver.`,
+      steady: `Votre plan montre que ${label} est stable ; cette étape aide à préserver cette capacité.`,
+      needs_attention: `Votre plan indique que ${label} mérite de l'attention ; cette petite étape permet d'y travailler.`,
+      priority_focus: `Votre plan identifie ${label} comme une priorité ; cette étape soutient directement cet objectif.`,
+    },
+    de: {
+      thriving: `Ihr aktueller Plan zeigt gute Fortschritte bei ${label}; dieser Schritt hilft, sie zu erhalten.`,
+      steady: `Ihr aktueller Plan zeigt ${label} als stabil; dieser Schritt hilft, diese Fähigkeit zu erhalten.`,
+      needs_attention: `Ihr aktueller Plan zeigt bei ${label} Handlungsbedarf; dieser kleine Schritt setzt dort an.`,
+      priority_focus: `Ihr aktueller Plan nennt ${label} als Schwerpunkt; dieser Schritt unterstützt das Ziel direkt.`,
+    },
+    it: {
+      thriving: `Il tuo piano mostra buoni progressi per ${label}; questo passo aiuta a mantenerli.`,
+      steady: `Il tuo piano mostra che ${label} è stabile; questo passo aiuta a preservare tale capacità.`,
+      needs_attention: `Il tuo piano indica che ${label} richiede attenzione; questo è un piccolo passo per lavorarci.`,
+      priority_focus: `Il tuo piano identifica ${label} come priorità; questo passo sostiene direttamente l'obiettivo.`,
+    },
+    pt: {
+      thriving: `O seu plano mostra bom progresso em ${label}; este passo ajuda a preservá-lo.`,
+      steady: `O seu plano mostra que ${label} está estável; este passo ajuda a preservar essa capacidade.`,
+      needs_attention: `O seu plano indica que ${label} precisa de atenção; este é um pequeno passo para a trabalhar.`,
+      priority_focus: `O seu plano identifica ${label} como prioridade; este passo apoia diretamente esse objetivo.`,
+    },
+  } as const;
+  return (messages[code as keyof typeof messages] ?? messages.en)[status];
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -3142,7 +3264,6 @@ export default function PreventionPlan({
   const heroVideoUrl = exactYoutubeUrl(heroVideo?.url);
   const heroVideoDuration = formatDuration(heroVideo?.durationSeconds, copy);
   const heroExperienceKind = experienceKindForAction(heroAction, heroVideo);
-  const seniorNarrative = dailySession.whyThis.summary || companion.whyToday || personalisedNarrative(plan.plan_narrative_senior, firstName);
   const brainSpark = heroAction.challenge ?? null;
   const brainGameOptions: BrainGameOption[] = brainSpark
     ? heroAction.gameOptions?.length
@@ -3161,6 +3282,17 @@ export default function PreventionPlan({
   const heroPillarDefinition = selectedPillarDefinition ?? priorityDefinition;
   const heroPillarId = heroPillarDefinition?.id ?? heroAction.pillar ?? currentPriority ?? null;
   const heroPillarLabel = heroPillarId ? copy.pillarShortLabels[heroPillarId] : companion.todayFocus.label ?? copy.experienceLabels.support;
+  const heroImpact = preventionImpactCopy(heroPillarId, companionLanguage);
+  const directPersonalContext = Array.from(new Set([
+    ...companion.signalsUsed
+      .filter((signal) => signal.pillar === heroPillarId || signal.pillar === null || (signal.source === "feedback" && signal.pillar === heroPillarId))
+      .map((signal) => signal.detail),
+    heroAction.source === "monthly_plan" || heroAction.source === "feedback_memory" ? heroAction.detail : null,
+    heroPillarId === priorityPillarId ? plan.priority_why : null,
+  ].filter((item): item is string => Boolean(item?.trim())))).slice(0, 3);
+  const heroPersonalContext = directPersonalContext.length || !heroPillarId
+    ? directPersonalContext
+    : [pillarStatusContext(copy.pillarLabels[heroPillarId], liveStatuses?.[heroPillarId] ?? pillarStatus(plan, heroPillarId), companionLanguage)];
   const heroPreview = heroPillarId ? copy.experiencePreviews[heroPillarId] : copy.experiencePreviews.brain;
   const heroActionDuration = formatDuration(heroAction.duration_seconds, copy);
   const heroTitle = heroVideo?.title ?? (heroExperienceKind === "video" ? copy.ctaLabels.video : heroAction.title);
@@ -3197,11 +3329,6 @@ export default function PreventionPlan({
     heroPillarId ? `${copy.currentTheme}: ${copy.pillarLabels[heroPillarId]}.` : null,
     heroVideo ? `${copy.experienceLabels.video}: ${heroVideo.title}.` : null,
   ].filter((item): item is string => Boolean(item));
-  const heroWhySummary = selectedPillarAction
-    ? copy.selectedPillarWhy(copy.pillarLabels[heroPillarId ?? selectedPillarAction.pillar ?? "brain"] ?? heroPillarLabel, currentMomentLabel, labelForExperienceKind(heroExperienceKind, copy), heroDetail)
-    : activeMoment
-      ? `${currentMomentLabel}: ${copy.momentEvidence[activeMoment]}`
-      : seniorNarrative;
   const heroTimingEvidence = heroTimingGuidance && !Object.values(copy.moments).includes(heroTimingGuidance)
     ? `${currentMomentLabel}: ${heroTimingGuidance}.`
     : null;
@@ -3298,11 +3425,11 @@ export default function PreventionPlan({
     openVoicePrompt(heroAction.title, copy.makeEasierPrompt(heroAction.title, heroAfterWatchAction || heroAction.detail));
   };
 
-  const handleFeedbackReason = (reason: VideoFeedbackReason) => {
+  const handleFeedbackReason = async (reason: VideoFeedbackReason) => {
     const eventType = FEEDBACK_REASON_EVENT_TYPE[reason];
     setFeedbackChoiceKey(null);
     setFeedbackMessage(copy.feedbackThanks);
-    void submitFeedback(heroAction, eventType, {
+    await submitFeedback(heroAction, eventType, {
       barrier: reason,
       feedbackReason: reason,
       selectedPillar: heroPillarId,
@@ -3310,6 +3437,12 @@ export default function PreventionPlan({
       videoUrl: heroVideo?.url ?? null,
       videoTitle: heroVideo?.title ?? null,
     });
+    if (reason === "watched_already" && !isPreview) {
+      setSelectedPillar(null);
+      setOpenedExperienceKey(null);
+      await query.refetch();
+      return;
+    }
     if (reason !== "too_hard") {
       setSelectedPillar(nextPillarId(heroPillarId));
     }
@@ -3425,7 +3558,7 @@ export default function PreventionPlan({
                         <button
                           key={reason}
                           type="button"
-                          onClick={() => handleFeedbackReason(reason)}
+                          onClick={() => void handleFeedbackReason(reason)}
                           className={["min-h-9 rounded-full border px-3.5 font-body text-[12px] font-black leading-tight shadow-sm transition", isDark ? "border-white/[0.24] bg-white/[0.12] text-[#FFF8FF]" : "border-[#CDB7DC] bg-[#FFF7EF] text-[#3B2D45] shadow-[0_4px_10px_rgba(80,52,109,0.08)]"].join(" ")}
                           style={{ color: isDark ? "#FFF8FF" : "#3B2D45" }}
                         >
@@ -3507,9 +3640,31 @@ export default function PreventionPlan({
               <ChevronDown className="transition-transform group-open:rotate-180" size={22} />
             </summary>
             <div className={["border-t px-5 py-5 sm:px-6", dividerClass].join(" ")}>
-              {heroWhySummary ? <p className={["font-body text-[16px] font-semibold leading-7", mutedTextClass].join(" ")}>{heroWhySummary}</p> : null}
+              {heroPersonalContext.length ? (
+                <div className={["mb-3 rounded-[18px] border px-4 py-4", isDark ? "border-[#4B3A5E] bg-[#2B2038]" : "border-[#E6D8F4] bg-[#FAF7FD]"].join(" ")} data-testid="longevity-personal-context">
+                  <p className="font-body text-[11px] font-black uppercase tracking-[0.12em] text-[#9D4FE0]">{heroImpact.contextLabel}</p>
+                  <ul className="mt-2 space-y-2">
+                    {heroPersonalContext.map((item) => (
+                      <li key={item} className={["flex items-start gap-2 font-body text-[14px] font-bold leading-6", mutedTextClass].join(" ")}>
+                        <span aria-hidden="true" className="mt-[0.55rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[#9D4FE0]" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2" data-testid="longevity-impact-summary">
+                <div className={["rounded-[18px] border px-4 py-4", isDark ? "border-[#315D4D] bg-[#18352B]" : "border-[#BBE4D2] bg-[#F0FBF5]"].join(" ")}>
+                  <p className={["font-body text-[11px] font-black uppercase tracking-[0.12em]", isDark ? "text-[#86E0B8]" : "text-[#087A55]"].join(" ")}>{heroImpact.benefitLabel}</p>
+                  <p className={["mt-2 font-body text-[15px] font-bold leading-6", isDark ? "text-[#ECFFF6]" : "text-[#123D30]"].join(" ")}>{heroImpact.benefit}</p>
+                </div>
+                <div className={["rounded-[18px] border px-4 py-4", isDark ? "border-[#6A4B25] bg-[#352817]" : "border-[#F5D39A] bg-[#FFF8E8]"].join(" ")}>
+                  <p className={["font-body text-[11px] font-black uppercase tracking-[0.12em]", isDark ? "text-[#FFD080]" : "text-[#9A5A08]"].join(" ")}>{heroImpact.riskLabel}</p>
+                  <p className={["mt-2 font-body text-[15px] font-bold leading-6", isDark ? "text-[#FFF6E5]" : "text-[#51350F]"].join(" ")}>{heroImpact.risk}</p>
+                </div>
+              </div>
               {heroVideo && (heroVideoTakeaway || heroAfterWatchAction || heroInsightPoints.length) ? (
-                <div className={["rounded-[18px] border px-4 py-4", heroWhySummary ? "mt-5" : "", isDark ? "border-[#3C2956] bg-[#241936]" : "border-[#E9D7FF] bg-[#FBF7FF]"].join(" ")}>
+                <div className={["mt-5 rounded-[18px] border px-4 py-4", isDark ? "border-[#3C2956] bg-[#241936]" : "border-[#E9D7FF] bg-[#FBF7FF]"].join(" ")}>
                   <p className="font-body text-[11px] font-black uppercase tracking-[0.12em] text-[#9D4FE0]">{copy.fromVideo}</p>
                   {heroVideoTakeaway ? <p className={["mt-2 font-body text-[15px] font-bold leading-6", isDark ? "text-[#F8F2FF]" : "text-[#241C30]"].join(" ")}>{heroVideoTakeaway}</p> : null}
                   {heroAfterWatchAction && heroAfterWatchAction !== heroVideoTakeaway ? (
@@ -3540,7 +3695,7 @@ export default function PreventionPlan({
                 </div>
               ) : null}
               {heroWhyEvidence.length > 0 ? (
-                <div className={heroWhySummary || heroVideoTakeaway || heroAfterWatchAction || heroInsightPoints.length ? "mt-5" : ""}>
+                <div className="mt-5">
                   <p className="font-body text-[11px] font-black uppercase tracking-[0.12em] text-[#9D4FE0]">{copy.vyvaConsidered}</p>
                   <ul className={["mt-2 divide-y", dividerClass].join(" ")}>
                     {heroWhyEvidence.map((item) => (
@@ -3548,7 +3703,7 @@ export default function PreventionPlan({
                     ))}
                   </ul>
                 </div>
-              ) : <p className={[(heroWhySummary ? "mt-4 " : "") + "font-body text-[16px] font-semibold leading-7", mutedTextClass].join(" ")}>{copy.defaultWhy}</p>}
+              ) : null}
             </div>
           </details>
 
