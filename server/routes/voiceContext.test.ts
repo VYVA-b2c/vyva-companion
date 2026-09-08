@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { drAiFirstMessage, resolveVoiceContextDomain } from "./voiceContext";
+import { shouldUseLegacyVoiceContextMem0 } from "../lib/voiceContext.js";
 
 describe("voice context domain resolution", () => {
   it("keeps onboarding profile voice sessions out of generic social context", () => {
@@ -12,6 +13,22 @@ describe("voice context domain resolution", () => {
     expect(resolveVoiceContextDomain({ agent_slug: "dr-ai" })).toBe("health");
     expect(resolveVoiceContextDomain({ agent_slug: "ask-dr-ai" })).toBe("health");
   });
+});
+
+describe("voice context Mem0 privacy boundary", () => {
+  it.each(["health", "doctor", "meds", "safety"] as const)(
+    "does not use legacy Mem0 for sensitive domain %s",
+    (domain) => {
+      expect(shouldUseLegacyVoiceContextMem0(domain)).toBe(false);
+    },
+  );
+
+  it.each(["companion", "concierge", "brain_coach", "social"] as const)(
+    "keeps legacy memory available for non-medical domain %s",
+    (domain) => {
+      expect(shouldUseLegacyVoiceContextMem0(domain)).toBe(true);
+    },
+  );
 });
 
 describe("Dr. AI first message", () => {

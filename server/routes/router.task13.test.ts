@@ -10,7 +10,7 @@ import {
 } from "../memory/healthMemoryFixtures.js";
 
 describe("Task 13 router Health memory policy gate", () => {
-  it("disables direct legacy Mem0 reads and writes for Health only when the pilot flag is active", () => {
+  it("disables direct legacy Mem0 reads and writes for Health when the pilot flag is active", () => {
     const healthPilot = resolveRouterHealthMemoryPolicyFlag({
       domain: "health",
       userId: TASK13_USER_ID,
@@ -23,7 +23,7 @@ describe("Task 13 router Health memory policy gate", () => {
     expect(shouldUseLegacyRouterMem0("health", healthPilot)).toBe(false);
   });
 
-  it("preserves legacy Mem0 behavior when Health policy is disabled", () => {
+  it("fails closed for Health when the consent-aware policy is disabled", () => {
     const healthDisabled = resolveRouterHealthMemoryPolicyFlag({
       domain: "health",
       userId: TASK13_USER_ID,
@@ -33,17 +33,23 @@ describe("Task 13 router Health memory policy gate", () => {
       effectiveMode: "disabled",
       reasonCode: "health_memory_policy_disabled_requested",
     });
-    expect(shouldUseLegacyRouterMem0("health", healthDisabled)).toBe(true);
+    expect(shouldUseLegacyRouterMem0("health", healthDisabled)).toBe(false);
   });
 
-  it("does not apply the Health-only policy gate to non-Health routing domains", () => {
+  it("blocks legacy Mem0 for all sensitive medical and emergency routing domains", () => {
+    expect(shouldUseLegacyRouterMem0("health", null)).toBe(false);
+    expect(shouldUseLegacyRouterMem0("meds", null)).toBe(false);
+    expect(shouldUseLegacyRouterMem0("safety", null)).toBe(false);
+  });
+
+  it("preserves legacy Mem0 only for non-medical routing domains", () => {
     expect(resolveRouterHealthMemoryPolicyFlag({
       domain: "companion",
       userId: TASK13_USER_ID,
       env: task13PilotEnv,
     })).toBeNull();
     expect(shouldUseLegacyRouterMem0("companion", null)).toBe(true);
-    expect(shouldUseLegacyRouterMem0("meds", null)).toBe(true);
+    expect(shouldUseLegacyRouterMem0("concierge", null)).toBe(true);
     expect(shouldUseLegacyRouterMem0("brain_coach", null)).toBe(true);
   });
 });

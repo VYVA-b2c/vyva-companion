@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addMem0MemoryConfirmed,
+  deleteMem0MemoryConfirmed,
   extractMem0ProviderMemoryId,
 } from "./mem0.js";
 
@@ -47,5 +48,31 @@ describe("Mem0 confirmed write adapter", () => {
       user_id: "mem0.user",
       metadata: { vyva_idempotency_key: "task13:idempotent" },
     });
+  });
+
+  it("deletes the exact confirmed provider memory without exposing other user memories", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteMem0MemoryConfirmed({
+      providerMemoryId: "mem0/provider-id",
+      apiKey: "test-key",
+    })).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.mem0.ai/v1/memories/mem0%2Fprovider-id",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: expect.objectContaining({ Authorization: "Token test-key" }),
+      }),
+    );
+  });
+
+  it("records provider deletion failures instead of treating them as success", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503 })));
+    await expect(deleteMem0MemoryConfirmed({
+      providerMemoryId: "mem0-delete-failure",
+      apiKey: "test-key",
+    })).rejects.toThrow("mem0_delete_failed_503");
   });
 });

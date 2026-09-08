@@ -3,6 +3,7 @@ import {
   buildCorrectionProposal,
   buildDeletionProposal,
   buildHealthPolicyFilteredMemoryBlock,
+  deleteHealthSemanticMemory,
   type HealthSemanticMemoryProposal,
   healthSemanticMemoryProposalDigest,
   InMemoryHealthSemanticMemoryOutboxStore,
@@ -449,10 +450,36 @@ describe("Task 13 Health semantic memory outbox", () => {
       localVisibility: "suppressed",
       deletedBy: deletion.proposalId,
     });
-    await expect(store.requestDeletion({
-      originalProposalId: secondOriginalOutcome.proposal.proposalId,
+
+    const providerDelete = vi.fn(async () => undefined);
+    await expect(deleteHealthSemanticMemory({
+      original: secondOriginalOutcome.proposal,
       deletionProposal: deletion,
+      now: new Date(TASK13_NOW.getTime() + 3_000),
+      store,
+      provider: providerDelete,
+    })).resolves.toMatchObject({
+      outcome: "deleted",
+      proposal: {
+        operation: "deletion",
+        status: "delivered",
+        providerMemoryId: "mem0.memory.delete-original",
+      },
+    });
+    expect(providerDelete).toHaveBeenCalledTimes(1);
+    expect(providerDelete).toHaveBeenCalledWith(expect.objectContaining({
+      providerMemoryId: "mem0.memory.delete-original",
+      mem0UserId: secondOriginalOutcome.proposal.mem0UserId,
+    }));
+
+    await expect(deleteHealthSemanticMemory({
+      original: secondOriginalOutcome.proposal,
+      deletionProposal: deletion,
+      now: new Date(TASK13_NOW.getTime() + 4_000),
+      store,
+      provider: providerDelete,
     })).resolves.toMatchObject({ outcome: "duplicate" });
+    expect(providerDelete).toHaveBeenCalledTimes(1);
   });
 
   it("rejects cross-user and mismatched lifecycle proposals without suppressing the original", async () => {

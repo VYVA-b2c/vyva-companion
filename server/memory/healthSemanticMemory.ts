@@ -1,4 +1,7 @@
-import { addMem0MemoryConfirmed } from "../lib/mem0.js";
+import {
+  addMem0MemoryConfirmed,
+  deleteMem0MemoryConfirmed,
+} from "../lib/mem0.js";
 import {
   canonicalContractProjection,
   canonicalSha256,
@@ -187,6 +190,7 @@ export type HealthSemanticMemoryUpdateResult =
 
 export interface HealthSemanticMemoryOutboxStore {
   recordProposal(proposal: unknown, options?: { signal?: AbortSignal }): Promise<HealthSemanticMemoryWriteResult>;
+  findProposalById(proposalId: string): Promise<HealthSemanticMemoryProposal | undefined>;
   findReadableMemories(input: {
     userId: string;
     categories: readonly HealthMemoryCategory[];
@@ -791,6 +795,10 @@ export class InMemoryHealthSemanticMemoryOutboxStore implements HealthSemanticMe
       .slice(0, input.limit);
   }
 
+  async findProposalById(proposalId: string): Promise<HealthSemanticMemoryProposal | undefined> {
+    return this.byProposalId.get(proposalId)?.proposal;
+  }
+
   async markProviderDelivered(input: {
     proposalId: string;
     providerMemoryId: string;
@@ -1062,6 +1070,15 @@ export class PostgresHealthSemanticMemoryOutboxStore implements HealthSemanticMe
     }
   }
 
+  async findProposalById(proposalId: string): Promise<HealthSemanticMemoryProposal | undefined> {
+    try {
+      return await this.repository.withTransaction(async (tx) =>
+        (await tx.findByProposalId(proposalId))?.proposal);
+    } catch {
+      return undefined;
+    }
+  }
+
   async markProviderDelivered(input: {
     proposalId: string;
     providerMemoryId: string;
@@ -1244,6 +1261,116 @@ const defaultMem0Provider: HealthSemanticMemoryProvider = async (input) => {
     idempotencyKey: input.idempotencyKey,
   });
 };
+
+export type HealthSemanticMemoryDeletionProvider = (input: {
+  mem0UserId: string;
+  providerMemoryId: string;
+  proposal: HealthSemanticMemoryProposal;
+  idempotencyKey: string;
+}) => Promise<void>;
+
+const defaultMem0DeletionProvider: HealthSemanticMemoryDeletionProvider = async (input) => {
+  await deleteMem0MemoryConfirmed({
+    providerMemoryId: input.providerMemoryId,
+  });
+};
+
+export type HealthSemanticMemoryDeletionOutcome =
+  | { outcome: "deleted" | "duplicate"; proposal: HealthSemanticMemoryProposal }
+  | { outcome: "failed"; proposal: HealthSemanticMemoryProposal }
+  | { outcome: "rejected"; reason: "invalid_input" | "provider_memory_id_missing" | "persistence_unavailable" };
+
+export async function deleteHealthSemanticMemory(input: {
+  original: HealthSemanticMemoryProposal;
+  deletionProposal: HealthSemanticMemoryProposal;
+  now: Date;
+  store?: HealthSemanticMemoryOutboxStore;
+  provider?: HealthSemanticMemoryDeletionProvider;
+}): Promise<HealthSemanticMemoryDeletionOutcome> {
+  const original = parseProposal(input.original);
+  const deletionProposal = parseProposal(input.deletionProposal);
+  if (
+    !original ||
+    !deletionProposal ||
+    deletionProposal.operation !== "deletion" ||
+    deletionProposal.provenance.deletionOf !== original.proposalId ||
+    deletionProposal.userId !== original.userId ||
+    deletionProposal.mem0UserId !== original.mem0UserId
+  ) {
+    return { outcome: "rejected", reason: "invalid_input" };
+  }
+  if (!original.providerMemoryId) {
+    return { outcome: "rejected", reason: "provider_memory_id_missing" };
+  }
+
+  const store = input.store ?? defaultHealthSemanticMemoryOutboxStore;
+  const existingDeletion = await store.findProposalById(deletionProposal.proposalId);
+  let requestedProposal: HealthSemanticMemoryProposal;
+  if (existingDeletion) {
+    if (
+      existingDeletion.operation !== "deletion" ||
+      existingDeletion.provenance.deletionOf !== original.proposalId ||
+      existingDeletion.userId !== original.userId ||
+      existingDeletion.mem0UserId !== original.mem0UserId
+    ) {
+      return { outcome: "rejected", reason: "invalid_input" };
+    }
+    if (existingDeletion.status === "delivered") {
+      return { outcome: "duplicate", proposal: existingDeletion };
+    }
+    requestedProposal = existingDeletion;
+  } else {
+    const requested = await store.requestDeletion({
+      originalProposalId: original.proposalId,
+      deletionProposal,
+    });
+    if (requested.outcome === "rejected") {
+      return {
+        outcome: "rejected",
+        reason: requested.reason === "persistence_unavailable"
+          ? "persistence_unavailable"
+          : "invalid_input",
+      };
+    }
+    requestedProposal = requested.proposal;
+  }
+
+  const claim = await store.claimProviderDelivery({
+    proposalId: requestedProposal.proposalId,
+    now: input.now,
+  });
+  if (claim.outcome !== "updated") {
+    return { outcome: "rejected", reason: "persistence_unavailable" };
+  }
+
+  try {
+    await (input.provider ?? defaultMem0DeletionProvider)({
+      mem0UserId: original.mem0UserId,
+      providerMemoryId: original.providerMemoryId,
+      proposal: claim.proposal,
+      idempotencyKey: claim.proposal.idempotencyKey,
+    });
+    const delivered = await store.markProviderDelivered({
+      proposalId: claim.proposal.proposalId,
+      providerMemoryId: original.providerMemoryId,
+      now: input.now,
+    });
+    if (delivered.outcome !== "updated") {
+      throw new Error("mem0_deletion_status_not_recorded");
+    }
+    return { outcome: "deleted", proposal: delivered.proposal };
+  } catch (error) {
+    const failed = await store.markProviderFailed({
+      proposalId: claim.proposal.proposalId,
+      reason: error instanceof Error ? error.message : "provider_delete_failed",
+      now: input.now,
+    });
+    return {
+      outcome: "failed",
+      proposal: failed.outcome === "updated" ? failed.proposal : claim.proposal,
+    };
+  }
+}
 
 export const defaultHealthSemanticMemoryOutboxStore =
   new PostgresHealthSemanticMemoryOutboxStore();

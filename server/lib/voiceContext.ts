@@ -84,6 +84,17 @@ type BuildVoiceContextOptions = {
   };
 };
 
+const SENSITIVE_LEGACY_MEMORY_DOMAINS = new Set<VoiceContextDomain>([
+  "safety",
+  "meds",
+  "health",
+  "doctor",
+]);
+
+export function shouldUseLegacyVoiceContextMem0(domain: VoiceContextDomain): boolean {
+  return !SENSITIVE_LEGACY_MEMORY_DOMAINS.has(domain);
+}
+
 type SignalReadingRow = {
   signal_type: string;
   value: string | number;
@@ -1362,7 +1373,8 @@ export async function buildVoiceContext(
         flagReasonCode: "health_memory_policy_resolution_failed",
       }))
     : null;
-  const memories = !policyMemoryEnabled && memoryQuery
+  const useLegacyMem0 = !policyMemoryEnabled && shouldUseLegacyVoiceContextMem0(domain);
+  const memories = useLegacyMem0 && memoryQuery
     ? await searchMemories(memoryQuery, mem0UserId).catch(() => [])
     : [];
   const memoryBlock = policyMemoryEnabled
@@ -1577,7 +1589,11 @@ export async function buildVoiceContext(
       profile?.city || profile?.country_code ? `Location: ${valueList([profile.city, profile.country_code])}` : "",
     ], 900),
     memory_block: memoryBlock || "(no memory retrieved)",
-    health_memory_policy_mode: policyMemoryEnabled ? "policy_filtered" : "legacy",
+    health_memory_policy_mode: policyMemoryEnabled
+      ? "policy_filtered"
+      : shouldUseLegacyVoiceContextMem0(domain)
+      ? "legacy"
+      : "sensitive_memory_disabled",
     health_memory_policy_reason_codes: policyMemory?.reasonCodes.join(",") ?? "",
     health_memory_policy_allowed_categories: policyMemory?.allowedCategories.join(",") ?? "",
     health_memory_policy_flag_reason: policyMemory?.flagReasonCode ?? "",

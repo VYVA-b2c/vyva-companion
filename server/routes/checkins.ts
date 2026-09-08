@@ -696,6 +696,17 @@ async function fetchProfileContext(userId: string): Promise<ProfileContext> {
   };
 }
 
+async function fetchCurrentSemanticMemoryConsent(userId: string): Promise<unknown> {
+  const result = await pool.query(
+    `select data_sharing_consent
+     from profiles
+     where id = $1
+     limit 1`,
+    [userId],
+  );
+  return result.rows[0]?.data_sharing_consent ?? {};
+}
+
 function fallbackResult(profile: ProfileContext, answers: CheckinAnswers): AiCheckinResult {
   const lowEnergy = answers.energy_level <= 2;
   const poorSleep = ["mal", "muy_mal"].includes(answers.sleep_quality);
@@ -1569,6 +1580,8 @@ export async function analyzeCheckinHandler(req: Request, res: Response) {
             completedAt: memoryInput.completedAt,
             profileConsent: profile.data_sharing_consent,
             env: process.env,
+            deliverApprovedWrites: true,
+            loadCurrentConsentForDelivery: () => fetchCurrentSemanticMemoryConsent(memoryInput.userId),
           });
         },
         proposeCaregiverOperatorEscalation: async (escalationInput) => {

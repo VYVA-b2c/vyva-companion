@@ -127,6 +127,32 @@ export async function addMem0MemoryConfirmed(input: {
   return { providerMemoryId };
 }
 
+export async function deleteMem0MemoryConfirmed(input: {
+  providerMemoryId: string;
+  apiKey?: string;
+}): Promise<void> {
+  const apiKey = input.apiKey ?? getMem0ApiKey();
+  const providerMemoryId = input.providerMemoryId.trim();
+  if (!apiKey || !providerMemoryId) {
+    throw new Error("mem0_delete_not_configured");
+  }
+
+  const response = await fetch(
+    `https://api.mem0.ai/v1/memories/${encodeURIComponent(providerMemoryId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`mem0_delete_failed_${response.status}`);
+  }
+}
+
 export function scheduleMem0Add(mem0UserId: string, messages: ConversationTurn[], apiKey = getMem0ApiKey()): void {
   if (!apiKey || !mem0UserId.trim() || messages.length === 0) return;
 

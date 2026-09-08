@@ -63,9 +63,9 @@ export function resolveRouterHealthMemoryPolicyFlag(input: {
 
 export function shouldUseLegacyRouterMem0(
   domain: RoutingDomain,
-  healthMemoryFlag: HealthMemoryPolicyFlagResolution | null,
+  _healthMemoryFlag: HealthMemoryPolicyFlagResolution | null,
 ): boolean {
-  return !(domain === "health" && healthMemoryFlag?.effectiveMode === "pilot");
+  return !(["health", "meds", "safety"] as RoutingDomain[]).includes(domain);
 }
 
 type ConversationTurn = { role: "user" | "assistant"; content: string };
@@ -660,6 +660,7 @@ export async function routerHandler(req: Request, res: Response) {
     confidence = 1;
 
     const mem0Key = getMem0ApiKey();
+    const useLegacyRouterMem0 = shouldUseLegacyRouterMem0("safety", null);
     const [profileSafe, prevSafe, priorVoiceExchangeCountSafe, conversationContextSafe] = await Promise.all([
       getProfile(user_id).catch(() => null),
       getSessionState(session_id).catch(() => null),
@@ -669,7 +670,7 @@ export async function routerHandler(req: Request, res: Response) {
 
     const mem0UserIdSafe = profileSafe?.mem0_user_id?.trim() || user_id;
     let memoriesSafe: Mem0Memory[] = [];
-    if (mem0Key) {
+    if (mem0Key && useLegacyRouterMem0) {
       memoriesSafe = await searchMemories(utterance, mem0UserIdSafe, mem0Key).catch(() => []);
     }
 
@@ -734,7 +735,9 @@ export async function routerHandler(req: Request, res: Response) {
       }),
     ]);
 
-    if (mem0Key) scheduleMem0Add(mem0UserIdSafe, buildMem0Messages(history, utterance), mem0Key);
+    if (mem0Key && useLegacyRouterMem0) {
+      scheduleMem0Add(mem0UserIdSafe, buildMem0Messages(history, utterance), mem0Key);
+    }
 
     const agent_id = agentIdForDomain("safety");
     const feedbackTokenSafe = await signVoiceRecommendationFeedbackToolToken(user_id, session_id).catch((err) => {

@@ -16,6 +16,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const migrationPaths = [
   "0076_marketing_social_studio.sql",
   "0077_marketing_social_connections.sql",
+  "0081_health_semantic_memory_outbox.sql",
   "0083_replit_publish_runtime_schema.sql",
   "0084_replit_publish_schema_parity.sql",
 ].map((name) => path.join(repoRoot, "migrations", name));
@@ -25,6 +26,7 @@ const migrationSql = migrationPaths
 const requiredTables = [
   "marketing_media_files",
   "marketing_social_connections",
+  "health_semantic_memory_outbox",
   "home_fast_help_impressions",
   "home_fast_help_journeys",
   "home_fast_help_journey_events",
