@@ -3598,7 +3598,7 @@ export default function SymptomCheckScreen() {
   const { markCompleted, markAbandoned, markBlocked } = useHomeFastHelpOutcome(location.state);
   const incomingState = location.state as SymptomCheckLocationState;
   const incomingInitialClue = typeof incomingState?.initialClue === "string" ? incomingState.initialClue.trim() : "";
-  const isFreshStart = new URLSearchParams(window.location.search).get("fresh") === "1";
+  const [isFreshStart] = useState(() => new URLSearchParams(location.search).get("fresh") === "1");
   const [restoredDraft] = useState(() => (
     isFreshStart
       ? null
@@ -3635,6 +3635,7 @@ export default function SymptomCheckScreen() {
   const [voiceTriageSessionId, setVoiceTriageSessionId] = useState<string | null>(() => (
     isFreshStart ? null : readVoiceSessionId()
   ));
+  const [terminalVoiceTriageSession, setTerminalVoiceTriageSession] = useState<VoiceTriageSessionResponse | null>(null);
   const [voiceStartPending, setVoiceStartPending] = useState(false);
   const [symptomInteractionMode, setSymptomInteractionMode] = useState<HomeInteractionMode>(() =>
     incomingState?.autoStartVoice ? "voice" : "touch",
@@ -3675,13 +3676,24 @@ export default function SymptomCheckScreen() {
         : false;
     },
   });
-  const isCompletedVoiceTriageSession = voiceTriageSession?.status === "complete"
-    || voiceTriageSession?.latest_response?.status === "complete";
+
+  useEffect(() => {
+    if (
+      voiceTriageSession?.status === "complete"
+      || voiceTriageSession?.latest_response?.status === "complete"
+    ) {
+      setTerminalVoiceTriageSession(voiceTriageSession);
+    }
+  }, [voiceTriageSession]);
+
+  const resolvedVoiceTriageSession = terminalVoiceTriageSession ?? voiceTriageSession;
+  const isCompletedVoiceTriageSession = resolvedVoiceTriageSession?.status === "complete"
+    || resolvedVoiceTriageSession?.latest_response?.status === "complete";
   const voiceReportId = isCompletedVoiceTriageSession
-    ? voiceTriageSession?.latest_response?.report?.triage_report_id ?? voiceTriageSession?.triage_report_id ?? null
+    ? resolvedVoiceTriageSession?.latest_response?.report?.triage_report_id ?? resolvedVoiceTriageSession?.triage_report_id ?? null
     : null;
   const embeddedVoiceReportSummary = isCompletedVoiceTriageSession
-    ? voiceTriageSession?.latest_response?.summary ?? null
+    ? resolvedVoiceTriageSession?.latest_response?.summary ?? null
     : null;
   const {
     data: fetchedVoiceReport,
@@ -3769,13 +3781,23 @@ export default function SymptomCheckScreen() {
   }, [voiceTriageAnswerMutation]);
 
   useEffect(() => {
-    if (!isCompletedVoiceTriageSession || !voiceTriageSession) return;
-    const outcomeKey = `${voiceTriageSession.conversation_id}:${voiceReportId ?? "no-report"}`;
+    if (!isCompletedVoiceTriageSession || !resolvedVoiceTriageSession) return;
+
+    if (voiceReportSummary) {
+      setSummary((current) => current ?? voiceReportSummary);
+      setReportId((current) => current ?? voiceReportId);
+      setSavedReport((current) => current ?? fetchedVoiceReport ?? null);
+      setReportSaveState(voiceReportId ? "saved" : "error");
+      setStep("report");
+      setTouchAssessmentStage(voiceReportId ? "save_share_summary" : "safest_next_step");
+    }
+
+    const outcomeKey = `${resolvedVoiceTriageSession.conversation_id}:${voiceReportId ?? "no-report"}`;
     if (completedVoiceOutcomeRef.current !== outcomeKey) {
       completedVoiceOutcomeRef.current = outcomeKey;
       markCompleted({
         reason: "voice_triage_completed",
-        referenceId: voiceReportId ?? voiceTriageSession.conversation_id,
+        referenceId: voiceReportId ?? resolvedVoiceTriageSession.conversation_id,
       });
       void queryClient.invalidateQueries({ queryKey: ["/api/reports/triage"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/reports/summary"] });
@@ -3787,7 +3809,15 @@ export default function SymptomCheckScreen() {
     clearSymptomCheckDraft();
     clearVoiceSessionId();
     navigate(`/informes/${encodeURIComponent(voiceReportId)}`, { replace: true });
-  }, [isCompletedVoiceTriageSession, markCompleted, navigate, voiceReportId, voiceTriageSession]);
+  }, [
+    fetchedVoiceReport,
+    isCompletedVoiceTriageSession,
+    markCompleted,
+    navigate,
+    resolvedVoiceTriageSession,
+    voiceReportId,
+    voiceReportSummary,
+  ]);
 
   useEffect(() => {
     const handleScreenSyncRequest = async (event: Event) => {
@@ -3851,6 +3881,7 @@ export default function SymptomCheckScreen() {
     setRefinementStatus({ state: "idle" });
     setChatDraft(null);
     setVoiceTriageSessionId(null);
+    setTerminalVoiceTriageSession(null);
     setVoiceStartPending(false);
     setSymptomInteractionMode("touch");
     voiceTriageAnswerMutation.reset();
@@ -3983,6 +4014,18 @@ export default function SymptomCheckScreen() {
     };
   }, [isFreshStart]);
 
+  useEffect(() => {
+    if (!isFreshStart) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get("fresh") !== "1") return;
+    params.delete("fresh");
+    const search = params.toString();
+    navigate(
+      { pathname: location.pathname, search: search ? `?${search}` : "" },
+      { replace: true, state: location.state },
+    );
+  }, [isFreshStart, location.pathname, location.search, location.state, navigate]);
+
   useEffect(() => () => {
     if (voiceStartResetTimerRef.current !== null) {
       window.clearTimeout(voiceStartResetTimerRef.current);
@@ -4034,6 +4077,7 @@ export default function SymptomCheckScreen() {
     if (isCompletedVoiceTriageSession) {
       clearVoiceSessionId();
       setVoiceTriageSessionId(null);
+      setTerminalVoiceTriageSession(null);
       completedVoiceOutcomeRef.current = null;
     }
     navigate(symptomCheckHealthReturnPath(location.pathname));
@@ -4043,6 +4087,7 @@ export default function SymptomCheckScreen() {
     if (isCompletedVoiceTriageSession) {
       clearVoiceSessionId();
       setVoiceTriageSessionId(null);
+      setTerminalVoiceTriageSession(null);
       completedVoiceOutcomeRef.current = null;
     }
     handleTalkToVyva();
@@ -4320,7 +4365,7 @@ export default function SymptomCheckScreen() {
     ? (voiceReportId ? "saved" : "error")
     : reportSaveState;
   const completedVoiceReportAction = isCompletedVoiceTriageSession
-    ? voiceTriageSession?.latest_response?.action_options?.find((action) => action.kind === "view_report") ?? null
+    ? resolvedVoiceTriageSession?.latest_response?.action_options?.find((action) => action.kind === "view_report") ?? null
     : null;
   const voiceRuntimeStage = activeVoiceTriageSession?.latest_response?.question?.stage;
   const voiceUrgent = activeVoiceTriageSession?.status === "emergency"

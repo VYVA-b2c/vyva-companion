@@ -390,6 +390,68 @@ describe("SymptomCheck intro chips", () => {
     expect(window.sessionStorage.getItem("vyva.voice.sessionId")).toBeNull();
   });
 
+  it("keeps a completed voice report visible when the provider clears the session id", async () => {
+    const { default: SymptomCheckScreen } = await import("./SymptomCheckScreen");
+    apiFetchMock.mockImplementation(async (url: string) => {
+      if (url === "/api/config/features/dr-ai-voice") {
+        return { ok: true, status: 200, json: async () => ({ enabled: true, mode: "active" }) };
+      }
+      if (url === "/api/voice-triage/session/voice-complete-1") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            conversation_id: "voice-complete-1",
+            status: "complete",
+            triage_report_id: "report-voice-1",
+            latest_response: {
+              ok: true,
+              status: "complete",
+              summary: completedVoiceSummary,
+              report: { triage_report_id: "report-voice-1" },
+            },
+          }),
+        };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, queryFn: async () => ({}) },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/dev/home-master/ask-dr-ai?fresh=1&lang=fr"]}>
+          <LocationProbe />
+          <SymptomCheckScreen />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    act(() => {
+      window.sessionStorage.setItem("vyva.voice.sessionId", "voice-complete-1");
+      window.localStorage.setItem("vyva.voice.sessionId", "voice-complete-1");
+      window.dispatchEvent(new CustomEvent("vyva:voice-session-changed"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-path")).toHaveTextContent("/informes/report-voice-1");
+    });
+    expect(screen.getByTestId("symptom-check-report")).toHaveTextContent("Breathing feels different");
+
+    act(() => {
+      window.sessionStorage.removeItem("vyva.voice.sessionId");
+      window.localStorage.removeItem("vyva.voice.sessionId");
+      window.dispatchEvent(new CustomEvent("vyva:voice-session-changed"));
+    });
+
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/informes/report-voice-1");
+    expect(screen.getByTestId("symptom-check-report")).toHaveTextContent("Breathing feels different");
+    expect(screen.queryByTestId("symptom-check-intro")).not.toBeInTheDocument();
+  });
+
   it("leaves emergency voice completion on the emergency panel", async () => {
     await renderVoiceSessionScreen({
       conversation_id: "voice-complete-1",
