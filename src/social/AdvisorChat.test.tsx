@@ -239,6 +239,19 @@ describe("AdvisorChat", () => {
     expect(screen.getByText("Yes. Tell me what you have at home.")).toBeInTheDocument();
   });
 
+  it("prefills a validated starter handoff from Benefits Navigator", () => {
+    queryMock.mockReturnValue({
+      data: { ...noraSession, introRequired: false },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderChat("/social-rooms/experts/nora?starter=Please%20explain%20housing%20benefit");
+
+    expect(screen.getByTestId("input-advisor-message")).toHaveValue("Please explain housing benefit");
+  });
+
   it("renders the backend movement coach with touch routine shortcuts", async () => {
     queryMock.mockReturnValue({
       data: amaraSession,

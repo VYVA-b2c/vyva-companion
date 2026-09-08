@@ -27,6 +27,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TriageScanResult } from "./triageScans.js";
+import type { BenefitsEligibilityRule, BenefitsLocalizedText, BenefitsScreeningAnswers } from "./benefits.js";
 
 const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
   dataType() {
@@ -1360,6 +1361,35 @@ export const advisorUserAgentState = pgTable("advisor_user_agent_state", {
 export const insertAdvisorUserAgentStateSchema = createInsertSchema(advisorUserAgentState).omit({ updated_at: true });
 export type InsertAdvisorUserAgentState = z.infer<typeof insertAdvisorUserAgentStateSchema>;
 export type AdvisorUserAgentStateRow = typeof advisorUserAgentState.$inferSelect;
+
+export const benefitsPrograms = pgTable("benefits_programs", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  country:           text("country").notNull(),
+  region:            text("region"),
+  name:              jsonb("name").$type<BenefitsLocalizedText>().notNull(),
+  description:       jsonb("description").$type<BenefitsLocalizedText>().notNull(),
+  eligibility_rules: jsonb("eligibility_rules").$type<BenefitsEligibilityRule[]>().notNull().default([]),
+  is_active:         boolean("is_active").notNull().default(false),
+}, (t) => [
+  index("benefits_programs_active_country_region_idx").on(t.is_active, t.country, t.region),
+]);
+
+export const insertBenefitsProgramSchema = createInsertSchema(benefitsPrograms).omit({ id: true });
+export type InsertBenefitsProgram = z.infer<typeof insertBenefitsProgramSchema>;
+export type BenefitsProgramRow = typeof benefitsPrograms.$inferSelect;
+
+export const benefitsScreeningResponses = pgTable("benefits_screening_responses", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  user_id:    text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  answers:    jsonb("answers").$type<BenefitsScreeningAnswers>().notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("benefits_screening_responses_user_created_idx").on(t.user_id, t.created_at.desc()),
+]);
+
+export const insertBenefitsScreeningResponseSchema = createInsertSchema(benefitsScreeningResponses).omit({ id: true, created_at: true });
+export type InsertBenefitsScreeningResponse = z.infer<typeof insertBenefitsScreeningResponseSchema>;
+export type BenefitsScreeningResponseRow = typeof benefitsScreeningResponses.$inferSelect;
 
 export const socialConnections = pgTable("social_connections", {
   id:               uuid("id").primaryKey().defaultRandom(),

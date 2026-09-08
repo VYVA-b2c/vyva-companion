@@ -108,6 +108,7 @@ function renderSocialHub() {
         <Route path="/social-rooms/experts" element={<LocationProbe />} />
         <Route path="/social-rooms/share" element={<LocationProbe />} />
         <Route path="/social-rooms/activities" element={<LocationProbe />} />
+        <Route path="/benefits" element={<LocationProbe />} />
         <Route path="/social-rooms/:slug" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -142,11 +143,13 @@ describe("SocialHub home-style layout", () => {
     const primaryCards = screen.getByTestId("social-primary-cards");
     expect(within(primaryCards).getByRole("button", { name: "Make Friends. Find people like me" })).toBeInTheDocument();
     expect(within(primaryCards).getByRole("button", { name: "Ask an Expert. Talk with a VYVA specialist" })).toBeInTheDocument();
+    expect(within(primaryCards).getByRole("button", { name: "My Benefits. You may be owed support" })).toBeInTheDocument();
     expect(within(primaryCards).getByRole("button", { name: "Share Stories. A memory or song" })).toBeInTheDocument();
     expect(within(primaryCards).getByRole("button", { name: "What's On. Movement and clubs" })).toBeInTheDocument();
     expect(within(primaryCards).getAllByRole("button").map((card) => card.getAttribute("data-testid"))).toEqual([
       "card-social-primary-match",
       "card-social-primary-experts",
+      "card-social-primary-benefits",
       "card-social-primary-share",
       "card-social-primary-activities",
     ]);
@@ -195,6 +198,14 @@ describe("SocialHub home-style layout", () => {
     expect(fastHelp).toHaveTextContent("Cook Together");
     expect(fastHelp).toHaveTextContent("Garden Chat");
     expect(screen.getAllByTestId(/^button-social-fast-help-/)).toHaveLength(3);
+  });
+
+  it("opens My Benefits as the structured benefits screener", () => {
+    renderSocialHub();
+
+    fireEvent.click(screen.getByTestId("card-social-primary-benefits"));
+
+    expect(screen.getByTestId("current-route")).toHaveTextContent("/benefits");
   });
 
   it("rotates through the full final Fast help set", () => {
