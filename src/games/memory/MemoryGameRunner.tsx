@@ -2053,20 +2053,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
               </div>
 
               <div className="mt-4 flex flex-col gap-3">
-                <button
-                  onClick={startWordRecallVoice}
-                  disabled={wordRecallListening}
-                  className="flex w-full items-center justify-between rounded-[20px] bg-vyva-purple px-4 py-4 text-left text-white shadow-vyva-card sm:px-5 sm:py-5"
-                >
-                  <div>
-                    <p className="text-[18px] font-semibold sm:text-[20px]">{t("wordRecall.speakWords")}</p>
-                    <p className="mt-1 text-[15px] text-white/85">
-                      {wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWordsHint", "Tap to speak remembered words.")}
-                    </p>
-                  </div>
-                  <Mic size={24} />
-                </button>
-
                 {!wordRecallVoiceSupported && (
                   <div className="rounded-[16px] border border-vyva-border bg-white px-4 py-3 text-[15px] text-vyva-text-2">
                     {t("wordRecall.voiceNotSupported")}
@@ -2079,10 +2065,26 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
                   </div>
                 )}
 
-                <div className="rounded-[18px] border border-vyva-border bg-white p-4 shadow-vyva-card sm:rounded-[20px]">
-                  <div className="flex items-center gap-2 text-vyva-text-1">
-                    <Type size={18} />
-                    <span className="text-[16px] font-semibold">{t("wordRecall.remembered")}</span>
+                <div className="rounded-[18px] border border-vyva-border bg-white p-4 shadow-vyva-card sm:rounded-[20px] sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-vyva-text-1">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#F1E7FF] text-vyva-purple">
+                        <Type size={19} aria-hidden="true" />
+                      </span>
+                      <span className="text-[16px] font-semibold">{t("wordRecall.remembered")}</span>
+                    </div>
+                    {wordRecallVoiceSupported && (
+                      <button
+                        type="button"
+                        onClick={startWordRecallVoice}
+                        disabled={wordRecallListening}
+                        aria-label={wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWords")}
+                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#D8C7F3] bg-[#FAF7FF] px-4 text-[15px] font-semibold text-vyva-purple transition-colors hover:bg-[#F1E7FF] disabled:cursor-wait disabled:opacity-70"
+                      >
+                        <Mic size={18} aria-hidden="true" />
+                        {wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWords")}
+                      </button>
+                    )}
                   </div>
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <input
