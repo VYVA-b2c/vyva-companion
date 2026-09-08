@@ -214,10 +214,11 @@ describe("RelaxBreatheScreen", () => {
       expect.stringContaining("Sleep Soft Breath"),
       undefined,
       expect.objectContaining({
-        agentSlug: "marco-reyes",
-        roomSlug: "evening-wind-down",
+        agentSlug: "breathing-meditation",
         autoStartListening: true,
         dynamicVariables: expect.objectContaining({
+          activity_id: "relax_breathe",
+          activity_playbook_version: "relax_breathe.adaptive.v1",
           app_entrypoint: "relax_breathe_session",
           exercise_slug: "sleep-soft-breath",
           duration_minutes: 5,
@@ -238,8 +239,10 @@ describe("RelaxBreatheScreen", () => {
       expect.stringContaining("Start by asking what the user needs"),
       undefined,
       expect.objectContaining({
+        agentSlug: "breathing-meditation",
         autoStartListening: true,
         dynamicVariables: expect.objectContaining({
+          activity_id: "relax_breathe",
           app_entrypoint: "relax_breathe_intent",
         }),
       }),

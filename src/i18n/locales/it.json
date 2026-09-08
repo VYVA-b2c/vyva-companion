@@ -28,7 +28,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Parametri vitali"
+      "pageTitle": "Parametri vitali",
+      "voiceLabel": "Parla con VYVA",
+      "voiceContext": "Supporto per i parametri vitali. Aiutami a rivedere le misurazioni recenti, capire i cambiamenti rispetto al mio riferimento o aggiungere una nuova misurazione in sicurezza."
     },
     "backToHealth": "Torna a La mia salute",
     "title": "Stato / Parametri vitali",
@@ -90,6 +92,24 @@
     "logSubtitle": "Aggiungi un valore confermato da un dispositivo o da un controllo manuale.",
     "scanTitle": "Scansione parametri",
     "scanSubtitle": "Stima da fotocamera, non una lettura di dispositivo medico",
+    "faceScan": {
+      "kicker": "Controllo con fotocamera",
+      "title": "Scansione del viso",
+      "vitalsTitle": "Frequenza cardiaca e respirazione",
+      "subtitle": "Le stime della fotocamera servono per monitorare le tendenze di benessere e devono sempre essere confermate.",
+      "idle": "Usa la fotocamera frontale per stimare frequenza cardiaca e respirazione.",
+      "camera": "Apertura della fotocamera...",
+      "scanning": "Rimani fermo mentre VYVA esegue una breve scansione del viso.",
+      "reading": "Analisi sicura delle stime...",
+      "confirm": "Conferma prima di salvare.",
+      "reviewNote": "Controlli entrambe le stime prima che vengano salvate.",
+      "notConfigured": "VitalLens non è ancora configurato. Puoi usare la stima locale del telefono.",
+      "failed": "La scansione del viso non è stata completata.",
+      "unsupported": "La fotocamera non è disponibile in questo browser.",
+      "start": "Avvia controllo con fotocamera",
+      "local": "Usa stima del telefono",
+      "saved": "La stima della scansione è stata aggiunta ai parametri."
+    },
     "days": {
       "mon": "L",
       "tue": "M",
@@ -366,11 +386,11 @@
         "openLabel": "Apri benessere"
       },
       "cognitive": {
-        "title": "Il mio cervello",
+        "title": "Potere mentale",
         "subtitle": "Memoria, attenzione e calma",
         "bubble": "Posso aiutarti a mantenere la mente attiva al tuo ritmo.",
-        "micLabel": "Apri Il mio cervello",
-        "openLabel": "Apri Il mio cervello"
+        "micLabel": "Apri Potere mentale",
+        "openLabel": "Apri Potere mentale"
       },
       "social": {
         "title": "La mia comunità",

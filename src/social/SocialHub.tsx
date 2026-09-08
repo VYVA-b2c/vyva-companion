@@ -11,6 +11,7 @@ import {
   MessageCircleHeart,
   Music2,
   Share2,
+  ShieldCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -417,7 +418,7 @@ function FastHelpRoomRow({ room, language, onSelect }: FastHelpRoomRowProps) {
         </span>
         <span className="mt-1 block max-w-[26rem] overflow-hidden break-words font-body text-[14px] font-semibold leading-snug text-vyva-text-2">
           <span className="sm:hidden">{roomCopy.mobileSubtitle}</span>
-          <span className="hidden sm:inline">{roomCopy.subtitle}</span>
+          <span className="sr-only">{roomCopy.subtitle}</span>
         </span>
       </span>
       <span className="hidden shrink-0 items-center gap-1 rounded-full bg-[#FBF7F0] px-3 py-1.5 font-body text-[12px] font-bold text-vyva-text-2 sm:inline-flex">
@@ -712,6 +713,15 @@ const SocialHub = ({ roomsOnly = false }: SocialHubProps) => {
       testId: "card-social-primary-experts",
     },
     {
+      id: "benefits",
+      icon: ShieldCheck,
+      title: t("community.master.cards.benefits", "My Benefits"),
+      detail: t("community.master.cards.benefitsDetail", "You may be owed support"),
+      tone: { iconBg: "#EAF3EE", iconColor: "#0A6B4A", border: "#BFE3D0", surface: "#FFFFFF" },
+      onClick: () => navigate("/benefits"),
+      testId: "card-social-primary-benefits",
+    },
+    {
       id: "share",
       icon: Share2,
       title: t("community.master.cards.share", "Share Stories"),
@@ -834,6 +844,9 @@ const SocialHub = ({ roomsOnly = false }: SocialHubProps) => {
         cardGridTestId="social-primary-cards"
         fastHelpTestId="social-fast-help"
         fastHelpTitle={t("community.master.fastHelpTitle", "Fast help")}
+        heroLayoutVariant="canonicalMenu"
+        cardLayoutVariant="canonicalActionGrid"
+        fastHelpLayoutVariant="canonicalActionGrid"
         hero={{
           icon: MessageCircleHeart,
           eyebrow: t("community.master.heroEyebrow", "Community"),

@@ -169,6 +169,10 @@ type TriageVitalsPrompt = {
   title: string;
   body: string;
   actions: TriageVitalsPromptAction[];
+  deviceAccess: {
+    status: "connected" | "not_connected";
+    actionIds: TriageVitalsPromptAction["id"][];
+  };
 } | null;
 
 type TriageGuidancePlanResponse = TriageGuidancePlan;
@@ -925,9 +929,27 @@ function vitalsAction(
   return { id, label: text(locale, labelEn, labelEs), value: text(locale, valueEn, valueEs), icon, tone };
 }
 
+function connectedVitalActionIds(
+  devices: string | undefined,
+  actions: TriageVitalsPromptAction[],
+): TriageVitalsPromptAction["id"][] {
+  const text = (devices ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!text || /\b(no|without|none)\b.{0,24}\b(device|monitor|watch|sensor)/.test(text)) return [];
+  const patterns: Record<TriageVitalsPromptAction["id"], RegExp> = {
+    oxygen: /\b(oximeter|pulse ox|spo2|oxygen)/,
+    pulse: /\b(smart ?watch|fitbit|garmin|heart rate|pulse|oximeter)/,
+    blood_pressure: /\b(blood pressure|bp monitor|pressure cuff|sphygmomanometer)/,
+    temperature: /\b(thermometer|temperature sensor)/,
+    glucose: /\b(glucose|glucometer|cgm|dexcom|libre)/,
+  };
+  return actions.filter((action) => patterns[action.id].test(text)).map((action) => action.id);
+}
+
 function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undefined, locale: string, healthMemory?: TriageHealthMemory): TriageVitalsPrompt {
   if (stage === "symptom" || stage === "red_flag" || stage === "support" || stage === "complete") return null;
   if (!selectedAnswers(wizard).some((answer) => answer.kind === "red_flag") || selectedSafetyAnswer(wizard)) return null;
+  if (wizard?.declinedScanTypes?.includes("vitals")) return null;
+  if (wizard?.vitalsScanCompleted || Object.values(wizard?.vitals ?? {}).some((value) => typeof value === "number")) return null;
   const symptomId = selectedSymptomId(wizard);
   const risks = profileRiskFlags(healthMemory);
   const answerIds = new Set(selectedAnswers(wizard).map((answer) => answer.id));
@@ -978,10 +1000,20 @@ function vitalsPromptFor(stage: WizardStage, wizard: TriageWizardContext | undef
     .slice(0, 2)
     .map((item) => item.action);
   if (!actions.length) return null;
+  const connectedActionIds = connectedVitalActionIds(healthMemory?.devices, actions);
+  const requestedLabels = actions.map((action) => action.label).join(actions.length > 1 ? " and " : "");
   return {
-    title: text(locale, "If you can, one reading may help", "Si puedes, una medicion puede ayudar"),
-    body: text(locale, "Only do this if it is easy and safe. You can keep answering without it.", "Hazlo solo si es facil y seguro. Puedes seguir respondiendo sin eso."),
+    title: connectedActionIds.length
+      ? text(locale, `VYVA can check your ${requestedLabels}`, `VYVA puede comprobar ${requestedLabels}`)
+      : text(locale, `Can you share your ${requestedLabels}?`, `Puedes compartir ${requestedLabels}?`),
+    body: connectedActionIds.length
+      ? text(locale, "A relevant device is connected. With your permission, VYVA can read its latest available measurement directly.", "Hay un dispositivo relevante conectado. Con tu permiso, VYVA puede leer directamente su ultima medicion disponible.")
+      : text(locale, "If you can safely take this reading, tell VYVA the value to refine your assessment. You can also skip it.", "Si puedes tomar esta medicion de forma segura, indica el valor a VYVA para precisar la evaluacion. Tambien puedes omitirla."),
     actions,
+    deviceAccess: {
+      status: connectedActionIds.length ? "connected" : "not_connected",
+      actionIds: connectedActionIds,
+    },
   };
 }
 
@@ -1192,7 +1224,7 @@ function buildSystemPrompt(
 The app has a deterministic senior triage protocol engine. That protocol is the safety authority. You may enrich wording from MEDISEARCH EVIDENCE CONTEXT, HEALTH MEMORY, and the conversation, but do not downgrade urgency, soften red flags, or override protocol-driven next steps.
 
 IMPORTANT: Respond entirely in ${language}.
-Every user-facing string inside TRIAGE_JSON summary must also be in ${language}, including chiefComplaint, symptoms, nextStepLabel, triageReasons, recommendations, watchSigns, profileConsiderations, vitalsNotes, scanNotes, and disclaimer.
+Every user-facing string inside TRIAGE_JSON summary must also be in ${language}, including chiefComplaint, symptoms, nextStepLabel, triageReasons, recommendations, watchSigns, profileConsiderations, vitalsNotes, scanNotes, interpretation, possiblePatterns, uncertainty, reassessmentWindow, changePlanTriggers, clinicalHandoff, and disclaimer.
 ${genderInstruction(gender)}${vitalsContext}${wizardContextText(wizard, healthMemory)}${healthMemoryText(healthMemory)}${medisearchContextText(medisearchContext)}${triageQuestionMatrixText()}
 
 CONVERSATION FLOW:
@@ -1206,7 +1238,7 @@ CONVERSATION FLOW:
 8. On your FINAL turn, you MUST end your message with this exact JSON block (replace values appropriately):
 
 TRIAGE_JSON_START
-{"done":true,"summary":{"chiefComplaint":"<one-line description>","symptoms":["<symptom 1>","<symptom 2>"],"urgency":"<urgent|routine|monitor>","nextStepLabel":"<plain next step>","nextStepLevel":"<emergency|doctor_today|doctor_24_48|monitor>","triageReasons":["<plain reason 1>","<plain reason 2>"],"recommendations":["<step 1>","<step 2>","<step 3>","<step 4>"],"watchSigns":["<specific sign 1>","<specific sign 2>","<specific sign 3>"],"profileConsiderations":["<profile factor considered, if any>"],"vitalsNotes":["<vitals note, if any>"],"scanNotes":["<optional scan note, if any>"],"disclaimer":"${disclaimerExample}"}}
+{"done":true,"summary":{"chiefComplaint":"<one-line description>","symptoms":["<symptom 1>","<symptom 2>"],"urgency":"<urgent|routine|monitor>","nextStepLabel":"<plain next step>","nextStepLevel":"<emergency|doctor_today|doctor_24_48|monitor>","triageReasons":["<plain reason 1>","<plain reason 2>"],"interpretation":"<what the answers mean without diagnosing>","possiblePatterns":[{"id":"<stable pattern id>","label":"<possible situation>","explanation":"<why it can fit>","supportingAnswers":["<answer that supports it>"],"clarifyingSigns":["<detail that would help distinguish it>"]}],"uncertainty":["<what cannot be determined>"],"recommendations":["<step 1>","<step 2>","<step 3>","<step 4>"],"reassessmentWindow":"<when to reassess>","changePlanTriggers":["<specific trigger>"],"watchSigns":["<specific sign 1>","<specific sign 2>","<specific sign 3>"],"profileConsiderations":["<profile factor considered, if any>"],"vitalsNotes":["<vitals note, if any>"],"scanNotes":["<optional scan note, if any>"],"clinicalHandoff":{"summary":"<outcome for clinician>","keyPoints":["<important answer>"],"questions":["<question for clinician>"]},"disclaimer":"${disclaimerExample}"}}
 TRIAGE_JSON_END
 
 Urgency definitions:
@@ -1224,6 +1256,10 @@ Outcome rules:
 - Include vitalsNotes when a vitals scan exists.
 - Include scanNotes when optional triage scans exist. Urine and stool photos can describe visible appearance only; they cannot diagnose UTI, bleeding, or bowel disease.
 - Optional scan findings may clarify or increase urgency, but must never reduce red flags or delay emergency guidance.
+- Explain what the answers mean, what remains uncertain, when to reassess, and exactly what would change the plan.
+- Possible patterns are possibilities, never diagnoses. The deterministic protocol replaces them with its clinician-reviewable catalogue before display; do not invent a definitive cause.
+- For an emergency outcome, do not discuss possible causes. Focus only on the warning sign and immediate action.
+- Make clinicalHandoff concise and useful for sharing: outcome, key answers, measured vitals, relevant profile factors, and questions a clinician may need to resolve.
 
 STYLE RULES:
 - Write like a calm health form, not a chat conversation

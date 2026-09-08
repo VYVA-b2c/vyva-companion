@@ -11,7 +11,7 @@ vi.mock("@/lib/queryClient", () => ({
 
 const apiFetchMock = vi.mocked(apiFetch);
 
-function latestResponse(recommendedAction: string) {
+function latestResponse(recommendedAction: string, acknowledgedAt?: string) {
   return new Response(JSON.stringify({
     analysis: {
       id: "analysis-1",
@@ -21,6 +21,7 @@ function latestResponse(recommendedAction: string) {
       senior_message: recommendedAction === "urgent_help"
         ? "Your readings need urgent support."
         : "Please speak with your doctor about this reading.",
+      acknowledged_at: acknowledgedAt ?? null,
     },
     recent_readings: [
       {
@@ -49,10 +50,10 @@ function acknowledgeResponse() {
   });
 }
 
-function setupApi(recommendedAction: string) {
+function setupApi(recommendedAction: string, acknowledgedAt?: string) {
   apiFetchMock.mockImplementation(async (url) => {
     if (String(url).includes("/api/vitals-engine/acknowledge")) return acknowledgeResponse();
-    return latestResponse(recommendedAction);
+    return latestResponse(recommendedAction, acknowledgedAt);
   });
 }
 
@@ -66,8 +67,12 @@ function LocationProbe() {
   );
 }
 
-function renderTracker(recommendedAction: string, props: Partial<ComponentProps<typeof VitalsTracker>> = {}) {
-  setupApi(recommendedAction);
+function renderTracker(
+  recommendedAction: string,
+  props: Partial<ComponentProps<typeof VitalsTracker>> = {},
+  acknowledgedAt?: string,
+) {
+  setupApi(recommendedAction, acknowledgedAt);
   return render(
     <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/health/vitals"]}>
       <Routes>
@@ -116,7 +121,14 @@ describe("Vitals safety service actions", () => {
     expect(screen.getByTestId("button-safety-email-gp")).toHaveAttribute("href", expect.stringContaining("mailto:gp@example.com"));
     expect(screen.getByTestId("button-safety-doctor-help")).toBeInTheDocument();
     expect(screen.getByTestId("button-safety-schedule-appointment")).toHaveTextContent("Book appointment");
-    expect(screen.getByTestId("button-safety-book-ride")).toHaveTextContent("Find transport");
+    expect(screen.getByTestId("button-safety-book-ride")).toHaveTextContent("Find specialised transport");
+  });
+
+  it("does not keep an acknowledged safety notice in the main Vitals flow", async () => {
+    renderTracker("contact_doctor", {}, "2026-06-01T10:05:00.000Z");
+
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith("/api/vitals-engine/latest"));
+    expect(screen.queryByTestId("daily-safety-check")).not.toBeInTheDocument();
   });
 
   it("offers doctor setup when GP contact is missing", async () => {

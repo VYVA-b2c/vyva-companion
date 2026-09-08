@@ -7,6 +7,7 @@ import { useHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
 import { useToastSurface } from "@/hooks/useToastSurface";
 
 interface PhoneFrameProps {
+  layout?: "phone" | "page";
   children: ReactNode;
   className?: string;
   subtitle?: string;
@@ -21,6 +22,7 @@ interface PhoneFrameProps {
 }
 
 export function PhoneFrame({
+  layout = "phone",
   children,
   className = "",
   subtitle,
@@ -57,12 +59,12 @@ export function PhoneFrame({
       data-testid="phone-frame"
       data-home-master-profile-frame={isHomeMasterProfilePreview ? "true" : undefined}
       data-home-master-theme={profileTheme}
-      className={`home-master-profile-frame relative mx-auto max-h-[calc(100dvh-1rem)] w-full max-w-[410px] overflow-x-hidden overflow-y-auto rounded-[36px] border shadow-[0_28px_70px_rgba(91,33,182,0.14)] sm:max-w-[620px] md:max-w-[780px] lg:max-w-[920px] ${className}`}
-      style={{ minHeight: 620 }}
+      className={`home-master-profile-frame relative mx-auto w-full ${layout === "page" ? "max-w-[920px]" : "max-h-[calc(100dvh-1rem)] max-w-[410px] overflow-x-hidden overflow-y-auto rounded-[36px] border shadow-[0_28px_70px_rgba(91,33,182,0.14)] sm:max-w-[620px] md:max-w-[780px] lg:max-w-[920px]"} ${className}`}
+      style={layout === "page" ? undefined : { minHeight: 620 }}
     >
-      <div className="home-master-profile-top-gradient pointer-events-none absolute inset-x-0 top-0 h-[150px]" />
+      {layout === "phone" ? <div className="home-master-profile-top-gradient pointer-events-none absolute inset-x-0 top-0 h-[150px]" /> : null}
       <div className="relative px-5 pt-4 pb-5 sm:px-7 md:px-8 md:pb-8">
-        <div className="home-master-profile-handle mx-auto h-1.5 w-[72px] rounded-full" />
+        {layout === "phone" ? <div className="home-master-profile-handle mx-auto h-1.5 w-[72px] rounded-full" /> : null}
 
         {hasTopBar ? (
           <div className="mt-5 flex items-center gap-3">
@@ -70,6 +72,7 @@ export function PhoneFrame({
               <button
                 type="button"
                 onClick={handleBack}
+                aria-label={t("common.back", "Back")}
                 data-testid="button-phone-frame-back"
                 className="home-master-profile-control inline-flex h-11 w-11 items-center justify-center rounded-full border text-vyva-purple shadow-[0_8px_18px_rgba(91,33,182,0.12)]"
               >
@@ -81,7 +84,7 @@ export function PhoneFrame({
 
             <div className="min-w-0 flex-1 text-center">
               {subtitle ? (
-                <p className="home-master-profile-subtitle truncate font-body text-[17px] font-extrabold">{subtitle}</p>
+                layout === "page" ? <h1 className="home-master-profile-subtitle font-body text-[24px] font-bold leading-tight break-words">{subtitle}</h1> : <p className="home-master-profile-subtitle truncate font-body text-[17px] font-extrabold">{subtitle}</p>
               ) : null}
             </div>
 
@@ -116,6 +119,7 @@ export function PhoneFrame({
 
         {shouldShowCompanionMode ? (
           <OnboardingCompanionModeChip
+            compact={layout === "page"}
             compactLabel={t("profile.overview.companionMode.compactLabel", "VYVA mode")}
             voiceLabel={t("profile.overview.companionMode.voiceLabel", "Voice")}
             voiceDescription={t(

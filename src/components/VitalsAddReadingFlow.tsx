@@ -1,19 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  ArrowDown,
+  ArrowUp,
   Bluetooth,
   Camera,
   Check,
   ChevronRight,
+  Droplet,
   FileImage,
   HeartPulse,
   Keyboard,
   Loader2,
   Mic,
+  Moon,
+  Pill,
   RefreshCw,
+  Scale,
   ShieldCheck,
+  Smile,
+  Thermometer,
+  Wind,
+  Zap,
 } from "lucide-react";
 import { apiFetch } from "@/lib/queryClient";
+import VitalLensFaceScan from "@/components/VitalLensFaceScan";
 import VitalsScan from "@/components/VitalsScan";
 import { VyvaIcon, type VyvaIconAccent } from "@/components/brand/VyvaIcon";
 import { useHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
@@ -28,6 +39,7 @@ import {
 } from "../../shared/vitalsSignalCatalog";
 import { compatibleCaptureMethods, type VitalsMeasurementEnvelope } from "../../shared/vitalsAcquisition";
 import { formatVitalsReadingDisplay, type ProposedVitalsReading, type VitalsParsingResult } from "../../shared/vitalsParsing";
+import type { VitalsVoiceFlowState, VitalsVoiceScanStatus, VitalsVoiceStage } from "@/lib/vitalsVoiceContext";
 
 const GROUP_ORDER: VitalsDisplayGroup[] = ["heart", "breathing", "blood", "body", "wellbeing", "activity", "labs"];
 const GROUP_LABELS: Record<VitalsDisplayGroup, string> = {
@@ -65,8 +77,8 @@ const FRENCH_GROUP_LABELS: Record<VitalsDisplayGroup, string> = {
 const FRENCH_SIGNAL_LABELS: Partial<Record<VitalsSignalKey, string>> = {
   resting_hr_bpm: "Pouls",
   respiratory_rate: "Fréquence respiratoire",
-  bp_systolic: "Tension artérielle — chiffre supérieur",
-  bp_diastolic: "Tension artérielle — chiffre inférieur",
+  bp_systolic: "Tension systolique",
+  bp_diastolic: "Tension diastolique",
   oxygen_saturation: "Saturation en oxygène",
   temperature_c: "Température",
   glucose_mgdl: "Glycémie",
@@ -77,6 +89,84 @@ const FRENCH_SIGNAL_LABELS: Partial<Record<VitalsSignalKey, string>> = {
   sleep_quality_score: "Sommeil",
   medication_confirmed: "Médicament pris",
 };
+
+const SIGNAL_PICKER_ICONS: Partial<Record<VitalsSignalKey, typeof Activity>> = {
+  resting_hr_bpm: HeartPulse,
+  respiratory_rate: Wind,
+  bp_systolic: ArrowUp,
+  bp_diastolic: ArrowDown,
+  oxygen_saturation: Droplet,
+  temperature_c: Thermometer,
+  glucose_mgdl: Droplet,
+  weight_kg: Scale,
+  pain_score: Activity,
+  mood_score: Smile,
+  energy_level: Zap,
+  sleep_quality_score: Moon,
+  medication_confirmed: Pill,
+};
+
+const SIGNAL_PICKER_ACCENTS: Partial<Record<VitalsSignalKey, VyvaIconAccent>> = {
+  resting_hr_bpm: "pulse",
+  respiratory_rate: "signal",
+  bp_systolic: "trend",
+  bp_diastolic: "trend",
+  oxygen_saturation: "dot",
+  temperature_c: "dot",
+  glucose_mgdl: "dot",
+  weight_kg: "dot",
+  pain_score: "pulse",
+  mood_score: "smile",
+  energy_level: "spark",
+  sleep_quality_score: "spark",
+  medication_confirmed: "check",
+};
+
+const BLOOD_PRESSURE_PICKER_LABELS: Record<VitalsFlowLanguage, string> = {
+  en: "Blood pressure",
+  fr: "Tension artérielle",
+  es: "Tensión arterial",
+  de: "Blutdruck",
+  it: "Pressione arteriosa",
+  pt: "Pressão arterial",
+};
+
+const CAMERA_RESULT_TITLES: Record<VitalsFlowLanguage, string> = {
+  en: "Heart rate & breathing",
+  fr: "Pouls et respiration",
+  es: "Frecuencia cardíaca y respiración",
+  de: "Herzfrequenz und Atmung",
+  it: "Frequenza cardiaca e respirazione",
+  pt: "Frequência cardíaca e respiração",
+};
+
+const BLOOD_PRESSURE_ACCESSIBLE_LABELS: Record<
+  VitalsFlowLanguage,
+  { systolic: string; diastolic: string }
+> = {
+  en: { systolic: "Systolic blood pressure", diastolic: "Diastolic blood pressure" },
+  fr: { systolic: "Tension artérielle systolique", diastolic: "Tension artérielle diastolique" },
+  es: { systolic: "Presión arterial sistólica", diastolic: "Presión arterial diastólica" },
+  de: { systolic: "Systolischer Blutdruck", diastolic: "Diastolischer Blutdruck" },
+  it: { systolic: "Pressione arteriosa sistolica", diastolic: "Pressione arteriosa diastolica" },
+  pt: { systolic: "Pressão arterial sistólica", diastolic: "Pressão arterial diastólica" },
+};
+
+function pickerSignalLabel(signal: VitalsSignalKey, language: VitalsFlowLanguage) {
+  if (signal === "bp_systolic" || signal === "bp_diastolic") {
+    return BLOOD_PRESSURE_PICKER_LABELS[language];
+  }
+  if (language === "fr") {
+    return FRENCH_SIGNAL_LABELS[signal] ?? VITALS_SIGNAL_CATALOG[signal].label;
+  }
+  return VITALS_SIGNAL_CATALOG[signal].label;
+}
+
+function pickerSignalAccessibleLabel(signal: VitalsSignalKey, language: VitalsFlowLanguage) {
+  if (signal === "bp_systolic") return BLOOD_PRESSURE_ACCESSIBLE_LABELS[language].systolic;
+  if (signal === "bp_diastolic") return BLOOD_PRESSURE_ACCESSIBLE_LABELS[language].diastolic;
+  return pickerSignalLabel(signal, language);
+}
 
 const FRENCH_METHOD_DETAILS: Record<VitalsCaptureMethod, { label: string; hint: string }> = {
   web_bluetooth: { label: "Appareil Bluetooth", hint: "Lire directement un appareil compatible à proximité" },
@@ -218,8 +308,6 @@ export type VitalsAcquisitionContext = {
   }>;
 };
 
-type Stage = "vital" | "tracked" | "method" | "capture" | "confirm";
-
 type SpeechRecognitionEventLike = {
   results?: ArrayLike<ArrayLike<{ transcript?: string }>>;
 };
@@ -287,6 +375,7 @@ export default function VitalsAddReadingFlow({
   previewContext,
   initialSignal,
   onBackActionChange,
+  onVoiceStateChange,
   language = "en",
 }: {
   onBack: () => void;
@@ -295,12 +384,13 @@ export default function VitalsAddReadingFlow({
   previewContext?: VitalsAcquisitionContext | null;
   initialSignal?: VitalsSignalKey | null;
   onBackActionChange?: (handler: (() => void) | null) => void;
+  onVoiceStateChange?: (state: VitalsVoiceFlowState) => void;
   language?: VitalsFlowLanguage;
 }) {
   const { isDark } = useHomeMasterTheme();
   const isFrench = language === "fr";
   const flowCopy = isFrench ? FLOW_COPY.fr : FLOW_COPY.en;
-  const [stage, setStage] = useState<Stage>("vital");
+  const [stage, setStage] = useState<VitalsVoiceStage>("vital");
   const [context, setContext] = useState<VitalsAcquisitionContext | null>(previewContext ?? null);
   const [selectedSignal, setSelectedSignal] = useState<VitalsSignalKey | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<VitalsCaptureMethod | null>(null);
@@ -310,6 +400,8 @@ export default function VitalsAddReadingFlow({
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
+  const [useLocalCameraEstimate, setUseLocalCameraEstimate] = useState(false);
+  const [vitalLensStatus, setVitalLensStatus] = useState<VitalsVoiceScanStatus>("idle");
 
   const activeSignals = useMemo(
     () => VITALS_SIGNAL_KEYS.filter((key) => !VITALS_SIGNAL_CATALOG[key].futureReady),
@@ -358,6 +450,8 @@ export default function VitalsAddReadingFlow({
     setInputText("");
     setProposed([]);
     setError("");
+    setUseLocalCameraEstimate(false);
+    setVitalLensStatus("idle");
     const tracked = context?.signals.find((item) => item.signal_type === signal)?.current_reading;
     setStage(tracked && (tracked.source === "connected_device" || tracked.source === "clinical") ? "tracked" : "method");
   }, [context]);
@@ -371,6 +465,8 @@ export default function VitalsAddReadingFlow({
     setSelectedMethod(method);
     setProposed([]);
     setError("");
+    setUseLocalCameraEstimate(false);
+    setVitalLensStatus("idle");
     setStage("capture");
     if (method === "web_bluetooth") void startBluetooth();
   };
@@ -515,6 +611,8 @@ export default function VitalsAddReadingFlow({
     setInputText("");
     setProposed([]);
     setError("");
+    setUseLocalCameraEstimate(false);
+    setVitalLensStatus("idle");
   }, []);
 
   const back = useCallback(() => {
@@ -538,14 +636,40 @@ export default function VitalsAddReadingFlow({
   const selectedLabel = selectedSignal && isFrench
     ? FRENCH_SIGNAL_LABELS[selectedSignal] ?? selectedMeta?.label
     : selectedMeta?.label;
+  const headingLabel = selectedMethod === "phone_camera" && proposed.length > 1
+    ? CAMERA_RESULT_TITLES[language]
+    : selectedLabel;
   const configuredBluetoothDevice = configuredDeviceForSignal(context, selectedSignal);
+  const voicePendingReadings = useMemo(() => proposed.map((reading) => ({
+    signal: reading.signal_type,
+    value: reading.value,
+    unit: reading.unit ?? null,
+    source: reading.source ?? null,
+    confidence: reading.confidence ?? null,
+  })), [proposed]);
+  const voiceScanStatus: VitalsVoiceScanStatus | null = selectedMethod === "phone_camera"
+    ? useLocalCameraEstimate ? "local_estimate" : vitalLensStatus
+    : null;
+
+  useEffect(() => {
+    onVoiceStateChange?.({
+      stage,
+      selectedSignal,
+      selectedSignalLabel: selectedLabel ?? null,
+      captureMethod: selectedMethod,
+      scanStatus: voiceScanStatus,
+      pendingReadings: voicePendingReadings,
+      busy,
+      listening,
+    });
+  }, [busy, listening, onVoiceStateChange, selectedLabel, selectedMethod, selectedSignal, stage, voicePendingReadings, voiceScanStatus]);
 
   return (
     <section className={`-mx-2 w-[calc(100%+1rem)] sm:mx-0 sm:w-auto sm:rounded-[30px] sm:border sm:p-5 ${isDark ? "text-[#FFF8FF] sm:border-white/[0.14] sm:bg-[#2B2035] sm:shadow-[0_22px_48px_rgba(0,0,0,0.22)]" : "text-[#241238] sm:border-[#E6DCEB] sm:bg-[#FFFCF8] sm:shadow-[0_16px_40px_rgba(63,45,75,0.08)]"}`} data-testid="vitals-add-flow">
       <header className="mb-4 px-1 sm:mb-6 sm:px-0">
         <p className={`font-body text-[11px] font-black uppercase tracking-[0.12em] ${isDark ? "text-[#C4A7FF]" : "text-[#7024C4]"}`}>{flowCopy.addReading}</p>
         <h2 className={`mt-1 max-w-[310px] font-body text-[27px] font-extrabold leading-[1.08] tracking-[-0.025em] sm:max-w-none sm:text-[31px] ${isDark ? "text-[#FFF8FF]" : "text-[#241238]"}`}>
-          {stage === "vital" ? flowCopy.pickerTitle : selectedLabel}
+          {stage === "vital" ? flowCopy.pickerTitle : headingLabel}
         </h2>
       </header>
 
@@ -560,12 +684,22 @@ export default function VitalsAddReadingFlow({
                 <div className={`grid grid-cols-1 divide-y overflow-hidden rounded-[20px] border sm:grid-cols-2 sm:gap-2 sm:divide-y-0 sm:overflow-visible sm:rounded-none sm:border-0 ${isDark ? "divide-white/[0.1] border-white/[0.12] bg-[#2B2035]" : "divide-[#EEE5F2] border-[#E5D9EA] bg-white"}`}>
                   {signals.map((signal, index) => {
                     const meta = VITALS_SIGNAL_CATALOG[signal];
+                    const SignalIcon = SIGNAL_PICKER_ICONS[signal] ?? Activity;
                     const balancesOddGroup = signals.length % 2 === 1 && index === 0;
                     return (
-                      <button key={signal} type="button" onClick={() => chooseSignal(signal)} className={`flex min-h-[60px] items-center gap-3 px-3 text-left transition-colors sm:min-h-[66px] sm:rounded-[20px] sm:border sm:px-4 ${balancesOddGroup ? "sm:col-span-2" : ""} ${isDark ? "hover:bg-white/[0.04] sm:border-white/[0.13] sm:bg-[#352842] sm:shadow-[0_7px_20px_rgba(0,0,0,0.14)]" : "hover:bg-[#FCF9FD] sm:border-[#E7DDF0] sm:bg-white sm:shadow-[0_5px_16px_rgba(53,28,87,0.04)]"}`} data-testid={`button-vital-${signal}`}>
-                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[13px] sm:h-10 sm:w-10 sm:rounded-[14px] ${isDark ? "bg-[#49355E]" : "bg-[#F3E8FF]"}`}><VyvaIcon icon={HeartPulse} accent="pulse" size={20} /></span>
+                      <button
+                        key={signal}
+                        type="button"
+                        aria-label={`${pickerSignalAccessibleLabel(signal, language)} ${meta.unit || flowCopy.yesNo}`}
+                        onClick={() => chooseSignal(signal)}
+                        className={`flex min-h-[58px] items-center gap-3 px-3 text-left transition-colors sm:min-h-[66px] sm:rounded-[20px] sm:border sm:px-4 ${balancesOddGroup ? "sm:col-span-2" : ""} ${isDark ? "hover:bg-white/[0.04] sm:border-white/[0.13] sm:bg-[#352842] sm:shadow-[0_7px_20px_rgba(0,0,0,0.14)]" : "hover:bg-[#FCF9FD] sm:border-[#E7DDF0] sm:bg-white sm:shadow-[0_5px_16px_rgba(53,28,87,0.04)]"}`}
+                        data-testid={`button-vital-${signal}`}
+                      >
+                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[13px] sm:h-10 sm:w-10 sm:rounded-[14px] ${isDark ? "bg-[#49355E]" : "bg-[#F3E8FF]"}`}>
+                          <VyvaIcon icon={SignalIcon} accent={SIGNAL_PICKER_ACCENTS[signal] ?? "dot"} size={20} />
+                        </span>
                         <span className="min-w-0 flex-1">
-                          <span className={`block font-body text-[15px] font-black leading-tight sm:text-[16px] ${isDark ? "text-[#FFF8FF]" : "text-[#27152F]"}`}>{isFrench ? FRENCH_SIGNAL_LABELS[signal] ?? meta.label : meta.label}</span>
+                          <span className={`block font-body text-[15px] font-black leading-tight sm:text-[16px] ${isDark ? "text-[#FFF8FF]" : "text-[#27152F]"}`}>{pickerSignalLabel(signal, language)}</span>
                           <span className={`block font-body text-[12px] font-bold ${isDark ? "text-[#C9BDD6]" : "text-[#7A6A80]"}`}>{meta.unit || flowCopy.yesNo}</span>
                         </span>
                         <ChevronRight className={`h-5 w-5 ${isDark ? "text-[#C4A7FF]" : "text-[#A78BBA]"}`} />
@@ -607,7 +741,7 @@ export default function VitalsAddReadingFlow({
                   <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] sm:h-12 sm:w-12 sm:rounded-[16px] ${isDark ? "bg-[#49355E]" : "bg-[#F3E8FF]"}`}><VyvaIcon icon={Icon} accent={METHOD_ACCENTS[method]} size={23} /></span>
                   <span className="min-w-0">
                     <span className={`block font-body text-[16px] font-black ${isDark ? "text-[#FFF8FF]" : "text-[#27152F]"}`}>{methodCopy.label}</span>
-                    <span className={`mt-1 block font-body text-[12px] font-bold leading-snug ${isDark ? "text-[#C9BDD6]" : "text-[#7A6A80]"}`}>{methodCopy.hint}</span>
+                    <span className="sr-only">{methodCopy.hint}</span>
                   </span>
                 </button>
               );
@@ -617,18 +751,32 @@ export default function VitalsAddReadingFlow({
       ) : null}
 
       {stage === "capture" && selectedMethod === "phone_camera" && selectedSignal ? (
-        <div className={`overflow-hidden rounded-[24px] border p-3 ${isDark ? "border-white/[0.13] bg-[#352842]" : "border-[#E0D1EC] bg-white"}`}>
+        <div className="space-y-3">
           <p className="mb-3 rounded-[16px] bg-[#FFF7ED] px-4 py-3 font-body text-[13px] font-bold text-[#92400E]">{flowCopy.phoneWarning}</p>
-          <VitalsScan
-            saveReading={false}
-            onComplete={(bpm, respiratoryRate) => {
-              const now = new Date().toISOString();
-              const rows: ProposedVitalsReading[] = [];
-              if (selectedSignal === "resting_hr_bpm" && bpm != null) rows.push({ signal_type: selectedSignal, value: bpm, unit: "bpm", context_tag: "resting", recorded_at: now, source: "phone_estimate", capture_method: "phone_camera", confidence: "low", explanation: flowCopy.phoneEstimate });
-              if (selectedSignal === "respiratory_rate" && respiratoryRate != null) rows.push({ signal_type: selectedSignal, value: respiratoryRate, unit: "/min", context_tag: "resting", recorded_at: now, source: "phone_estimate", capture_method: "phone_camera", confidence: "low", explanation: flowCopy.phoneEstimate });
-              if (rows.length) { setProposed(rows); setStage("confirm"); }
-            }}
-          />
+          {useLocalCameraEstimate ? (
+            <div className={`overflow-hidden rounded-[24px] border p-3 ${isDark ? "border-white/[0.13] bg-[#352842]" : "border-[#E0D1EC] bg-white"}`} data-testid="local-camera-estimate">
+              <VitalsScan
+                saveReading={false}
+                onComplete={(bpm, respiratoryRate) => {
+                  const now = new Date().toISOString();
+                  const rows: ProposedVitalsReading[] = [];
+                  if (selectedSignal === "resting_hr_bpm" && bpm != null) rows.push({ signal_type: selectedSignal, value: bpm, unit: "bpm", context_tag: "resting", recorded_at: now, source: "phone_estimate", capture_method: "phone_camera", confidence: "low", explanation: flowCopy.phoneEstimate });
+                  if (selectedSignal === "respiratory_rate" && respiratoryRate != null) rows.push({ signal_type: selectedSignal, value: respiratoryRate, unit: "/min", context_tag: "resting", recorded_at: now, source: "phone_estimate", capture_method: "phone_camera", confidence: "low", explanation: flowCopy.phoneEstimate });
+                  if (rows.length) { setProposed(rows); setStage("confirm"); }
+                }}
+              />
+            </div>
+          ) : (
+            <VitalLensFaceScan
+              onReadings={(readings) => {
+                setProposed(readings);
+                setVitalLensStatus("complete");
+                setStage("confirm");
+              }}
+              onLocalFallback={() => setUseLocalCameraEstimate(true)}
+              onStatusChange={setVitalLensStatus}
+            />
+          )}
         </div>
       ) : null}
 

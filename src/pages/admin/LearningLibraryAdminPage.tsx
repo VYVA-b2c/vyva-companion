@@ -954,7 +954,7 @@ export default function LearningLibraryAdminPage() {
                           data-testid={`admin-learning-coverage-cell-${row.category.slug}-${language}`}
                         >
                           <p className="text-sm font-black">{counts.published > 0 ? `${counts.published} live` : "0 live"}</p>
-                          <p className="mt-0.5 text-xs font-bold opacity-80">{detail}</p>
+                          <p className="sr-only">{detail}</p>
                         </button>
                       );
                     })}

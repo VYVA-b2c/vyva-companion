@@ -49,6 +49,8 @@ type RefillMedicine = {
   strength: string | null;
   doseUnit: string | null;
   unitsPerDose: number | null;
+  inventoryUnit: string | null;
+  inventoryUnitsPerDose: number | null;
   dailyFrequency: number | null;
   refillAlertDays: number;
   inventoryTrackingEnabled: boolean;
@@ -74,13 +76,22 @@ type UpdateDraft = {
   medicineId: string;
   quantity: string;
   doseUnit: string;
+  inventoryUnit: string;
   occurredOn: string;
   unitsPerDose: string;
+  inventoryUnitsPerDose: string;
   dailyFrequency: string;
   refillAlertDays: string;
   mode: "purchase" | "stock_count";
   source: "manual" | "photo";
   extractionConfidence?: "high" | "medium" | "low";
+  extractionNeedsReview?: boolean;
+  packageCount?: number | null;
+  unitsPerPackage?: number | null;
+  inventoryEvidenceText?: string | null;
+  contentAmountPerUnit?: number | null;
+  contentUnit?: string | null;
+  contentEvidenceText?: string | null;
   warnings?: string[];
 };
 
@@ -91,10 +102,17 @@ type PhotoExtractResponse = {
     packageCount: number | null;
     unitsPerPackage: number | null;
     totalQuantity: number | null;
+    inventoryQuantity: number | null;
+    inventoryUnit: string | null;
+    inventoryEvidenceText: string | null;
+    contentAmountPerUnit: number | null;
+    contentUnit: string | null;
+    contentEvidenceText: string | null;
     doseUnit: string;
     purchasedOn: string | null;
   };
   confidence: "high" | "medium" | "low";
+  needsReview: boolean;
   warnings: string[];
   imageRetained: false;
 };
@@ -117,6 +135,17 @@ function formatDate(value: string | null) {
 
 function pluralUnit(quantity: number | null, unit: string | null) {
   const clean = unit?.trim() || "unit";
+  const labels: Record<string, [string, string]> = {
+    tablet: ["tablet", "tablets"],
+    capsule: ["capsule", "capsules"],
+    single_dose_container: ["single-dose container", "single-dose containers"],
+    bottle: ["bottle", "bottles"],
+    sachet: ["sachet", "sachets"],
+    patch: ["patch", "patches"],
+    dose: ["dose", "doses"],
+    ml: ["ml", "ml"],
+  };
+  if (labels[clean]) return quantity === 1 ? labels[clean][0] : labels[clean][1];
   if (quantity === 1 || clean.endsWith("s")) return clean;
   return `${clean}s`;
 }
@@ -140,8 +169,10 @@ function makeDraft(medicine: RefillMedicine, source: "manual" | "photo" = "manua
     medicineId: medicine.medicineId,
     quantity: "",
     doseUnit: medicine.doseUnit || "tablet",
+    inventoryUnit: medicine.inventoryUnit || medicine.doseUnit || "tablet",
     occurredOn: todayKey(),
     unitsPerDose: String(medicine.unitsPerDose ?? 1),
+    inventoryUnitsPerDose: String(medicine.inventoryUnitsPerDose ?? medicine.unitsPerDose ?? 1),
     dailyFrequency: String(medicine.dailyFrequency ?? 1),
     refillAlertDays: String(medicine.refillAlertDays || 7),
     mode: "purchase",
@@ -152,7 +183,7 @@ function makeDraft(medicine: RefillMedicine, source: "manual" | "photo" = "manua
 function draftRunOutDate(draft: UpdateDraft) {
   if (!draft.quantity.trim()) return null;
   const quantity = Number(draft.quantity);
-  const dailyUse = Number(draft.unitsPerDose) * Number(draft.dailyFrequency);
+  const dailyUse = Number(draft.inventoryUnitsPerDose) * Number(draft.dailyFrequency);
   if (!Number.isFinite(quantity) || !Number.isFinite(dailyUse) || dailyUse <= 0 || !draft.occurredOn) return null;
   const coverageDays = Math.max(0, Math.floor(quantity / dailyUse));
   const projected = new Date(`${draft.occurredOn}T12:00:00Z`);
@@ -204,8 +235,10 @@ export default function MedicationRefillsScreen() {
         body: JSON.stringify({
           quantity: Number(input.quantity),
           doseUnit: input.doseUnit.trim(),
+          inventoryUnit: input.inventoryUnit.trim(),
           occurredOn: input.occurredOn,
           unitsPerDose: Number(input.unitsPerDose),
+          inventoryUnitsPerDose: Number(input.inventoryUnitsPerDose),
           dailyFrequency: Number(input.dailyFrequency),
           refillAlertDays: Number(input.refillAlertDays),
           source: input.source,
@@ -254,7 +287,7 @@ export default function MedicationRefillsScreen() {
     try {
       const response = await apiFetch(`${queryUrl}/photo-extract`, {
         method: "POST",
-        body: JSON.stringify({ image: prepared.dataUrl, language: navigator.language || "en" }),
+        body: JSON.stringify({ image: prepared.dataUrl, language: navigator.language || "en", medicineId: selectedMedicine?.medicineId }),
       });
       const result = await response.json() as PhotoExtractResponse & { error?: string };
       if (!response.ok) throw new Error(result.error || "VYVA could not read the label.");
@@ -263,10 +296,17 @@ export default function MedicationRefillsScreen() {
       setSelectedId(matched.medicineId);
       setDraft({
         ...makeDraft(matched, "photo"),
-        quantity: result.draft.totalQuantity === null ? "" : String(result.draft.totalQuantity),
-        doseUnit: result.draft.doseUnit || matched.doseUnit || "tablet",
+        quantity: result.draft.inventoryQuantity === null ? "" : String(result.draft.inventoryQuantity),
+        inventoryUnit: result.draft.inventoryUnit || matched.inventoryUnit || matched.doseUnit || "",
         occurredOn: result.draft.purchasedOn || todayKey(),
         extractionConfidence: result.confidence,
+        extractionNeedsReview: result.needsReview,
+        packageCount: result.draft.packageCount,
+        unitsPerPackage: result.draft.unitsPerPackage,
+        inventoryEvidenceText: result.draft.inventoryEvidenceText,
+        contentAmountPerUnit: result.draft.contentAmountPerUnit,
+        contentUnit: result.draft.contentUnit,
+        contentEvidenceText: result.draft.contentEvidenceText,
         warnings: result.warnings,
       });
       setEvidence(null);
@@ -281,8 +321,8 @@ export default function MedicationRefillsScreen() {
 
   const validateAndSave = () => {
     if (!draft) return;
-    if (!draft.quantity || Number(draft.quantity) < 0 || !draft.doseUnit.trim() || Number(draft.unitsPerDose) <= 0 || Number(draft.dailyFrequency) <= 0) {
-      setSaveError("Please confirm the quantity, unit, dose amount, and daily frequency.");
+    if (!draft.quantity || Number(draft.quantity) < 0 || !draft.inventoryUnit.trim() || !draft.doseUnit.trim() || Number(draft.unitsPerDose) <= 0 || Number(draft.inventoryUnitsPerDose) <= 0 || Number(draft.dailyFrequency) <= 0) {
+      setSaveError("Please confirm the quantity, stock unit, dose routine, and stock used each time.");
       return;
     }
     saveMutation.mutate(draft);
@@ -345,7 +385,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={Camera} tone="purple" goldAccent="spark" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[18px] font-black text-vyva-text-1">Take or upload a photo</span>
-              <span className="mt-1 block font-body text-[13px] font-semibold text-vyva-text-2">Show the full label and package quantity.</span>
+              <span className="sr-only">Show the full label and package quantity.</span>
             </span>
             <ChevronRight size={21} className="text-vyva-purple" aria-hidden="true" />
           </button>
@@ -355,7 +395,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={Keyboard} tone="purple" goldAccent="pencil" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[18px] font-black text-vyva-text-1">Enter it myself</span>
-              <span className="mt-1 block font-body text-[13px] font-semibold text-vyva-text-2">Add a purchase and confirm the daily routine.</span>
+              <span className="sr-only">Add a purchase and confirm the daily routine.</span>
             </span>
             <ChevronRight size={21} className="text-vyva-purple" aria-hidden="true" />
           </button>
@@ -364,7 +404,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={PackageOpen} tone="gold" goldAccent="target" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[16px] font-black text-vyva-text-1">Count what I have now</span>
-              <span className="mt-1 block font-body text-[12px] font-semibold text-vyva-text-2">Reset the estimate from today’s actual stock.</span>
+              <span className="sr-only">Reset the estimate from today’s actual stock.</span>
             </span>
           </button>
           {captureError ? <p role="alert" className="rounded-[16px] border border-[#F3D1CC] bg-[#FFF5F4] p-3 font-body text-[13px] font-bold text-[#9B2C21]">{captureError}</p> : null}
@@ -384,9 +424,16 @@ export default function MedicationRefillsScreen() {
 
           <div className="space-y-4 p-5">
             {draft.source === "photo" ? (
-              <div className={`rounded-[16px] border p-3 ${draft.extractionConfidence === "low" ? "border-[#F5D18A] bg-[#FFF9EA]" : "border-[#CDEAE5] bg-[#F2FBF9]"}`}>
-                <p className="font-body text-[13px] font-black text-vyva-text-1">VYVA prepared a {draft.extractionConfidence || "low"}-confidence draft</p>
+              <div className={`rounded-[16px] border p-3 ${draft.extractionNeedsReview ? "border-[#F5D18A] bg-[#FFF9EA]" : "border-[#CDEAE5] bg-[#F2FBF9]"}`}>
+                <p className="font-body text-[13px] font-black text-vyva-text-1">{draft.extractionNeedsReview ? "Package details need your review" : "VYVA found clear package details"}</p>
                 <p className="mt-1 font-body text-[12px] font-semibold text-vyva-text-2">Check every field. The photo has been discarded and nothing has been saved yet.</p>
+                {draft.inventoryEvidenceText ? (
+                  <div className="mt-3 rounded-[13px] border border-white/80 bg-white/80 px-3 py-2.5" data-testid="refill-inventory-evidence">
+                    <p className="font-body text-[11px] font-black uppercase tracking-[0.06em] text-[#8A5C08]">What the package says</p>
+                    <p className="mt-1 font-body text-[15px] font-black text-vyva-text-1">“{draft.inventoryEvidenceText}”</p>
+                    {draft.contentAmountPerUnit && draft.contentUnit ? <p className="mt-1 font-body text-[12px] font-semibold text-vyva-text-2">Package content: {draft.contentAmountPerUnit} {draft.contentUnit} per unit. This is not used as the refill count.</p> : null}
+                  </div>
+                ) : null}
                 {draft.warnings?.length ? <ul className="mt-2 list-disc pl-5 font-body text-[12px] font-semibold text-[#8A5C08]">{draft.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : null}
               </div>
             ) : null}
@@ -398,8 +445,8 @@ export default function MedicationRefillsScreen() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="font-body text-[13px] font-black text-vyva-text-1">Unit</span>
-                <input value={draft.doseUnit} onChange={(event) => setDraft({ ...draft, doseUnit: event.target.value })} className="mt-2 min-h-[54px] w-full rounded-[16px] border border-[#DCCFE4] bg-[#FFFCFA] px-4 font-body text-[16px] font-bold text-vyva-text-1 outline-none focus:border-vyva-purple" data-testid="input-refill-unit" />
+                <span className="font-body text-[13px] font-black text-vyva-text-1">Stock unit</span>
+                <input value={draft.inventoryUnit} onChange={(event) => setDraft({ ...draft, inventoryUnit: event.target.value })} placeholder="e.g. single-dose container" className="mt-2 min-h-[54px] w-full rounded-[16px] border border-[#DCCFE4] bg-[#FFFCFA] px-4 font-body text-[16px] font-bold text-vyva-text-1 outline-none focus:border-vyva-purple" data-testid="input-refill-unit" />
               </label>
               <label className="block">
                 <span className="font-body text-[13px] font-black text-vyva-text-1">{draft.mode === "purchase" ? "Purchase date" : "Count date"}</span>
@@ -412,16 +459,25 @@ export default function MedicationRefillsScreen() {
                 <CalendarDays size={18} className="text-[#A16207]" aria-hidden="true" />
                 <p className="font-body text-[14px] font-black text-vyva-text-1">Confirmed daily routine</p>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <label>
-                  <span className="font-body text-[12px] font-bold text-vyva-text-2">Units per dose</span>
+                  <span className="font-body text-[12px] font-bold text-vyva-text-2">Dose amount</span>
                   <input value={draft.unitsPerDose} onChange={(event) => setDraft({ ...draft, unitsPerDose: event.target.value })} type="number" min="0.01" step="0.01" inputMode="decimal" className="mt-1 min-h-[50px] w-full rounded-[14px] border border-[#DED1C3] bg-white px-3 font-body text-[16px] font-bold text-vyva-text-1" data-testid="input-refill-units-per-dose" />
+                </label>
+                <label>
+                  <span className="font-body text-[12px] font-bold text-vyva-text-2">Dose unit</span>
+                  <input value={draft.doseUnit} onChange={(event) => setDraft({ ...draft, doseUnit: event.target.value })} className="mt-1 min-h-[50px] w-full rounded-[14px] border border-[#DED1C3] bg-white px-3 font-body text-[16px] font-bold text-vyva-text-1" data-testid="input-refill-dose-unit" />
                 </label>
                 <label>
                   <span className="font-body text-[12px] font-bold text-vyva-text-2">Times each day</span>
                   <input value={draft.dailyFrequency} onChange={(event) => setDraft({ ...draft, dailyFrequency: event.target.value })} type="number" min="0.01" max="24" step="0.01" inputMode="decimal" className="mt-1 min-h-[50px] w-full rounded-[14px] border border-[#DED1C3] bg-white px-3 font-body text-[16px] font-bold text-vyva-text-1" data-testid="input-refill-frequency" />
                 </label>
               </div>
+              <label className="mt-3 block rounded-[14px] border border-[#E7D5A7] bg-white p-3">
+                <span className="font-body text-[12px] font-black text-vyva-text-1">How many {pluralUnit(2, draft.inventoryUnit)} do you use each time?</span>
+                <span className="mt-1 block font-body text-[11px] font-semibold text-vyva-text-2">This controls refill tracking only. It does not change the prescribed dose.</span>
+                <input value={draft.inventoryUnitsPerDose} onChange={(event) => setDraft({ ...draft, inventoryUnitsPerDose: event.target.value })} type="number" min="0.01" step="0.01" inputMode="decimal" className="mt-2 min-h-[50px] w-full rounded-[14px] border border-[#DED1C3] bg-white px-3 font-body text-[16px] font-bold text-vyva-text-1" data-testid="input-refill-inventory-units-per-dose" />
+              </label>
               <label className="mt-3 block">
                 <span className="font-body text-[12px] font-bold text-vyva-text-2">Warn me when this many days remain</span>
                 <input value={draft.refillAlertDays} onChange={(event) => setDraft({ ...draft, refillAlertDays: event.target.value })} type="number" min="1" max="90" className="mt-1 min-h-[50px] w-full rounded-[14px] border border-[#DED1C3] bg-white px-3 font-body text-[16px] font-bold text-vyva-text-1" data-testid="input-refill-threshold" />
@@ -489,7 +545,7 @@ export default function MedicationRefillsScreen() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-[16px] bg-[#F8F5FB] p-3">
                     <p className="font-body text-[11px] font-black uppercase tracking-[0.06em] text-vyva-text-2">Estimated left</p>
-                    <p className="mt-1 font-display text-[20px] font-semibold text-vyva-text-1">{medicine.estimatedQuantity === null ? "—" : `${medicine.estimatedQuantity} ${pluralUnit(medicine.estimatedQuantity, medicine.doseUnit)}`}</p>
+                    <p className="mt-1 font-display text-[20px] font-semibold text-vyva-text-1">{medicine.estimatedQuantity === null ? "—" : `${medicine.estimatedQuantity} ${pluralUnit(medicine.estimatedQuantity, medicine.inventoryUnit ?? medicine.doseUnit)}`}</p>
                   </div>
                   <div className="rounded-[16px] bg-[#FFF9E9] p-3">
                     <p className="font-body text-[11px] font-black uppercase tracking-[0.06em] text-vyva-text-2">Days remaining</p>

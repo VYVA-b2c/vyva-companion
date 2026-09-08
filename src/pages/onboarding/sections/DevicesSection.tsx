@@ -374,7 +374,7 @@ export default function DevicesSection() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[17px] font-black leading-tight text-gray-900">{p.name}</p>
-                        <p className="mt-1 text-[14px] leading-snug text-gray-500">{p.sub}</p>
+                        <p className="sr-only">{p.sub}</p>
                       </div>
                       <span className={cn("flex-shrink-0 rounded-full px-3 py-1 text-[12px] font-black",
                         isConnected ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"

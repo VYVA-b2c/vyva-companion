@@ -133,7 +133,7 @@ function LocationProbe() {
   );
 }
 
-function renderCommunityActivities() {
+function renderCommunityActivities(initialEntry = "/social-rooms/activities") {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -150,7 +150,7 @@ function renderCommunityActivities() {
 
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/social-rooms/activities"]}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/social-rooms/activities" element={<CommunityActivitiesScreen />} />
           <Route path="/social-rooms" element={<LocationProbe />} />
@@ -224,6 +224,7 @@ describe("CommunityActivitiesScreen", () => {
     expect(screen.getByTestId("activities-featured-event")).toHaveTextContent("This week, time to be checked");
     expect(screen.getByTestId("activities-featured-event")).not.toHaveTextContent("Date TBC");
     expect(screen.getByTestId("activities-featured-event")).toHaveTextContent("Nearby or online");
+    expect(screen.getByTestId("activities-profile-signals")).toHaveTextContent("Near you or online");
     expect(screen.getByText("Book club taster")).toBeInTheDocument();
 
     const interested = screen.getAllByRole("button", { name: /Interested/i })[0];
@@ -235,6 +236,16 @@ describe("CommunityActivitiesScreen", () => {
     expect(maybe).toHaveClass("min-h-[44px]");
     expect(askVyva).toHaveClass("min-h-[44px]");
     expect(notForMe).toHaveClass("min-h-[44px]");
+  });
+
+  it("opens a Longevity walking handoff as nearby activity ideas with walking hints", async () => {
+    renderCommunityActivities("/social-rooms/activities?source=longevity&intent=nearby-walk&format=nearby&interests=walking,nature,community,learning");
+
+    expect(await screen.findByRole("heading", { name: "Nearby ideas" })).toBeInTheDocument();
+    expect(screen.getByText("VYVA looks for gentle walks, local programs, and social activities close to home.")).toBeInTheDocument();
+    expect(screen.getByTestId("activities-filter-nearby")).toHaveClass("bg-[#0F766E]");
+    expect(screen.getByTestId("activities-more-recommendations")).toHaveTextContent("Garden walk with pauses");
+    expect(fetchMock).toHaveBeenCalledWith("/api/social/participate/pulse?lang=en&interests=walking%2Cnature%2Ccommunity%2Clearning");
   });
 
   it("saves interested and maybe choices without making a commitment", async () => {

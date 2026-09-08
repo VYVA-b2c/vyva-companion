@@ -5,6 +5,8 @@ import { signVoiceTriageToolToken } from "../lib/jwt.js";
 import {
   elevenLabsTriageStepToolHandler,
   latestChoices,
+  isVitalsSkip,
+  parseVoiceVitalsText,
   retainedMessagesForStatus,
   serializeVoiceTriageTurn,
   selectChoiceFromVoice,
@@ -89,6 +91,19 @@ describe("ElevenLabs voice triage tool", () => {
     expect(retainedMessagesForStatus("emergency", messages)).toEqual([]);
     expect(retainedMessagesForStatus("failed", messages)).toEqual([]);
     expect(retainedMessagesForStatus("abandoned", messages)).toEqual([]);
+  });
+
+  it("parses camera-supported heart and breathing readings from a voice turn", () => {
+    expect(parseVoiceVitalsText("My heart rate is 72 and breathing rate is 16")).toMatchObject({
+      bpm: 72,
+      respiratoryRate: 16,
+    });
+  });
+
+  it("recognises an explicit or spoken vitals skip without consuming the medical question", () => {
+    expect(isVitalsSkip("skip_vitals", "")).toBe(true);
+    expect(isVitalsSkip(null, "No thanks, continue without it")).toBe(true);
+    expect(isVitalsSkip(null, "My oxygen is 97")).toBe(false);
   });
 
   it("keeps completed consultation evidence structured but minimizes emergencies", () => {

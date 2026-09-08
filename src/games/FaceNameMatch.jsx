@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, Users } from "lucide-react";
+import { Check } from "lucide-react";
 import { gameData } from "./shared/gameDataApi";
 import { useLanguage } from "../i18n";
-import { BrainCoachFullscreenActivity, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
+import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import FaceAvatar from "./FaceAvatar";
 import BrainGameCompletionDialog from "./shared/BrainGameCompletionDialog";
 import { recordCognitiveSession } from "./shared/brainCoachSessions";
@@ -23,29 +23,28 @@ import {
 
 const PURPLE = "#6B21A8";
 const GOLD = "#F59E0B";
-const BACKGROUND = "#FAF9F6";
 const GREEN = "#16A34A";
 const TEAL_SOFT = "#D5F5F5";
 const BORDER = "#EDE5DB";
-const SCREEN_STYLE = {
-  background: `radial-gradient(circle at top, #FFFFFF 0%, ${BACKGROUND} 52%, #F4EFE7 100%)`,
-  minHeight: "100dvh",
-  paddingTop: "max(12px, env(safe-area-inset-top))",
-  paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-};
-
 const FACE_NAME_SCENE_ID = "brain_coach.activity_session.memory.face_name_match";
 
 function FaceNameScreen({
   children,
+  onExit,
+  title = "Face-Name Match",
+  backLabel = "Exit",
+  showHeader = true,
   sceneKey = "playing",
   sceneKind = "playing",
   sceneLayout = "face_name_match",
   state = "default",
 }) {
   return (
-    <BrainCoachFullscreenActivity
-      title="Face-Name Match"
+    <BrainCoachActivityShell
+      title={title}
+      backLabel={backLabel}
+      onBack={onExit}
+      showHeader={showHeader}
       testId="face-name-match-flow-shell"
       presentationId={`${FACE_NAME_SCENE_ID}.${sceneKey}.touch`}
       sceneId={FACE_NAME_SCENE_ID}
@@ -53,39 +52,28 @@ function FaceNameScreen({
       sceneLayout={sceneLayout}
       state={state}
     >
-      <div className="px-4 sm:px-6" style={SCREEN_STYLE}>
-        <div className="mx-auto flex h-[calc(100dvh-24px)] min-h-0 w-full max-w-[760px] flex-col">
+      <div className="pb-6">
+        <div className="mx-auto flex min-h-0 w-full max-w-[760px] flex-col">
           {children}
         </div>
       </div>
-    </BrainCoachFullscreenActivity>
+    </BrainCoachActivityShell>
   );
 }
 
-function GameHeader({ title, meta, timer, pulse = false, exitLabel, onExit }) {
+function GameHeader({ title, meta, timer, pulse = false }) {
   return (
     <header className="rounded-[24px] border bg-white/90 px-4 py-3 shadow-vyva-card backdrop-blur" style={{ borderColor: BORDER }}>
-      <div className="flex min-h-[64px] items-center justify-between gap-3">
+      <div className="flex min-h-[56px] items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.08em]" style={{ color: PURPLE }}>Face-Name Match</p>
-          <h1 className="mt-1 truncate font-display text-[25px] font-bold leading-tight text-vyva-text-1">{title}</h1>
+          <h2 className="truncate font-display text-[25px] font-bold leading-tight text-vyva-text-1">{title}</h2>
           {meta && <p className="mt-1 truncate text-[17px] font-semibold text-vyva-text-2">{meta}</p>}
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {timer && (
-            <div className="rounded-full px-4 py-3 text-[21px] font-extrabold" style={{ background: pulse ? "#FEF3C7" : "#F3E8FF", color: pulse ? "#92400E" : PURPLE }}>
-              {timer}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={onExit}
-            className="inline-flex min-h-[64px] items-center gap-2 rounded-full bg-white px-4 text-[20px] font-extrabold text-vyva-text-1 shadow-sm"
-          >
-            <ArrowLeft size={22} />
-            {exitLabel}
-          </button>
-        </div>
+        {timer && (
+          <div className="shrink-0 rounded-full px-4 py-3 text-[21px] font-extrabold" style={{ background: pulse ? "#FEF3C7" : "#F3E8FF", color: pulse ? "#92400E" : PURPLE }}>
+            {timer}
+          </div>
+        )}
       </div>
     </header>
   );
@@ -818,25 +806,11 @@ export default function FaceNameMatch({ userId, onExit }) {
 
   if (screen === "intro") {
     return (
-      <FaceNameScreen sceneKey="intro" sceneKind="intro" sceneLayout="people_preview">
-        <GameHeader
-          title={text.title}
-          meta={`${text.level} ${currentTier} | ${faceCount} ${text.people}`}
-          exitLabel={text.back}
-          onExit={handleExit}
-        />
+      <FaceNameScreen title={text.title} onExit={handleExit} backLabel={text.back} sceneKey="intro" sceneKind="intro" sceneLayout="people_preview">
 
         <main className="flex min-h-0 flex-1 flex-col py-4">
           <section className="rounded-[28px] border bg-white p-5 shadow-vyva-card" style={{ borderColor: BORDER }}>
-            <div className="flex items-center gap-4">
-              <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center rounded-[24px]" style={{ background: "#F3E8FF", color: PURPLE }}>
-                <Users size={38} />
-              </div>
-              <div className="min-w-0">
-                <h1 className="font-display text-[37px] font-bold leading-[1.04] text-vyva-text-1">{text.title}</h1>
-                <p className="mt-2 text-[22px] font-medium leading-[1.25] text-vyva-text-2">{text.subtitle}</p>
-              </div>
-            </div>
+            <p className="text-center text-[22px] font-bold leading-[1.3] text-vyva-text-2">{text.subtitle}</p>
 
             {loadNote && (
               <div className="mt-4 rounded-[20px] px-4 py-3 text-[20px] font-extrabold" style={{ background: "#FEF3C7", color: "#92400E" }}>
@@ -845,7 +819,7 @@ export default function FaceNameMatch({ userId, onExit }) {
             )}
 
             <div className="mt-4 flex flex-wrap gap-3">
-              <span className="rounded-full px-5 py-3 text-[21px] font-extrabold text-white" style={{ background: GOLD }}>
+              <span className="rounded-full bg-[#FEF3C7] px-5 py-3 text-[21px] font-extrabold text-[#92400E]">
                 {text.level} {currentTier}
               </span>
               <span className="rounded-full px-5 py-3 text-[21px] font-extrabold" style={{ background: TEAL_SOFT, color: "#0F766E" }}>
@@ -862,20 +836,17 @@ export default function FaceNameMatch({ userId, onExit }) {
               ))}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={beginStudy}
+              className="mt-5 min-h-[72px] w-full rounded-full px-8 text-[27px] font-extrabold text-white shadow-vyva-card"
+              style={{ background: PURPLE }}
+            >
+              {text.start}
+            </button>
           </section>
         </main>
-
-        <div className="mt-auto pb-1">
-          <button
-            type="button"
-            onClick={beginStudy}
-            className="min-h-[72px] w-full rounded-[22px] px-8 text-[27px] font-extrabold text-white shadow-vyva-card"
-            style={{ background: PURPLE }}
-          >
-            {text.start}
-          </button>
-          <p className="mt-3 text-center text-[19px] font-medium leading-[1.35] text-vyva-text-2">{text.introHint}</p>
-        </div>
       </FaceNameScreen>
     );
   }
@@ -886,14 +857,12 @@ export default function FaceNameMatch({ userId, onExit }) {
     const studyGridCols = personas.length <= 4 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
 
     return (
-      <FaceNameScreen sceneKey="study" sceneKind="study" sceneLayout="people_study_grid">
+      <FaceNameScreen title={text.title} onExit={handleExit} backLabel={text.back} sceneKey="study" sceneKind="study" sceneLayout="people_study_grid">
         <GameHeader
           title={text.studyTitle}
           meta={`${faceCount} ${text.people}`}
           timer={`${Math.ceil(studyCountdown)}s`}
           pulse={pulse}
-          exitLabel={text.back}
-          onExit={handleExit}
         />
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE6F4]">
               <div
@@ -932,12 +901,10 @@ export default function FaceNameMatch({ userId, onExit }) {
     const options = isNameToFace ? faceOptions : nameOptions;
 
     return (
-      <FaceNameScreen sceneKey="recall" sceneKind="playing" sceneLayout="face_name_recall">
+      <FaceNameScreen title={text.title} onExit={handleExit} backLabel={text.exit} sceneKey="recall" sceneKind="playing" sceneLayout="face_name_recall">
         <GameHeader
           title={`${text.question} ${questionNumber} ${text.of} ${totalQuestions}`}
           meta={isNameToFace ? text.whichFace : text.faceQuestion}
-          exitLabel={text.exit}
-          onExit={handleExit}
         />
 
           <main className="relative flex min-h-0 flex-1 flex-col py-3">
@@ -1036,7 +1003,7 @@ export default function FaceNameMatch({ userId, onExit }) {
       : getBrainCoachSupportiveProgressCopy({ advanced: false, level: currentTier });
 
   return (
-    <FaceNameScreen sceneKey="result" sceneKind="completion" sceneLayout="modal_actions" state="complete">
+    <FaceNameScreen title={text.title} onExit={handleExit} showHeader={false} sceneKey="result" sceneKind="completion" sceneLayout="modal_actions" state="complete">
       <BrainGameCompletionDialog
         title={resultToneGreat ? text.resultGreat : text.resultTry}
         summary={resultSummary}

@@ -922,7 +922,7 @@ export default function MedicationsSection() {
                     >
                       <span>
                         <span className="block text-[17px] font-black text-vyva-text-1">More details</span>
-                        <span className="mt-0.5 block text-[14px] leading-snug text-vyva-text-3">
+                        <span className="sr-only">
                           Add frequency, food notes, or prescriber only if useful.
                         </span>
                       </span>

@@ -1403,7 +1403,7 @@ const ConciergeShoppingScreen = () => {
                   <span className="block font-body text-[16px] font-black leading-tight text-vyva-text-1">
                     {mode.label[locale]}
                   </span>
-                  <span className="mt-1 block font-body text-[13px] font-semibold leading-snug text-vyva-text-2">
+                  <span className="sr-only">
                     {mode.body[locale]}
                   </span>
                 </span>
@@ -1564,7 +1564,7 @@ const ConciergeShoppingScreen = () => {
                   <span className="font-body text-[16px] font-black leading-tight text-vyva-text-1">
                     {packageDefinition.label[locale]}
                   </span>
-                  <span className="mt-1 font-body text-[13px] font-semibold leading-snug text-vyva-text-2">
+                  <span className="sr-only">
                     {packageDefinition.description[locale]}
                   </span>
                   <span className={`mt-2 rounded-full px-2 py-1 font-body text-[11px] font-black ${

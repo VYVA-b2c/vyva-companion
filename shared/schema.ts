@@ -27,6 +27,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TriageScanResult } from "./triageScans.js";
+import type { BenefitsEligibilityRule, BenefitsLocalizedText, BenefitsScreeningAnswers } from "./benefits.js";
 
 const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
   dataType() {
@@ -547,6 +548,8 @@ export const myMedicines = pgTable("my_medicines", {
   refill_due_date:   date("refill_due_date"),
   dose_unit:         text("dose_unit"),
   units_per_dose:    numeric("units_per_dose", { precision: 10, scale: 2 }),
+  inventory_unit:    text("inventory_unit"),
+  inventory_units_per_dose: numeric("inventory_units_per_dose", { precision: 10, scale: 2 }),
   daily_frequency:   numeric("daily_frequency", { precision: 6, scale: 2 }),
   inventory_tracking_enabled: boolean("inventory_tracking_enabled").notNull().default(false),
   refill_alert_days: integer("refill_alert_days").notNull().default(7),
@@ -1359,6 +1362,35 @@ export const insertAdvisorUserAgentStateSchema = createInsertSchema(advisorUserA
 export type InsertAdvisorUserAgentState = z.infer<typeof insertAdvisorUserAgentStateSchema>;
 export type AdvisorUserAgentStateRow = typeof advisorUserAgentState.$inferSelect;
 
+export const benefitsPrograms = pgTable("benefits_programs", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  country:           text("country").notNull(),
+  region:            text("region"),
+  name:              jsonb("name").$type<BenefitsLocalizedText>().notNull(),
+  description:       jsonb("description").$type<BenefitsLocalizedText>().notNull(),
+  eligibility_rules: jsonb("eligibility_rules").$type<BenefitsEligibilityRule[]>().notNull().default([]),
+  is_active:         boolean("is_active").notNull().default(false),
+}, (t) => [
+  index("benefits_programs_active_country_region_idx").on(t.is_active, t.country, t.region),
+]);
+
+export const insertBenefitsProgramSchema = createInsertSchema(benefitsPrograms).omit({ id: true });
+export type InsertBenefitsProgram = z.infer<typeof insertBenefitsProgramSchema>;
+export type BenefitsProgramRow = typeof benefitsPrograms.$inferSelect;
+
+export const benefitsScreeningResponses = pgTable("benefits_screening_responses", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  user_id:    text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  answers:    jsonb("answers").$type<BenefitsScreeningAnswers>().notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("benefits_screening_responses_user_created_idx").on(t.user_id, t.created_at.desc()),
+]);
+
+export const insertBenefitsScreeningResponseSchema = createInsertSchema(benefitsScreeningResponses).omit({ id: true, created_at: true });
+export type InsertBenefitsScreeningResponse = z.infer<typeof insertBenefitsScreeningResponseSchema>;
+export type BenefitsScreeningResponseRow = typeof benefitsScreeningResponses.$inferSelect;
+
 export const socialConnections = pgTable("social_connections", {
   id:               uuid("id").primaryKey().defaultRandom(),
   user_id_a:        text("user_id_a").notNull().references(() => profiles.id, { onDelete: "cascade" }),
@@ -1771,6 +1803,17 @@ export type ParticipationNotificationRow = typeof participationNotifications.$in
 // NEW TABLE: triage_reports — persisted completed TriageSummary + vitals
 // ============================================================
 
+export type TriageReportVitalsSnapshot = {
+  capturedAt: string;
+  readings: Array<{
+    key: "bpm" | "respiratoryRate" | "oxygenSaturation" | "temperatureC" | "systolicBp" | "diastolicBp" | "glucoseMgdl" | "painScore" | "energyLevel";
+    value: number;
+    unit: string;
+    source: "phone_estimate" | "manual_entry" | "connected_device" | "clinical";
+    affectsTriage: boolean;
+  }>;
+};
+
 export const triageReports = pgTable("triage_reports", {
   id:               uuid("id").primaryKey().defaultRandom(),
   user_id:          text("user_id").notNull(),
@@ -1786,8 +1829,15 @@ export const triageReports = pgTable("triage_reports", {
   watch_signs:       text("watch_signs").array().notNull().default([]),
   profile_considerations: text("profile_considerations").array().notNull().default([]),
   vitals_notes:      text("vitals_notes").array().notNull().default([]),
+  vitals_snapshot:   jsonb("vitals_snapshot").$type<TriageReportVitalsSnapshot>(),
   scan_results:      jsonb("scan_results").$type<TriageScanResult[]>().notNull().default(sql`'[]'::jsonb`),
   scan_notes:        text("scan_notes").array().notNull().default([]),
+  interpretation:    text("interpretation"),
+  possible_patterns: jsonb("possible_patterns").$type<Array<{ id: string; label: string; explanation: string; supportingAnswers: string[]; clarifyingSigns: string[] }>>().notNull().default(sql`'[]'::jsonb`),
+  uncertainty:       text("uncertainty").array().notNull().default([]),
+  reassessment_window: text("reassessment_window"),
+  change_plan_triggers: text("change_plan_triggers").array().notNull().default([]),
+  clinical_handoff:  jsonb("clinical_handoff").$type<{ summary: string; keyPoints: string[]; questions: string[] }>(),
   bpm:               integer("bpm"),
   respiratory_rate:  integer("respiratory_rate"),
   duration_seconds:  integer("duration_seconds"),
@@ -1861,6 +1911,229 @@ export type InsertLongevityPreventionPlan = z.infer<typeof insertLongevityPreven
 export type LongevityPreventionPlan = typeof longevityPreventionPlans.$inferSelect;
 export type InsertInsightOutcome = z.infer<typeof insertInsightOutcomeSchema>;
 export type InsightOutcome = typeof insightOutcomes.$inferSelect;
+
+export const longevityDailyContent = pgTable("longevity_daily_content", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  content_type: text("content_type").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  detail_text: text("detail_text"),
+  timing_guidance: text("timing_guidance"),
+  source_label: text("source_label"),
+  source_url: text("source_url"),
+  condition_tags: text("condition_tags").array().notNull().default(sql`array['all']::text[]`),
+  pillar_tag: text("pillar_tag"),
+  time_of_day: text("time_of_day").notNull().default("any"),
+  moment: text("moment"),
+  program_key: text("program_key"),
+  resource_title: text("resource_title"),
+  duration_seconds: integer("duration_seconds"),
+  evidence_tags: text("evidence_tags").array().notNull().default(sql`array[]::text[]`),
+  safety_notes: text("safety_notes"),
+  mobility_fit: text("mobility_fit"),
+  region_fit: text("region_fit"),
+  review_status: text("review_status").notNull().default("approved"),
+  language: text("language").notNull().default("es"),
+  rotation_weight: integer("rotation_weight").notNull().default(1),
+  is_active: boolean("is_active").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_ldc_type_language_active").on(t.content_type, t.language, t.is_active),
+  index("idx_ldc_moment_review_active").on(t.language, t.review_status, t.is_active, t.moment, t.pillar_tag, t.content_type),
+  uniqueIndex("idx_ldc_unique_seed_content").on(t.content_type, t.title, t.language),
+  check("longevity_daily_content_moment_check", sql`${t.moment} is null or ${t.moment} in ('any','morning','midday','afternoon','evening','lunch','night')`),
+  check("longevity_daily_content_review_status_check", sql`${t.review_status} in ('draft','approved','rejected')`),
+  check("longevity_daily_content_duration_check", sql`${t.duration_seconds} is null or ${t.duration_seconds} > 0`),
+]);
+
+export const insertLongevityDailyContentSchema = createInsertSchema(longevityDailyContent).omit({ id: true, created_at: true });
+export type InsertLongevityDailyContent = z.infer<typeof insertLongevityDailyContentSchema>;
+export type LongevityDailyContent = typeof longevityDailyContent.$inferSelect;
+
+export const longevityDailyContentLog = pgTable("longevity_daily_content_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  content_id: uuid("content_id").notNull().references(() => longevityDailyContent.id, { onDelete: "cascade" }),
+  shown_on: date("shown_on").notNull().default(sql`current_date`),
+  engaged: boolean("engaged").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("longevity_daily_content_log_user_content_day_key").on(t.user_id, t.content_id, t.shown_on),
+  index("idx_ldcl_user_date").on(t.user_id, t.shown_on.desc()),
+]);
+
+export const insertLongevityDailyContentLogSchema = createInsertSchema(longevityDailyContentLog).omit({ id: true, shown_on: true, created_at: true });
+export type InsertLongevityDailyContentLog = z.infer<typeof insertLongevityDailyContentLogSchema>;
+export type LongevityDailyContentLog = typeof longevityDailyContentLog.$inferSelect;
+
+export const longevitySynthesisEvents = pgTable("longevity_synthesis_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  trigger_type: text("trigger_type").notNull(),
+  trigger_data: jsonb("trigger_data"),
+  synthesis_ran: boolean("synthesis_ran").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_lse_user_recent_run").on(t.user_id, t.created_at.desc()).where(sql`${t.synthesis_ran} = true`),
+]);
+
+export const insertLongevitySynthesisEventSchema = createInsertSchema(longevitySynthesisEvents).omit({ id: true, created_at: true });
+export type InsertLongevitySynthesisEvent = z.infer<typeof insertLongevitySynthesisEventSchema>;
+export type LongevitySynthesisEvent = typeof longevitySynthesisEvents.$inferSelect;
+
+export const longevityActionEvents = pgTable("longevity_action_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  plan_id: uuid("plan_id").references(() => longevityPreventionPlans.id, { onDelete: "set null" }),
+  pillar: text("pillar"),
+  action_key: text("action_key").notNull(),
+  action_title: text("action_title").notNull(),
+  event_type: text("event_type").notNull(),
+  barrier: text("barrier"),
+  moment: text("moment"),
+  content_id: uuid("content_id").references(() => longevityDailyContent.id, { onDelete: "set null" }),
+  resource_id: uuid("resource_id"),
+  source_context: jsonb("source_context").notNull().default({}),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_longevity_action_events_user_created").on(t.user_id, t.created_at.desc()),
+  index("idx_longevity_action_events_user_action_created").on(t.user_id, t.action_key, t.created_at.desc()),
+  index("idx_longevity_action_events_user_moment_created").on(t.user_id, t.moment, t.created_at.desc()),
+  index("idx_longevity_action_events_content_created").on(t.content_id, t.created_at.desc()),
+  index("idx_longevity_action_events_resource_created").on(t.resource_id, t.created_at.desc()),
+  check("lae_pillar_check", sql`${t.pillar} is null or ${t.pillar} in ('heart','brain','strength','nourishment','calm')`),
+  check("lae_moment_check", sql`${t.moment} is null or ${t.moment} in ('morning','midday','afternoon','evening')`),
+  check("lae_event_type_check", sql`${t.event_type} in ('shown','opened','saved','done','too_hard','not_relevant')`),
+]);
+
+export const insertLongevityActionEventSchema = createInsertSchema(longevityActionEvents).omit({ id: true, created_at: true });
+export type InsertLongevityActionEvent = z.infer<typeof insertLongevityActionEventSchema>;
+export type LongevityActionEvent = typeof longevityActionEvents.$inferSelect;
+
+export const longevityPrograms = pgTable("longevity_programs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  program_key: text("program_key").notNull().default("starter_video_longevity_v1"),
+  title: text("title").notNull(),
+  status: text("status").notNull().default("active"),
+  focus_pillars: text("focus_pillars").array().notNull().default(sql`array['heart','brain','strength','nourishment','calm']::text[]`),
+  start_date: date("start_date").notNull().default(sql`current_date`),
+  current_day: integer("current_day").notNull().default(1),
+  total_days: integer("total_days").notNull().default(14),
+  language: text("language").notNull().default("en"),
+  cadence: text("cadence").notNull().default("daily"),
+  completed_at: timestamp("completed_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("idx_longevity_programs_user_active_program").on(t.user_id, t.program_key).where(sql`${t.status} = 'active'`),
+  index("idx_longevity_programs_user_status").on(t.user_id, t.status, t.start_date.desc()),
+  check("longevity_programs_status_check", sql`${t.status} in ('active','paused','completed')`),
+]);
+
+export const longevityProgramDays = pgTable("longevity_program_days", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  program_id: uuid("program_id").notNull().references(() => longevityPrograms.id, { onDelete: "cascade" }),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  day_index: integer("day_index").notNull(),
+  pillar: text("pillar").notNull(),
+  theme: text("theme").notNull(),
+  objective: text("objective").notNull(),
+  action_title: text("action_title").notNull(),
+  action_detail: text("action_detail").notNull(),
+  video_query: text("video_query").notNull(),
+  fallback_video_key: text("fallback_video_key").notNull(),
+  scheduled_date: date("scheduled_date").notNull(),
+  status: text("status").notNull().default("scheduled"),
+  shown_at: timestamp("shown_at", { withTimezone: true }),
+  completed_at: timestamp("completed_at", { withTimezone: true }),
+  skipped_at: timestamp("skipped_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("longevity_program_days_program_day_unique").on(t.program_id, t.day_index),
+  index("idx_longevity_program_days_user_scheduled").on(t.user_id, t.scheduled_date),
+  index("idx_longevity_program_days_program_day").on(t.program_id, t.day_index),
+  check("longevity_program_days_pillar_check", sql`${t.pillar} in ('heart','brain','strength','nourishment','calm')`),
+  check("longevity_program_days_status_check", sql`${t.status} in ('scheduled','shown','completed','skipped')`),
+]);
+
+export const longevityVideoResources = pgTable("longevity_video_resources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  program_day_id: uuid("program_day_id").notNull().references(() => longevityProgramDays.id, { onDelete: "cascade" }),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull().default("youtube"),
+  video_id: text("video_id").notNull(),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  channel: text("channel"),
+  duration_seconds: integer("duration_seconds"),
+  thumbnail_url: text("thumbnail_url"),
+  language: text("language").notNull().default("en"),
+  summary: text("summary"),
+  selected_reason: text("selected_reason").notNull(),
+  safety_notes: text("safety_notes").notNull(),
+  transcript_status: text("transcript_status").notNull().default("pending"),
+  key_points: text("key_points").array().notNull().default(sql`array[]::text[]`),
+  senior_takeaway: text("senior_takeaway"),
+  pillar: text("pillar"),
+  transcript_summary: text("transcript_summary"),
+  after_watch_action: text("after_watch_action"),
+  good_for: text("good_for").array().notNull().default(sql`array[]::text[]`),
+  not_for: text("not_for").array().notNull().default(sql`array[]::text[]`),
+  moment_fit: text("moment_fit").array().notNull().default(sql`array[]::text[]`),
+  curation_status: text("curation_status").notNull().default("fallback"),
+  curator_agent: text("curator_agent").notNull().default("vyva-longevity-video-curator-v1"),
+  search_query: text("search_query").notNull(),
+  fetched_at: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  expires_at: timestamp("expires_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("idx_longevity_video_resources_day_video").on(t.program_day_id, t.video_id),
+  index("idx_longevity_video_resources_user_created").on(t.user_id, t.created_at.desc()),
+  index("idx_longevity_video_resources_user_pillar").on(t.user_id, t.pillar, t.created_at.desc()),
+  check("longevity_video_resources_provider_check", sql`${t.provider} = 'youtube'`),
+  check("longevity_video_resources_curation_status_check", sql`${t.curation_status} in ('ready','fallback','failed')`),
+  check("longevity_video_resources_transcript_status_check", sql`${t.transcript_status} in ('pending','available','unavailable','manual_reviewed')`),
+  check("longevity_video_resources_pillar_check", sql`${t.pillar} is null or ${t.pillar} in ('heart','brain','strength','nourishment','calm')`),
+  check("longevity_video_resources_moment_fit_check", sql`${t.moment_fit} <@ array['morning','midday','afternoon','evening']::text[]`),
+]);
+
+export const insertLongevityProgramSchema = createInsertSchema(longevityPrograms).omit({ id: true, created_at: true, updated_at: true });
+export type InsertLongevityProgram = z.infer<typeof insertLongevityProgramSchema>;
+export type LongevityProgram = typeof longevityPrograms.$inferSelect;
+
+export const insertLongevityProgramDaySchema = createInsertSchema(longevityProgramDays).omit({ id: true, created_at: true, updated_at: true });
+export type InsertLongevityProgramDay = z.infer<typeof insertLongevityProgramDaySchema>;
+export type LongevityProgramDay = typeof longevityProgramDays.$inferSelect;
+
+export const insertLongevityVideoResourceSchema = createInsertSchema(longevityVideoResources).omit({ id: true, fetched_at: true, created_at: true });
+export type InsertLongevityVideoResource = z.infer<typeof insertLongevityVideoResourceSchema>;
+export type LongevityVideoResource = typeof longevityVideoResources.$inferSelect;
+
+export const longevityMomentSessions = pgTable("longevity_moment_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  plan_id: uuid("plan_id").references(() => longevityPreventionPlans.id, { onDelete: "set null" }),
+  local_date: date("local_date").notNull(),
+  moment: text("moment").notNull(),
+  program_day_id: uuid("program_day_id").references(() => longevityProgramDays.id, { onDelete: "set null" }),
+  primary_action_key: text("primary_action_key").notNull(),
+  content_id: uuid("content_id").references(() => longevityDailyContent.id, { onDelete: "set null" }),
+  resource_id: uuid("resource_id").references(() => longevityVideoResources.id, { onDelete: "set null" }),
+  payload: jsonb("payload").notNull().default({}),
+  expires_at: timestamp("expires_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("longevity_moment_sessions_user_date_moment_key").on(t.user_id, t.local_date, t.moment),
+  index("idx_longevity_moment_sessions_user_date").on(t.user_id, t.local_date.desc()),
+  check("longevity_moment_sessions_moment_check", sql`${t.moment} in ('morning','midday','afternoon','evening')`),
+]);
+
+export const insertLongevityMomentSessionSchema = createInsertSchema(longevityMomentSessions).omit({ id: true, created_at: true, updated_at: true });
+export type InsertLongevityMomentSession = z.infer<typeof insertLongevityMomentSessionSchema>;
+export type LongevityMomentSession = typeof longevityMomentSessions.$inferSelect;
 
 
 // ============================================================
@@ -2154,6 +2427,10 @@ export const breathGardenSessions = pgTable("breath_garden_sessions", {
   finalPaceBreathsPerMin:   numeric("final_pace_breaths_per_min", { precision: 4, scale: 1 }),
   gardenTheme:              text("garden_theme").notNull().default("garden"),
   bloomLevelReached:        integer("bloom_level_reached").notNull().default(1),
+  targetDurationSeconds:    integer("target_duration_seconds").notNull().default(120),
+  guidedCycleCount:         integer("guided_cycle_count").notNull().default(0),
+  guidedPatternId:          text("guided_pattern_id").notNull().default("gentle_5_6"),
+  completionReason:         text("completion_reason").notNull().default("timer_complete"),
   completed:                boolean("completed").notNull().default(false),
   abandoned:                boolean("abandoned").notNull().default(false),
 }, (t) => [
@@ -2167,6 +2444,7 @@ export const breathGardenUserState = pgTable("breath_garden_user_state", {
   streakDays:     integer("streak_days").notNull().default(0),
   lastStreakDate: date("last_streak_date"),
   preferredTheme: text("preferred_theme").default("garden"),
+  preferredDurationSeconds: integer("preferred_duration_seconds").notNull().default(120),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -2184,7 +2462,7 @@ export const cognitiveSessionIndex = pgTable("cognitive_session_index", {
   difficultyScale: text("difficulty_scale").notNull().default("level"),
   completed:       boolean("completed").notNull().default(false),
   abandoned:       boolean("abandoned").notNull().default(false),
-  score:           integer("score").notNull().default(0),
+  score:           integer("score").default(0),
   accuracyPct:     numeric("accuracy_pct", { precision: 5, scale: 2 }),
   speedPct:        numeric("speed_pct", { precision: 5, scale: 2 }),
   durationSeconds: integer("duration_seconds").notNull().default(0),
@@ -3999,6 +4277,47 @@ export const insertMarketingMediaAssetSchema = createInsertSchema(marketingMedia
 export type InsertMarketingMediaAsset = z.infer<typeof insertMarketingMediaAssetSchema>;
 export type MarketingMediaAssetRow = typeof marketingMediaAssets.$inferSelect;
 
+export const marketingMediaFiles = pgTable("marketing_media_files", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  media_asset_id: uuid("media_asset_id").notNull().references(() => marketingMediaAssets.id, { onDelete: "cascade" }),
+  mime_type:     text("mime_type").notNull().default("image/jpeg"),
+  image_bytes:   bytea("image_bytes").notNull(),
+  width:         integer("width"),
+  height:        integer("height"),
+  prompt:        text("prompt"),
+  model:         text("model"),
+  created_by:    text("created_by"),
+  created_at:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("marketing_media_files_asset_unique").on(t.media_asset_id),
+]);
+
+export const insertMarketingMediaFileSchema = createInsertSchema(marketingMediaFiles).omit({ id: true, created_at: true });
+export type InsertMarketingMediaFile = z.infer<typeof insertMarketingMediaFileSchema>;
+export type MarketingMediaFileRow = typeof marketingMediaFiles.$inferSelect;
+
+export const marketingSocialConnections = pgTable("marketing_social_connections", {
+  id:                     uuid("id").primaryKey().defaultRandom(),
+  provider:               text("provider").notNull(),
+  external_account_id:    text("external_account_id").notNull(),
+  external_account_name:  text("external_account_name").notNull().default(""),
+  access_token_encrypted: text("access_token_encrypted").notNull(),
+  token_expires_at:       timestamp("token_expires_at", { withTimezone: true }),
+  status:                 text("status").notNull().default("connected"),
+  metadata:               jsonb("metadata").notNull().default({}),
+  connected_by:           text("connected_by"),
+  connected_at:           timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:             timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("marketing_social_connections_provider_account_unique").on(t.provider, t.external_account_id),
+  index("marketing_social_connections_provider_idx").on(t.provider),
+  index("marketing_social_connections_status_idx").on(t.status),
+]);
+
+export const insertMarketingSocialConnectionSchema = createInsertSchema(marketingSocialConnections).omit({ id: true, connected_at: true, updated_at: true });
+export type InsertMarketingSocialConnection = z.infer<typeof insertMarketingSocialConnectionSchema>;
+export type MarketingSocialConnectionRow = typeof marketingSocialConnections.$inferSelect;
+
 export const marketingCampaigns = pgTable("marketing_campaigns", {
   id:                  uuid("id").primaryKey().defaultRandom(),
   name:                text("name").notNull(),
@@ -4473,6 +4792,12 @@ export const schema = {
   participationNotifications,
   triageReports,
   insightOutcomes,
+  longevityPreventionPlans,
+  longevityDailyContent,
+  longevityDailyContentLog,
+  longevitySynthesisEvents,
+  longevityActionEvents,
+  longevityMomentSessions,
   vitalsReadings,
   vyvaSignalReadings,
   vyvaUserBaselines,
@@ -4537,6 +4862,8 @@ export const schema = {
   marketingAudienceMembers,
   marketingContentAssets,
   marketingMediaAssets,
+  marketingMediaFiles,
+  marketingSocialConnections,
   marketingCampaigns,
   marketingCampaignChannels,
   marketingCampaignMetrics,

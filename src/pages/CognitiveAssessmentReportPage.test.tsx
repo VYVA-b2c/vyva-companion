@@ -448,13 +448,13 @@ describe("CognitiveAssessmentReportPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /start recommended practice/i }));
 
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/executive-function/category-sort");
+    expect(screen.getByTestId("current-route")).toHaveTextContent("/brain-coach/activity/category_sort");
     expect(JSON.parse(window.localStorage.getItem(assessmentPracticeStorageKey) ?? "{}")).toEqual(expect.objectContaining({
       source: "cognitive_assessment_report",
       reportSessionId: "session-1",
       recommendedDomain: "reasoning",
       practiceTitle: "Category Sort",
-      route: "/executive-function/category-sort",
+      route: "/brain-coach/activity/category_sort",
       status: "opened",
     }));
   });
@@ -465,7 +465,7 @@ describe("CognitiveAssessmentReportPage", () => {
       reportSessionId: "session-complete",
       recommendedDomain: "reasoning",
       practiceTitle: "Category Sort",
-      route: "/executive-function/category-sort",
+      route: "/brain-coach/activity/category_sort",
       returnTo: "/mind-memory/cognitive-assessment",
       status: "completed",
       startedAt: "2026-07-05T09:20:00.000Z",

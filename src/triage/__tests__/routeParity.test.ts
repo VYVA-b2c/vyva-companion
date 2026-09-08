@@ -11,18 +11,25 @@ import {
 } from "../index.js";
 
 const summaryShapeKeys = [
+  "changePlanTriggers",
   "chiefComplaint",
+  "clinicalHandoff",
   "disclaimer",
+  "interpretation",
   "nextStepLabel",
   "nextStepLevel",
+  "possiblePatterns",
   "profileConsiderations",
+  "reassessmentWindow",
   "recommendations",
   "scanNotes",
   "scanResults",
   "symptoms",
   "triageReasons",
+  "uncertainty",
   "urgency",
   "vitalsNotes",
+  "vitalsSnapshot",
   "watchSigns",
 ].sort();
 
@@ -532,5 +539,57 @@ describe("triage route outcome parity", () => {
     expect(doctorWindowSteps).toHaveLength(1);
     expect(refined.recommendations.join(" ")).not.toContain("Contact your doctor or clinic within 24-48 hours if this continues.");
     expect(refined.recommendations.join(" ")).not.toContain("Keep track of any changes in your symptoms");
+  });
+
+  it("adds deterministic interpretation, possible situations, reassessment, triggers, and handoff", () => {
+    const result = fallback([
+      { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
+      { id: "walking_only", label: "Mild or only with activity", value: "It only happens with activity.", kind: "red_flag" },
+      { id: "severity_4", label: "4", value: "It feels 4 out of 10.", kind: "severity" },
+      { id: "few_days", label: "Few days", value: "It has lasted a few days.", kind: "duration" },
+      { id: "fever_cough_phlegm", label: "Fever, cough, or more phlegm", value: "It comes with cough.", kind: "trend" },
+    ], {}, "Breathing feels harder than usual");
+
+    expect(result.summary.interpretation).toContain("not a diagnosis");
+    expect(result.summary.interpretation).not.toContain("Taken together");
+    expect(result.summary.possiblePatterns?.map((pattern) => pattern.id)).toContain("airway_infection");
+    expect(result.summary.possiblePatterns?.[0].supportingAnswers.length).toBeGreaterThan(0);
+    expect(result.summary.uncertainty?.join(" ")).toContain("No current measured vital signs");
+    expect(result.summary.reassessmentWindow).toBeTruthy();
+    expect(result.summary.changePlanTriggers?.length).toBeGreaterThan(0);
+    expect(result.summary.clinicalHandoff?.keyPoints).toContain("Few days");
+  });
+
+  it("keeps possible causes secondary to urgent action when an emergency warning sign is present", () => {
+    const result = fallback([
+      { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
+      { id: "cannot_speak_breathing", label: "Gasping or cannot speak", value: "I cannot speak a full sentence.", kind: "red_flag" },
+    ], {}, "Severe breathing trouble");
+
+    expect(result.summary.nextStepLevel).toBe("emergency");
+    expect(result.summary.possiblePatterns?.length).toBeGreaterThan(0);
+    expect(result.summary.interpretation).toContain("warning sign");
+    expect(result.summary.interpretation).toContain("must not delay emergency help");
+    expect(result.summary.reassessmentWindow).toContain("Seek emergency help now");
+  });
+
+  it("replaces model-provided pattern speculation with the protocol catalogue", () => {
+    const refined = applyTriageSafetyFloor({
+      ...baseSummary(),
+      possiblePatterns: [{
+        id: "invented_diagnosis",
+        label: "Definite diagnosis",
+        explanation: "The model says this is certain.",
+        supportingAnswers: [],
+        clarifyingSigns: [],
+      }],
+    }, wizard([
+      { id: "dizzy", label: "Dizzy", value: "I feel dizzy.", kind: "symptom" },
+      { id: "no_red_flag", label: "No emergency signs", value: "No emergency signs.", kind: "red_flag" },
+      { id: "standing_dizziness", label: "Happens when standing up", value: "It happens when standing.", kind: "trend" },
+    ]), "en");
+
+    expect(refined.possiblePatterns?.map((pattern) => pattern.id)).toEqual(["postural", "metabolic_dizzy"]);
+    expect(refined.possiblePatterns?.join(" ")).not.toContain("invented_diagnosis");
   });
 });

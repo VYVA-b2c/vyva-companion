@@ -1,9 +1,10 @@
-import { useNavigate } from "react-router-dom";
-import { BrainCoachActivityCard } from "@/components/brain/BrainCoachFlowShell";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
+import { CanonicalBrainCoachActivityCard } from "@/components/brain/CanonicalBrainCoachActivityCard";
 import { useLanguage } from "@/i18n";
 import {
   getBrainCoachActivitiesForModule,
   getBrainCoachActivityDisplay,
+  getBrainCoachActivityPath,
   type BrainCoachModuleId,
 } from "./brainCoachCatalog";
 
@@ -17,17 +18,16 @@ export default function BrainCoachActivityGrid({ moduleId }: BrainCoachActivityG
   const activities = getBrainCoachActivitiesForModule(moduleId);
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[700px]:grid-cols-3" data-scene-layout="activity_grid">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5" data-scene-layout="activity_grid">
       {activities.map((activity) => {
         const copy = getBrainCoachActivityDisplay(activity, t);
 
         return (
-          <BrainCoachActivityCard
+          <CanonicalBrainCoachActivityCard
             key={activity.id}
             type="button"
-            onClick={() => navigate(activity.route)}
+            onClick={() => navigate(getBrainCoachActivityPath(activity.id))}
             title={copy.title}
-            description={copy.description}
             icon={activity.icon}
             iconAccent={activity.iconAccent}
             iconBg={activity.iconBg}

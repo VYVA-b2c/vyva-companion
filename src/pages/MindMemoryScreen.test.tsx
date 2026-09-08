@@ -1,9 +1,8 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import MindMemoryScreen from "./MindMemoryScreen";
-import type { CognitiveAssessmentProgramStatusResponse } from "../../shared/cognitiveAssessmentProgram";
+import { HOME_MASTER_THEME_STORAGE_KEY } from "@/hooks/useHomeMasterTheme";
 
 const guardPathMock = vi.hoisted(() => vi.fn());
 
@@ -14,14 +13,12 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@/hooks/useServiceGate", () => ({
-  useServiceGate: () => ({
-    guardPath: guardPathMock,
-  }),
+  useServiceGate: () => ({ guardPath: guardPathMock }),
 }));
 
-vi.mock("@/components/VyvaSessionCta", () => ({
-  default: ({ label, testId, className }: { label?: string; testId?: string; className?: string }) => (
-    <button type="button" data-testid={testId} className={className}>
+vi.mock("@/components/CanonicalDetailFlowShell", () => ({
+  CanonicalVoiceButton: ({ label, testId }: { label?: string; testId?: string }) => (
+    <button type="button" data-testid={testId}>
       {label}
     </button>
   ),
@@ -32,192 +29,71 @@ function LocationProbe() {
   return <div data-testid="current-route">{location.pathname}</div>;
 }
 
-const unjoinedProgram: CognitiveAssessmentProgramStatusResponse = {
-  joined: false,
-  enrollment: null,
-  latestUnfinishedSession: null,
-  latestReport: null,
-  completedReportCount: 0,
-  totalTasks: 12,
-};
-
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        queryFn: async ({ queryKey }: { queryKey: readonly unknown[] }) => {
-          const response = await fetch(String(queryKey[0]));
-          if (!response.ok) throw new Error(response.statusText);
-          return response.json();
-        },
-      },
-    },
-  });
-}
-
-function renderMindMemory(program: CognitiveAssessmentProgramStatusResponse = unjoinedProgram) {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(program), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  }));
-  const queryClient = createTestQueryClient();
-
+function renderMindMemory() {
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/mind-memory"]}>
-        <Routes>
-          <Route path="/mind-memory" element={<MindMemoryScreen />} />
-          <Route path="*" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/mind-memory"]}>
+      <Routes>
+        <Route path="/mind-memory" element={<MindMemoryScreen />} />
+        <Route path="*" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>,
   );
 }
 
 describe("MindMemoryScreen", () => {
   beforeEach(() => {
     guardPathMock.mockClear();
+    window.localStorage.setItem(HOME_MASTER_THEME_STORAGE_KEY, "light");
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-  });
-
-  it("renders the approved pillar layout", () => {
+  it("uses the canonical health-hub structure for Brain Coach", () => {
     renderMindMemory();
 
-    expect(screen.getByTestId("mind-memory-master-hero")).toHaveAttribute("data-hero-layout", "canonical-menu");
-    expect(screen.getByTestId("mind-memory-master-hero")).toHaveTextContent("Brain Coach");
-    expect(screen.getByTestId("mind-memory-master-hero")).toHaveTextContent("Memory, focus, thinking, and senses.");
+    expect(screen.getByTestId("mind-memory-canonical-topbar")).toHaveTextContent("Brain Power");
     expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-flow-id", "brain_coach.activity_session");
     expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-registry-scene", "brain_coach.activity_session.main");
-    expect(screen.getByTestId("card-mind-memory-strengthen-memory")).toHaveTextContent("Strengthen Memory");
-    expect(screen.getByTestId("card-mind-memory-train-reflexes")).toHaveTextContent("Train Reflexes");
-    expect(screen.getByTestId("card-mind-memory-boost-focus")).toHaveTextContent("Improve Thinking");
-    expect(screen.getByTestId("card-mind-memory-sharpen-senses")).toHaveTextContent("Sharpen Senses");
-    expect(screen.queryByTestId("card-mind-memory-sleep")).not.toBeInTheDocument();
-    expect(screen.getByTestId("mind-memory-cards").querySelector('[data-card-layout="canonical-action-grid"]')).toBeInTheDocument();
-    expect(screen.getByTestId("card-mind-memory-strengthen-memory")).toHaveAttribute("data-vyva-card-layout", "canonical-action");
-    expect(screen.getByTestId("card-mind-memory-strengthen-memory-detail")).toHaveTextContent("Recall and remembering");
-    expect(screen.getByTestId("card-mind-memory-strengthen-memory")).toHaveAccessibleName("Strengthen Memory. Remember information now, later, or after distraction.");
-    expect(screen.getByTestId("card-mind-memory-strengthen-memory").querySelector('[data-vyva-icon-tile="bridge"]')).toBeInTheDocument();
-    expect(screen.getByTestId("card-mind-memory-train-reflexes").querySelector('[data-vyva-accent="pulse"]')).toBeInTheDocument();
-    expect(screen.getByTestId("card-mind-memory-boost-focus").querySelector('[data-vyva-accent="knobs"]')).toBeInTheDocument();
-    expect(screen.getByTestId("card-mind-memory-sharpen-senses").querySelector('[data-vyva-accent="signal"]')).toBeInTheDocument();
+    expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-home-master-theme", "light");
+    expect(screen.getByTestId("mind-memory-cards")).toHaveAttribute("data-card-layout", "canonical-health-hub-grid");
+    expect(screen.queryByText("Choose a skill")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cognitive Assessment")).not.toBeInTheDocument();
 
-    const fastHelp = screen.getByTestId("mind-memory-fast-help");
-    expect(fastHelp).toHaveAttribute("data-fast-help-layout", "canonical-action-grid");
-    expect(within(fastHelp).getAllByRole("button")).toHaveLength(1);
-    expect(screen.getByTestId("button-mind-memory-fast-cognitive-assessment")).toHaveTextContent("Cognitive Assessment");
-    expect(screen.getByTestId("button-mind-memory-fast-cognitive-assessment").querySelector('[data-vyva-accent="check"]')).toBeInTheDocument();
+    const expectedCards = [
+      ["card-mind-memory-strengthen-memory", "Remember", "8 activities", "bridge"],
+      ["card-mind-memory-train-reflexes", "Focus & React", "3 activities", "pulse"],
+      ["card-mind-memory-boost-focus", "Think & Plan", "3 activities", "knobs"],
+      ["card-mind-memory-sharpen-senses", "Calm & Notice", "2 activities", "signal"],
+    ] as const;
+
+    for (const [testId, title, count, iconAccent] of expectedCards) {
+      expect(screen.getByTestId(testId)).toHaveAttribute("data-vyva-card-layout", "canonical-health-hub-action");
+      expect(screen.getByTestId(testId)).toHaveTextContent(title);
+      expect(screen.getByTestId(`${testId}-status`)).toHaveTextContent(count);
+      expect(screen.getByTestId(testId).querySelector(`[data-vyva-icon-tile="${iconAccent}"]`)).toBeInTheDocument();
+    }
+
+    expect(screen.queryByText("Memory and recall")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attention and response")).not.toBeInTheDocument();
+    expect(screen.queryByText("Planning and rules")).not.toBeInTheDocument();
+    expect(screen.queryByText("Calm and sensory awareness")).not.toBeInTheDocument();
   });
 
-  it("uses existing cognitive routes", () => {
+  it("uses the canonical dark surfaces when the saved theme is dark", () => {
+    window.localStorage.setItem(HOME_MASTER_THEME_STORAGE_KEY, "dark");
     renderMindMemory();
 
-    fireEvent.click(screen.getByTestId("card-mind-memory-strengthen-memory"));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/memory-games");
+    expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-home-master-theme", "dark");
+    expect(screen.getByTestId("card-mind-memory-strengthen-memory")).toHaveClass("bg-white/[0.08]");
   });
 
-  it("routes the reflexes card", () => {
+  it.each([
+    ["card-mind-memory-strengthen-memory", "/brain-coach/remember"],
+    ["card-mind-memory-train-reflexes", "/brain-coach/focus"],
+    ["card-mind-memory-boost-focus", "/brain-coach/think"],
+    ["card-mind-memory-sharpen-senses", "/brain-coach/calm"],
+  ])("routes %s to its existing module", (testId, route) => {
     renderMindMemory();
 
-    fireEvent.click(screen.getByTestId("card-mind-memory-train-reflexes"));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/attention-boosters");
-  });
-
-  it("routes the thinking card", () => {
-    renderMindMemory();
-
-    fireEvent.click(screen.getByTestId("card-mind-memory-boost-focus"));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/executive-function");
-  });
-
-  it("routes the senses card", () => {
-    renderMindMemory();
-
-    fireEvent.click(screen.getByTestId("card-mind-memory-sharpen-senses"));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/senses");
-  });
-
-  it("routes calm breathing from fast help", () => {
-    vi.useFakeTimers();
-    renderMindMemory();
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    fireEvent.click(screen.getByTestId("button-mind-memory-fast-relax-breathe"));
-
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/activities/relax-breathe");
-  });
-
-  it("routes cognitive assessment from fast help", () => {
-    renderMindMemory();
-
-    fireEvent.click(screen.getByTestId("button-mind-memory-fast-cognitive-assessment"));
-
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/mind-memory/cognitive-assessment");
-  });
-
-  it("shows the active cognitive assessment badge after joining", async () => {
-    renderMindMemory({
-      ...unjoinedProgram,
-      joined: true,
-      enrollment: {
-        status: "active",
-        startDate: "2026-07-07",
-        frequency: "monthly",
-        reminderTime: "10:00",
-        timezone: "Europe/Madrid",
-        joinedAt: "2026-07-07T08:00:00.000Z",
-        updatedAt: "2026-07-07T08:00:00.000Z",
-        nextRunAt: "2026-08-07T08:00:00.000Z",
-        scheduledInteractionId: "00000000-0000-4000-8000-000000000001",
-      },
-    });
-
-    expect(await screen.findByText("Joined")).toBeInTheDocument();
-    expect(screen.getByTestId("button-mind-memory-fast-cognitive-assessment")).toHaveTextContent("Monthly check");
-  });
-
-  it("rotates through the full final Fast help set", () => {
-    vi.useFakeTimers();
-    renderMindMemory();
-
-    expect(screen.getByTestId("button-mind-memory-fast-cognitive-assessment")).toHaveTextContent("Cognitive Assessment");
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    expect(screen.getByTestId("button-mind-memory-fast-relax-breathe")).toHaveTextContent("Relax Breathe");
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    expect(screen.getByTestId("button-mind-memory-fast-learn-words")).toHaveTextContent("Learn Words");
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    expect(screen.getByTestId("button-mind-memory-fast-play-game")).toHaveTextContent("Play Game");
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    expect(screen.getByTestId("button-mind-memory-fast-listen-closely")).toHaveTextContent("Listen Closely");
-
-    act(() => {
-      vi.advanceTimersByTime(9000);
-    });
-
-    expect(screen.getByTestId("button-mind-memory-fast-calm-focus")).toHaveTextContent("Calm Focus");
+    fireEvent.click(screen.getByTestId(testId));
+    expect(screen.getByTestId("current-route")).toHaveTextContent(route);
   });
 });

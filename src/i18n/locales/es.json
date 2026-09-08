@@ -28,7 +28,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Signos vitales"
+      "pageTitle": "Signos vitales",
+      "voiceLabel": "Hablar con VYVA",
+      "voiceContext": "Ayuda con signos vitales. Ayúdame a revisar mediciones recientes, comprender cambios respecto a mi referencia o añadir una nueva medición de forma segura."
     },
     "backToHealth": "Volver a Mi salud",
     "title": "Estado / Signos vitales",
@@ -90,6 +92,24 @@
     "logSubtitle": "Añade un número confirmado desde un dispositivo o comprobación manual.",
     "scanTitle": "Escaneo de signos",
     "scanSubtitle": "Estimación por cámara, no una lectura de dispositivo médico",
+    "faceScan": {
+      "kicker": "Control con cámara",
+      "title": "Escaneo facial",
+      "vitalsTitle": "Frecuencia cardíaca y respiración",
+      "subtitle": "Las estimaciones de la cámara sirven para seguir tendencias de bienestar y siempre deben confirmarse.",
+      "idle": "Usa la cámara frontal para estimar la frecuencia cardíaca y la respiración.",
+      "camera": "Abriendo la cámara...",
+      "scanning": "Mantente quieto mientras VYVA realiza un breve escaneo facial.",
+      "reading": "Analizando las estimaciones de forma segura...",
+      "confirm": "Confirma antes de guardar.",
+      "reviewNote": "Revisas ambas estimaciones antes de guardar nada.",
+      "notConfigured": "VitalLens aún no está configurado. Puedes usar la estimación local del teléfono.",
+      "failed": "El escaneo facial no se completó.",
+      "unsupported": "La cámara no está disponible en este navegador.",
+      "start": "Iniciar control con cámara",
+      "local": "Usar estimación del teléfono",
+      "saved": "La estimación del escaneo se añadió a tus signos vitales."
+    },
     "days": {
       "mon": "L",
       "tue": "M",
@@ -366,11 +386,11 @@
         "openLabel": "Abrir bienestar"
       },
       "cognitive": {
-        "title": "Mi cerebro",
+        "title": "Poder mental",
         "subtitle": "Memoria, atencion y calma",
         "bubble": "Puedo ayudarte a mantener la mente activa a tu ritmo.",
-        "micLabel": "Abrir Mi cerebro",
-        "openLabel": "Abrir Mi cerebro"
+        "micLabel": "Abrir Poder mental",
+        "openLabel": "Abrir Poder mental"
       },
       "social": {
         "title": "Mi comunidad",

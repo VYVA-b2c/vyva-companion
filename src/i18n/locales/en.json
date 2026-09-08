@@ -28,7 +28,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Vitals"
+      "pageTitle": "Vitals",
+      "voiceLabel": "Talk to VYVA",
+      "voiceContext": "Vitals support. Help me review recent readings, understand changes from my baseline, or add a new measurement safely."
     },
     "backToHealth": "Back to My Health",
     "title": "Status / Vitals",
@@ -90,6 +92,24 @@
     "logSubtitle": "Add a confirmed number from a device or manual check.",
     "scanTitle": "Vitals scan",
     "scanSubtitle": "Camera estimate, not a medical device reading",
+    "faceScan": {
+      "kicker": "Camera check",
+      "title": "Face scan",
+      "vitalsTitle": "Heart rate & breathing",
+      "subtitle": "Camera estimates are for wellness trends and always need confirmation.",
+      "idle": "Use your front camera for heart rate and breathing estimates.",
+      "camera": "Opening camera...",
+      "scanning": "Hold still while VYVA captures a short face scan.",
+      "reading": "Reading estimates securely...",
+      "confirm": "Confirm before saving.",
+      "reviewNote": "You review both estimates before anything is saved.",
+      "notConfigured": "VitalLens is not configured yet. You can use the local phone estimate instead.",
+      "failed": "Face scan did not complete.",
+      "unsupported": "Camera access is not available on this browser.",
+      "start": "Start camera check",
+      "local": "Use phone estimate",
+      "saved": "Face scan estimate added to your vitals."
+    },
     "days": {
       "mon": "M",
       "tue": "T",
@@ -378,11 +398,11 @@
         "openLabel": "Open wellbeing"
       },
       "cognitive": {
-        "title": "My Brain",
+        "title": "Brain Power",
         "subtitle": "Memory, focus and calm",
         "bubble": "I can help you keep your mind active at your pace.",
-        "micLabel": "Open My Brain",
-        "openLabel": "Open My Brain"
+        "micLabel": "Open Brain Power",
+        "openLabel": "Open Brain Power"
       },
       "social": {
         "title": "My Community",

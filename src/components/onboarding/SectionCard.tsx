@@ -42,7 +42,7 @@ export function SectionCard({
       </div>
       <div className="min-w-0 flex-1 pr-8">
         <p className="font-body text-[18px] font-black leading-tight text-vyva-text-1">{title}</p>
-        <p className="mt-1 font-body text-[14px] leading-snug text-vyva-text-2">{description}</p>
+        <p className="sr-only">{description}</p>
         {benefit && (
           <span
             data-testid={`benefit-chip-${title.toLowerCase().replace(/\s+/g, "-")}`}

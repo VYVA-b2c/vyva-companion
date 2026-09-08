@@ -27,6 +27,11 @@ const coreSql = readMigration("0057_health_insights_engine_core.sql");
 const actionSeedSql = readMigration("0058_agewell_action_library_seed.sql");
 const outcomesSql = readMigration("0059_health_insight_outcomes.sql");
 const backendCleanupSql = readMigration("0060_health_insights_backend_owned_cleanup.sql");
+const longevityPlanSql = readMigration("0086_longevity_prevention_plans.sql");
+const longevityIdentitySql = readMigration("0087_longevity_prevention_identity.sql");
+const longevityDailyContentSql = readMigration("0089_prevention_daily_content.sql");
+const longevityCompanionSql = readMigration("0093_longevity_companion_events.sql");
+const longevityContentUpgradeSql = readMigration("0096_longevity_content_upgrade.sql");
 const actionSeedInserts = extractActionSeedInserts(actionSeedSql);
 
 const agewellActionTableSql = `
@@ -85,16 +90,22 @@ try {
   await client.query(dedupeSql);
   await client.query(outcomesSql);
   await client.query(backendCleanupSql);
+  await client.query(longevityPlanSql);
+  await client.query(longevityIdentitySql);
+  await client.query(longevityDailyContentSql);
+  await client.query(longevityCompanionSql);
+  await client.query(longevityContentUpgradeSql);
   await client.query("commit");
 
   const counts = await client.query(`
     select
       (select count(*)::int from public.condition_intelligence_profiles) as condition_profiles,
-      (select count(*)::int from public.agewell_action_library) as action_rows
+      (select count(*)::int from public.agewell_action_library) as action_rows,
+      (select count(*)::int from public.longevity_daily_content where is_active = true) as active_longevity_content
   `);
   const row = counts.rows[0] ?? {};
   console.log(
-    `Health insights schema ready: ${row.condition_profiles ?? 0} condition profiles, ${row.action_rows ?? 0} action rows.`,
+    `Health insights schema ready: ${row.condition_profiles ?? 0} condition profiles, ${row.action_rows ?? 0} action rows, ${row.active_longevity_content ?? 0} active longevity content rows.`,
   );
 } catch (error) {
   try {

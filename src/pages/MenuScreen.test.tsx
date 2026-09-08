@@ -34,7 +34,7 @@ describe("MenuScreen", () => {
 
     expect(tiles).toHaveLength(4);
     expect(grid).toHaveTextContent("My Health");
-    expect(grid).toHaveTextContent("My Brain");
+    expect(grid).toHaveTextContent("Brain Power");
     expect(grid).toHaveTextContent("Community");
     expect(grid).toHaveTextContent("Concierge");
     expect(grid).toHaveTextContent("Check-ins & medicines");
@@ -158,7 +158,7 @@ describe("MenuScreen", () => {
     expect(firstTile).toHaveClass("md:grid-cols-[64px_minmax(0,1fr)_auto]");
     expect(firstTile).toHaveClass("rounded-[26px]", "md:p-5");
     expect(screen.getByTestId("menu-tile-health-title")).toHaveClass("text-[20px]", "md:text-[24px]");
-    expect(screen.getByTestId("menu-tile-health-detail")).toHaveClass("text-[13.5px]", "md:text-[14px]");
+    expect(screen.getByTestId("menu-tile-health-detail")).toHaveClass("sr-only");
     expect(firstTile.querySelector('[data-vyva-icon="utility"]')).toBeInTheDocument();
   });
 

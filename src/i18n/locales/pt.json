@@ -229,11 +229,11 @@
         "openLabel": "Abrir bem-estar"
       },
       "cognitive": {
-        "title": "Meu cerebro",
+        "title": "Poder mental",
         "subtitle": "Memoria, foco e calma",
         "bubble": "Posso ajudar a manter a mente ativa ao seu ritmo.",
-        "micLabel": "Abrir Meu cerebro",
-        "openLabel": "Abrir Meu cerebro"
+        "micLabel": "Abrir Poder mental",
+        "openLabel": "Abrir Poder mental"
       },
       "social": {
         "title": "Comunidade",
@@ -2319,7 +2319,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Sinais vitais"
+      "pageTitle": "Sinais vitais",
+      "voiceLabel": "Falar com a VYVA",
+      "voiceContext": "Apoio para sinais vitais. Ajude-me a rever medições recentes, compreender alterações face à minha referência ou adicionar uma nova medição em segurança."
     },
     "backToHealth": "Voltar para A minha saúde",
     "title": "Estado / Sinais vitais",
@@ -2381,6 +2383,24 @@
     "logSubtitle": "Adicione um valor confirmado por dispositivo ou verificação manual.",
     "scanTitle": "Análise de sinais",
     "scanSubtitle": "Estimativa por câmara, não é uma leitura de dispositivo médico",
+    "faceScan": {
+      "kicker": "Verificação por câmara",
+      "title": "Scan facial",
+      "vitalsTitle": "Frequência cardíaca e respiração",
+      "subtitle": "As estimativas da câmara servem para acompanhar tendências de bem-estar e devem ser sempre confirmadas.",
+      "idle": "Use a câmara frontal para estimar a frequência cardíaca e a respiração.",
+      "camera": "A abrir a câmara...",
+      "scanning": "Mantenha-se imóvel enquanto a VYVA faz um breve scan facial.",
+      "reading": "A analisar as estimativas em segurança...",
+      "confirm": "Confirme antes de guardar.",
+      "reviewNote": "Revê as duas estimativas antes de guardar qualquer informação.",
+      "notConfigured": "O VitalLens ainda não está configurado. Pode usar a estimativa local do telefone.",
+      "failed": "O scan facial não foi concluído.",
+      "unsupported": "A câmara não está disponível neste navegador.",
+      "start": "Iniciar verificação por câmara",
+      "local": "Usar estimativa do telefone",
+      "saved": "A estimativa do scan foi adicionada aos seus sinais vitais."
+    },
     "days": {
       "mon": "S",
       "tue": "T",

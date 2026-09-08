@@ -461,7 +461,7 @@ export function ShareDropBoxCapture({
                   <Icon size={18} strokeWidth={2.4} aria-hidden="true" />
                   {item.label}
                 </span>
-                <span className="mt-1 block text-[13px] font-semibold leading-snug">{item.description}</span>
+                <span className="sr-only">{item.description}</span>
               </button>
             );
           })}

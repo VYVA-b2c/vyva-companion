@@ -91,7 +91,7 @@ export function ActionCard({
             {title}
           </span>
           {description ? (
-            <span className="mt-2 block font-body text-[14px] font-medium leading-snug text-vyva-text-2 [hyphens:none] [overflow-wrap:normal] [word-break:normal]">
+            <span className="sr-only">
               {description}
             </span>
           ) : null}

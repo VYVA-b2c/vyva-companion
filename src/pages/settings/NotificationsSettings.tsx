@@ -164,7 +164,7 @@ function SupportModePicker({
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-body text-[18px] font-black leading-tight text-vyva-text-1">{t(option.labelKey)}</p>
-              <p className="mt-1 font-body text-[14px] leading-snug text-vyva-text-2">{t(option.subKey)}</p>
+              <p className="sr-only">{t(option.subKey)}</p>
             </div>
             <div
               className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${

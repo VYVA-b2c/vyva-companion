@@ -11,7 +11,6 @@ export default function SensesPage() {
     <BrainCoachFlowShell
       testId="senses-flow-shell"
       title={t(module.titleKey, module.title)}
-      subtitle={t(module.descriptionKey, module.description)}
       icon={module.icon}
       iconAccent={module.iconAccent}
       iconBg={module.tone.iconBg}

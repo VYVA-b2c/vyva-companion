@@ -89,4 +89,30 @@ describe("guidance protocol map", () => {
     expect(plan.confidence.reasons).toContain("health profile considered");
     expect(plan.confidence.score).toBeGreaterThanOrEqual(4);
   });
+
+  it("localizes dynamic guidance and confidence details in French", () => {
+    const wizard: TriageWizardContext = {
+      quickAnswers: [
+        { id: "breathing", label: "Respiration", value: "Ma respiration est différente.", kind: "symptom" },
+        { id: "no_red_flag", label: "Aucun signe d’alerte", value: "Aucun signe d’alerte.", kind: "red_flag" },
+      ],
+    };
+
+    const plan = buildGuidancePlan({
+      locale: "fr-FR",
+      stage: "complete",
+      wizard,
+    });
+
+    expect(plan.protocolLabel).toBe("Sécurité respiratoire et thoracique");
+    expect(plan.priorityLabel).toBe("Prêt pour la prochaine étape");
+    expect(plan.nextQuestionFocus).toContain("signes d’alerte");
+    expect(plan.confidence.label).toBe("Confiance solide");
+    expect(plan.confidence.reasons).toEqual([
+      "symptôme décrit",
+      "question de sécurité renseignée",
+      "détails du symptôme ajoutés",
+    ]);
+    expect(plan.usefulSignals).toContainEqual(expect.objectContaining({ label: "Oxygène", status: "missing" }));
+  });
 });

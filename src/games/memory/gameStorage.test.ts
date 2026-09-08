@@ -55,4 +55,25 @@ describe("memory game storage", () => {
 
     expect(window.localStorage.getItem("vyva-memory-game-results")).toBeNull();
   });
+
+  it("merges game-specific metadata into the cognitive session payload", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 201 }));
+
+    await saveGameResult({
+      ...result,
+      gameType: "association_memory",
+      variantId: "association_memory-l3-v1",
+      metadata: { roundVersion: "connections_v2", questionCount: 4, correctCount: 3 },
+    });
+
+    const [, request] = vi.mocked(apiFetch).mock.calls[0];
+    const body = JSON.parse(String(request?.body));
+    expect(body.metadata).toMatchObject({
+      variantId: "association_memory-l3-v1",
+      mistakes: 0,
+      roundVersion: "connections_v2",
+      questionCount: 4,
+      correctCount: 3,
+    });
+  });
 });

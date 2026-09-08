@@ -62,7 +62,7 @@ describe("NumberTrails", () => {
     const onExit = vi.fn();
     render(<NumberTrails userId="" onExit={onExit} />);
 
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     expect(screen.getByText("Ejemplo de practica - sin puntuacion")).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("NumberTrails", () => {
   it("shows the practice example once, then starts future trails directly", async () => {
     render(<NumberTrails userId="" />);
 
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     expect(screen.getByText("Ejemplo de practica - sin puntuacion")).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("NumberTrails", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Buena orientacion." })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Siguiente sendero" }));
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     expect(screen.queryByText("Ejemplo de practica - sin puntuacion")).not.toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("NumberTrails", () => {
   it("uses a fresh local trail for next trail and keeps replay intentional", async () => {
     render(<NumberTrails userId="" />);
 
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     fireEvent.click(screen.getByRole("button", { name: "Saltar" }));
 
@@ -120,7 +120,7 @@ describe("NumberTrails", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Buena orientacion." })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reintentar este sendero" }));
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     expect(nodePosition("1")).toBe(firstTrailPosition);
 
@@ -128,7 +128,7 @@ describe("NumberTrails", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Buena orientacion." })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Siguiente sendero" }));
-    expect(await screen.findByRole("heading", { name: /Sendero/ })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
     expect(nodePosition("1")).not.toBe(firstTrailPosition);
   }, 10_000);
@@ -175,7 +175,7 @@ describe("NumberTrails", () => {
 
     render(<NumberTrails userId="user-1" />);
 
-    expect(await screen.findByRole("heading", { name: "Number Trails" })).toBeInTheDocument();
+    expect(await screen.findByTestId("number-trails-intro")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     tapCurrentTrail();
 

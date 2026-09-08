@@ -140,6 +140,10 @@ function profileEmailForAccount(accountEmails: string[], value: string | null | 
   return includesEmail(accountEmails, email) ? null : email;
 }
 
+function firstNameFromProfileName(value: string | null | undefined): string {
+  return trimToNull(value)?.split(/\s+/)[0] ?? "";
+}
+
 function samePhone(a: string | null | undefined, b: string | null | undefined): boolean {
   const left = phoneDigits(a);
   const right = phoneDigits(b);
@@ -1390,7 +1394,7 @@ router.get("/", async (req: Request, res: Response) => {
     const accountEmails = knownEmails(req.user?.email, accountRows[0]?.email, accountProfileRows[0]?.email);
     const accountEmail = accountEmails[0] ?? null;
     const nameParts = (p.full_name ?? "").trim().split(/\s+/);
-    const firstName = nameParts[0] ?? "";
+    const firstName = firstNameFromProfileName(p.preferred_name) || nameParts[0] || "";
     const lastName  = nameParts.slice(1).join(" ");
     const language = resolvedProfileLanguage(p);
     const profileSignals = buildProfileServiceSignals(p);

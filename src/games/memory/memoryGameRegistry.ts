@@ -12,6 +12,8 @@ import type {
   MemoryGameVariant,
   MemoryGameVariantContent,
 } from "./types";
+import { buildConnectionsLevels } from "./connectionsData";
+import { buildNumberMemoryLevels } from "./numberMemoryData";
 
 type LocalizedValue<T> = Partial<Record<LanguageCode, T>> & { es: T };
 
@@ -51,17 +53,6 @@ type WordRecallSet = {
 type RoutineTemplate = {
   title: string;
   activities: string[];
-};
-
-type AssociationLabel = Partial<Record<LanguageCode, string>> & {
-  es: string;
-  en: string;
-};
-
-type AssociationTemplate = {
-  left: AssociationLabel;
-  right: AssociationLabel;
-  extra: string;
 };
 
 type GameContentLanguage = LanguageCode;
@@ -165,7 +156,7 @@ function localizeMemoryMatchContent(set: MemoryMatchSet, pairCount: number, leve
 }
 
 function buildMemoryMatchLevels(sets: MemoryMatchSet[]): MemoryGameLevel[] {
-  const pairCounts = [2, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8] as const;
+  const pairCounts = [3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8] as const;
   const levelSpecs = MEMORY_GAME_LEVELS.map((level) => ({
     level,
     pairs: pairCounts[level - 1] ?? 8,
@@ -465,69 +456,6 @@ function buildSequenceLevels(templates: readonly SequenceTemplate[]): MemoryGame
   }));
 }
 
-function buildNumberDigits(set: readonly string[], templateIndex: number, level: number, targetLength: number) {
-  const source = set[(level - 1) % set.length] ?? set[0] ?? "123";
-  if (source.length >= targetLength) return source.slice(0, targetLength);
-
-  let digits = source;
-  let seed = (templateIndex + 1) * 41 + level * 67;
-  while (digits.length < targetLength) {
-    seed = (seed * 9301 + 49297) % 233280;
-    digits += String(seed % 10);
-  }
-
-  return digits;
-}
-
-function getNumberMemoryTitle(language: LanguageCode, index: number) {
-  return language === "es" ? `Números ${index + 1}` : `Numbers ${index + 1}`;
-}
-
-function getNumberMemoryPrompt(language: LanguageCode, count: number, reverse: boolean) {
-  if (language === "es") {
-    return reverse
-      ? `Recuerda ${count} digitos y repitelos en orden inverso.`
-      : `Recuerda ${count} digitos en orden.`;
-  }
-
-  return reverse
-    ? `Remember ${count} digits and enter them in reverse order.`
-    : `Remember ${count} digits in order.`;
-}
-
-function buildNumberLevels(numberTemplates: readonly string[][]): MemoryGameLevel[] {
-  const levelSpecs = MEMORY_GAME_LEVELS.map((level) => {
-    const count = Math.min(8, 3 + Math.floor((level - 1) / 3));
-    const reverse = level >= 6 && level % 2 === 0;
-    return {
-      level,
-      count,
-      reverse,
-    };
-  });
-
-  return levelSpecs.map((spec) => ({
-    level: spec.level,
-    variants: numberTemplates.map((set, index) => {
-      const digits = buildNumberDigits(set, index, spec.level, spec.count);
-      const content = GAME_CONTENT_LANGUAGES.reduce((accumulator, language) => {
-        accumulator[language] = {
-          title: getNumberMemoryTitle(language, index),
-          prompt: getNumberMemoryPrompt(language, spec.count, spec.reverse),
-          payload: {
-            digits,
-            reverse: spec.reverse,
-            levelBand: getBrainCoachLevelBand(spec.level).label,
-          },
-        };
-        return accumulator;
-      }, {} as LocalizedValue<MemoryGameVariantContent>);
-
-      return createVariant(`number_memory-l${spec.level}-v${index + 1}`, spec.level, content);
-    }),
-  }));
-}
-
 function buildRoutineLevels(routines: readonly RoutineTemplate[]): MemoryGameLevel[] {
   return [
     {
@@ -575,100 +503,6 @@ function buildRoutineLevels(routines: readonly RoutineTemplate[]): MemoryGameLev
         payload: spec.payload(template, index),
       })),
     ),
-  }));
-}
-
-function getAssociationLabel(label: AssociationLabel, language: LanguageCode) {
-  return label[language] ?? label.en ?? label.es;
-}
-
-function getAssociationTitle(language: LanguageCode, index: number) {
-  return language === "es" ? `Asociación ${index + 1}` : `Association ${index + 1}`;
-}
-
-function buildAssociationLevels(templates: readonly AssociationTemplate[]): MemoryGameLevel[] {
-  const levelSpecs = MEMORY_GAME_LEVELS.map((level) => {
-    const mode = ((level - 1) % 5) + 1;
-    const sharedPayload = (template: AssociationTemplate) => ({
-      levelBand: getBrainCoachLevelBand(level).label,
-      delaySeconds: level >= 11 ? 6 : level >= 6 ? 4 : 2,
-      choiceCount: Math.min(4, 2 + Math.floor((level - 1) / 5)),
-      icon: template.extra,
-    });
-    const promptByLanguage = (es: string, en: string) => (language: LanguageCode) => language === "es" ? es : en;
-
-    if (mode === 1) {
-      return {
-        level,
-        prompt: promptByLanguage("Relaciona objeto y categoria.", "Link the item to its group."),
-        payload: (template: AssociationTemplate, language: LanguageCode) => ({
-          ...sharedPayload(template),
-          left: getAssociationLabel(template.left, language),
-          right: getAssociationLabel(template.right, language),
-        }),
-      };
-    }
-
-    if (mode === 2) {
-      return {
-        level,
-        prompt: promptByLanguage("Relaciona un nombre con su objeto.", "Link the person to the item."),
-        payload: (template: AssociationTemplate, language: LanguageCode) => ({
-          ...sharedPayload(template),
-          name: getAssociationLabel(template.left, language),
-          object: getAssociationLabel(template.right, language),
-        }),
-      };
-    }
-
-    if (mode === 3) {
-      return {
-        level,
-        prompt: promptByLanguage("Relaciona un icono con un nombre.", "Link the symbol to the name."),
-        payload: (template: AssociationTemplate, language: LanguageCode) => ({
-          ...sharedPayload(template),
-          icon: template.extra,
-          name: getAssociationLabel(template.left, language),
-        }),
-      };
-    }
-
-    if (mode === 4) {
-      return {
-        level,
-        prompt: promptByLanguage("Relaciona una persona con su rutina.", "Link the person to the daily detail."),
-        payload: (template: AssociationTemplate, language: LanguageCode) => ({
-          ...sharedPayload(template),
-          person: getAssociationLabel(template.left, language),
-          routine: getAssociationLabel(template.right, language),
-        }),
-      };
-    }
-
-    return {
-      level,
-      prompt: promptByLanguage("Memoriza la asociacion ahora y recuerdala despues.", "Remember the link, then recall it after a short pause."),
-      payload: (template: AssociationTemplate, language: LanguageCode) => ({
-        ...sharedPayload(template),
-        pair: [getAssociationLabel(template.left, language), getAssociationLabel(template.right, language)],
-      }),
-    };
-  });
-
-  return levelSpecs.map((spec) => ({
-    level: spec.level,
-    variants: templates.map((template, index) => {
-      const content = GAME_CONTENT_LANGUAGES.reduce((accumulator, language) => {
-        accumulator[language] = {
-          title: getAssociationTitle(language, index),
-          prompt: spec.prompt(language),
-          payload: spec.payload(template, language),
-        };
-        return accumulator;
-      }, {} as LocalizedValue<MemoryGameVariantContent>);
-
-      return createVariant(`association_memory-l${spec.level}-v${index + 1}`, spec.level, content);
-    }),
   }));
 }
 
@@ -874,7 +708,7 @@ const memoryMatchSets: MemoryMatchSet[] = [
     items: [
       { emoji: "🛋️", labels: { es: "sofá", en: "sofa", fr: "canapé", de: "Sofa", it: "divano", pt: "sofá" } },
       { emoji: "💡", labels: { es: "lámpara", en: "lamp", fr: "lampe", de: "Lampe", it: "lampada", pt: "lâmpada" } },
-      { emoji: "🪑", labels: { es: "mesa", en: "table", fr: "table", de: "Tisch", it: "tavolo", pt: "mesa" } },
+      { emoji: "🪴", labels: { es: "planta", en: "plant", fr: "plante", de: "Pflanze", it: "pianta", pt: "planta" } },
       { emoji: "🪑", labels: { es: "silla", en: "chair", fr: "chaise", de: "Stuhl", it: "sedia", pt: "cadeira" } },
       { emoji: "🧶", labels: { es: "alfombra", en: "rug", fr: "tapis", de: "Teppich", it: "tappeto", pt: "tapete" } },
       { emoji: "🛏️", labels: { es: "cojín", en: "cushion", fr: "coussin", de: "Kissen", it: "cuscino", pt: "almofada" } },
@@ -915,11 +749,11 @@ const memoryMatchSets: MemoryMatchSet[] = [
     },
     items: [
       { emoji: "🧼", labels: { es: "jabón", en: "soap", fr: "savon", de: "Seife", it: "sapone", pt: "sabão" } },
-      { emoji: "🧴", labels: { es: "toalla", en: "towel", fr: "serviette", de: "Handtuch", it: "asciugamano", pt: "toalha" } },
+      { emoji: "🧺", labels: { es: "toalla", en: "towel", fr: "serviette", de: "Handtuch", it: "asciugamano", pt: "toalha" } },
       { emoji: "🪮", labels: { es: "peine", en: "comb", fr: "peigne", de: "Kamm", it: "pettine", pt: "pente" } },
       { emoji: "🪥", labels: { es: "cepillo", en: "brush", fr: "brosse", de: "Bürste", it: "spazzola", pt: "escova" } },
       { emoji: "🧴", labels: { es: "champú", en: "shampoo", fr: "shampooing", de: "Shampoo", it: "shampoo", pt: "champô" } },
-      { emoji: "🧴", labels: { es: "crema", en: "cream", fr: "crème", de: "Creme", it: "crema", pt: "creme" } },
+      { emoji: "🫙", labels: { es: "crema", en: "cream", fr: "crème", de: "Creme", it: "crema", pt: "creme" } },
       { emoji: "🧻", labels: { es: "pañuelo", en: "tissue", fr: "mouchoir", de: "Taschentuch", it: "fazzoletto", pt: "lenço" } },
       { emoji: "🧽", labels: { es: "esponja", en: "sponge", fr: "éponge", de: "Schwamm", it: "spugna", pt: "esponja" } },
     ],
@@ -1298,19 +1132,6 @@ const wordRecallSets: WordRecallSet[] = [
   },
 ];
 
-const numberTemplates = [
-  ["318", "4827", "56091", "704126", "381204"],
-  ["245", "6718", "53942", "186405", "297531"],
-  ["907", "1245", "68319", "452781", "640215"],
-  ["156", "9084", "37162", "824903", "915742"],
-  ["482", "3159", "74018", "193684", "258470"],
-  ["639", "2704", "85213", "470925", "613580"],
-  ["571", "8462", "20954", "315870", "462193"],
-  ["824", "1937", "68420", "951306", "704281"],
-  ["260", "7815", "43092", "286417", "539162"],
-  ["714", "5628", "14730", "820564", "381947"],
-] as const;
-
 const routineTemplates: RoutineTemplate[] = [
   { title: "Mañana tranquila", activities: ["despertarse", "lavarse la cara", "desayunar", "salir a caminar", "leer el periódico"] },
   { title: "Visita al médico", activities: ["desayunar", "tomar medicación", "coger la tarjeta", "ir a la consulta", "volver a casa"] },
@@ -1322,19 +1143,6 @@ const routineTemplates: RoutineTemplate[] = [
   { title: "Comprar ingredientes", activities: ["revisar nevera", "anotar faltas", "ir a tienda", "pagar", "guardar ticket"] },
   { title: "Paseo con paraguas", activities: ["mirar tiempo", "ponerse abrigo", "coger paraguas", "cerrar puerta", "salir"] },
   { title: "Merienda en casa", activities: ["poner mantel", "servir té", "cortar fruta", "sentarse", "recoger mesa"] },
-];
-
-const associationTemplates: AssociationTemplate[] = [
-  { left: { es: "manzana", en: "apple" }, right: { es: "fruta", en: "fruit" }, extra: "🍎" },
-  { left: { es: "Carmen", en: "Carmen" }, right: { es: "gafas", en: "glasses" }, extra: "👓" },
-  { left: { es: "Javier", en: "Javier" }, right: { es: "paraguas", en: "umbrella" }, extra: "☂️" },
-  { left: { es: "taza", en: "cup" }, right: { es: "cocina", en: "kitchen" }, extra: "☕" },
-  { left: { es: "Lola", en: "Lola" }, right: { es: "llaves", en: "keys" }, extra: "🔑" },
-  { left: { es: "vecino", en: "neighbour" }, right: { es: "periódico", en: "newspaper" }, extra: "📰" },
-  { left: { es: "farmacia", en: "pharmacy" }, right: { es: "medicación", en: "medicine" }, extra: "💊" },
-  { left: { es: "Rosa", en: "Rosa" }, right: { es: "bufanda", en: "scarf" }, extra: "🧣" },
-  { left: { es: "doctor", en: "doctor" }, right: { es: "agenda", en: "calendar" }, extra: "📒" },
-  { left: { es: "mercado", en: "market" }, right: { es: "tomates", en: "tomatoes" }, extra: "🍅" },
 ];
 
 const storyTemplates: StoryTemplate[] = [
@@ -1748,9 +1556,9 @@ const wordRecallLevels = buildListLevels(
 );
 
 const wordRecallPlayableLevels = buildWordRecallLevels(wordRecallSets);
-const numberMemoryLevels = buildNumberLevels(numberTemplates);
+const numberMemoryLevels = buildNumberMemoryLevels();
 const routineLevels = buildRoutineLevels(routineTemplates);
-const associationLevels = buildAssociationLevels(associationTemplates);
+const associationLevels = buildConnectionsLevels();
 const storyLevels = buildStoryLevels(storyTemplates);
 const memoryMatchLevels = buildMemoryMatchLevels(memoryMatchSets);
 

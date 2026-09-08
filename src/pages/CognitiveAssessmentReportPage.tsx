@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { getBrainCoachActivityPath } from "@/games/brainCoachCatalog";
 import {
   cognitiveAssessmentPracticeStatusForReport,
   startCognitiveAssessmentPractice,
@@ -296,7 +297,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Remember Later",
     detail: "Practice remembering an intention after a short delay.",
     why: "This gives memory a short, practical workout without turning the result into a test score.",
-    route: "/memory-games/remember-later",
+    route: getBrainCoachActivityPath("remember_later"),
     domainLabel: "Memory",
     minutes: "5 min",
     Icon: Brain,
@@ -307,7 +308,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Curious Minds",
     detail: "Warm up word finding with gentle idea prompts.",
     why: "This keeps word finding active with short prompts that feel more like conversation than testing.",
-    route: "/memory-games/curious-minds",
+    route: getBrainCoachActivityPath("curious_minds"),
     domainLabel: "Language",
     minutes: "5 min",
     Icon: BookOpen,
@@ -318,7 +319,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Number Trails",
     detail: "Follow a calm route and train focus step by step.",
     why: "This supports steady attention with a clear path and simple next target.",
-    route: "/executive-function/number-trails",
+    route: getBrainCoachActivityPath("number_trails"),
     domainLabel: "Attention",
     minutes: "5 min",
     Icon: Target,
@@ -329,7 +330,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Category Sort",
     detail: "Sort everyday ideas and practice flexible thinking.",
     why: "This matches reasoning practice to everyday choices, grouping, and flexible thinking.",
-    route: "/executive-function/category-sort",
+    route: getBrainCoachActivityPath("category_sort"),
     domainLabel: "Reasoning",
     minutes: "5 min",
     Icon: Lightbulb,
@@ -340,7 +341,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Memory Match",
     detail: "Use visual pairs to strengthen recognition and recall.",
     why: "This gives visual thinking a simple recognition pattern to work with.",
-    route: "/memory-games/memory_match",
+    route: getBrainCoachActivityPath("memory_match"),
     domainLabel: "Visual thinking",
     minutes: "4 min",
     Icon: Gamepad2,
@@ -351,7 +352,7 @@ const PRACTICE_RECOMMENDATIONS: Record<PracticeKey, PracticeRecommendation> = {
     title: "Breath Garden",
     detail: "Settle attention before another memory or thinking task.",
     why: "This is useful when mood, sleep, or energy may be affecting the check.",
-    route: "/senses/breath-garden",
+    route: getBrainCoachActivityPath("breath_garden"),
     domainLabel: "Mood and energy",
     minutes: "4 min",
     Icon: Leaf,
@@ -1970,7 +1971,7 @@ function ReportView({
                 </span>
                 <span>
                   <span className="block text-[17px] font-black text-[#2f2135]">Report history</span>
-                  <span className="block text-[13px] font-bold text-[#766b63]">Past checks and trends</span>
+                  <span className="sr-only">Past checks and trends</span>
                 </span>
               </span>
               <ChevronRight size={24} className="text-[#9A8F87]" />

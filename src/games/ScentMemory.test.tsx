@@ -33,6 +33,21 @@ function contentResponse() {
   }), { status: 200 });
 }
 
+function alternateContentResponse() {
+  return new Response(JSON.stringify({
+    state: getDefaultScentMemoryUserState("user-1"),
+    prompt: {
+      id: "22222222-2222-4222-8222-222222222222",
+      scent_name: "earth after rain",
+      scent_description: "Imagine the fresh scent of the ground after rain.",
+      guiding_question: "Does it bring back a garden or a walk?",
+      category: "nature",
+      language: "en",
+      is_active: true,
+    },
+  }), { status: 200 });
+}
+
 function saveResponse() {
   return new Response(JSON.stringify({
     session: { id: "session-1" },
@@ -64,22 +79,22 @@ describe("ScentMemory component", () => {
     window.localStorage.clear();
   });
 
-  it("shows the tutorial once and reopens it from Instructions", async () => {
+  it("shows the tutorial once and reopens it from Guidance", async () => {
     render(<ScentMemory userId="user-1" onExit={vi.fn()} />);
     await flushPromises();
 
     expect(screen.getByText("Look. Remember. Share if you want.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "I understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(window.localStorage.getItem("scentMemory:tutorialSeen:v1:user-1")).toBe("true");
     expect(screen.getByText("fresh bread")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Instructions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guidance" }));
 
     expect(screen.getByText("Look. Remember. Share if you want.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(screen.getByText("fresh bread")).toBeInTheDocument();
   });
@@ -116,12 +131,16 @@ describe("ScentMemory component", () => {
     fireEvent.change(screen.getByPlaceholderText("Tell me what you remember..."), {
       target: { value: "It reminds me of Saturday mornings." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save memory" }));
     await flushPromises();
 
     expect(screen.getByRole("heading", { name: "Thanks for sharing that." })).toBeInTheDocument();
-    expect(screen.getByTestId("scent-memory-receipt")).toHaveTextContent("Scent Memory done");
-    expect(screen.getByTestId("scent-memory-receipt")).toHaveTextContent("You can continue when you are ready.");
+    expect(screen.getByRole("button", { name: "Finish" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Do another" })).toBeInTheDocument();
+    expect(screen.queryByText("Milestone")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Play again" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await flushPromises();
     expect(apiFetchMock).toHaveBeenLastCalledWith("/api/games/scent-memory/sessions", expect.objectContaining({
       method: "POST",
       body: expect.stringContaining("It reminds me of Saturday mornings."),
@@ -144,11 +163,63 @@ describe("ScentMemory component", () => {
     await flushPromises();
 
     expect(screen.getByRole("heading", { name: "Thanks for sharing that." })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await flushPromises();
     const sessionCall = apiFetchMock.mock.calls.find(([url]) => url === "/api/games/scent-memory/sessions");
     expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
       responseText: null,
       completed: true,
       abandoned: false,
     });
+  });
+
+  it("saves another memory inside the current session before loading a new prompt", async () => {
+    window.localStorage.setItem("scentMemory:tutorialSeen:v1:user-1", "true");
+    apiFetchMock
+      .mockResolvedValueOnce(saveResponse())
+      .mockResolvedValueOnce(alternateContentResponse());
+
+    render(<ScentMemory userId="user-1" onExit={vi.fn()} />);
+    await flushPromises();
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Tell me what you remember..."), {
+      target: { value: "It reminds me of home." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save memory" }));
+    fireEvent.click(screen.getByRole("button", { name: "Do another" }));
+    await flushPromises();
+
+    const sessionCall = apiFetchMock.mock.calls.find(([url]) => url === "/api/games/scent-memory/sessions");
+    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
+      responseText: "It reminds me of home.",
+      completed: false,
+      abandoned: false,
+    });
+    expect(screen.getByText("earth after rain")).toBeInTheDocument();
+    expect(screen.getByText("Place memory")).toBeInTheDocument();
+    expect(screen.getByText("Does it bring back a garden or a walk?")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Tell me what you remember...")).toHaveValue("");
+    expect(apiFetchMock).toHaveBeenCalledWith(expect.stringContaining("excludePromptId=11111111-1111-4111-8111-111111111111"));
+    expect(apiFetchMock).toHaveBeenCalledWith(expect.stringContaining("excludeCategory=food"));
+  });
+
+  it("rotates to a different fallback memory in the local preview", async () => {
+    window.localStorage.setItem("scentMemory:tutorialSeen:v1", "true");
+    render(<ScentMemory userId="" onExit={vi.fn()} />);
+    await flushPromises();
+
+    expect(screen.getByText("fresh bread")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    fireEvent.click(screen.getByRole("button", { name: "Do another" }));
+    await flushPromises();
+
+    expect(screen.getByText("earth after rain")).toBeInTheDocument();
+    expect(screen.queryByText("fresh bread")).not.toBeInTheDocument();
   });
 });

@@ -108,7 +108,7 @@ function SecondaryAction({ action }: { action: LongevityActionCard }) {
           {action.title}
         </span>
         {action.detail ? (
-          <span className="mt-1 line-clamp-1 block font-body text-[16px] leading-[1.4] text-[#6F6375]">
+          <span className="sr-only">
             {action.detail}
           </span>
         ) : null}

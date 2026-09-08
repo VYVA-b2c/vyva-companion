@@ -8,9 +8,18 @@ export async function ensureRefillPersistence() {
       alter table if exists my_medicines
         add column if not exists dose_unit text,
         add column if not exists units_per_dose numeric(10,2),
+        add column if not exists inventory_unit text,
+        add column if not exists inventory_units_per_dose numeric(10,2),
         add column if not exists daily_frequency numeric(6,2),
         add column if not exists inventory_tracking_enabled boolean not null default false,
         add column if not exists refill_alert_days integer not null default 7;
+
+      update my_medicines
+      set
+        inventory_unit = coalesce(inventory_unit, dose_unit),
+        inventory_units_per_dose = coalesce(inventory_units_per_dose, units_per_dose)
+      where inventory_tracking_enabled = true
+        and (inventory_unit is null or inventory_units_per_dose is null);
 
       alter table if exists user_channel_preferences
         add column if not exists medication_refill_push_enabled boolean not null default false;

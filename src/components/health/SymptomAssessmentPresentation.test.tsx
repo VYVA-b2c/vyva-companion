@@ -9,10 +9,12 @@ import {
 import { SYMPTOM_ASSESSMENT_STAGE_IDS } from "@/design/screenPresentation";
 import { resolveSymptomAssessmentPresentation } from "@/design/screenPresentation";
 import { SymptomChoiceCard } from "./SymptomChoiceCard";
+import { HOME_MASTER_THEME_STORAGE_KEY } from "@/hooks/useHomeMasterTheme";
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.localStorage.removeItem(HOME_MASTER_THEME_STORAGE_KEY);
 });
 
 describe("SymptomAssessmentPresentation", () => {
@@ -40,7 +42,10 @@ describe("SymptomAssessmentPresentation", () => {
 
     for (const modality of ["voice", "touch"] as const) {
       const presentation = screen.getByTestId(`symptom-presentation-${stageId}-${modality}`);
-      expect(presentation).toHaveClass("max-w-[330px]", "sm:max-w-[760px]");
+      expect(presentation).toHaveClass(
+        stageId === "severity" ? "max-w-[360px]" : "max-w-[330px]",
+        "sm:max-w-[760px]",
+      );
       expect(presentation).toHaveAttribute(
         "data-approved-frame",
         SYMPTOM_ASSESSMENT_APPROVED_FRAME_BY_STAGE[stageId],
@@ -146,15 +151,34 @@ describe("SymptomAssessmentPresentation", () => {
     expect(screen.getByRole("heading", { name: "Reviewing your symptoms" })).toBeInTheDocument();
     expect(screen.queryByText("Reviewing your health profile")).not.toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(1600));
+    act(() => vi.advanceTimersByTime(2400));
     expect(screen.getByRole("heading", { name: "Reviewing your health profile" })).toBeInTheDocument();
     expect(screen.queryByText("Reviewing your symptoms")).not.toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(1600));
+    act(() => vi.advanceTimersByTime(2400));
     expect(screen.getByRole("heading", { name: "Searching 40M+ peer-reviewed sources" })).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(1600));
+    act(() => vi.advanceTimersByTime(2400));
     expect(screen.getByRole("heading", { name: "Checking safety signals" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["light", "canonical-light"],
+    ["dark", "canonical-dark"],
+  ] as const)("uses the canonical %s progress surface", (theme, expectedSurface) => {
+    window.localStorage.setItem(HOME_MASTER_THEME_STORAGE_KEY, theme);
+
+    render(<SymptomAssessmentPresentation stageId="checking" modality="touch" />);
+
+    expect(screen.getByTestId("symptom-presentation-checking-touch")).toHaveAttribute(
+      "data-theme-surface",
+      expectedSurface,
+    );
+    expect(screen.getByTestId("symptom-checking-progress-track")).toHaveAttribute(
+      "aria-valuenow",
+      "1",
+    );
+    expect(screen.getByTestId("symptom-checking-copy-slot")).toHaveClass("h-[84px]");
   });
 
   it("keeps the approved mobile Touch selected-control state child-owned and interactive", () => {

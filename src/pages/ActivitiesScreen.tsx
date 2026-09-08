@@ -95,49 +95,49 @@ const ActivitiesScreen = () => {
     {
       id: "memory",
       icon: BrainCircuit,
-      label: t("activities.primary.memory", "Strengthen Memory"),
-      sub: t("activities.primary.memorySub", "Practice recall, matching, and daily routines."),
+      label: t("mindMemory.cards.strengthenMemory", "Remember"),
+      sub: t("mindMemory.cards.strengthenMemoryDetail", "Recall people, places, words, numbers, and future cues."),
       mobileLabel: t("activities.primary.memoryMobile", "Memory"),
       mobileSub: t("activities.primary.memorySubMobile", "Recall practice"),
       color: "#7C3AED",
       bg: "#F5F3FF",
-      to: "/memory-games",
+      to: "/brain-coach/remember",
       testId: "button-activities-primary-memory",
     },
     {
       id: "reflexes",
       icon: Route,
-      label: t("activities.primary.reflexes", "Train Reflexes"),
-      sub: t("activities.primary.reflexesSub", "Build faster focus and response."),
+      label: t("mindMemory.cards.trainReflexes", "Focus & React"),
+      sub: t("mindMemory.cards.trainReflexesDetail", "Stay attentive, react, and keep pace."),
       mobileLabel: t("activities.primary.reflexesMobile", "Reflexes"),
       mobileSub: t("activities.primary.reflexesSubMobile", "Quick response"),
       color: "#0A7C4E",
       bg: "#ECFDF5",
-      to: "/attention-boosters",
+      to: "/brain-coach/focus",
       testId: "button-activities-primary-reflexes",
     },
     {
       id: "intelligence",
       icon: Puzzle,
-      label: t("activities.primary.intelligence", "Improve Thinking"),
-      sub: t("activities.primary.intelligenceSub", "Challenge logic, planning, and problem solving."),
+      label: t("mindMemory.cards.improveThinking", "Think & Plan"),
+      sub: t("mindMemory.cards.improveThinkingDetail", "Plan, sort, switch rules, and solve sequences."),
       mobileLabel: t("activities.primary.intelligenceMobile", "Logic"),
       mobileSub: t("activities.primary.intelligenceSubMobile", "Problem solving"),
       color: "#C9890A",
       bg: "#FEF3C7",
-      to: "/executive-function",
+      to: "/brain-coach/think",
       testId: "button-activities-primary-intelligence",
     },
     {
       id: "senses",
       icon: Headphones,
-      label: t("activities.primary.senses", "Sharpen Senses"),
-      sub: t("activities.primary.sensesSub", "Practice association, observation, and recall."),
+      label: t("mindMemory.cards.sharpenSenses", "Calm & Notice"),
+      sub: t("mindMemory.cards.sharpenSensesDetail", "Slow down, breathe, and reconnect with sensory memory."),
       mobileLabel: t("activities.primary.sensesMobile", "Senses"),
       mobileSub: t("activities.primary.sensesSubMobile", "Sound focus"),
       color: "#0F766E",
       bg: "#CCFBF1",
-      to: "/senses",
+      to: "/brain-coach/calm",
       testId: "button-activities-primary-senses",
     },
   ];
@@ -191,7 +191,7 @@ const ActivitiesScreen = () => {
       sub: t("activities.quick.playSub", "Practice memory and focus."),
       mobileLabel: t("activities.quick.playMobile", "Play"),
       mobileSub: t("activities.quick.playSubMobile", "Brain games"),
-      to: "/memory-games",
+      to: "/brain-coach/remember",
       iconBg: "#EFF6FF",
       iconColor: "#2563EB",
       border: "#BFDBFE",
@@ -392,7 +392,7 @@ const ActivitiesScreen = () => {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-body text-[17px] font-extrabold leading-tight text-vyva-text-1 [overflow-wrap:anywhere]">{activity.title}</span>
-                  <span className="mt-1 block font-body text-[13px] font-semibold leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">{activity.rationale}</span>
+                  <span className="sr-only">{activity.rationale}</span>
                 </span>
                 <span className="shrink-0 rounded-full bg-[#FFF7ED] px-2.5 py-1 text-[12px] font-extrabold text-[#B45309]">
                   {activity.estimatedDurationMinutes} min

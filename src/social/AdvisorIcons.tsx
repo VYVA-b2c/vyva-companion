@@ -1,4 +1,4 @@
-import { Apple, BadgePercent, FileText, PersonStanding, SearchCheck, Smartphone, Sprout, type LucideIcon } from "lucide-react";
+import { Apple, BadgePercent, FileText, PersonStanding, SearchCheck, ShieldCheck, Smartphone, Sprout, type LucideIcon } from "lucide-react";
 import type { AdvisorIconKey } from "../../shared/advisors";
 
 const advisorIconMap: Record<AdvisorIconKey, LucideIcon> = {
@@ -7,6 +7,7 @@ const advisorIconMap: Record<AdvisorIconKey, LucideIcon> = {
   deals: BadgePercent,
   research: SearchCheck,
   paperwork: FileText,
+  benefits: ShieldCheck,
   tech: Smartphone,
   coach: PersonStanding,
 };

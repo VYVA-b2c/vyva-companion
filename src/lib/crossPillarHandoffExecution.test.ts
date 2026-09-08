@@ -75,10 +75,10 @@ describe("cross-pillar real handoff execution", () => {
     const handoff = executeCrossPillarHandoff({
       result: result("mind-memory", "gentle"),
     }, navigate);
-    expect(handoff.destinationPath).toBe("/memory-games");
+    expect(handoff.destinationPath).toBe("/brain-coach/remember");
     expect(handoff.destinationState.cognitiveActivityPreference).toBe("gentle");
     expect(navigate).toHaveBeenCalledWith(
-      "/memory-games",
+      "/brain-coach/remember",
       expect.objectContaining({
         state: expect.objectContaining({
           cognitiveActivityPreference: "gentle",
@@ -161,8 +161,8 @@ describe("cross-pillar real handoff execution", () => {
       now: "2026-07-27T13:01:00.000Z",
     }, navigate);
 
-    expect(readCrossPillarHandoff(handoff.id)?.destinationPath).toBe("/memory-games");
-    expect(acknowledgeCrossPillarHandoff(handoff.id, "/memory-games")?.status).toBe("acknowledged");
+    expect(readCrossPillarHandoff(handoff.id)?.destinationPath).toBe("/brain-coach/remember");
+    expect(acknowledgeCrossPillarHandoff(handoff.id, "/brain-coach/remember")?.status).toBe("acknowledged");
     expect(completeCrossPillarHandoff(handoff.id)?.status).toBe("completed");
   });
 

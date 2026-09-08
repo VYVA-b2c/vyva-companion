@@ -1170,7 +1170,7 @@ export default function HeroMessagesAdminPage() {
                       <span className="text-sm font-black">{item.label}</span>
                       <span className="text-xl font-black leading-none">{overviewCounts[item.id]}</span>
                     </span>
-                    <span className={`mt-1 block text-xs font-bold ${active ? "text-purple-100" : "text-[#8b7a73]"}`}>{item.description}</span>
+                    <span className="sr-only">{item.description}</span>
                   </button>
                 );
               })}

@@ -40,6 +40,9 @@ import {
   MessageSquare,
   Timer,
 } from "lucide-react";
+import AdminMenu from "./AdminMenu";
+import AdminPageHeader from "./AdminPageHeader";
+import SocialStudioPanel from "./SocialStudioPanel";
 import { apiFetch } from "@/lib/queryClient";
 
 const CHANNELS = [
@@ -51,21 +54,8 @@ const CHANNELS = [
   "tiktok",
 ] as const;
 const AUDIENCES = ["b2c", "b2b", "both"] as const;
-const TABS = [
-  "dashboard",
-  "journeys",
-  "content",
-  "calendar",
-  "contacts",
-  "settings",
-] as const;
-const CAMPAIGN_STATUSES = [
-  "draft",
-  "scheduled",
-  "published",
-  "paused",
-  "archived",
-] as const;
+const TABS = ["dashboard", "social-studio", "journeys", "content", "calendar", "contacts", "settings"] as const;
+const CAMPAIGN_STATUSES = ["draft", "scheduled", "published", "paused", "archived"] as const;
 const JOURNEY_STATUSES = ["draft", "active", "paused", "archived"] as const;
 const CONTENT_STATUSES = [
   "draft",
@@ -179,6 +169,20 @@ type SocialPublishingProvider = {
   manualPublishingEnabled: boolean;
   directPublishingEnabled: boolean;
   connectionReady: boolean;
+  connectionConfigured?: boolean;
+  connections?: SocialPublishingConnection[];
+};
+
+type SocialPublishingConnection = {
+  id: string;
+  provider: string;
+  accountId: string;
+  accountName: string;
+  instagramBusinessAccountId: string | null;
+  instagramUsername: string | null;
+  status: string;
+  connectedAt: string;
+  updatedAt: string;
 };
 
 type SocialPublishingStatus = {
@@ -796,6 +800,10 @@ function normalizeSocialPublishingStatus(
           manualPublishingEnabled: Boolean(provider.manualPublishingEnabled),
           directPublishingEnabled: Boolean(provider.directPublishingEnabled),
           connectionReady: Boolean(provider.connectionReady),
+          connectionConfigured: Boolean(provider.connectionConfigured),
+          connections: Array.isArray(provider.connections)
+            ? provider.connections
+            : [],
         }))
       : emptySocialPublishing.providers;
 
@@ -886,6 +894,7 @@ const channelLabel: Record<Channel, string> = {
 
 const tabLabel: Record<Tab, string> = {
   dashboard: "Dashboard",
+  "social-studio": "Social Studio",
   journeys: "Journeys",
   content: "Content",
   calendar: "Calendar",
@@ -4215,6 +4224,7 @@ export default function MarketingAdminPage() {
   const [syncState, setSyncState] = useState<SyncState>(emptySync);
   const [syncRunning, setSyncRunning] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState("");
+  const [metaConnectionBusy, setMetaConnectionBusy] = useState(false);
   const [exportPreview, setExportPreview] =
     useState<LovableExportPreview | null>(null);
   const [exportPreviewRunning, setExportPreviewRunning] = useState(false);
@@ -4448,6 +4458,18 @@ export default function MarketingAdminPage() {
       navigate(canonicalPath, { replace: true });
     }
   }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const status = new URLSearchParams(location.search).get("meta_connection");
+    if (!status) return;
+    const feedback = status === "connected"
+      ? "Meta connected. The available Facebook Pages and linked Instagram accounts are now visible below."
+      : status === "missing_config"
+        ? "Add META_APP_ID and META_APP_SECRET to the Admin deployment before connecting Meta."
+        : "Meta could not be connected. Check the Meta app permissions and try again.";
+    setMessage(feedback);
+    navigate(location.pathname, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   function openMarketingTab(tab: Tab) {
     setActiveTab(tab);
@@ -6925,6 +6947,27 @@ export default function MarketingAdminPage() {
     }
   }
 
+  function connectMeta() {
+    window.location.assign("/api/admin/marketing/social-publishing/meta/connect");
+  }
+
+  async function verifyMeta() {
+    setMetaConnectionBusy(true);
+    setMessage("Verifying the Meta connection...");
+    try {
+      const result = await api<{ verifiedPageName: string | null }>(
+        "/api/admin/marketing/social-publishing/meta/verify",
+        { method: "POST" },
+      );
+      setMessage(`Meta connection verified for ${result.verifiedPageName || "the selected Page"}.`);
+      await refreshAll();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Meta connection verification failed.");
+    } finally {
+      setMetaConnectionBusy(false);
+    }
+  }
+
   const syncBlockedReason = !syncState.configured
     ? "Set VYVA_MARKETING_EXPORT_TOKEN or LOVABLE_MARKETING_API_KEY before running a sync. The default Lovable export endpoint is already built in, and can be overridden with VYVA_MARKETING_EXPORT_URL."
     : syncState.canRunSync === false
@@ -6955,6 +6998,8 @@ export default function MarketingAdminPage() {
   const socialPublishing = normalizeSocialPublishingStatus(
     syncState.socialPublishing ?? summary.socialPublishing,
   );
+  const metaProvider = socialPublishing.providers.find((provider) => provider.id === "meta");
+  const metaConnections = metaProvider?.connections ?? [];
   const tokenAliasPresent = syncDiagnostics?.tokenAliasPresent ?? {};
   const urlAliasPresent = syncDiagnostics?.urlAliasPresent ?? {};
   const yesNo = (value: boolean | undefined) => (value ? "yes" : "no");
@@ -7225,6 +7270,13 @@ export default function MarketingAdminPage() {
               )}
             </div>
           </div>
+
+          {activeTab === "social-studio" && (
+            <SocialStudioPanel
+              audiences={audiences.map((audience) => ({ id: audience.id, name: audience.name, memberCount: audience.memberCount }))}
+              onCreated={() => refreshAll()}
+            />
+          )}
 
           {activeTab === "dashboard" && (
             <div className="grid gap-4" data-testid="marketing-dashboard-tab">
@@ -13569,11 +13621,62 @@ export default function MarketingAdminPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Pill className="bg-amber-50 text-amber-800">
-                        Setup needed
+                      <Pill className={metaProvider?.connectionReady ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}>
+                        {metaProvider?.connectionReady ? "Connected" : "Setup needed"}
                       </Pill>
+                      {metaProvider?.connectionReady ? (
+                        <button
+                          type="button"
+                          onClick={verifyMeta}
+                          disabled={metaConnectionBusy}
+                          className="inline-flex items-center gap-2 rounded-lg border border-[#eadfd5] bg-white px-3 py-2 text-sm font-black text-[#2f173d] hover:border-purple-300 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={15} />
+                          {metaConnectionBusy ? "Checking..." : "Verify"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={connectMeta}
+                        disabled={!metaProvider?.connectionConfigured}
+                        className="inline-flex items-center gap-2 rounded-lg bg-purple-700 px-3 py-2 text-sm font-black text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                      >
+                        <ExternalLink size={15} />
+                        {metaProvider?.connectionReady ? "Reconnect Meta" : "Connect Meta"}
+                      </button>
                     </div>
                   </div>
+
+                  {!metaProvider?.connectionConfigured ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                      Meta OAuth is not configured on the Admin deployment yet. Add
+                      <span className="mx-1 font-black">META_APP_ID</span> and
+                      <span className="mx-1 font-black">META_APP_SECRET</span> to
+                      the service serving <span className="font-black">v2.vyva.life</span>,
+                      then refresh this page.
+                    </div>
+                  ) : null}
+
+                  {metaConnections.length ? (
+                    <div className="grid gap-2">
+                      {metaConnections.map((connection) => (
+                        <div
+                          key={connection.id}
+                          className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-3 text-sm"
+                        >
+                          <p className="font-black text-emerald-950">{connection.accountName}</p>
+                          <p className="mt-1 font-semibold text-emerald-900">
+                            Facebook Page connected
+                            {connection.instagramUsername
+                              ? ` · Instagram @${connection.instagramUsername}`
+                              : connection.instagramBusinessAccountId
+                                ? " · Instagram Business account linked"
+                                : " · No linked Instagram Business account found"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
 
                   <div className="grid gap-3 md:grid-cols-2">
                     {(["linkedin", "tiktok"] as const).map((channel) => (

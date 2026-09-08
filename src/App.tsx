@@ -1,7 +1,8 @@
 import React, { lazy, Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,10 +22,12 @@ import {
 } from "@/lib/cognitiveAssessmentPracticeBridge";
 import { CAREGIVER_DASHBOARD_ROUTE, isCaregiverAccessibleAppPath, isCaregiverRoutingUser } from "@/lib/onboardingRoute";
 import { shouldShowPwaInstallPromptForRoute } from "@/lib/pwaInstallRoutes";
+import { writeHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
-import type { PreventionPlanData } from "./pages/PreventionPlan";
+import type { LongevityMoment, PreventionPlanData } from "./pages/PreventionPlan";
 import type { VitalsTrackerPreviewData } from "./components/VitalsTracker";
 import AppShell from "./components/AppShell";
+import { getBrainCoachActivity } from "./games/brainCoachCatalog";
 import ServiceGateRoute from "./components/ServiceGateRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OnboardingGuard from "./components/OnboardingGuard";
@@ -50,7 +53,6 @@ const PrototypeHomeScreen = lazy(() => import("./pages/HomeNavPrototypeScreens")
 const PrototypeMenuScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeMenuScreen })));
 const PrototypeCheckInScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeCheckInScreen })));
 const PrototypeHealthScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeHealthScreen })));
-const PrototypeBrainScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeBrainScreen })));
 const PrototypeCommunityScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeCommunityScreen })));
 const PrototypeConciergeScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeConciergeScreen })));
 const PrototypeReportsScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeReportsScreen })));
@@ -85,7 +87,6 @@ const SpatialNavigator = lazy(() => import("./games/SpatialNavigator"));
 const FaceNameMatch = lazy(() => import("./games/FaceNameMatch"));
 const AttentionBoostersPage = lazy(() => import("./games/AttentionBoostersPage"));
 const ExecutiveFunctionPage = lazy(() => import("./games/ExecutiveFunctionPage"));
-const LanguageGamesPage = lazy(() => import("./games/LanguageGamesPage"));
 const SensesPage = lazy(() => import("./games/SensesPage"));
 const MemoryGamesPage = lazy(() => import("./games/memory/MemoryGamesPage"));
 const MemoryGameRunner = lazy(() => import("./games/memory/MemoryGameRunner"));
@@ -215,6 +216,24 @@ const VITALS_PREVIEW_DATA: VitalsTrackerPreviewData = {
   ],
   latest_alert: null,
 };
+
+const VITALS_CONTACT_DOCTOR_PREVIEW_DATA: VitalsTrackerPreviewData = {
+  ...VITALS_PREVIEW_DATA,
+  analysis: {
+    ...VITALS_PREVIEW_DATA.analysis,
+    id: "preview-vitals-contact-doctor-analysis",
+    safety_status: "contact_doctor",
+    recommended_action: "contact_doctor",
+    risk_score: 62,
+    risk_tier: "high",
+    senior_message: "VYVA noticed a change worth same-day medical advice. Share this summary if you can.",
+  },
+  latest_alert: {
+    id: "preview-vitals-contact-doctor-alert",
+    severity: "warning",
+    message: "Symptom report: Douleur à la tête ou au cou",
+  },
+};
 const WelcomeScreen = lazy(() => import("./pages/onboarding/WelcomeScreen"));
 const WhoForStep = lazy(() => import("./pages/onboarding/WhoForStep"));
 const BasicsStep = lazy(() => import("./pages/onboarding/BasicsStep"));
@@ -264,6 +283,7 @@ const CommunityActivitiesScreen = lazy(() => import("./social/CommunityActivitie
 const ShareStoriesScreen = lazy(() => import("./social/ShareStoriesScreen"));
 const AdvisorHub = lazy(() => import("./social/AdvisorHub"));
 const AdvisorChat = lazy(() => import("./social/AdvisorChat"));
+const BenefitsNavigatorScreen = lazy(() => import("./benefits/BenefitsNavigatorScreen"));
 const MovementExerciseGuideScreen = lazy(() => import("./social/MovementExerciseGuideScreen"));
 const RoomScreen = lazy(() => import("./social/RoomScreen"));
 const ScreenContactSheet = lazy(() => import("./pages/dev/ScreenContactSheet"));
@@ -340,6 +360,48 @@ function SectionRouter() {
   );
 }
 
+function BrainCoachActivityRoute() {
+  const { activityId } = useParams<{ activityId: string }>();
+  const activity = activityId ? getBrainCoachActivity(activityId) : undefined;
+
+  if (!activity || activity.status !== "active") {
+    return <Navigate to="/mind-memory" replace />;
+  }
+
+  if (activity.runner.type === "memory-engine") {
+    return (
+      <AppShell>
+        <MemoryGameRunner forcedGameType={activity.runner.gameType} />
+      </AppShell>
+    );
+  }
+
+  switch (activity.runner.componentId) {
+    case "remember-later":
+      return <AppShell><RememberLaterRoute /></AppShell>;
+    case "spatial-navigator":
+      return <AppShell><SpatialNavigatorRoute /></AppShell>;
+    case "face-name-match":
+      return <AppShell><FaceNameMatchRoute /></AppShell>;
+    case "curious-minds":
+      return <AppShell><CuriousMindsRoute /></AppShell>;
+    case "dual-task-walk":
+      return <DualTaskWalkRoute />;
+    case "number-trails":
+      return <NumberTrailsRoute />;
+    case "category-sort":
+      return <CategorySortRoute />;
+    case "scent-memory":
+      return <ScentMemoryRoute />;
+    case "listen-closely":
+      return <ListenCloselyRoute />;
+    case "breath-garden":
+      return <BreathGardenRoute />;
+    default:
+      return <Navigate to="/mind-memory" replace />;
+  }
+}
+
 function SpatialNavigatorRoute() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -347,7 +409,7 @@ function SpatialNavigatorRoute() {
   return (
     <SpatialNavigator
       userId={user?.id ?? ""}
-      onExit={() => navigate("/mind-memory")}
+      onExit={() => navigate("/brain-coach/remember")}
     />
   );
 }
@@ -359,14 +421,14 @@ function FaceNameMatchRoute() {
   return (
     <FaceNameMatch
       userId={user?.id ?? ""}
-      onExit={() => navigate("/memory-games")}
+      onExit={() => navigate("/brain-coach/remember")}
     />
   );
 }
 
 function RememberLaterRoute() {
   const { user } = useAuth();
-  const handoff = useCognitiveAssessmentPracticeHandoff("/memory-games");
+  const handoff = useCognitiveAssessmentPracticeHandoff("/brain-coach/remember");
 
   return (
     <RememberLater
@@ -392,7 +454,7 @@ function RememberLaterPreviewRoute() {
 
 function CuriousMindsRoute() {
   const { user } = useAuth();
-  const handoff = useCognitiveAssessmentPracticeHandoff("/memory-games");
+  const handoff = useCognitiveAssessmentPracticeHandoff("/brain-coach/think");
 
   return (
     <CuriousMinds
@@ -423,7 +485,7 @@ function ScentMemoryRoute() {
   return (
     <ScentMemory
       userId={user?.id ?? ""}
-      onExit={() => navigate("/senses")}
+      onExit={() => navigate("/brain-coach/calm")}
     />
   );
 }
@@ -435,14 +497,14 @@ function ListenCloselyRoute() {
   return (
     <ListenClosely
       userId={user?.id ?? ""}
-      onExit={() => navigate("/senses")}
+      onExit={() => navigate("/brain-coach/focus")}
     />
   );
 }
 
 function BreathGardenRoute() {
   const { user } = useAuth();
-  const handoff = useCognitiveAssessmentPracticeHandoff("/senses");
+  const handoff = useCognitiveAssessmentPracticeHandoff("/brain-coach/calm");
 
   return (
     <BreathGarden
@@ -594,7 +656,7 @@ function DualTaskWalkRoute() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  return <DualTaskWalk userId={user?.id ?? ""} onExit={() => navigate("/attention-boosters")} />;
+  return <DualTaskWalk userId={user?.id ?? ""} onExit={() => navigate("/brain-coach/focus")} />;
 }
 
 function useCognitiveAssessmentPracticeHandoff(defaultExitPath: string) {
@@ -631,7 +693,7 @@ function useCognitiveAssessmentPracticeHandoff(defaultExitPath: string) {
 
 function CategorySortRoute() {
   const { user } = useAuth();
-  const handoff = useCognitiveAssessmentPracticeHandoff("/executive-function");
+  const handoff = useCognitiveAssessmentPracticeHandoff("/brain-coach/think");
 
   return (
     <CategorySort
@@ -646,7 +708,7 @@ function CategorySortRoute() {
 
 function NumberTrailsRoute() {
   const { user } = useAuth();
-  const handoff = useCognitiveAssessmentPracticeHandoff("/executive-function");
+  const handoff = useCognitiveAssessmentPracticeHandoff("/brain-coach/think");
 
   return (
     <NumberTrails
@@ -765,7 +827,7 @@ function HomeMasterBrainPreviewRoute() {
 
   return (
     <AppShell>
-      <PrototypeBrainScreen voicePath="/dev/home-master" profilePath="/dev/home-master/profile" />
+      <MindMemoryScreen />
     </AppShell>
   );
 }
@@ -832,12 +894,31 @@ function HomeMasterSymptomReportPreviewRoute() {
   );
 }
 
+function HomeMasterMovementExercisePreviewRoute() {
+  primeHomeMasterPreviewData();
+
+  return (
+    <AppShell>
+      <MovementExerciseGuideScreen />
+    </AppShell>
+  );
+}
+
+const LONGEVITY_PREVIEW_MOMENTS: LongevityMoment[] = ["morning", "midday", "afternoon", "evening"];
+
+function parseLongevityPreviewMoment(value: string | null): LongevityMoment | undefined {
+  return LONGEVITY_PREVIEW_MOMENTS.includes(value as LongevityMoment) ? value as LongevityMoment : undefined;
+}
+
 function HomeMasterHealthActionPreviewRoute({ kind }: { kind: "plan" | "vitals" | "medicines" }) {
   primeHomeMasterPreviewData();
   const location = useLocation();
 
   if (kind === "plan") {
-    const requestedTheme = new URLSearchParams(location.search).get("theme");
+    const params = new URLSearchParams(location.search);
+    const requestedTheme = params.get("theme");
+    const requestedLanguage = params.get("language") ?? params.get("lang");
+    const requestedMoment = parseLongevityPreviewMoment(params.get("moment"));
     return (
       <AppShell>
         <PreventionPlan
@@ -845,27 +926,22 @@ function HomeMasterHealthActionPreviewRoute({ kind }: { kind: "plan" | "vitals" 
           firstNameOverride="Karim"
           backPath="/dev/home-master/health"
           themeOverride={requestedTheme === "light" || requestedTheme === "dark" ? requestedTheme : undefined}
+          languageOverride={requestedLanguage ?? undefined}
+          momentOverride={requestedMoment}
         />
       </AppShell>
     );
   }
 
   if (kind === "vitals") {
+    const scenario = new URLSearchParams(location.search).get("scenario");
     return (
       <AppShell>
         <VitalsScreen
-          previewData={VITALS_PREVIEW_DATA}
+          previewData={scenario === "contact-doctor" ? VITALS_CONTACT_DOCTOR_PREVIEW_DATA : VITALS_PREVIEW_DATA}
           previewConditions={["hypertension"]}
           backPath="/dev/home-master/health"
         />
-      </AppShell>
-    );
-  }
-
-  if (kind === "plan") {
-    return (
-      <AppShell>
-        <LongevityScreen backPath="/dev/home-master/health" />
       </AppShell>
     );
   }
@@ -967,15 +1043,22 @@ const showDevelopmentPreviewRoutes = import.meta.env.DEV || import.meta.env.MODE
 
 function HomeMasterPreviewLanguageSync() {
   const location = useLocation();
+  const { language } = useLanguage();
 
   React.useEffect(() => {
     if (!location.pathname.startsWith("/dev/home-master")) return;
 
-    const requestedLanguage = new URLSearchParams(location.search).get("lang");
-    if (!requestedLanguage || !["en", "es", "fr", "de", "it", "pt"].includes(requestedLanguage)) return;
+    const searchParams = new URLSearchParams(location.search);
+    const requestedLanguage = searchParams.get("language") ?? searchParams.get("lang");
+    if (requestedLanguage && requestedLanguage !== language && ["en", "es", "fr", "de", "it", "pt"].includes(requestedLanguage)) {
+      setLanguage(requestedLanguage);
+    }
 
-    setLanguage(requestedLanguage);
-  }, [location.pathname, location.search]);
+    const requestedTheme = searchParams.get("theme");
+    if (requestedTheme === "light" || requestedTheme === "dark") {
+      writeHomeMasterTheme(requestedTheme);
+    }
+  }, [language, location.pathname, location.search]);
 
   return null;
 }
@@ -1022,6 +1105,13 @@ const App = () => (
                     <Route path="/dev/home-master/menu" element={<HomeMasterMenuPreviewRoute />} />
                     <Route path="/dev/home-master/health" element={<HomeMasterHealthPreviewRoute />} />
                     <Route path="/dev/home-master/brain" element={<HomeMasterBrainPreviewRoute />} />
+                    <Route path="/dev/brain/remember" element={<AppShell><MemoryGamesPage /></AppShell>} />
+                    <Route path="/dev/brain/focus" element={<AppShell><AttentionBoostersPage /></AppShell>} />
+                    <Route path="/dev/brain/think" element={<AppShell><ExecutiveFunctionPage /></AppShell>} />
+                    <Route path="/dev/brain/calm" element={<AppShell><SensesPage /></AppShell>} />
+                    <Route path="/dev/brain/activity/:activityId" element={<BrainCoachActivityRoute />} />
+                    <Route path="/dev/brain/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
+                    <Route path="/dev/brain/attention-boosters/rhythm-tap" element={<AppShell><MemoryGameRunner forcedGameType="sequence_memory" returnPath="/brain-coach/focus" /></AppShell>} />
                     <Route path="/dev/home-master/community" element={<HomeMasterCommunityPreviewRoute />} />
                     <Route path="/dev/home-master/concierge" element={<HomeMasterConciergePreviewRoute />} />
                     <Route path="/dev/home-master/reports" element={<HomeMasterReportsPreviewRoute />} />
@@ -1043,9 +1133,11 @@ const App = () => (
                     <Route path="/dev/home-master/health-plan" element={<HomeMasterHealthActionPreviewRoute kind="plan" />} />
                     <Route path="/dev/home-master/vitals" element={<HomeMasterHealthActionPreviewRoute kind="vitals" />} />
                     <Route path="/dev/home-master/medicines" element={<HomeMasterHealthActionPreviewRoute kind="medicines" />} />
+                    <Route path="/dev/social-rooms/morning-movement/exercises/:exerciseId" element={<HomeMasterMovementExercisePreviewRoute />} />
                     <Route path="/dev/screen-contact-sheet" element={<ScreenContactSheet />} />
                     <Route path="/dev/profile-conditions" element={<ConditionsSection />} />
                     <Route path="/dev/remember-later" element={<RememberLaterPreviewRoute />} />
+                    <Route path="/dev/connections" element={<MemoryGameRunner forcedGameType="association_memory" returnPath="/dev/home-master/brain" />} />
                     <Route path="/dev/curious-minds" element={<CuriousMindsPreviewRoute />} />
                     <Route path="/dev/scent-memory" element={<ScentMemoryPreviewRoute />} />
                     <Route path="/dev/listen-closely" element={<ListenCloselyPreviewRoute />} />
@@ -1132,6 +1224,7 @@ const App = () => (
                   <Route path="/social-rooms/participate" element={<Navigate to="/social-rooms/experts" replace />} />
                   <Route path="/social-rooms/experts" element={<AppShell><AdvisorHub /></AppShell>} />
                   <Route path="/social-rooms/experts/:agentSlug" element={<AppShell><AdvisorChat /></AppShell>} />
+                  <Route path="/benefits" element={<AppShell><BenefitsNavigatorScreen /></AppShell>} />
                   <Route path="/social-rooms/activities" element={<AppShell><CommunityActivitiesScreen /></AppShell>} />
                   <Route path="/social-rooms/share" element={<AppShell><ShareStoriesScreen /></AppShell>} />
                   <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />
@@ -1141,6 +1234,11 @@ const App = () => (
                   <Route path="/meds/refills" element={<AppShell><ServiceGateRoute service="medications"><MedicationRefillsScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/meds/adherence-report" element={<AppShell><ServiceGateRoute service="adherenceReport"><AdherenceReportScreen /></ServiceGateRoute></AppShell>} />
                   <Route path="/mind-memory" element={<AppShell><MindMemoryScreen /></AppShell>} />
+                  <Route path="/brain-coach/remember" element={<AppShell><MemoryGamesPage /></AppShell>} />
+                  <Route path="/brain-coach/focus" element={<AppShell><AttentionBoostersPage /></AppShell>} />
+                  <Route path="/brain-coach/think" element={<AppShell><ExecutiveFunctionPage /></AppShell>} />
+                  <Route path="/brain-coach/calm" element={<AppShell><SensesPage /></AppShell>} />
+                  <Route path="/brain-coach/activity/:activityId" element={<BrainCoachActivityRoute />} />
                   <Route path="/mind-memory/cognitive-assessment" element={<AppShell><CognitiveAssessmentHubPage /></AppShell>} />
                   <Route path="/mind-memory/cognitive-assessment/start" element={<AppShell><CognitiveAssessmentRunnerPage /></AppShell>} />
                   <Route path="/mind-memory/cognitive-assessment/report" element={<AppShell><CognitiveAssessmentReportPage /></AppShell>} />
@@ -1151,7 +1249,7 @@ const App = () => (
                   <Route path="/learn" element={<AppShell><LearnSomethingNewPage /></AppShell>} />
                   <Route path="/activity" element={<AppShell><ActivityScreen /></AppShell>} />
                   <Route path="/attention-boosters" element={<AppShell><AttentionBoostersPage /></AppShell>} />
-                  <Route path="/attention-boosters/rhythm-tap" element={<AppShell><MemoryGameRunner forcedGameType="sequence_memory" returnPath="/attention-boosters" /></AppShell>} />
+                  <Route path="/attention-boosters/rhythm-tap" element={<AppShell><MemoryGameRunner forcedGameType="sequence_memory" returnPath="/brain-coach/focus" /></AppShell>} />
                   <Route path="/senses" element={<AppShell><SensesPage /></AppShell>} />
                   <Route path="/senses/association" element={<Navigate to="/memory-games/association_memory" replace />} />
                   <Route path="/senses/scent-memory" element={<ScentMemoryRoute />} />

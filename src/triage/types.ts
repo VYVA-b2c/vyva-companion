@@ -74,6 +74,20 @@ export type TriageRuleTelemetry = {
   escalationSources: TriageEscalationSource[];
 };
 
+export type TriagePossiblePattern = {
+  id: string;
+  label: string;
+  explanation: string;
+  supportingAnswers: string[];
+  clarifyingSigns: string[];
+};
+
+export type TriageClinicalHandoff = {
+  summary: string;
+  keyPoints: string[];
+  questions: string[];
+};
+
 export type TriageSummary = {
   chiefComplaint: string;
   symptoms: string[];
@@ -86,8 +100,15 @@ export type TriageSummary = {
   watchSigns?: string[];
   profileConsiderations?: string[];
   vitalsNotes?: string[];
+  vitalsSnapshot?: import("../../shared/schema.js").TriageReportVitalsSnapshot | null;
   scanResults?: TriageScanResult[];
   scanNotes?: string[];
+  interpretation?: string;
+  possiblePatterns?: TriagePossiblePattern[];
+  uncertainty?: string[];
+  reassessmentWindow?: string;
+  changePlanTriggers?: string[];
+  clinicalHandoff?: TriageClinicalHandoff;
   evidenceSummary?: string;
   evidenceSources?: Array<{ title?: string; url?: string; year?: string; journal?: string }>;
   contextConfidence?: {

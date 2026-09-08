@@ -353,7 +353,7 @@ const HOME_FAST_ACTIONS: Array<Pick<HomeFastAction, "id" | "icon" | "tone">> = [
 
 const HOME_AGENT_MOBILE_COPY: Record<HomeAgentCard["id"], { title: string; subtitle: string }> = {
   health: { title: "My Health", subtitle: "Check-ins, vitals, medicines" },
-  cognitive: { title: "My Brain", subtitle: "Memory, focus, calm" },
+  cognitive: { title: "Brain Power", subtitle: "Memory, focus, calm" },
   social: { title: "Community", subtitle: "Rooms and support" },
   concierge: { title: "Concierge", subtitle: "Everyday help" },
 };
@@ -1361,7 +1361,7 @@ const HomeScreen = ({ menuPath = "/menu", onShellNavigate }: HomeScreenProps = {
       id: "mind-memory",
       icon: Brain,
       iconAccent: "bridge",
-      title: t("home.master.cards.mindMemoryShortTitle", "My Brain"),
+      title: t("home.master.cards.mindMemoryShortTitle", "Brain Power"),
       detail: t("home.master.cards.mindMemoryDetailShort", "Memory, focus, calm"),
       tone: { iconBg: "#F5F3FF", iconColor: "#6B21A8", border: "#DDD6FE", surface: "#FFFFFF" },
       onClick: () => {
@@ -1474,40 +1474,40 @@ const HomeScreen = ({ menuPath = "/menu", onShellNavigate }: HomeScreenProps = {
       id: "mind-memory",
       icon: Brain,
       iconAccent: "bridge",
-      title: t("mindMemory.cards.strengthenMemory", "Strengthen Memory"),
-      detail: t("mindMemory.cards.strengthenMemoryDetail", "Practice recall, matching, and daily routines."),
+      title: t("mindMemory.cards.strengthenMemory", "Remember"),
+      detail: t("mindMemory.cards.strengthenMemoryDetail", "Recall people, places, words, numbers, and future cues."),
       tone: { iconBg: "#F5F3FF", iconColor: "#6B21A8", border: "#DDD6FE", surface: "#FFFFFF" },
-      onClick: () => handleNavigate("/memory-games"),
+      onClick: () => handleNavigate("/brain-coach/remember"),
       testId: "card-home-mind-memory",
     },
     {
       id: "mind-reflexes",
       icon: Zap,
       iconAccent: "pulse",
-      title: t("mindMemory.cards.trainReflexes", "Train Reflexes"),
-      detail: t("mindMemory.cards.trainReflexesDetail", "Build faster focus and response."),
+      title: t("mindMemory.cards.trainReflexes", "Focus & React"),
+      detail: t("mindMemory.cards.trainReflexesDetail", "Stay attentive, react, and keep pace."),
       tone: { iconBg: "#ECFDF5", iconColor: "#047857", border: "#BBF7D0", surface: "#FFFFFF" },
-      onClick: () => handleNavigate("/attention-boosters"),
+      onClick: () => handleNavigate("/brain-coach/focus"),
       testId: "card-home-mind-reflexes",
     },
     {
       id: "mind-focus",
       icon: Puzzle,
       iconAccent: "knobs",
-      title: t("mindMemory.cards.improveThinking", "Improve Thinking"),
-      detail: t("mindMemory.cards.improveThinkingDetail", "Challenge logic, planning, and problem solving."),
+      title: t("mindMemory.cards.improveThinking", "Think & Plan"),
+      detail: t("mindMemory.cards.improveThinkingDetail", "Plan, sort, switch rules, and solve sequences."),
       tone: { iconBg: "#FFFBEB", iconColor: "#B45309", border: "#FED7AA", surface: "#FFFFFF" },
-      onClick: () => handleNavigate("/executive-function"),
+      onClick: () => handleNavigate("/brain-coach/think"),
       testId: "card-home-mind-focus",
     },
     {
       id: "mind-senses",
       icon: Headphones,
       iconAccent: "signal",
-      title: t("mindMemory.cards.sharpenSenses", "Sharpen Senses"),
-      detail: t("mindMemory.cards.sharpenSensesDetail", "Practice sound, breath, and sensory recall."),
+      title: t("mindMemory.cards.sharpenSenses", "Calm & Notice"),
+      detail: t("mindMemory.cards.sharpenSensesDetail", "Slow down, breathe, and reconnect with sensory memory."),
       tone: { iconBg: "#F0FDFA", iconColor: "#0F766E", border: "#99F6E4", surface: "#FFFFFF" },
-      onClick: () => handleNavigate("/senses"),
+      onClick: () => handleNavigate("/brain-coach/calm"),
       testId: "card-home-mind-senses",
     },
   ];
@@ -3097,7 +3097,7 @@ const HomeScreen = ({ menuPath = "/menu", onShellNavigate }: HomeScreenProps = {
                   <span className="block truncate font-display text-[19px] font-semibold leading-none">
                     {item.label}
                   </span>
-                  <span className={["mt-1 block truncate font-body text-[11.5px] font-extrabold", isHomeMasterDark ? "text-[#DCCFEF]" : "text-[#9A8A9E]"].join(" ")}>
+                  <span className="sr-only">
                     {item.detail}
                   </span>
                 </span>

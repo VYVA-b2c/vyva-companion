@@ -20,6 +20,8 @@ type MyMedicine = {
   refill_due_date?: string | null;
   dose_unit?: string | null;
   units_per_dose?: number | null;
+  inventory_unit?: string | null;
+  inventory_units_per_dose?: number | null;
   daily_frequency?: number | null;
   inventory_tracking_enabled?: boolean;
   refill_alert_days?: number;
@@ -42,6 +44,8 @@ type AddForm = {
   photo_url: string;
   dose_unit: string;
   units_per_dose: string;
+  inventory_unit: string;
+  inventory_units_per_dose: string;
   daily_frequency: string;
   initial_quantity: string;
   purchased_on: string;
@@ -59,6 +63,8 @@ const EMPTY_FORM: AddForm = {
   photo_url: "",
   dose_unit: "tablet",
   units_per_dose: "1",
+  inventory_unit: "tablet",
+  inventory_units_per_dose: "1",
   daily_frequency: "1",
   initial_quantity: "",
   purchased_on: new Date().toISOString().slice(0, 10),
@@ -88,6 +94,12 @@ type PhotoExtractResponse = {
     medicineName: string;
     strength: string;
     totalQuantity: number | null;
+    inventoryQuantity: number | null;
+    inventoryUnit: string | null;
+    inventoryEvidenceText: string | null;
+    contentAmountPerUnit: number | null;
+    contentUnit: string | null;
+    contentEvidenceText: string | null;
     doseUnit: string;
     purchasedOn: string | null;
   };
@@ -98,7 +110,7 @@ type PhotoExtractResponse = {
 
 function projectedSupply(form: AddForm) {
   const quantity = Number(form.initial_quantity);
-  const dailyUse = Number(form.units_per_dose) * Number(form.daily_frequency);
+  const dailyUse = Number(form.inventory_units_per_dose) * Number(form.daily_frequency);
   if (!form.initial_quantity.trim() || quantity < 0 || dailyUse <= 0 || !form.purchased_on) return null;
   const days = Math.floor(quantity / dailyUse);
   const date = new Date(`${form.purchased_on}T00:00:00.000Z`);
@@ -108,7 +120,7 @@ function projectedSupply(form: AddForm) {
 
 function supplyUnitLabel(quantity: string, unit: string) {
   if (unit === "ml" || Number(quantity) === 1) return unit;
-  return ({ tablet: "tablets", capsule: "capsules", dose: "doses", patch: "patches" } as Record<string, string>)[unit] ?? unit;
+  return ({ tablet: "tablets", capsule: "capsules", single_dose_container: "single-dose containers", bottle: "bottles", sachet: "sachets", dose: "doses", patch: "patches" } as Record<string, string>)[unit] ?? unit;
 }
 
 function frequencyLabel(value: string) {
@@ -151,6 +163,7 @@ export default function MyMedicines({
   const [captureBusy, setCaptureBusy] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [photoConfidence, setPhotoConfidence] = useState<PhotoExtractResponse["confidence"] | null>(null);
+  const [photoWarnings, setPhotoWarnings] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -185,6 +198,8 @@ export default function MyMedicines({
           photo_url: null,
           dose_unit: form.dose_unit,
           units_per_dose: Number(form.units_per_dose),
+          inventory_unit: form.inventory_unit,
+          inventory_units_per_dose: Number(form.inventory_units_per_dose),
           daily_frequency: Number(form.daily_frequency),
           inventory_tracking_enabled: form.inventory_tracking_enabled,
           refill_alert_days: Number(form.refill_alert_days),
@@ -205,6 +220,7 @@ export default function MyMedicines({
       setStepIndex(0);
       setAddOpen(false);
       setPhotoConfidence(null);
+      setPhotoWarnings([]);
     },
   });
 
@@ -258,8 +274,8 @@ export default function MyMedicines({
           ? Boolean(
             form.initial_quantity.trim()
             && Number(form.initial_quantity) >= 0
-            && form.dose_unit.trim()
-            && Number(form.units_per_dose) > 0
+            && form.inventory_unit.trim()
+            && Number(form.inventory_units_per_dose) > 0
             && Number(form.daily_frequency) > 0
             && form.purchased_on
             && Number(form.refill_alert_days) >= 1,
@@ -304,12 +320,13 @@ export default function MyMedicines({
         ...current,
         display_name: result.draft.medicineName || current.display_name,
         dose_text: result.draft.strength || current.dose_text,
-        initial_quantity: result.draft.totalQuantity === null ? current.initial_quantity : String(result.draft.totalQuantity),
-        dose_unit: result.draft.doseUnit || current.dose_unit,
+        initial_quantity: result.draft.inventoryQuantity === null ? current.initial_quantity : String(result.draft.inventoryQuantity),
+        inventory_unit: result.draft.inventoryUnit || current.inventory_unit,
         purchased_on: result.draft.purchasedOn || current.purchased_on,
         added_via: "photo",
       }));
       setPhotoConfidence(result.confidence);
+      setPhotoWarnings(result.warnings);
       setEvidence(null);
     } catch (error) {
       setCaptureError(error instanceof Error ? error.message : t("meds.myMedicines.photoReadError", "VYVA could not read the label."));
@@ -330,6 +347,8 @@ export default function MyMedicines({
       photo_url: medicine.photo_url ?? "",
       dose_unit: medicine.dose_unit ?? "tablet",
       units_per_dose: String(medicine.units_per_dose ?? 1),
+      inventory_unit: medicine.inventory_unit ?? medicine.dose_unit ?? "tablet",
+      inventory_units_per_dose: String(medicine.inventory_units_per_dose ?? medicine.units_per_dose ?? 1),
       daily_frequency: String(medicine.daily_frequency ?? 1),
       initial_quantity: "",
       purchased_on: new Date().toISOString().slice(0, 10),
@@ -546,7 +565,7 @@ export default function MyMedicines({
                       {t("meds.myMedicines.supplyReady", "Refill tracking ready")}
                     </p>
                     <p className="mt-1 font-body text-[17px] font-black text-[#241238]">
-                      {form.initial_quantity} {supplyUnitLabel(form.initial_quantity, form.dose_unit)} · {form.units_per_dose} per dose · {frequencyLabel(form.daily_frequency)}
+                      {form.initial_quantity} {supplyUnitLabel(form.initial_quantity, form.inventory_unit)} · {form.inventory_units_per_dose} used each time · {frequencyLabel(form.daily_frequency)}
                     </p>
                     <p className="mt-1 font-body text-[14px] font-bold text-[#746A72]">
                       {supplyProjection
@@ -559,8 +578,15 @@ export default function MyMedicines({
               {photoConfidence ? (
                 <p className="mt-3 rounded-[18px] border border-[#E2D5F1] bg-[#F8F4FF] px-4 py-3 font-body text-[14px] font-bold leading-snug text-[#5F4C69]">
                   <Sparkles className="mr-2 inline text-[#7024C4]" size={17} aria-hidden="true" />
-                  {t("meds.myMedicines.photoReviewNotice", { confidence: photoConfidence, defaultValue: "Photo draft: {{confidence}} confidence. Check every field—the image has been discarded." })}
+                  {photoConfidence === "high"
+                    ? t("meds.myMedicines.photoReviewClear", "Clear package details found. Check every field—the image has been discarded.")
+                    : t("meds.myMedicines.photoReviewNeeded", "Some package details need your review. The image has been discarded.")}
                 </p>
+              ) : null}
+              {photoWarnings.length ? (
+                <ul className="mt-3 list-disc rounded-[18px] border border-amber-200 bg-amber-50 px-8 py-3 font-body text-[14px] font-bold leading-snug text-amber-900">
+                  {photoWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
               ) : null}
               <p className="mt-3 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 font-body text-[14px] font-bold leading-snug text-amber-900">
                 {t("meds.myMedicines.confirmSafety", "Check this against the medicine label. Saving it does not change your prescribed dose.")}
@@ -645,7 +671,7 @@ export default function MyMedicines({
                     <CanonicalFlowIcon icon={Camera} goldAccent="camera" />
                     <span>
                       <span className="block font-body text-[16px] font-black text-[#241238]">{t("meds.myMedicines.usePackagePhoto", "Use a package photo")}</span>
-                      <span className="mt-0.5 block font-body text-[13px] font-bold text-[#746A72]">{t("meds.myMedicines.photoOptional", "Optional · you review everything before saving")}</span>
+                      <span className="sr-only">{t("meds.myMedicines.photoOptional", "Optional · you review everything before saving")}</span>
                     </span>
                   </button>
                   {captureError ? <p role="alert" className="rounded-[16px] bg-red-50 px-4 py-3 font-body text-[14px] font-bold text-red-800">{captureError}</p> : null}
@@ -664,13 +690,16 @@ export default function MyMedicines({
                     <label className="grid gap-1.5 font-body text-[14px] font-black text-[#241238]">
                       {t("meds.myMedicines.unitLabel", "Unit")}
                       <select
-                        value={form.dose_unit}
-                        onChange={(event) => setForm((current) => ({ ...current, dose_unit: event.target.value }))}
+                        value={form.inventory_unit}
+                        onChange={(event) => setForm((current) => ({ ...current, inventory_unit: event.target.value }))}
                         className="min-h-[56px] rounded-[18px] border border-[#DED3E2] bg-white px-3 text-[16px] font-bold outline-none focus:border-[#7024C4]"
                       >
                         <option value="tablet">{t("meds.myMedicines.unitTablet", "Tablets")}</option>
                         <option value="capsule">{t("meds.myMedicines.unitCapsule", "Capsules")}</option>
                         <option value="ml">{t("meds.myMedicines.unitMl", "ml")}</option>
+                        <option value="single_dose_container">{t("meds.myMedicines.unitSingleDoseContainer", "Single-dose containers")}</option>
+                        <option value="bottle">{t("meds.myMedicines.unitBottle", "Bottles")}</option>
+                        <option value="sachet">{t("meds.myMedicines.unitSachet", "Sachets")}</option>
                         <option value="dose">{t("meds.myMedicines.unitDose", "Doses")}</option>
                         <option value="patch">{t("meds.myMedicines.unitPatch", "Patches")}</option>
                       </select>
@@ -678,8 +707,8 @@ export default function MyMedicines({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="grid gap-1.5 font-body text-[14px] font-black text-[#241238]">
-                      {t("meds.myMedicines.unitsPerDose", "Units per dose")}
-                      <input type="number" min="0.01" step="0.01" value={form.units_per_dose} onChange={(event) => setForm((current) => ({ ...current, units_per_dose: event.target.value }))} className="min-h-[56px] rounded-[18px] border border-[#DED3E2] bg-white px-4 text-[17px] font-bold outline-none focus:border-[#7024C4]" />
+                      {t("meds.myMedicines.inventoryUnitsPerDose", "Stock units used each time")}
+                      <input type="number" min="0.01" step="0.01" value={form.inventory_units_per_dose} onChange={(event) => setForm((current) => ({ ...current, inventory_units_per_dose: event.target.value }))} className="min-h-[56px] rounded-[18px] border border-[#DED3E2] bg-white px-4 text-[17px] font-bold outline-none focus:border-[#7024C4]" />
                     </label>
                     <label className="grid gap-1.5 font-body text-[14px] font-black text-[#241238]">
                       {t("meds.myMedicines.dailyFrequency", "Times each day")}
@@ -738,7 +767,7 @@ export default function MyMedicines({
               <CanonicalFlowIcon icon={Camera} goldAccent="camera" />
               <span>
                 <span className="block font-body text-[16px] font-black text-[#241238]">{t("meds.myMedicines.photo", "Take or upload a photo")}</span>
-                <span className="block font-body text-[13px] font-bold text-[#746A72]">{t("meds.myMedicines.photoSub", "VYVA drafts the label and supply details")}</span>
+                <span className="sr-only">{t("meds.myMedicines.photoSub", "VYVA drafts the label and supply details")}</span>
               </span>
             </button>
           </div>

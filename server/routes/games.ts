@@ -46,7 +46,20 @@ const retellSchema = z.object({
 const ttsSchema = z.object({
   text: z.string().trim().min(1).max(5000),
   language: z.string().optional(),
+  voiceProfile: z.enum(["brain", "meditation"]).optional().default("brain"),
 });
+
+function resolveGameTtsVoiceId(voiceProfile: "brain" | "meditation") {
+  if (voiceProfile === "meditation") {
+    return process.env.ELEVENLABS_MEDITATION_TTS_VOICE_ID
+      ?? process.env.ELEVENLABS_BREATH_TTS_VOICE_ID
+      ?? process.env.ELEVENLABS_BRAIN_TTS_VOICE_ID
+      ?? process.env.ELEVENLABS_VOICE_ID
+      ?? "";
+  }
+
+  return process.env.ELEVENLABS_BRAIN_TTS_VOICE_ID ?? process.env.ELEVENLABS_VOICE_ID ?? "";
+}
 
 const MEMORY_ACTIVITY_TYPES = [
   "memory_match",
@@ -160,6 +173,10 @@ const breathGardenSessionSchema = z.object({
   finalPaceBreathsPerMin: z.number().min(0).max(200).nullable().optional(),
   gardenTheme: breathGardenThemeSchema.optional().default("garden"),
   bloomLevelReached: z.number().int().min(1).max(5).optional().default(1),
+  targetDurationSeconds: z.union([z.literal(60), z.literal(120), z.literal(300)]).optional().default(120),
+  guidedCycleCount: z.number().int().min(0).max(180).optional().default(0),
+  guidedPatternId: z.enum(["gentle_4_6", "gentle_5_6"]).optional().default("gentle_5_6"),
+  completionReason: z.enum(["timer_complete", "finished_early", "exited"]).optional(),
   completed: z.boolean().optional().default(false),
   abandoned: z.boolean().optional().default(false),
   language: z.string().trim().min(2).max(12).optional().default("es"),
@@ -515,7 +532,7 @@ export async function ttsHandler(req: Request, res: Response) {
   }
 
   const apiKey = process.env.ELEVENLABS_API_KEY ?? "";
-  const voiceId = process.env.ELEVENLABS_BRAIN_TTS_VOICE_ID ?? process.env.ELEVENLABS_VOICE_ID ?? "";
+  const voiceId = resolveGameTtsVoiceId(parsed.data.voiceProfile);
   if (!apiKey || !voiceId) {
     return res.status(503).json({ error: "ElevenLabs TTS is not configured." });
   }
@@ -996,18 +1013,28 @@ async function getOrCreateScentMemoryState(ctx: CognitiveSessionDb, userId: stri
   return normalizeScentMemoryState(created, userId);
 }
 
-export function pickScentMemoryPrompt<T extends { id: string }>(
+export function pickScentMemoryPrompt<T extends { id: string; category?: string | null }>(
   rows: T[],
   todaySessions: unknown[],
   historySessions: unknown[],
   random = Math.random,
+  excludedPromptId?: string | null,
+  excludedCategory?: string | null,
 ) {
+  const rowsOutsideCategory = excludedCategory
+    ? rows.filter((row) => row.category !== excludedCategory)
+    : rows;
+  const categoryEligibleRows = rowsOutsideCategory.length > 0 ? rowsOutsideCategory : rows;
+  const rowsOutsidePrompt = excludedPromptId
+    ? categoryEligibleRows.filter((row) => row.id !== excludedPromptId)
+    : categoryEligibleRows;
+  const eligibleRows = rowsOutsidePrompt.length > 0 ? rowsOutsidePrompt : categoryEligibleRows;
   const usedToday = new Set(
     todaySessions
       .map((session) => recordValue(session, "promptId"))
       .filter((value): value is string => typeof value === "string" && value.length > 0),
   );
-  const unusedToday = rows.filter((row) => !usedToday.has(row.id));
+  const unusedToday = eligibleRows.filter((row) => !usedToday.has(row.id));
   if (unusedToday.length > 0) return unusedToday[Math.floor(random() * unusedToday.length)] ?? null;
 
   const lastPlayed = new Map<string, string>();
@@ -1017,7 +1044,7 @@ export function pickScentMemoryPrompt<T extends { id: string }>(
     lastPlayed.set(contentId, toIsoDate(recordValue(session, "playedAt")) ?? "");
   });
 
-  return [...rows].sort((a, b) => {
+  return [...eligibleRows].sort((a, b) => {
     const aPlayed = lastPlayed.get(a.id) ?? "";
     const bPlayed = lastPlayed.get(b.id) ?? "";
     return aPlayed.localeCompare(bPlayed);
@@ -1071,6 +1098,8 @@ async function loadScentMemoryActiveRows(ctx: CognitiveSessionDb, requestedLangu
 
 export async function scentMemoryContentHandler(req: Request, res: Response) {
   const language = typeof req.query.language === "string" ? req.query.language : "es";
+  const excludePromptId = typeof req.query.excludePromptId === "string" ? req.query.excludePromptId : null;
+  const excludeCategory = typeof req.query.excludeCategory === "string" ? req.query.excludeCategory : null;
 
   try {
     const ctx = await loadCognitiveSessionDb();
@@ -1097,7 +1126,14 @@ export async function scentMemoryContentHandler(req: Request, res: Response) {
       loadScentMemoryActiveRows(ctx, language),
     ]);
 
-    const selectedPrompt = pickScentMemoryPrompt(prompts as Array<{ id: string }>, todaySessions, historySessions);
+    const selectedPrompt = pickScentMemoryPrompt(
+      prompts as Array<{ id: string; category?: string | null }>,
+      todaySessions,
+      historySessions,
+      Math.random,
+      excludePromptId,
+      excludeCategory,
+    );
 
     if (!selectedPrompt) {
       return res.status(404).json({ error: "There is no reviewed Scent Memory content available yet." });
@@ -1221,13 +1257,16 @@ function normalizeBreathGardenState(row: unknown, userId: string) {
     streak_days: toNumber(value.streakDays, 0),
     last_streak_date: typeof value.lastStreakDate === "string" ? value.lastStreakDate : value.lastStreakDate instanceof Date ? todayDateKey(value.lastStreakDate) : null,
     preferred_theme: ["garden", "tide", "stars", "ripples"].includes(preferredTheme) ? preferredTheme : "garden",
+    preferred_duration_seconds: [60, 120, 300].includes(toNumber(value.preferredDurationSeconds, 120))
+      ? toNumber(value.preferredDurationSeconds, 120)
+      : 120,
     updated_at: toIsoDate(value.updatedAt) ?? new Date().toISOString(),
   };
 }
 
 function nextBreathGardenState(
   previousState: ReturnType<typeof normalizeBreathGardenState>,
-  preferredTheme: string,
+  preferredDurationSeconds: number,
   now = new Date(),
 ) {
   const today = todayDateKey(now);
@@ -1246,7 +1285,8 @@ function nextBreathGardenState(
     last_played_at: now.toISOString(),
     streak_days: streakDays,
     last_streak_date: today,
-    preferred_theme: preferredTheme,
+    preferred_theme: "garden",
+    preferred_duration_seconds: preferredDurationSeconds,
     updated_at: now.toISOString(),
   };
 }
@@ -1263,7 +1303,7 @@ async function getOrCreateBreathGardenState(ctx: CognitiveSessionDb, userId: str
 
   const [created] = await db
     .insert(breathGardenUserState)
-    .values({ userId, preferredTheme: "garden", updatedAt: new Date() })
+    .values({ userId, preferredTheme: "garden", preferredDurationSeconds: 120, updatedAt: new Date() })
     .onConflictDoNothing()
     .returning();
 
@@ -1290,8 +1330,7 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
   const data = parsed.data;
   const userId = req.user!.id;
   const now = new Date();
-  const consistency = data.breathConsistencyIndex ?? 0;
-  const avgCycle = data.avgBreathCycleSeconds ?? 0;
+  const completionReason = data.completionReason ?? (data.completed ? "timer_complete" : "exited");
 
   try {
     const ctx = await loadCognitiveSessionDb();
@@ -1309,6 +1348,10 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
         finalPaceBreathsPerMin: data.finalPaceBreathsPerMin ?? null,
         gardenTheme: data.gardenTheme,
         bloomLevelReached: data.bloomLevelReached,
+        targetDurationSeconds: data.targetDurationSeconds,
+        guidedCycleCount: data.guidedCycleCount,
+        guidedPatternId: data.guidedPatternId,
+        completionReason,
         completed: data.completed,
         abandoned: data.abandoned,
       })
@@ -1318,11 +1361,12 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
     const previousState = await getOrCreateBreathGardenState(ctx, userId);
 
     if (data.completed) {
-      nextState = nextBreathGardenState(previousState, data.gardenTheme, now);
+      nextState = nextBreathGardenState(previousState, data.targetDurationSeconds, now);
     } else {
       nextState = {
         ...previousState,
-        preferred_theme: data.gardenTheme,
+        preferred_theme: "garden",
+        preferred_duration_seconds: data.targetDurationSeconds,
         updated_at: now.toISOString(),
       };
     }
@@ -1335,7 +1379,8 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
         lastPlayedAt: data.completed ? now : previousState.last_played_at ? new Date(previousState.last_played_at) : null,
         streakDays: nextState.streak_days,
         lastStreakDate: nextState.last_streak_date,
-        preferredTheme: data.gardenTheme,
+        preferredTheme: "garden",
+        preferredDurationSeconds: data.targetDurationSeconds,
         updatedAt: now,
       })
       .onConflictDoUpdate({
@@ -1345,7 +1390,8 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
           lastPlayedAt: data.completed ? now : previousState.last_played_at ? new Date(previousState.last_played_at) : null,
           streakDays: nextState.streak_days,
           lastStreakDate: nextState.last_streak_date,
-          preferredTheme: data.gardenTheme,
+          preferredTheme: "garden",
+          preferredDurationSeconds: data.targetDurationSeconds,
           updatedAt: now,
         },
       })
@@ -1364,9 +1410,9 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
           difficultyScale: "none",
           completed: true,
           abandoned: false,
-          score: Math.round(consistency),
+          score: null,
           accuracyPct: null,
-          speedPct: Math.min(100, Math.round(avgCycle * 10)),
+          speedPct: null,
           durationSeconds: data.sessionDurationSeconds,
           playedAt: now,
           language: normalizeGameLanguage(data.language),
@@ -1374,10 +1420,11 @@ export async function breathGardenSessionHandler(req: Request, res: Response) {
           sourceTable: "breath_garden_sessions",
           sourceSessionId: session?.id ?? null,
           metadata: {
-            gardenTheme: data.gardenTheme,
-            breathCycleCount: data.breathCycleCount,
-            avgBreathCycleSeconds: data.avgBreathCycleSeconds ?? null,
-            finalPaceBreathsPerMin: data.finalPaceBreathsPerMin ?? null,
+            scoringModel: "none",
+            targetDurationSeconds: data.targetDurationSeconds,
+            guidedCycleCount: data.guidedCycleCount,
+            guidedPatternId: data.guidedPatternId,
+            completionReason,
             bloomLevelReached: data.bloomLevelReached,
           },
         })

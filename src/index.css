@@ -935,7 +935,8 @@
   }
 }
 
-[data-home-master-theme="dark"] .prototype-shell {
+[data-home-master-theme="dark"].prototype-shell,
+[data-home-master-theme="dark"] .prototype-shell:not([data-home-master-theme="light"]) {
   background:
     radial-gradient(circle at 50% -10%, rgba(88, 52, 112, 0.28), transparent 38%),
     linear-gradient(180deg, #180f20 0%, #140c18 52%, #100812 100%);

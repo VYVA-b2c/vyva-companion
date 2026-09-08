@@ -229,11 +229,11 @@
         "openLabel": "Ouvrir le bien-être"
       },
       "cognitive": {
-        "title": "Mon cerveau",
+        "title": "Puissance mentale",
         "subtitle": "Memoire, attention et calme",
         "bubble": "Je peux vous aider a garder l'esprit actif a votre rythme.",
-        "micLabel": "Ouvrir Mon cerveau",
-        "openLabel": "Ouvrir Mon cerveau"
+        "micLabel": "Ouvrir Puissance mentale",
+        "openLabel": "Ouvrir Puissance mentale"
       },
       "social": {
         "title": "Communauté",
@@ -2330,7 +2330,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Constantes"
+      "pageTitle": "Constantes",
+      "voiceLabel": "Parler à VYVA",
+      "voiceContext": "Aide pour les constantes. Aidez-moi à revoir mes mesures récentes, à comprendre les changements par rapport à ma référence ou à ajouter une mesure en toute sécurité."
     },
     "backToHealth": "Retour à Ma santé",
     "title": "Statut / Constantes",
@@ -2392,6 +2394,24 @@
     "logSubtitle": "Ajoutez une valeur confirmée depuis un appareil ou une vérification manuelle.",
     "scanTitle": "Scan des constantes",
     "scanSubtitle": "Estimation par caméra, pas une mesure d'appareil médical",
+    "faceScan": {
+      "kicker": "Contrôle par caméra",
+      "title": "Scan du visage",
+      "vitalsTitle": "Fréquence cardiaque et respiration",
+      "subtitle": "Les estimations par caméra servent au suivi du bien-être et doivent toujours être confirmées.",
+      "idle": "Utilisez la caméra avant pour estimer la fréquence cardiaque et la respiration.",
+      "camera": "Ouverture de la caméra...",
+      "scanning": "Restez immobile pendant que VYVA effectue un court scan du visage.",
+      "reading": "Analyse sécurisée des estimations...",
+      "confirm": "Confirmez avant l'enregistrement.",
+      "reviewNote": "Vous vérifiez les deux estimations avant leur enregistrement.",
+      "notConfigured": "VitalLens n'est pas encore configuré. Vous pouvez utiliser l'estimation locale du téléphone.",
+      "failed": "Le scan du visage n'a pas abouti.",
+      "unsupported": "La caméra n'est pas disponible dans ce navigateur.",
+      "start": "Lancer le contrôle caméra",
+      "local": "Utiliser l'estimation du téléphone",
+      "saved": "L'estimation du scan a été ajoutée à vos constantes."
+    },
     "days": {
       "mon": "L",
       "tue": "M",

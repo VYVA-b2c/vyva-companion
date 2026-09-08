@@ -12,7 +12,8 @@ describe("CategorySort", () => {
   it("renders the practice round and starts play without Supabase data", async () => {
     render(<CategorySort userId="" onExit={vi.fn()} />);
 
-    expect(await screen.findByRole("heading", { name: "Clasifica y Ordena" })).toBeInTheDocument();
+    expect(await screen.findByTestId("category-sort-intro")).toBeInTheDocument();
+    expect(screen.getByTestId("category-sort-flow-shell").querySelector("h1")).toHaveTextContent("Clasifica y Ordena");
     expect(screen.getAllByTestId("category-sort-rule-card")).toHaveLength(3);
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar ejercicio" }));
@@ -28,7 +29,8 @@ describe("CategorySort", () => {
 
     render(<CategorySort userId="" onExit={vi.fn()} />);
 
-    expect(await screen.findByRole("heading", { name: "Tri de categories" })).toBeInTheDocument();
+    expect(await screen.findByTestId("category-sort-intro")).toBeInTheDocument();
+    expect(screen.getByTestId("category-sort-flow-shell").querySelector("h1")).toHaveTextContent("Tri de categories");
     expect(screen.getByText("Triez chaque carte selon la regle affichee en haut. La regle changera.")).toBeInTheDocument();
     expect(screen.getAllByText("Couleur").length).toBeGreaterThan(0);
     expect(screen.getByText("Forme")).toBeInTheDocument();

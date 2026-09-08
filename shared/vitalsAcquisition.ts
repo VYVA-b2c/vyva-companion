@@ -52,6 +52,7 @@ export const VITALS_PROVIDER_SYNC_POLICY = {
 } as const;
 
 export const TRIAGE_VITAL_SIGNAL_MAP = {
+  camera_vitals: ["resting_hr_bpm", "respiratory_rate"],
   pulse: ["resting_hr_bpm"],
   oxygen: ["oxygen_saturation"],
   blood_pressure: ["bp_systolic", "bp_diastolic"],

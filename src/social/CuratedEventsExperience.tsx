@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   BookmarkCheck,
@@ -14,7 +14,7 @@ import {
   ThumbsDown,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/i18n";
 import { apiFetch } from "@/lib/queryClient";
 import type {
@@ -54,6 +54,8 @@ const copyByLanguage: Record<SocialLanguage, {
   loading: string;
   error: string;
   activitiesHeadline: string;
+  longevityNearbyHeadline: string;
+  longevityNearbyReassurance: string;
   featured: string;
   forYou: string;
   nearby: string;
@@ -86,6 +88,8 @@ const copyByLanguage: Record<SocialLanguage, {
     loading: "Preparando actividades...",
     error: "No se pudieron cargar las actividades. Intentalo de nuevo.",
     activitiesHeadline: "Para ti",
+    longevityNearbyHeadline: "Ideas cerca de ti",
+    longevityNearbyReassurance: "VYVA busca paseos suaves, programas locales y actividades con apoyo cerca de casa.",
     featured: "Sugerido",
     forYou: "Para ti",
     nearby: "Cerca",
@@ -118,6 +122,8 @@ const copyByLanguage: Record<SocialLanguage, {
     loading: "Aktivitaeten werden vorbereitet...",
     error: "Aktivitaeten konnten nicht geladen werden. Bitte versuche es erneut.",
     activitiesHeadline: "Fuer dich",
+    longevityNearbyHeadline: "Ideen in deiner Naehe",
+    longevityNearbyReassurance: "VYVA sucht ruhige Spaziergaenge, lokale Programme und passende Aktivitaeten in deiner Naehe.",
     featured: "Vorschlag",
     forYou: "Fuer dich",
     nearby: "In der Naehe",
@@ -150,6 +156,8 @@ const copyByLanguage: Record<SocialLanguage, {
     loading: "Preparing activities...",
     error: "Activities could not load. Please try again.",
     activitiesHeadline: "For you",
+    longevityNearbyHeadline: "Nearby ideas",
+    longevityNearbyReassurance: "VYVA looks for gentle walks, local programs, and social activities close to home.",
     featured: "Suggested",
     forYou: "For you",
     nearby: "Nearby",
@@ -228,6 +236,47 @@ function eventFormatLabel(format: ParticipationEventFormat, copy: CuratedActivit
   if (format === "online") return copy.online;
   if (format === "hybrid") return copy.hybrid;
   return copy.inPerson;
+}
+
+function splitQueryValues(values: string[]): string[] {
+  return values.flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+}
+
+function uniqueQueryValues(values: string[]): string[] {
+  return Array.from(new Set(splitQueryValues(values)));
+}
+
+function initialFilterFromSearch(params: URLSearchParams): EventFilter {
+  const filter = (params.get("filter") ?? params.get("format") ?? "").trim().toLowerCase();
+  if (filter === "nearby" || filter === "online" || filter === "saved") return filter;
+  if (filter === "for_you" || filter === "for-you") return "for_you";
+
+  const source = (params.get("source") ?? "").trim().toLowerCase();
+  const intent = (params.get("intent") ?? "").trim().toLowerCase();
+  if (source === "longevity" && intent.includes("nearby")) return "nearby";
+  return "for_you";
+}
+
+function participationPulseUrl(language: SocialLanguage, params: URLSearchParams): string {
+  const query = new URLSearchParams({ lang: language });
+  const interests = uniqueQueryValues([...params.getAll("interests"), ...params.getAll("interest")]);
+  const preferredTimes = uniqueQueryValues([...params.getAll("preferredTimes"), ...params.getAll("time")]);
+  const city = params.get("city")?.trim();
+  const region = params.get("region")?.trim();
+  const countryCode = (params.get("countryCode") ?? params.get("country"))?.trim();
+
+  if (interests.length > 0) query.set("interests", interests.join(","));
+  if (preferredTimes.length > 0) query.set("preferredTimes", preferredTimes.join(","));
+  if (city) query.set("city", city);
+  if (region) query.set("region", region);
+  if (countryCode) query.set("countryCode", countryCode);
+
+  return `/api/social/participate/pulse?${query.toString()}`;
+}
+
+function isLongevityNearbyCue(params: URLSearchParams): boolean {
+  return (params.get("source") ?? "").trim().toLowerCase() === "longevity"
+    && initialFilterFromSearch(params) === "nearby";
 }
 
 function eventDateLabel(event: ParticipationEvent, copy: CuratedActivitiesCopy, language: SocialLanguage) {
@@ -480,13 +529,22 @@ export default function CuratedEventsExperience({
   afterEvents,
 }: CuratedEventsExperienceProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { language: appLanguage } = useLanguage();
   const language = participationLanguage(appLanguage);
   const copy = copyByLanguage[language];
-  const queryKey = [`/api/social/participate/pulse?lang=${language}`] as const;
+  const searchKey = searchParams.toString();
+  const handoffFilter = initialFilterFromSearch(searchParams);
+  const queryUrl = useMemo(() => participationPulseUrl(language, searchParams), [language, searchParams]);
+  const queryKey = [queryUrl] as const;
   const testIdPrefix = variant === "activities" ? "activities" : "participate";
-  const [activeFilter, setActiveFilter] = useState<EventFilter>("for_you");
+  const [activeFilter, setActiveFilter] = useState<EventFilter>(handoffFilter);
+  const longevityNearbyCue = isLongevityNearbyCue(searchParams);
+
+  useEffect(() => {
+    setActiveFilter(handoffFilter);
+  }, [handoffFilter, searchKey]);
 
   const { data, isLoading, isError } = useQuery<PulseResponse>({ queryKey });
   const pulse = data?.pulse;
@@ -577,6 +635,7 @@ export default function CuratedEventsExperience({
   }
 
   const signalChips = [
+    ...(pulse.profileSignals.locationLabel ? [{ icon: MapPin, label: pulse.profileSignals.locationLabel }] : []),
     ...pulse.profileSignals.interests.slice(0, 2).map((interest) => ({ icon: HeartHandshake, label: interest })),
     { icon: Languages, label: pulse.profileSignals.languageLabel },
   ];
@@ -606,10 +665,10 @@ export default function CuratedEventsExperience({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-[34px] font-semibold leading-[1.02] text-[#223B35]">
-              {copy.activitiesHeadline}
+              {longevityNearbyCue ? copy.longevityNearbyHeadline : copy.activitiesHeadline}
             </h1>
             <p className="mt-2 max-w-[32rem] font-body text-[15px] font-semibold leading-snug text-[#526B63]">
-              {pulse.reassurance}
+              {longevityNearbyCue ? copy.longevityNearbyReassurance : pulse.reassurance}
             </p>
           </div>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE9D8] bg-white px-3 py-2">

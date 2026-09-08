@@ -72,18 +72,25 @@ function completedAnswers(answers: QuickAnswer[]): QuickAnswer[] {
 }
 
 const summaryShapeKeys = [
+  "changePlanTriggers",
   "chiefComplaint",
+  "clinicalHandoff",
   "disclaimer",
+  "interpretation",
   "nextStepLabel",
   "nextStepLevel",
+  "possiblePatterns",
   "profileConsiderations",
+  "reassessmentWindow",
   "recommendations",
   "scanNotes",
   "scanResults",
   "symptoms",
   "triageReasons",
+  "uncertainty",
   "urgency",
   "vitalsNotes",
+  "vitalsSnapshot",
   "watchSigns",
 ].sort();
 
@@ -528,6 +535,10 @@ describe("triage route wizard questions", () => {
       nextStepLevel: "monitor",
       nextStepLabel: "Monitor at home, with doctor access ready",
     });
+    expect(res.body.summary.interpretation).toContain("not a diagnosis");
+    expect(res.body.summary.reassessmentWindow).toContain("24 hours");
+    expect(res.body.summary.changePlanTriggers.length).toBeGreaterThan(0);
+    expect(res.body.summary.clinicalHandoff.keyPoints).toContain("Head or neck");
   });
 
   it("emits non-blocking telemetry without changing the route response", async () => {
@@ -561,6 +572,16 @@ describe("triage route wizard questions", () => {
       urgency: "urgent",
       nextStepLevel: "doctor_today",
       nextStepLabel: "Talk to a doctor today",
+      vitalsSnapshot: {
+        capturedAt: expect.any(String),
+        readings: [expect.objectContaining({
+          key: "oxygenSaturation",
+          value: 92,
+          unit: "%",
+          source: "manual_entry",
+          affectsTriage: true,
+        })],
+      },
     });
     expect(events.map((event) => event.name)).toEqual([
       "triage_started",
@@ -980,9 +1001,28 @@ describe("triage route wizard questions", () => {
       confidence: { score: 4, label: "Strong confidence" },
     });
     expect(afterSafety.body.vitalsPrompt).toMatchObject({
-      title: "If you can, one reading may help",
+      title: "Can you share your Blood pressure?",
       actions: [expect.objectContaining({ id: "blood_pressure", label: "Blood pressure" })],
+      deviceAccess: { status: "not_connected", actionIds: [] },
     });
+
+    const afterSkip = await request(app())
+      .post("/api/triage/message")
+      .send({
+        locale: "en",
+        messages: [{ role: "user", content: "I feel dizzy" }],
+        healthMemory: { conditions: "Hypertension and high blood pressure." },
+        wizard: {
+          mode: "without_vitals",
+          declinedScanTypes: ["vitals"],
+          quickAnswers: [
+            { id: "dizzy", label: "Dizzy", value: "I feel dizzy.", kind: "symptom" },
+            { id: "no_red_flag", label: "No warning signs", value: "No warning signs.", kind: "red_flag" },
+          ],
+        },
+      })
+      .expect(200);
+    expect(afterSkip.body.vitalsPrompt).toBeNull();
   });
 
   it("ranks optional readings from the symptom, location, answers, and profile", async () => {
@@ -1000,6 +1040,7 @@ describe("triage route wizard questions", () => {
       { id: "walking_only", label: "Mild", value: "It is mild or only with activity.", kind: "red_flag" },
     ]).expect(200);
     expect(breathing.body.vitalsPrompt.actions.map((action: { id: string }) => action.id)).toEqual(["oxygen"]);
+    expect(breathing.body.vitalsPrompt.title).toBe("Can you share your Oxygen?");
 
     const cardiacBreathing = await requestFor([
       { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
@@ -1026,6 +1067,30 @@ describe("triage route wizard questions", () => {
       { id: "no_red_flag", label: "None", value: "Only a small bruise.", kind: "red_flag" },
     ]).expect(200);
     expect(simpleFall.body.vitalsPrompt).toBeNull();
+  });
+
+  it("offers to read a condition-relevant connected device directly", async () => {
+    const response = await request(app())
+      .post("/api/triage/message")
+      .send({
+        locale: "en",
+        messages: [{ role: "user", content: "I feel short of breath." }],
+        healthMemory: { devices: "Connected pulse oximeter" },
+        wizard: {
+          mode: "without_vitals",
+          quickAnswers: [
+            { id: "breathing", label: "Breathing", value: "I feel short of breath.", kind: "symptom" },
+            { id: "walking_only", label: "Mild", value: "It is mild or only with activity.", kind: "red_flag" },
+          ],
+        },
+      })
+      .expect(200);
+
+    expect(response.body.vitalsPrompt).toMatchObject({
+      title: "VYVA can check your Oxygen",
+      actions: [expect.objectContaining({ id: "oxygen" })],
+      deviceAccess: { status: "connected", actionIds: ["oxygen"] },
+    });
   });
 
   it("uses the medication guidance protocol when the first clue points to a medicine change", async () => {

@@ -455,6 +455,26 @@ describe("language persistence", () => {
     }
   });
 
+  it("localizes the completed voice-report recovery screen for every supported account language", () => {
+    const expected = {
+      en: ["Your check is complete", "Try loading again", "Open My Reports", "Done"],
+      es: ["Tu revisión ha terminado", "Intentar cargar de nuevo", "Abrir Mis informes", "Terminar"],
+      fr: ["Votre vérification est terminée", "Réessayer de charger", "Ouvrir Mes rapports", "Terminer"],
+      de: ["Ihre Prüfung ist abgeschlossen", "Erneut laden", "Meine Berichte öffnen", "Fertig"],
+      it: ["Il controllo è terminato", "Prova a caricare di nuovo", "Apri I miei rapporti", "Fine"],
+      pt: ["A sua verificação terminou", "Tentar carregar novamente", "Abrir Os meus relatórios", "Concluir"],
+    } as const;
+
+    for (const [language, labels] of Object.entries(expected)) {
+      expect([
+        translate(language as keyof typeof expected, "health.symptomCheck.voiceReport.completeTitle"),
+        translate(language as keyof typeof expected, "health.symptomCheck.voiceReport.retry"),
+        translate(language as keyof typeof expected, "health.symptomCheck.voiceReport.openReports"),
+        translate(language as keyof typeof expected, "health.symptomCheck.voiceReport.done"),
+      ]).toEqual(labels);
+    }
+  });
+
   it("keeps every French Ask Dr. AI surface shown in the canonical flow localized", () => {
     const expected = {
       "health.symptomCheck.intro.emergencyTitle": "N’attendez pas en cas d’urgence",

@@ -1504,7 +1504,7 @@ export function appActionsFor(answers: Answers, result: CheckinResult): AppActio
           key,
           title: "Jugar una partida tranquila",
           description: "Prueba ajedrez o juegos de memoria para activar la mente sin cansarte.",
-          to: "/memory-games",
+          to: "/brain-coach/remember",
           primary,
         };
       case "cooking":

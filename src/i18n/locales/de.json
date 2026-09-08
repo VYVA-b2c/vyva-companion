@@ -229,11 +229,11 @@
         "openLabel": "Wohlbefinden öffnen"
       },
       "cognitive": {
-        "title": "Mein Gehirn",
+        "title": "Denkkraft",
         "subtitle": "Gedaechtnis, Fokus und Ruhe",
         "bubble": "Ich helfe, den Geist in Ihrem Tempo aktiv zu halten.",
-        "micLabel": "Mein Gehirn oeffnen",
-        "openLabel": "Mein Gehirn oeffnen"
+        "micLabel": "Denkkraft öffnen",
+        "openLabel": "Denkkraft öffnen"
       },
       "social": {
         "title": "Community",
@@ -2319,7 +2319,9 @@
   },
   "statusVitals": {
     "hub": {
-      "pageTitle": "Vitalwerte"
+      "pageTitle": "Vitalwerte",
+      "voiceLabel": "Mit VYVA sprechen",
+      "voiceContext": "Unterstützung bei Vitalwerten. Hilf mir, aktuelle Messwerte zu prüfen, Veränderungen gegenüber meinem persönlichen Ausgangswert zu verstehen oder sicher einen neuen Messwert hinzuzufügen."
     },
     "backToHealth": "Zurück zu Meine Gesundheit",
     "title": "Status / Vitalzeichen",
@@ -2381,6 +2383,24 @@
     "logSubtitle": "Fügen Sie einen bestätigten Wert von einem Gerät oder einer manuellen Prüfung hinzu.",
     "scanTitle": "Vitalzeichen-Scan",
     "scanSubtitle": "Kamera-Schätzung, keine Messung eines medizinischen Geräts",
+    "faceScan": {
+      "kicker": "Kameraprüfung",
+      "title": "Gesichtsscan",
+      "vitalsTitle": "Herzfrequenz und Atmung",
+      "subtitle": "Kameraschätzungen dienen Wellness-Trends und müssen immer bestätigt werden.",
+      "idle": "Verwenden Sie die Frontkamera, um Herzfrequenz und Atmung zu schätzen.",
+      "camera": "Kamera wird geöffnet...",
+      "scanning": "Bitte stillhalten, während VYVA einen kurzen Gesichtsscan aufnimmt.",
+      "reading": "Schätzwerte werden sicher ausgewertet...",
+      "confirm": "Vor dem Speichern bestätigen.",
+      "reviewNote": "Sie prüfen beide Schätzwerte, bevor etwas gespeichert wird.",
+      "notConfigured": "VitalLens ist noch nicht eingerichtet. Sie können die lokale Telefonschätzung verwenden.",
+      "failed": "Der Gesichtsscan wurde nicht abgeschlossen.",
+      "unsupported": "Die Kamera ist in diesem Browser nicht verfügbar.",
+      "start": "Kameraprüfung starten",
+      "local": "Telefonschätzung verwenden",
+      "saved": "Die Scan-Schätzung wurde zu Ihren Vitalwerten hinzugefügt."
+    },
     "days": {
       "mon": "M",
       "tue": "D",

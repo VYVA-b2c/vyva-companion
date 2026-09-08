@@ -1,40 +1,32 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
-import BreathGarden, {
-  bloomLevelForMetrics,
-  computeBreathGardenMetrics,
-  getDefaultBreathGardenUserState,
-  nextBreathTap,
-} from "./BreathGarden";
+import BreathGarden, { buildGuidedBreathResult, getDefaultBreathGardenUserState, getGuidedBreathPhase, getGuidedCycleCount } from "./BreathGarden";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/lib/queryClient", () => ({
-  apiFetch: apiFetchMock,
+const voiceMock = vi.hoisted(() => ({
+  startVoice: vi.fn().mockResolvedValue(undefined),
+  stopVoice: vi.fn(),
+  sendText: vi.fn(),
+  sendContextUpdate: vi.fn(),
+  interruptAgentAudio: vi.fn(),
+  setMicrophoneMuted: vi.fn(),
+  transcript: [] as Array<{ from: string; text: string; timestamp: number }>,
+  lastError: null as string | null,
 }));
+vi.mock("@/lib/queryClient", () => ({ apiFetch: apiFetchMock }));
+vi.mock("@/hooks/useVyvaVoice", () => ({ useOptionalVyvaVoice: () => voiceMock }));
 
 function stateResponse(overrides = {}) {
   return new Response(JSON.stringify({
-    state: {
-      ...getDefaultBreathGardenUserState("user-1"),
-      total_sessions: 1,
-      preferred_theme: "garden",
-      ...overrides,
-    },
+    state: { ...getDefaultBreathGardenUserState("user-1"), total_sessions: 1, preferred_duration_seconds: 120, ...overrides },
   }), { status: 200 });
 }
 
 function sessionResponse(overrides = {}) {
   return new Response(JSON.stringify({
     session: { id: "session-1" },
-    state: {
-      ...getDefaultBreathGardenUserState("user-1"),
-      total_sessions: 2,
-      streak_days: 1,
-      preferred_theme: "garden",
-      ...overrides,
-    },
+    state: { ...getDefaultBreathGardenUserState("user-1"), total_sessions: 2, preferred_duration_seconds: 120, ...overrides },
   }), { status: 201 });
 }
 
@@ -45,137 +37,156 @@ async function flushPromises() {
   });
 }
 
-describe("BreathGarden helpers", () => {
-  it("alternates inhale and exhale tap phases", () => {
-    const first = nextBreathTap([], 1000);
-    const second = nextBreathTap([first], 2500);
-    const third = nextBreathTap([first, second], 4200);
-
-    expect([first.phase, second.phase, third.phase]).toEqual(["inhale_peak", "exhale_peak", "inhale_peak"]);
+describe("BreathGarden guided rhythm", () => {
+  it("uses five seconds in and six seconds out", () => {
+    expect(getGuidedBreathPhase(0).phase).toBe("inhale");
+    expect(getGuidedBreathPhase(4999).phase).toBe("inhale");
+    expect(getGuidedBreathPhase(5000).phase).toBe("exhale");
+    expect(getGuidedBreathPhase(10999).phase).toBe("exhale");
+    expect(getGuidedBreathPhase(11000).phase).toBe("inhale");
+    expect(getGuidedCycleCount(59)).toBe(5);
+    expect(getGuidedCycleCount(60)).toBe(5);
+    expect(getGuidedCycleCount(66)).toBe(6);
   });
 
-  it("turns calm, steady cycles into a fuller bloom", () => {
-    const metrics = computeBreathGardenMetrics([
-      { timestamp_ms: 0, phase: "inhale_peak" },
-      { timestamp_ms: 5000, phase: "exhale_peak" },
-      { timestamp_ms: 10000, phase: "inhale_peak" },
-      { timestamp_ms: 15000, phase: "exhale_peak" },
-      { timestamp_ms: 20000, phase: "inhale_peak" },
-      { timestamp_ms: 25000, phase: "exhale_peak" },
-    ], 25);
-
-    expect(metrics.breathCycleCount).toBe(4);
-    expect(bloomLevelForMetrics(metrics)).toBe(5);
+  it("builds a guided session without inferred performance measurements", () => {
+    expect(buildGuidedBreathResult({ reason: "finished_early", durationSeconds: 12, targetDurationSeconds: 60, language: "en" })).toMatchObject({
+      breathTaps: [], breathCycleCount: 0, avgBreathCycleSeconds: null, breathConsistencyIndex: null,
+      finalPaceBreathsPerMin: null, gardenTheme: "garden", targetDurationSeconds: 60,
+      guidedCycleCount: 1, guidedPatternId: "gentle_5_6", completionReason: "finished_early",
+      completed: true, abandoned: false,
+    });
   });
 });
 
-describe("BreathGarden component", () => {
+describe("BreathGarden component", { timeout: 60_000 }, () => {
   beforeEach(() => {
     setLanguage("en");
     apiFetchMock.mockReset();
-    window.localStorage.clear();
-    vi.spyOn(Date, "now")
-      .mockReturnValueOnce(1000)
-      .mockReturnValueOnce(6000)
-      .mockReturnValueOnce(11000)
-      .mockReturnValueOnce(16000)
-      .mockReturnValue(21000);
+    voiceMock.startVoice.mockClear();
+    voiceMock.stopVoice.mockClear();
+    voiceMock.sendText.mockClear();
+    voiceMock.sendContextUpdate.mockClear();
+    voiceMock.interruptAgentAudio.mockClear();
+    voiceMock.setMicrophoneMuted.mockClear();
+    voiceMock.transcript = [];
+    voiceMock.lastError = null;
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it("shows the theme picker on local first play and starts after a theme is chosen", async () => {
+  it("starts with one garden and a two-minute recommendation", async () => {
     render(<BreathGarden userId="" onExit={vi.fn()} />);
+    expect(await screen.findByRole("heading", { name: "A quiet moment to breathe" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /2 minutes/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /1 minute/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /5 minutes/i })).toBeInTheDocument();
+    expect(screen.queryByText("Choose your garden")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap as you/i)).not.toBeInTheDocument();
+  });
 
-    expect(await screen.findByRole("heading", { name: "Choose your garden" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Tide" }));
+  it("offers Marco-guided audio while keeping audio-free as the quiet default", async () => {
+    apiFetchMock.mockImplementation(() => new Promise(() => {}));
+    render(<BreathGarden userId="" onExit={vi.fn()} />);
+    await screen.findByRole("heading", { name: "A quiet moment to breathe" });
 
-    expect(screen.getByText("Tap gently as you breathe.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "I understand" }));
+    const guided = screen.getByRole("button", { name: /Guided audio/i });
+    const audioFree = screen.getByRole("button", { name: /Audio-free/i });
+    expect(audioFree).toHaveAttribute("aria-pressed", "true");
 
-    expect(screen.getByRole("heading", { name: "Breath Garden" })).toBeInTheDocument();
-    expect(screen.queryByText("Your breathing brings the garden to life.")).not.toBeInTheDocument();
-    expect(screen.getByText("Tap once as you breathe in, and once as you breathe out. There is no correct rhythm - just breathe your way.")).toBeInTheDocument();
+    fireEvent.click(guided);
+    expect(guided).toHaveAttribute("aria-pressed", "true");
+    expect(apiFetchMock).not.toHaveBeenCalled();
+
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-
-    expect(screen.getByRole("button", { name: "Tap as you inhale... and exhale" })).toBeInTheDocument();
+    await flushPromises();
+    expect(voiceMock.startVoice).toHaveBeenCalledWith(
+      expect.stringContaining("Breath Garden"),
+      undefined,
+      expect.objectContaining({
+        agentSlug: "breathing-meditation",
+        dynamicVariables: expect.objectContaining({
+          activity_id: "breath_garden",
+          activity_playbook_version: "breath_garden.gentle_5_6.v1",
+          duration_seconds: 120,
+          timer_authority: "application",
+        }),
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Mute voice guidance" })).toBeEnabled();
+    expect(screen.queryByText("Preparing Marco's guidance...")).not.toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some(([url]) => url === "/api/games/tts")).toBe(false);
   });
 
-  it("remembers the tutorial and reopens it from Instructions", async () => {
-    const { unmount } = render(<BreathGarden userId="" onExit={vi.fn()} />);
-
-    expect(await screen.findByRole("heading", { name: "Choose your garden" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Garden" }));
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-
-    expect(window.localStorage.getItem("breathGarden:tutorialSeen:v1")).toBe("true");
-    expect(screen.getByRole("button", { name: /Instructions/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Instructions/i }));
-    expect(screen.getByText("Tap gently as you breathe.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "I understand" }));
-    unmount();
-
+  it("moves automatically from inhale to exhale and pauses without advancing", async () => {
     render(<BreathGarden userId="" onExit={vi.fn()} />);
-    expect(await screen.findByRole("heading", { name: "Choose your garden" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Garden" }));
-
-    expect(screen.queryByText("Tap gently as you breathe.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "A quiet moment to breathe" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-05T10:00:00Z"));
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(screen.getByText("Breathe in")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(5100));
+    expect(screen.getByText("Breathe out")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    expect(screen.getByText("Paused")).toBeInTheDocument();
+    const timeBefore = screen.getByText(/^1:/).textContent;
+    act(() => vi.advanceTimersByTime(7000));
+    expect(screen.getByText(/^1:/).textContent).toBe(timeBefore);
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(screen.getByText("Breathe out")).toBeInTheDocument();
   });
 
-  it("saves a completed session with alternating breath taps", async () => {
-    window.localStorage.setItem("breathGarden:tutorialSeen:v1:user-1", "true");
-    apiFetchMock
-      .mockResolvedValueOnce(stateResponse())
-      .mockResolvedValueOnce(sessionResponse());
-
+  it("remembers the selected duration returned by the account state", async () => {
+    apiFetchMock.mockResolvedValueOnce(stateResponse({ preferred_duration_seconds: 300 }));
     render(<BreathGarden userId="user-1" onExit={vi.fn()} />);
     await flushPromises();
-
-    fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    const tapButton = screen.getByRole("button", { name: "Tap as you inhale... and exhale" });
-    fireEvent.click(tapButton);
-    fireEvent.click(tapButton);
-    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
-    await flushPromises();
-
-    expect(await screen.findByRole("heading", { name: "Today's garden" })).toBeInTheDocument();
-
-    const sessionCall = apiFetchMock.mock.calls.find(([url]) => url === "/api/games/breath-garden/sessions");
-    expect(sessionCall?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
-    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
-      breathTaps: [
-        expect.objectContaining({ phase: "inhale_peak" }),
-        expect.objectContaining({ phase: "exhale_peak" }),
-      ],
-      gardenTheme: "garden",
-      completed: true,
-      abandoned: false,
-    });
+    expect(screen.getByRole("button", { name: /5 minutes/i })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("saves an abandoned exit while playing", async () => {
-    const onExit = vi.fn();
-    window.localStorage.setItem("breathGarden:tutorialSeen:v1:user-1", "true");
-    apiFetchMock
-      .mockResolvedValueOnce(stateResponse())
-      .mockResolvedValueOnce(sessionResponse());
+  it("offers a minimal completion after an early finish", async () => {
+    render(<BreathGarden userId="" onExit={vi.fn()} />);
+    await screen.findByRole("heading", { name: "A quiet moment to breathe" });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Finish" })); });
+    expect(screen.getByRole("heading", { name: "Breathing complete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Breathe again" })).toBeInTheDocument();
+  });
 
+  it("completes automatically when the selected time ends", async () => {
+    apiFetchMock.mockResolvedValueOnce(stateResponse()).mockResolvedValueOnce(sessionResponse());
+    render(<BreathGarden userId="user-1" onExit={vi.fn()} />);
+    await flushPromises();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-05T10:00:00Z"));
+    fireEvent.click(screen.getByRole("button", { name: /1 minute/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+    await flushPromises();
+    expect(screen.getByRole("heading", { name: "Breathing complete" })).toBeInTheDocument();
+    const sessionCall = apiFetchMock.mock.calls.find(([url]) => url === "/api/games/breath-garden/sessions");
+    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({ targetDurationSeconds: 60, guidedCycleCount: 5, completionReason: "timer_complete" });
+  });
+
+  it("records a header exit as abandoned", async () => {
+    const onExit = vi.fn();
+    apiFetchMock.mockResolvedValueOnce(stateResponse()).mockResolvedValueOnce(sessionResponse());
     render(<BreathGarden userId="user-1" onExit={onExit} />);
     await flushPromises();
-
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-05T10:00:00Z"));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    act(() => vi.advanceTimersByTime(3500));
     fireEvent.click(screen.getByRole("button", { name: "Exit" }));
     await flushPromises();
-
     const sessionCall = apiFetchMock.mock.calls.find(([url]) => url === "/api/games/breath-garden/sessions");
-    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
-      completed: false,
-      abandoned: true,
-    });
+    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({ completionReason: "exited", completed: false, abandoned: true });
     expect(onExit).toHaveBeenCalled();
   });
 });

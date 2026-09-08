@@ -147,6 +147,8 @@ const CHECKING_INSIGHTS: readonly CheckingInsight[] = [
   },
 ] as const;
 
+const CHECKING_INSIGHT_INTERVAL_MS = 2400;
+
 function SymptomCheckingProgress() {
   const { isDark } = useHomeMasterTheme();
   const { t } = useTranslation();
@@ -159,7 +161,7 @@ function SymptomCheckingProgress() {
 
     const timer = window.setInterval(() => {
       setActiveInsight((current) => (current + 1) % CHECKING_INSIGHTS.length);
-    }, 1600);
+    }, CHECKING_INSIGHT_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -171,33 +173,60 @@ function SymptomCheckingProgress() {
     t("health.symptomCheck.chat.checkingSafety", "Checking safety signals"),
   ];
   const activeCopy = CHECKING_INSIGHTS[activeInsight];
+  const stepLabel = t("health.symptomCheck.chat.checkingStep", "Step {{current}} of {{total}}", {
+    current: activeInsight + 1,
+    total: CHECKING_INSIGHTS.length,
+  });
+  const progress = `${((activeInsight + 1) / CHECKING_INSIGHTS.length) * 100}%`;
+
   return (
     <div
-      className="flex min-h-[250px] flex-col items-center justify-center px-3 text-center"
+      className="relative flex min-h-[244px] flex-col items-center justify-center overflow-hidden px-4 text-center"
       data-testid="symptom-scene-progress"
       role="status"
       aria-live="polite"
     >
-      <span className={`grid h-[72px] w-[72px] place-items-center rounded-[24px] border shadow-[0_14px_32px_rgba(32,12,68,0.22)] backdrop-blur-sm motion-safe:animate-pulse ${isDark ? "border-white/15 bg-[#342548]" : "border-white/50 bg-white/90"}`}>
-        <VyvaIcon icon={activeCopy.Icon} accent={activeCopy.accent} size={34} strokeWidth={2.35} />
+      <span
+        aria-hidden="true"
+        className={`absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${isDark ? "bg-[#7C3AED]/10" : "bg-[#A855F7]/[0.07]"}`}
+      />
+      <span className="relative grid h-[68px] w-[68px] place-items-center">
+        <span
+          aria-hidden="true"
+          className={`absolute inset-0 rounded-[23px] border-2 border-transparent border-t-[#8B5CF6] motion-safe:animate-spin ${isDark ? "bg-[#45325E]/30" : "bg-[#F7F1FF]/70"}`}
+        />
+        <span
+          key={activeInsight}
+          className={`relative grid h-[58px] w-[58px] place-items-center rounded-[19px] border shadow-[0_10px_24px_rgba(76,29,149,0.12)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 ${isDark ? "border-white/[0.12] bg-[#352842]" : "border-[#E7DCF8] bg-white"}`}
+        >
+          <VyvaIcon icon={activeCopy.Icon} accent={activeCopy.accent} size={30} strokeWidth={2.25} />
+        </span>
       </span>
-      <h2 className="mt-7 max-w-[300px] font-body text-[28px] font-extrabold leading-[1.08] tracking-[-0.025em] text-white">
-        {localizedInsightTitles[activeInsight]}
-      </h2>
+      <p className={`mt-5 font-body text-[11px] font-black uppercase tracking-[0.12em] ${isDark ? "text-[#C4A7EA]" : "text-[#7024C4]"}`}>
+        {stepLabel}
+      </p>
+      <div className="mt-2 flex h-[84px] w-full items-center justify-center" data-testid="symptom-checking-copy-slot">
+        <h2
+          key={activeInsight}
+          className={`max-w-[300px] font-body text-[25px] font-extrabold leading-[1.12] tracking-[-0.025em] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 ${isDark ? "text-[#FFF8FF]" : "text-[#241238]"}`}
+        >
+          {localizedInsightTitles[activeInsight]}
+        </h2>
+      </div>
       <div
-        className="mt-7 flex items-center justify-center gap-2"
-        aria-label={t("health.symptomCheck.chat.checkingStep", "Step {{current}} of {{total}}", {
-          current: activeInsight + 1,
-          total: CHECKING_INSIGHTS.length,
-        })}
+        className={`mt-6 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full ${isDark ? "bg-white/[0.12]" : "bg-[#E8DFED]"}`}
+        aria-label={stepLabel}
+        aria-valuemax={CHECKING_INSIGHTS.length}
+        aria-valuemin={1}
+        aria-valuenow={activeInsight + 1}
+        data-testid="symptom-checking-progress-track"
+        role="progressbar"
       >
-        {CHECKING_INSIGHTS.map(({ title }, index) => (
-          <span
-            key={title}
-            className={`h-2 rounded-full transition-all duration-300 ${index === activeInsight ? "w-7 bg-white" : "w-2 bg-white/30"}`}
-            aria-hidden="true"
-          />
-        ))}
+        <span
+          aria-hidden="true"
+          className="block h-full rounded-full bg-[linear-gradient(90deg,#7024C4,#9D4FE0)] transition-[width] duration-700 ease-in-out motion-reduce:transition-none"
+          style={{ width: progress }}
+        />
       </div>
     </div>
   );
@@ -257,14 +286,23 @@ export function SymptomAssessmentPresentation({
   const usesCheckingFrame = stageId === "checking";
   const usesResultFrame = stageId === "safest_next_step" || stageId === "save_share_summary";
   const showsSceneIntro = (showTitle && scene.layout !== "progress") || Boolean(displayHelper);
-  const responsiveFrameWidth = "max-w-[330px] sm:max-w-[760px]";
+  const responsiveFrameWidth = stageId === "severity"
+    ? "max-w-[360px] sm:max-w-[760px]"
+    : "max-w-[330px] sm:max-w-[760px]";
+  const responsiveFrameInset = showHeader
+    ? stageId === "severity"
+      ? "w-[calc(100%_-_24px)]"
+      : "w-[calc(100%_-_28px)]"
+    : "w-full";
   const responsiveFrameHeight = stageId === "checking"
-      ? "min-h-[360px] md:min-h-[350px]"
+      ? "min-h-[320px] md:min-h-[340px]"
       : "min-h-0";
   const responsiveContentSpacing = usesCompactProductionDescribeFrame
     ? "pb-5 pt-6 sm:pb-6 sm:pt-7"
     : stageId === "checking"
       ? "pb-8 pt-[30px] md:pb-10 md:pt-8"
+      : stageId === "severity"
+        ? "pb-6 pt-6 sm:pb-8 sm:pt-8 [@media(max-height:800px)]:pb-5 [@media(max-height:800px)]:pt-5"
       : `pb-8 ${showHeader ? "pt-[38px]" : "pt-8"} md:pb-9 md:pt-8 [@media(max-height:800px)]:pb-5 [@media(max-height:800px)]:pt-5`;
   const defaultFrameClass = isDark
     ? "border-white/[0.14] bg-[#2B2035] text-[#FFF8FF] shadow-[0_22px_48px_rgba(0,0,0,0.22)]"
@@ -275,13 +313,14 @@ export function SymptomAssessmentPresentation({
   return (
     <section
       aria-busy={loading || undefined}
-      className={`symptom-canonical-panel mx-auto ${responsiveFrameHeight} ${showHeader ? "w-[calc(100%_-_28px)]" : "w-full"} ${responsiveFrameWidth} overflow-hidden border ${usesCheckingFrame ? "rounded-[32px] border-[#7C3AED] bg-[linear-gradient(145deg,#4C1D95_0%,#6D28D9_52%,#7C3AED_100%)] text-white shadow-[0_22px_48px_rgba(76,29,149,0.28)]" : `rounded-[30px] ${defaultFrameClass}`} ${className}`}
+      className={`symptom-canonical-panel mx-auto ${responsiveFrameHeight} ${responsiveFrameInset} ${responsiveFrameWidth} overflow-hidden border ${usesCheckingFrame ? `rounded-[30px] ${isDark ? "border-white/[0.14] bg-[linear-gradient(155deg,#2B2035_0%,#24182F_100%)] text-[#FFF8FF] shadow-[0_22px_48px_rgba(0,0,0,0.22)]" : "border-[#DFD3E7] bg-[linear-gradient(155deg,#FFFFFF_0%,#FBF7FF_55%,#FFF9F1_100%)] text-[#241238] shadow-[0_18px_38px_rgba(63,45,75,0.10)]"}` : `${stageId === "severity" ? "rounded-[26px] sm:rounded-[30px]" : "rounded-[30px]"} ${defaultFrameClass}`} ${className}`}
       data-testid={`symptom-presentation-${stageId}-${modality}`}
       data-approved-frame={SYMPTOM_ASSESSMENT_APPROVED_FRAME_BY_STAGE[stageId]}
       data-flow-id="health.symptom_assessment"
       data-presentation-id={presentationId}
       data-presentation-modality={modality}
       data-presentation-state={urgent ? "urgent" : loading ? "loading" : "default"}
+      data-theme-surface={usesCheckingFrame ? (isDark ? "canonical-dark" : "canonical-light") : undefined}
       data-registry-scene={presentation.registrySceneId}
       data-shell-contract={presentation.shell.shellId}
       data-header-contract={presentation.shell.headerId}
@@ -366,9 +405,9 @@ export function SymptomAssessmentPresentation({
           ) : null}
         </>
       ) : (
-        <div className={`px-[22px] text-center ${responsiveContentSpacing}`}>
+        <div className={`${stageId === "severity" ? "px-[18px] sm:px-[22px]" : "px-[22px]"} text-center ${responsiveContentSpacing}`}>
           {showTitle && scene.layout !== "progress" ? (
-            <h2 className={`font-body font-extrabold leading-[1.08] tracking-[-0.025em] ${isDark ? "text-[#FFF8FF]" : "text-[#241238]"} ${usesCompactProductionDescribeFrame || stageId === "safety_check" ? "text-[28px] sm:text-[31px]" : "text-[31px]"}`}>
+            <h2 className={`font-body font-extrabold leading-[1.08] tracking-[-0.025em] ${isDark ? "text-[#FFF8FF]" : "text-[#241238]"} ${usesCompactProductionDescribeFrame || stageId === "safety_check" || stageId === "severity" ? "text-[28px] sm:text-[31px]" : "text-[31px]"}`}>
               {displayTitle}
             </h2>
           ) : null}
@@ -433,7 +472,7 @@ export function SymptomAssessmentPresentation({
 
         {children && (scene.layout !== "progress" || allowProgressChildren) ? (
           <div
-            className={`mt-7 text-left [@media(max-height:800px)]:mt-5 ${scene.layout === "review" ? "[@media(max-height:800px)]:mt-3" : ""}`}
+            className={`${scene.layout === "scale" ? "mt-5 sm:mt-7" : "mt-7 [@media(max-height:800px)]:mt-5"} text-left ${scene.layout === "review" ? "[@media(max-height:800px)]:mt-3" : ""}`}
             data-testid={`symptom-scene-controls-${stageId}-${modality}`}
           >
             {children}

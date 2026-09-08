@@ -253,7 +253,7 @@ function ProgramSetup() {
                         <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-[#6B21A8]">Best</span>
                       ) : null}
                     </span>
-                    <span className={`mt-3 block text-[13px] font-black uppercase tracking-[0.1em] ${tone.marker}`}>{FREQUENCY_DETAILS[option]}</span>
+                    <span className="sr-only">{FREQUENCY_DETAILS[option]}</span>
                   </button>
                 );
               })}

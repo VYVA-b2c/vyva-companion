@@ -67,7 +67,7 @@ export async function getRefillSummaries(profileId: string, now = new Date()) {
     }
     const estimate = calculateRefillInventory({
       today,
-      unitsPerDose: numberValue(medicine.units_per_dose),
+      unitsPerDose: numberValue(medicine.inventory_units_per_dose) ?? numberValue(medicine.units_per_dose),
       dailyFrequency: numberValue(medicine.daily_frequency),
       refillAlertDays: medicine.refill_alert_days ?? 7,
       events: medicineEvents.map((event) => ({
@@ -85,6 +85,8 @@ export async function getRefillSummaries(profileId: string, now = new Date()) {
       strength: medicine.dose_text,
       doseUnit: medicine.dose_unit,
       unitsPerDose: numberValue(medicine.units_per_dose),
+      inventoryUnit: medicine.inventory_unit ?? medicine.dose_unit,
+      inventoryUnitsPerDose: numberValue(medicine.inventory_units_per_dose) ?? numberValue(medicine.units_per_dose),
       dailyFrequency: numberValue(medicine.daily_frequency),
       refillAlertDays: medicine.refill_alert_days ?? 7,
       inventoryTrackingEnabled: medicine.inventory_tracking_enabled,

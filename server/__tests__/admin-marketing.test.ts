@@ -141,6 +141,18 @@ const dispatchMock = vi.hoisted(() => ({
 
 vi.mock("../services/communicationDispatcher.js", () => dispatchMock);
 
+const openAiMock = vi.hoisted(() => ({
+  imageGenerate: vi.fn(async () => ({ data: [{ b64_json: Buffer.from("fake-vyva-image").toString("base64") }] })),
+  chatCreate: vi.fn(),
+}));
+
+vi.mock("openai", () => ({
+  default: class MockOpenAI {
+    images = { generate: openAiMock.imageGenerate };
+    chat = { completions: { create: openAiMock.chatCreate } };
+  },
+}));
+
 import { adminMarketingRouter } from "../routes/adminMarketing.js";
 import { runMarketingEmailSchedulerOnce } from "../services/marketingEmailScheduler.js";
 
@@ -163,6 +175,8 @@ describe("admin marketing router", () => {
     dbMock.reset();
     dbMock.setTableName(getTableName);
     dispatchMock.dispatchCommunicationsByIds.mockClear();
+    openAiMock.imageGenerate.mockClear();
+    openAiMock.chatCreate.mockClear();
     vi.unstubAllEnvs();
     vi.stubEnv("SUPER_ADMIN_EMAIL", "karim.assad@mokadigital.net");
   });
@@ -853,6 +867,7 @@ describe("admin marketing router", () => {
       })
       .expect(201);
 
+    vi.stubEnv("MARKETING_EMAIL_SCHEDULER_ENABLED", "true");
     const result = await runMarketingEmailSchedulerOnce(new Date("2026-07-05T10:00:00.000Z"));
 
     expect(result).toMatchObject({
@@ -2485,5 +2500,171 @@ describe("admin marketing router", () => {
       exported: { campaigns: 1, campaignChannels: 2, campaignRecipients: 1 },
       imported: { campaigns: 1, campaignChannels: 2, campaignRecipients: 1 },
     });
+  });
+
+  it("creates a safe Social Studio package with channel-native drafts", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+
+    const response = await request(buildApp("ops@example.com"))
+      .post("/api/admin/marketing/social-packages")
+      .send({
+        brief: "Invite care teams to a practical VYVA introduction.",
+        campaignName: "Care team introduction",
+        audienceType: "both",
+        language: "en",
+        tone: "warm",
+        channels: ["email", "instagram", "tiktok"],
+        ctaLabel: "Open VYVA",
+        ctaUrl: "https://v2.vyva.life",
+        scheduledAt: "2026-08-31T10:00:00.000Z",
+        generateImages: false,
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({ ok: true, source: "fallback", createdChannelCount: 3, generatedImageCount: 0 });
+    expect(response.body.content).toHaveLength(3);
+    expect(response.body.content.find((item: { channel: string }) => item.channel === "instagram")).toMatchObject({
+      channel: "instagram",
+      status: "review",
+      designJson: { socialStudio: { hashtags: ["#VYVA", "#PracticalSupport", "#EverydaySupport"] } },
+    });
+    expect(table("marketing_campaigns")[0]).toMatchObject({ source: "social_studio", status: "draft" });
+    expect(table("marketing_campaign_channels")).toHaveLength(3);
+    expect(table("marketing_campaign_channels").every((row) => row.send_capability === "planning_only" || row.send_capability === "enabled")).toBe(true);
+    expect(response.body.readiness.every((item: { state: string }) => item.state === "needs_action")).toBe(true);
+    expect(response.body.note).toContain("OPENAI_API_KEY");
+  });
+
+  it("starts the Meta OAuth flow only when the Admin deployment is configured", async () => {
+    await request(buildApp("ops@example.com"))
+      .get("/api/admin/marketing/social-publishing/meta/connect")
+      .expect(302)
+      .expect("Location", "/admin/marketing/settings?meta_connection=missing_config");
+
+    vi.stubEnv("META_APP_ID", "meta-app-id");
+    vi.stubEnv("META_APP_SECRET", "meta-app-secret");
+    vi.stubEnv("META_OAUTH_REDIRECT_URI", "https://v2.vyva.life/api/admin/marketing/social-publishing/meta/callback");
+
+    const response = await request(buildApp("ops@example.com"))
+      .get("/api/admin/marketing/social-publishing/meta/connect")
+      .expect(302);
+    const location = new URL(response.headers.location);
+    expect(location.origin).toBe("https://www.facebook.com");
+    expect(location.pathname).toBe("/v24.0/dialog/oauth");
+    expect(location.searchParams.get("client_id")).toBe("meta-app-id");
+    expect(location.searchParams.get("redirect_uri")).toBe("https://v2.vyva.life/api/admin/marketing/social-publishing/meta/callback");
+    expect(location.searchParams.get("state")).toBeTruthy();
+    expect(location.searchParams.get("scope")).toContain("instagram_content_publish");
+  });
+
+  it("reports Meta connection configuration without exposing credentials", async () => {
+    vi.stubEnv("META_APP_ID", "meta-app-id");
+    vi.stubEnv("META_APP_SECRET", "meta-app-secret");
+
+    const response = await request(buildApp("ops@example.com"))
+      .get("/api/admin/marketing/social-publishing/meta/status")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      ok: true,
+      provider: "meta",
+      configured: true,
+      directPublishingEnabled: false,
+      connections: [],
+    });
+    expect(JSON.stringify(response.body)).not.toContain("meta-app-secret");
+  });
+
+  it("requires approval before a Social Studio campaign can be scheduled", async () => {
+    const createResponse = await request(buildApp("ops@example.com"))
+      .post("/api/admin/marketing/social-packages")
+      .send({
+        brief: "Share a practical VYVA update.",
+        audienceType: "b2c",
+        channels: ["email"],
+        generateImages: false,
+      })
+      .expect(201);
+
+    const contentId = createResponse.body.content[0].id;
+    const campaignId = createResponse.body.campaign.id;
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/${campaignId}/schedule`)
+      .send({ scheduledAt: "2026-08-31T12:00:00.000Z" })
+      .expect(409)
+      .expect((response) => {
+        expect(response.body.error).toContain("Approve every selected channel");
+      });
+
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/content/${contentId}/approve`)
+      .expect(200);
+
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/${campaignId}/schedule`)
+      .send({ scheduledAt: "2026-08-31T12:00:00.000Z" })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.campaign.status).toBe("scheduled");
+        expect(response.body.readiness[0].state).toBe("approved");
+      });
+  });
+
+  it("regenerates one Social Studio variant and returns it to review", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const createResponse = await request(buildApp("ops@example.com"))
+      .post("/api/admin/marketing/social-packages")
+      .send({ brief: "Share a practical VYVA update.", campaignName: "Practical update", audienceType: "b2c", channels: ["email"], generateImages: false })
+      .expect(201);
+
+    const contentId = createResponse.body.content[0].id;
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/content/${contentId}/approve`)
+      .expect(200);
+
+    const response = await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/content/${contentId}/regenerate`)
+      .send({ direction: "Make the opening especially concise." })
+      .expect(200);
+
+    expect(response.body).toMatchObject({ ok: true, source: "fallback", content: { status: "review" } });
+    expect(response.body.content.designJson.socialStudio.regenerationCount).toBe(1);
+    expect(table("marketing_content_assets")[0].status).toBe("review");
+  });
+
+  it("stores generated Social Studio images separately and serves them behind admin auth", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const createResponse = await request(buildApp("ops@example.com"))
+      .post("/api/admin/marketing/social-packages")
+      .send({ brief: "Show one practical way VYVA can support a care conversation.", audienceType: "b2c", channels: ["instagram"], generateImages: false })
+      .expect(201);
+
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const contentId = createResponse.body.content[0].id;
+    const imageResponse = await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/content/${contentId}/generate-image`)
+      .send({})
+      .expect(200);
+
+    expect(openAiMock.imageGenerate).toHaveBeenCalledOnce();
+    expect(imageResponse.body.mediaAsset).toMatchObject({ assetType: "generated_image", status: "generated" });
+    expect(table("marketing_media_files")).toHaveLength(1);
+    expect(table("marketing_media_files")[0].image_bytes).toBeInstanceOf(Buffer);
+
+    await request(buildApp("ops@example.com"))
+      .get(`/api/admin/marketing/media/${imageResponse.body.mediaAsset.id}/file`)
+      .expect(200)
+      .expect("Content-Type", /image\/jpeg/);
+
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/media/${imageResponse.body.mediaAsset.id}/approve`)
+      .expect(200);
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/content/${contentId}/approve`)
+      .expect(200);
+    await request(buildApp("ops@example.com"))
+      .post(`/api/admin/marketing/social-packages/${createResponse.body.campaign.id}/schedule`)
+      .send({ scheduledAt: "2026-08-31T14:00:00.000Z" })
+      .expect(200);
   });
 });

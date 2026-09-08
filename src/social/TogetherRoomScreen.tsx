@@ -5739,7 +5739,7 @@ function ParticipationPathPanel({
               <Icon size={20} className="shrink-0" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-[16px] leading-tight text-[#244D47]">{copy.participationPathLabels[path.id]}</span>
-                <span className="mt-1 block text-[14px] leading-[1.3] text-[#55706B]">{copy.participationPathBodies[path.id]}</span>
+                <span className="sr-only">{copy.participationPathBodies[path.id]}</span>
               </span>
               <span className="shrink-0 rounded-[14px] bg-[#F4FBF8] px-3 py-2 text-[13px] leading-tight text-[#0F766E]">
                 {copy.participationPathActions[path.id]}
@@ -6238,7 +6238,7 @@ function ViewCircle({
                         className="min-h-[64px] rounded-[15px] border border-[#CFECE3] bg-white px-3 py-2 text-left font-body font-bold text-[#0F766E] disabled:cursor-default disabled:opacity-60"
                       >
                         <span className="block text-[14px] leading-tight">{copy.replyActions[tone]}</span>
-                        <span className="mt-1 block text-[12px] leading-[1.25] text-[#55706B]">{copy.replyBodies[tone]}</span>
+                        <span className="sr-only">{copy.replyBodies[tone]}</span>
                       </button>
                     ))}
                   </div>
@@ -6409,7 +6409,7 @@ function IssueVoteQueue({
                       <Pause size={16} className="shrink-0" aria-hidden="true" />
                       <span className="min-w-0">
                         <span className="block text-[15px] leading-tight">{copy.pollPassChoice}</span>
-                        <span className="mt-1 block text-[13px] leading-[1.25] text-[#3E526A]">{copy.pollPassBody}</span>
+                        <span className="sr-only">{copy.pollPassBody}</span>
                       </span>
                     </button>
                   )}
@@ -8998,7 +8998,7 @@ export default function TogetherRoomScreen({
                       {selected && <Check size={17} aria-hidden="true" />}
                       {buttonLabel}
                     </span>
-                    <span className="mt-1 block text-[14px] leading-[1.25] text-[#55706B]">{bodyLabel}</span>
+                    <span className="sr-only">{bodyLabel}</span>
                   </button>
                 );
               })}
@@ -9020,7 +9020,7 @@ export default function TogetherRoomScreen({
           >
             <span className="min-w-0">
               <span className="block">{showRoomDetails ? simpleCopy.hideOptions : simpleCopy.moreOptions}</span>
-              <span className="mt-1 block text-[14px] font-bold leading-[1.25] text-[#55706B]">
+              <span className="sr-only">
                 {simpleCopy.moreOptionsBody}
               </span>
             </span>
@@ -9091,7 +9091,7 @@ export default function TogetherRoomScreen({
               <Pause size={18} className="shrink-0" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-[17px] leading-tight">{copy.pollPassChoice}</span>
-                <span className="mt-1 block text-[14px] leading-[1.3] text-[#3E526A]">{copy.pollPassBody}</span>
+                <span className="sr-only">{copy.pollPassBody}</span>
               </span>
             </button>
           )}
@@ -9728,7 +9728,7 @@ export default function TogetherRoomScreen({
                                   {selected && <Check size={16} aria-hidden="true" />}
                                   {buttonLabel}
                                 </span>
-                                <span className="mt-1 block text-[13px] leading-[1.25] text-[#55706B]">{bodyLabel}</span>
+                                <span className="sr-only">{bodyLabel}</span>
                               </button>
                             );
                           })}
@@ -9807,7 +9807,7 @@ export default function TogetherRoomScreen({
                             className="min-h-[88px] rounded-[16px] border border-[#CFECE3] bg-white px-3 py-3 text-left font-body font-bold text-[#0F766E] disabled:opacity-55"
                           >
                             <span className="block text-[15px] leading-tight">{copy.replyActions[tone]}</span>
-                            <span className="mt-1 block text-[14px] leading-[1.25] text-[#55706B]">{copy.replyBodies[tone]}</span>
+                            <span className="sr-only">{copy.replyBodies[tone]}</span>
                           </button>
                         ))}
                       </div>

@@ -3,6 +3,7 @@ export const VYVA_VOICE_SESSION_CHANGED_EVENT = "vyva:voice-session-changed";
 export const VYVA_VOICE_TRIAGE_TOUCH_ANSWER_EVENT = "vyva:voice-triage-touch-answer";
 export const VYVA_DR_AI_SCREEN_SYNC_REQUEST_EVENT = "vyva:dr-ai-screen-sync-request";
 export const VYVA_DR_AI_SCREEN_SYNC_ACK_EVENT = "vyva:dr-ai-screen-sync-ack";
+export const VYVA_DR_AI_VITALS_OPEN_EVENT = "vyva:dr-ai-vitals-open";
 
 export type VoiceSessionChangedDetail = {
   sessionId: string | null;
@@ -140,4 +141,9 @@ export function requestDrAiScreenSync(conversationId: string, timeoutMs = 2500) 
       detail: { requestId, conversationId },
     }));
   });
+}
+
+export function openDrAiVitalsCapture() {
+  if (!hasWindow()) return;
+  window.dispatchEvent(new CustomEvent(VYVA_DR_AI_VITALS_OPEN_EVENT));
 }

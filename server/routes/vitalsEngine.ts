@@ -45,6 +45,7 @@ import {
   type VitalsCaptureMethod,
   type VitalsSignalKey,
 } from "../../shared/vitalsSignalCatalog.js";
+import { triggerPreventionPlanRefresh } from "./healthInsightsReport.js";
 import {
   buildProposedVitalsReading,
   normalizeParsedReading,
@@ -65,6 +66,7 @@ router.use(requireUser);
 const ANALYSIS_MODEL = "claude-sonnet-4-20250514";
 const FALLBACK_MODEL_VERSION = "deterministic-fallback-v1";
 const ALERT_TYPE = "vitals_safety_check";
+const SAFETY_CONTEXT_FRESHNESS_HOURS = 48;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -119,6 +121,14 @@ const acknowledgeSchema = z.object({
 });
 
 type RiskTier = "none" | "watch" | "notify" | "urgent";
+
+function preventionRiskTierRank(value: unknown): number {
+  const tier = String(value ?? "").toLowerCase();
+  if (tier === "urgent") return 5;
+  if (tier === "notify") return 4;
+  if (tier === "watch") return 3;
+  return 1;
+}
 
 type SignalReadingRow = {
   id?: string;
@@ -355,6 +365,7 @@ async function getLatestAnalysis(userId: string): Promise<PatternWindowRow | nul
     SELECT *
     FROM vyva_pattern_windows
     WHERE user_id = ${userId}
+      AND analysed_at >= ${daysAgo(SAFETY_CONTEXT_FRESHNESS_HOURS)}
     ORDER BY analysed_at DESC
     LIMIT 1
   `);
@@ -394,7 +405,12 @@ async function getLatestAlerts(userId: string, limit = 3) {
       created_at: caregiverAlerts.created_at,
     })
     .from(caregiverAlerts)
-    .where(eq(caregiverAlerts.user_id, userId))
+    .where(and(
+      eq(caregiverAlerts.user_id, userId),
+      eq(caregiverAlerts.alert_type, ALERT_TYPE),
+      isNull(caregiverAlerts.resolved_at),
+      gte(caregiverAlerts.created_at, daysAgo(SAFETY_CONTEXT_FRESHNESS_HOURS)),
+    ))
     .orderBy(desc(caregiverAlerts.created_at))
     .limit(limit);
 }
@@ -470,7 +486,10 @@ async function getLatestTriage(userId: string): Promise<TriageSafetyContext | nu
   const [row] = await db
     .select()
     .from(triageReports)
-    .where(eq(triageReports.user_id, userId))
+    .where(and(
+      eq(triageReports.user_id, userId),
+      gte(triageReports.created_at, daysAgo(SAFETY_CONTEXT_FRESHNESS_HOURS)),
+    ))
     .orderBy(desc(triageReports.created_at))
     .limit(1);
   return row ?? null;
@@ -1354,6 +1373,18 @@ export async function runAnalysis(userId: string, options: { refreshBaselines?: 
       WHERE id = ${stored.id}
         AND user_id = ${userId}
     `);
+  }
+
+  if (preventionRiskTierRank(analysis.risk_tier) >= 3) {
+    void triggerPreventionPlanRefresh({
+      userId,
+      triggerType: "vitals_deviation",
+      triggerData: {
+        risk_tier: analysis.risk_tier,
+        pattern_labels: analysis.pattern_labels,
+        pattern_window_id: stored?.id ?? null,
+      },
+    }).catch((err) => console.error("[vitals-engine prevention refresh]", err));
   }
 
   return {

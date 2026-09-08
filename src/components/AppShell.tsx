@@ -127,12 +127,12 @@ const VoiceSessionDock = ({
     const compactLabel = t("home.voiceDock.active", "Voice on");
     const compactStopLabel = t("home.voiceDock.stop", "Stop voice");
     return (
-      <div className="pointer-events-none fixed inset-x-0 bottom-[112px] z-[64] flex justify-center px-5">
+      <div className="pointer-events-none fixed bottom-[104px] right-3 z-[64] flex justify-end sm:inset-x-0 sm:right-auto sm:justify-center sm:px-5">
         <section
           data-testid="voice-session-dock"
           data-variant="home-stop"
           className={[
-            "pointer-events-auto inline-flex min-h-[52px] max-w-[calc(100vw-40px)] items-center gap-2 rounded-full border py-2 pl-4 pr-2 shadow-[0_14px_34px_rgba(24,18,34,0.18)] backdrop-blur-xl",
+            "pointer-events-auto inline-flex min-h-[44px] max-w-[calc(100vw-24px)] items-center gap-1.5 rounded-full border py-1 pl-3 pr-1 shadow-[0_12px_28px_rgba(24,18,34,0.18)] backdrop-blur-xl sm:min-h-[48px] sm:gap-2 sm:py-1.5 sm:pl-4 sm:pr-1.5",
             compactDark
               ? "border-white/[0.16] bg-[#100A1F]/85 text-[#F8F4FF]"
               : "border-[#E9D5FF] bg-white/92 text-vyva-text-1",
@@ -155,7 +155,7 @@ const VoiceSessionDock = ({
             type="button"
             onClick={onEnd}
             data-testid="button-dock-end-call"
-            className="ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#111111] text-white shadow-[0_12px_26px_rgba(17,17,17,0.2)] transition active:scale-95"
+            className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111111] text-white shadow-[0_10px_22px_rgba(17,17,17,0.2)] transition active:scale-95 sm:h-10 sm:w-10"
             aria-label={compactStopLabel}
             title={compactStopLabel}
           >
@@ -361,11 +361,13 @@ const AppShell = ({ children }: { children: ReactNode }) => {
   const usesAlignedHubViewport =
     location.pathname === "/menu" ||
     location.pathname === "/health" ||
+    isVitalsRoute ||
     isSymptomCheckRoute ||
     isDevSymptomAssessmentRoute;
   const isConciergeExperienceRoute = location.pathname === "/concierge";
   const usesHomeMasterShell = isHomeRoute || isHomeMasterMenuRoute || location.pathname === "/health";
-  const ownsPrototypeTopbar = isHomeNavPrototypeTopbarRoute(location.pathname);
+  const ownsPrototypeTopbar = isBrainCoachRoute || isHomeNavPrototypeTopbarRoute(location.pathname);
+  const ownsBrainCoachTopbar = ownsPrototypeTopbar && isBrainCoachRoute;
   const usesPrototypeDock = isHomeNavPrototypeDockRoute(location.pathname);
   const hidePrototypeDock = hidesHomeNavPrototypeDock(location.pathname);
   const usesDevHomeMasterCompactShell =
@@ -791,7 +793,7 @@ const AppShell = ({ children }: { children: ReactNode }) => {
             autoHideHomeControls={location.pathname === "/dev/home-master" ? false : undefined}
           />
         )}
-        <main data-testid="app-shell-scroll" className={`${usesAlignedHubViewport ? "h-[100svh] min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] max-lg:[scrollbar-gutter:auto]" : ownsPrototypeTopbar ? "min-h-screen overflow-visible" : "min-h-screen overflow-y-auto"} ${isFullScreen ? "" : ownsPrototypeTopbar ? "pt-6 pb-[112px]" : usesCompactVoiceSurface ? "pt-[74px] pb-[112px]" : isVitalsRoute ? "pt-[64px] pb-[112px] lg:pb-10" : "pt-[64px] pb-[112px]"}`}>
+        <main data-testid="app-shell-scroll" className={`${usesAlignedHubViewport ? "h-[100svh] min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] max-lg:[scrollbar-gutter:auto]" : ownsPrototypeTopbar ? "min-h-screen overflow-visible" : "min-h-screen overflow-y-auto"} ${isFullScreen ? "" : ownsBrainCoachTopbar ? (isBrainCoachDocklessRoute ? "pt-0 pb-0" : "pt-0 pb-[112px]") : ownsPrototypeTopbar ? "pt-6 pb-[112px]" : usesCompactVoiceSurface ? "pt-[74px] pb-[112px]" : isVitalsRoute ? "pt-[64px] pb-[112px] lg:pb-10" : "pt-[64px] pb-[112px]"}`}>
           {showInlineVoiceAction && visibleVoiceAction && (
             <div className="px-[22px] pb-3 pt-2">
               <VoiceActionCard

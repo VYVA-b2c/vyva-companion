@@ -19,6 +19,7 @@ const VALID_HOOK_CATEGORIES = new Set([
 ]);
 
 const VALID_PROMPT_TYPES = new Set(["alternate_uses", "what_if", "connections"]);
+const VALID_SCENT_CATEGORIES = new Set(["food", "nature", "home", "season", "place", "occasion"]);
 const VALID_SOURCES = new Set(["ai_generated", "human_written"]);
 
 function requireEnv(name, value) {
@@ -81,6 +82,27 @@ function normalizePrompt(item, index) {
   return row;
 }
 
+function normalizeScentMemory(item, index) {
+  const category = cleanText(item.category);
+  if (!VALID_SCENT_CATEGORIES.has(category)) {
+    throw new Error(`scent_memories[${index}] has invalid category "${item.category}".`);
+  }
+  const row = {
+    scent_name: cleanText(item.scent_name),
+    scent_description: cleanText(item.scent_description),
+    guiding_question: cleanText(item.guiding_question),
+    category,
+    language: assertValidLanguage(item.language),
+    source: VALID_SOURCES.has(item.source) ? item.source : "human_written",
+    rejected: false,
+    is_active: false,
+  };
+  if (!row.scent_name || !row.scent_description || !row.guiding_question) {
+    throw new Error(`scent_memories[${index}] needs scent_name, scent_description, and guiding_question.`);
+  }
+  return row;
+}
+
 async function insertRows(table, rows) {
   if (!rows.length) return;
   if (DRY_RUN) {
@@ -121,11 +143,13 @@ async function main() {
   const parsed = JSON.parse(await readFile(filePath, "utf8"));
   const hooks = Array.isArray(parsed.hooks) ? parsed.hooks.map(normalizeHook) : [];
   const prompts = Array.isArray(parsed.prompts) ? parsed.prompts.map(normalizePrompt) : [];
+  const scentMemories = Array.isArray(parsed.scent_memories) ? parsed.scent_memories.map(normalizeScentMemory) : [];
 
   await insertRows("curious_minds_hooks", hooks);
   await insertRows("curious_minds_prompts", prompts);
+  await insertRows("scent_memory_prompts", scentMemories);
 
-  console.log(`Curious Minds draft import complete. Hooks: ${hooks.length}. Prompts: ${prompts.length}.`);
+  console.log(`Content draft import complete. Hooks: ${hooks.length}. Prompts: ${prompts.length}. Scent memories: ${scentMemories.length}.`);
   console.log("Rows remain inactive until approved in /admin/curious-minds.");
 }
 

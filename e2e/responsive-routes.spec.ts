@@ -838,6 +838,10 @@ async function expectResponsiveRoute(
     const bodyText = document.body.textContent?.replace(/\s+/g, " ").trim() ?? "";
     return {
       horizontalOverflow: root.scrollWidth - root.clientWidth,
+      overflowingElements: Array.from(document.body.querySelectorAll("*"))
+        .filter((element) => element.getBoundingClientRect().right > root.clientWidth + 1)
+        .slice(-15)
+        .map((element) => `${element.tagName}.${element.className}: ${Math.round(element.getBoundingClientRect().right)}`),
       textLength: bodyText.length,
       hasFrameworkOverlay: Boolean(
         document.querySelector(
@@ -848,7 +852,7 @@ async function expectResponsiveRoute(
   });
 
   expect(audit.hasFrameworkOverlay, `${route.path} should not show a framework error overlay`).toBe(false);
-  expect(audit.horizontalOverflow, `${route.path} should not overflow horizontally at ${viewport.width}px`).toBeLessThanOrEqual(1);
+  expect(audit.horizontalOverflow, `${route.path} should not overflow horizontally at ${viewport.width}px: ${audit.overflowingElements.join("; ")}`).toBeLessThanOrEqual(1);
   expect(
     audit.textLength,
     `${route.path} should render meaningful content. Console: ${relevantConsoleMessages().join(" | ") || "none"}`,

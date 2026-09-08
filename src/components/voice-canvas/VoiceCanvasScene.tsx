@@ -68,7 +68,7 @@ function ChoiceButton({ choice, onChoice }: { choice: VoiceCanvasChoice; onChoic
       <span className="vc-choice-icon" aria-hidden="true"><Icon size={24} strokeWidth={1.8} /></span>
       <span className="vc-choice-copy">
         <span className="vc-choice-label">{choice.label}</span>
-        {choice.description && <span className="vc-choice-description">{choice.description}</span>}
+        {choice.description && <span className="sr-only">{choice.description}</span>}
       </span>
       {choice.selected && <Check className="vc-choice-check" size={24} aria-hidden="true" />}
     </button>

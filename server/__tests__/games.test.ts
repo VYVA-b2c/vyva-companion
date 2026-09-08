@@ -31,6 +31,8 @@ describe("brain game API routes", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ELEVENLABS_API_KEY;
     delete process.env.ELEVENLABS_BRAIN_TTS_VOICE_ID;
+    delete process.env.ELEVENLABS_MEDITATION_TTS_VOICE_ID;
+    delete process.env.ELEVENLABS_BREATH_TTS_VOICE_ID;
     delete process.env.ELEVENLABS_VOICE_ID;
     dbMock.pool.query.mockReset();
   });
@@ -90,10 +92,33 @@ describe("brain game API routes", () => {
     expect(Buffer.from(res.body)).toEqual(Buffer.from([1, 2, 3]));
   });
 
+  it("uses the breathing and meditation voice for guided breathing audio", async () => {
+    process.env.ELEVENLABS_API_KEY = "test-key";
+    process.env.ELEVENLABS_BRAIN_TTS_VOICE_ID = "brain-voice";
+    process.env.ELEVENLABS_MEDITATION_TTS_VOICE_ID = "marco-voice";
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "audio/mpeg" }),
+      arrayBuffer: async () => new Uint8Array([4, 5, 6]).buffer,
+    } as Response);
+
+    await request(app)
+      .post("/api/games/tts")
+      .set("x-user-id", "test-user")
+      .send({ text: "Breathe in, gently.", language: "en", voiceProfile: "meditation" })
+      .expect(200);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/text-to-speech/marco-voice"),
+      expect.any(Object),
+    );
+  });
+
   it("selects an unused Scent Memory prompt today before falling back to least recently used", () => {
     const rows = [
-      { id: "bread" },
-      { id: "garden" },
+      { id: "bread", category: "food" },
+      { id: "cake", category: "food" },
+      { id: "garden", category: "nature" },
     ];
 
     expect(pickScentMemoryPrompt(rows, [{ promptId: "bread" }], [], () => 0)?.id).toBe("garden");
@@ -107,6 +132,8 @@ describe("brain game API routes", () => {
       ],
       () => 0,
     )?.id).toBe("garden");
+
+    expect(pickScentMemoryPrompt(rows, [], [], () => 0, "bread", "food")?.id).toBe("garden");
   });
 
   it("calculates real Brain Coach streaks from completed session dates", () => {

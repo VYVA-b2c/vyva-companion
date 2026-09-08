@@ -246,6 +246,38 @@ describe("Profile save", () => {
     });
   });
 
+  it("returns the preferred profile name as the UI first name", async () => {
+    const accountId = await createAccount();
+    await createProfile({
+      id: accountId,
+      full_name: "New Owner",
+      preferred_name: "Karim",
+      phone_number: "+34600000042",
+    });
+    await db.update(users).set({ active_profile_id: accountId }).where(eq(users.id, accountId));
+    await db.insert(profileMemberships).values({
+      user_id: accountId,
+      profile_id: accountId,
+      role: "elder",
+      relationship: "self",
+      status: "active",
+      is_primary: true,
+      accepted_at: new Date(),
+    });
+
+    const response = await request(app)
+      .get("/api/profile")
+      .set("x-user-id", accountId)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      firstName: "Karim",
+      lastName: "Owner",
+      preferredName: "Karim",
+      profileId: accountId,
+    });
+  });
+
   it("does not prefill a legacy profile email that matches the account email", async () => {
     const accountEmail = `profile-account-${randomUUID()}@example.com`;
     const accountId = await createAccount({

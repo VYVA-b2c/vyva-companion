@@ -5,6 +5,10 @@ import { useLanguage } from "@/i18n";
 import { useVyvaVoice } from "@/hooks/useVyvaVoice";
 import { adjustBreathingIntentForControl, parseBreathingVoiceText, type BreathingVoiceControl } from "@/lib/breathingVoice";
 import { apiFetch } from "@/lib/queryClient";
+import {
+  BREATHING_MEDITATION_AGENT_SLUG,
+  buildBreathingMeditationAgentContext,
+} from "../../shared/breathingMeditationAgent";
 
 type BreathingIntent = {
   mood?: string;
@@ -170,7 +174,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export default function RelaxBreatheScreen() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const prefersReducedMotion = usePrefersReducedMotion();
   const stageTimerRef = useRef<number | null>(null);
   const handledTranscriptAtRef = useRef<number>(0);
@@ -275,11 +279,20 @@ export default function RelaxBreatheScreen() {
 
   const startVoiceForPlan = useCallback(async (nextPlan: BreathingPlan) => {
     if (guideMode !== "voice" || audioIsLive || isConnecting) return;
+    const agentContext = buildBreathingMeditationAgentContext({
+      activityId: "relax_breathe",
+      language,
+      durationSeconds: nextPlan.durationMinutes * 60,
+      patternId: nextPlan.exerciseSlug,
+      inhaleSeconds: Number(nextPlan.pattern.inhale ?? 0),
+      exhaleSeconds: Number(nextPlan.pattern.exhale ?? 0),
+      holdSeconds: Number(nextPlan.pattern.hold ?? 0),
+    });
     await startVoice(nextPlan.voicePrompt, undefined, {
-      agentSlug: "marco-reyes",
-      roomSlug: "evening-wind-down",
+      agentSlug: BREATHING_MEDITATION_AGENT_SLUG,
       autoStartListening: true,
       dynamicVariables: {
+        ...agentContext,
         app_entrypoint: "relax_breathe_session",
         exercise_slug: nextPlan.exerciseSlug,
         session_title: nextPlan.title,
@@ -289,7 +302,7 @@ export default function RelaxBreatheScreen() {
         safety_line: copy.safety,
       },
     });
-  }, [audioIsLive, copy.safety, guideMode, isConnecting, startVoice]);
+  }, [audioIsLive, copy.safety, guideMode, isConnecting, language, startVoice]);
 
   const beginPlan = useCallback(async (
     nextPlan: BreathingPlan,
@@ -403,6 +416,11 @@ export default function RelaxBreatheScreen() {
     setProposedPlan(null);
     setStatusMessage(copy.listening);
     try {
+      const agentContext = buildBreathingMeditationAgentContext({
+        activityId: "relax_breathe",
+        language,
+        guidanceMode: "guided_audio",
+      });
       await startVoice([
         "You are Marco, VYVA's breathing coach.",
         "Start by asking what the user needs from breathing today: calm, sleep, focus, energy, or something else.",
@@ -410,10 +428,10 @@ export default function RelaxBreatheScreen() {
         "Do not begin intense breathwork. Keep it senior-friendly, gentle, and safety-first.",
         "If the user reports dizziness, chest pain, painful breathing, or unusual shortness of breath, stop and advise seeking help.",
       ].join(" "), undefined, {
-        agentSlug: "marco-reyes",
-        roomSlug: "evening-wind-down",
+        agentSlug: BREATHING_MEDITATION_AGENT_SLUG,
         autoStartListening: true,
         dynamicVariables: {
+          ...agentContext,
           app_entrypoint: "relax_breathe_intent",
           safety_line: copy.safety,
         },
@@ -422,7 +440,7 @@ export default function RelaxBreatheScreen() {
       console.warn("[RelaxBreathe] Voice intent chat could not start", error);
       setErrorMessage(copy.fallbackNotice);
     }
-  }, [copy.fallbackNotice, copy.listening, copy.safety, startVoice]);
+  }, [copy.fallbackNotice, copy.listening, copy.safety, language, startVoice]);
 
   const pauseSession = useCallback(() => {
     clearStageTimer();
@@ -812,7 +830,7 @@ export default function RelaxBreatheScreen() {
                     data-testid={`button-relax-breathe-intent-${preset.id}`}
                   >
                     <span className="block text-2xl font-extrabold text-[#1F2528]">{preset.label}</span>
-                    <span className="mt-2 block text-sm font-bold text-[#6F625B]">{preset.body}</span>
+                    <span className="sr-only">{preset.body}</span>
                   </button>
                 ))}
               </div>
@@ -984,7 +1002,7 @@ export default function RelaxBreatheScreen() {
                     data-testid={`button-relax-breathe-option-${option.exerciseSlug}`}
                   >
                     {option.name}
-                    <span className="block text-xs text-[#6F625B]">{option.why}</span>
+                    <span className="sr-only">{option.why}</span>
                   </button>
                 ))}
               </div>

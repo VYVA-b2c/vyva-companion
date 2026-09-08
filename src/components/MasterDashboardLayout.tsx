@@ -574,7 +574,7 @@ export default function MasterDashboardLayout({
                     </span>
                     {usesCanonicalCardGrid ? (
                       <span
-                        className={["mt-1 block line-clamp-2 text-[13px] font-bold leading-snug min-[390px]:text-[13.5px] md:text-[15px]", usesDarkCanonicalCards ? "text-[#DDD3EA]" : "text-[#8A8095]"].join(" ")}
+                        className="sr-only"
                         style={twoLineClampStyle}
                         data-testid={card.testId ? `${card.testId}-detail` : undefined}
                       >
@@ -628,11 +628,7 @@ export default function MasterDashboardLayout({
                   </span>
                   {isHomeMaster && card.detail ? (
                     <span
-                      className={[
-                        "mt-1 font-body text-[12px] font-semibold leading-tight min-[390px]:text-[13px] sm:text-[14px]",
-                        isHomeMasterIntentLayer ? "hidden sm:block" : "hidden md:block",
-                        isHomeMasterDark ? "text-[#D5CBE5]" : "text-vyva-text-2",
-                      ].join(" ")}
+                      className="sr-only"
                     >
                       {card.detail}
                     </span>
@@ -773,11 +769,7 @@ export default function MasterDashboardLayout({
                       </span>
                     ) : null}
                   </span>
-                  <span className={[
-                    "mt-0.5 block font-body font-bold leading-tight",
-                    usesCanonicalFastHelp ? "text-[12px] min-[390px]:text-[12.5px]" : "text-[13px] min-[390px]:text-[14px]",
-                    usesDarkCanonicalFastHelp ? "text-[#DDD3EA]" : "text-vyva-text-2",
-                  ].join(" ")}>
+                  <span className="sr-only">
                     {action.detail}
                   </span>
                 </span>

@@ -98,7 +98,7 @@ describe("triage telemetry", () => {
     expect(report.telemetry.escalationSources).toContain("profile");
   });
 
-  it("keeps the original fallback summary shape unchanged", () => {
+  it("keeps the fallback summary shape explicit", () => {
     const report = buildFallbackTriageReport("en", {
       mode: "without_vitals",
       quickAnswers: [
@@ -111,18 +111,25 @@ describe("triage telemetry", () => {
     }, [{ role: "user", content: "Bad headache" }]);
 
     expect(Object.keys(report.summary).sort()).toEqual([
+      "changePlanTriggers",
       "chiefComplaint",
+      "clinicalHandoff",
       "disclaimer",
+      "interpretation",
       "nextStepLabel",
       "nextStepLevel",
+      "possiblePatterns",
       "profileConsiderations",
+      "reassessmentWindow",
       "recommendations",
       "scanNotes",
       "scanResults",
       "symptoms",
       "triageReasons",
+      "uncertainty",
       "urgency",
       "vitalsNotes",
+      "vitalsSnapshot",
       "watchSigns",
     ].sort());
     expect(report.summary).toMatchObject({

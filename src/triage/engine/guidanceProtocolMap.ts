@@ -36,8 +36,69 @@ function isSpanishLocale(locale: string) {
   return locale.split("-")[0].toLowerCase() === "es";
 }
 
+const FRENCH_GUIDANCE_TEXT: Record<string, string> = {
+  "Chest and breathing safety": "Sécurité respiratoire et thoracique",
+  "Checking chest, breathing, fainting, and oxygen warning signs first.": "Vérification prioritaire des signes d’alerte liés à la poitrine, à la respiration, au malaise et à l’oxygène.",
+  "Finding out whether breathing, pressure, or effort is affecting safety now.": "Évaluation de l’impact actuel de la respiration, de la pression ou de l’effort sur votre sécurité.",
+  "Checking whether this is improving, returning, or getting worse.": "Vérification de l’évolution : amélioration, réapparition ou aggravation.",
+  "Dizziness and faintness": "Vertiges et sensation de malaise",
+  "Checking fainting, walking safety, chest symptoms, and stroke-like signs before smaller details.": "Vérification prioritaire du malaise, de la sécurité à la marche, des symptômes thoraciques et des signes pouvant évoquer un AVC.",
+  "Checking whether dizziness is strong enough to make standing or walking unsafe.": "Évaluation de l’intensité des vertiges et de leur impact sur la sécurité en position debout ou à la marche.",
+  "Checking whether it happens on standing, with head movement, or keeps getting worse.": "Vérification du lien avec le passage en position debout, les mouvements de tête ou une aggravation continue.",
+  "Weakness and low energy": "Faiblesse et manque d’énergie",
+  "Checking one-sided weakness, unsafe standing, breathing, chest symptoms, and alertness first.": "Vérification prioritaire d’une faiblesse d’un côté, d’une station debout difficile, de la respiration, des symptômes thoraciques et de la vigilance.",
+  "Checking whether this is new today, building over days, or part of a longer pattern.": "Vérification du début : aujourd’hui, depuis quelques jours ou dans le cadre d’une évolution plus longue.",
+  "Checking whether weakness is limiting drinking, walking, or daily safety.": "Évaluation de l’impact de la faiblesse sur l’hydratation, la marche et la sécurité quotidienne.",
+  "Fall and injury safety": "Sécurité après une chute ou une blessure",
+  "Checking head injury, ability to stand, bleeding, and whether someone can check on you.": "Vérification d’un traumatisme crânien, de la capacité à se relever, d’un saignement et de la possibilité qu’une personne vienne vous voir.",
+  "Checking whether pain, swelling, or movement makes walking unsafe.": "Évaluation de la douleur, du gonflement et de l’impact des mouvements sur la sécurité à la marche.",
+  "Checking whether pain or movement is improving or becoming more concerning.": "Vérification de l’évolution de la douleur ou des mouvements : amélioration ou aggravation préoccupante.",
+  "Medication-related change": "Changement lié aux médicaments",
+  "Checking whether medicine changes are linked with breathing, alertness, bleeding, sugar, or unsafe walking.": "Vérification d’un lien entre un changement de médicament et la respiration, la vigilance, un saignement, la glycémie ou une marche difficile.",
+  "Checking how strongly the change affects daily safety and whether a recent dose may matter.": "Évaluation de l’impact sur la sécurité quotidienne et du rôle possible d’une prise récente.",
+  "Checking whether symptoms started after a dose change, missed dose, or new medicine.": "Vérification d’un début après un changement de dose, un oubli ou un nouveau médicament.",
+  "Confusion and alertness": "Confusion et vigilance",
+  "Checking sudden confusion, stroke-like signs, fever, urine change, and whether staying alone is safe.": "Vérification d’une confusion soudaine, de signes pouvant évoquer un AVC, de fièvre, d’un changement urinaire et de la sécurité à rester seul.",
+  "Checking whether this is mild forgetfulness or a safety-changing alertness problem.": "Évaluation entre un oubli léger et un trouble de la vigilance pouvant compromettre la sécurité.",
+  "Checking whether this started suddenly, over days, or gradually over longer time.": "Vérification d’un début soudain, sur quelques jours ou progressif sur une période plus longue.",
+  "General symptom check": "Vérification générale des symptômes",
+  "Checking urgent warning signs before choosing the safest next detail.": "Vérification des signes d’alerte urgents avant de choisir la prochaine question la plus sûre.",
+  "Checking when this started so the next step has a clear follow-up window.": "Vérification du début afin de définir un délai de suivi clair.",
+  "Checking how much this affects safety, comfort, and daily function.": "Évaluation de l’impact sur la sécurité, le confort et les activités quotidiennes.",
+  "Checking whether this is improving, steady, or getting worse.": "Vérification de l’évolution : amélioration, stabilité ou aggravation.",
+  Pulse: "Pouls",
+  Oxygen: "Oxygène",
+  "Blood pressure": "Tension artérielle",
+  Temperature: "Température",
+  "Blood sugar": "Glycémie",
+  "Pain rating": "Intensité de la douleur",
+  "Energy level": "Niveau d’énergie",
+  "Safety first": "La sécurité d’abord",
+  "Profile-aware": "Profil pris en compte",
+  "Useful signal": "Mesure utile",
+  "Ready for next step": "Prêt pour la prochaine étape",
+  "One question": "Une question",
+  "symptom described": "symptôme décrit",
+  "what feels wrong": "ce qui semble différent",
+  "safety question answered": "question de sécurité renseignée",
+  "safety warning signs": "signes d’alerte de sécurité",
+  "symptom detail added": "détails du symptôme ajoutés",
+  "one detail about timing or strength": "un détail sur le début ou l’intensité",
+  "health profile considered": "profil de santé pris en compte",
+  "health profile": "profil de santé",
+  "useful reading available": "mesure utile disponible",
+  "optional useful reading": "mesure utile facultative",
+  "High confidence": "Confiance élevée",
+  "Strong confidence": "Confiance solide",
+  "Building confidence": "Confiance en progression",
+  "Early confidence": "Confiance initiale",
+  "Choosing the next safest question from the symptom protocol.": "Choix de la prochaine question la plus sûre selon le protocole des symptômes.",
+};
+
 function text(locale: string, english: string, spanish: string) {
-  return isSpanishLocale(locale) ? spanish : english;
+  if (isSpanishLocale(locale)) return spanish;
+  if (locale.split("-")[0].toLowerCase() === "fr") return FRENCH_GUIDANCE_TEXT[english] ?? english;
+  return english;
 }
 
 const GUIDANCE_PROTOCOLS: GuidanceProtocol[] = [

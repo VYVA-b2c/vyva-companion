@@ -111,6 +111,7 @@ import { triageScanHandler } from "./routes/triageScan.js";
 import companionsRouter from "./routes/companions.js";
 import socialRoomsRouter from "./routes/socialRooms.js";
 import advisorsRouter from "./routes/advisors.js";
+import benefitsRouter from "./routes/benefits.js";
 import medsAdherenceRouter from "./routes/medsAdherence.js";
 import medicationRefillsRouter from "./routes/medicationRefills.js";
 import medicationRefillPushRouter from "./routes/medicationRefillPush.js";
@@ -299,6 +300,7 @@ app.use("/api/symptoms", authMiddleware, requireUser, requireEntitlement("sympto
 app.use("/api/companions", authMiddleware, companionsRouter);
 app.use("/api/social", authMiddleware, socialRoomsRouter);
 app.use("/api/advisors", authMiddleware, requireUser, advisorsRouter);
+app.use("/api/benefits", authMiddleware, requireUser, benefitsRouter);
 app.use("/api/meds/adherence-report", authMiddleware, requireUser, requireEntitlement("medication_tracking"), medsAdherenceRouter);
 app.use("/api/meds/refill-notifications", authMiddleware, requireUser, requireEntitlement("medication_tracking"), medicationRefillPushRouter);
 app.use("/api/meds/refills", authMiddleware, requireUser, requireEntitlement("medication_tracking"), medicationRefillsRouter);

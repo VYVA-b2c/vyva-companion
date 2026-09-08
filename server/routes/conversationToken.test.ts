@@ -15,6 +15,9 @@ const ENV_KEYS = [
   "ELEVENLABS_HEALTH_ASSISTANT_AGENT_ID",
   "ELEVENLABS_HEALTH_AGENT_ID",
   "ELEVENLABS_DR_AI_AGENT_ID",
+  "ELEVENLABS_MEDITATION_AGENT_ID",
+  "ELEVENLABS_BREATHING_MEDITATION_AGENT_ID",
+  "ELEVENLABS_BREATHING_AGENT_ID",
   "VYVA_DR_AI_VOICE_MODE",
   "VYVA_DR_AI_VOICE_PILOT_USER_IDS",
   "ELEVENLABS_CONCIERGE_AGENT_ID",
@@ -96,6 +99,17 @@ describe("conversation token agent resolution", () => {
     process.env.ELEVENLABS_DR_AI_AGENT_ID = "agent_dr_ai";
     const resolved = resolveSocialAgentId("dr-ai");
     expect(resolved.agentId).toBe("agent_dr_ai");
+    expect(resolved.expectedKeys).not.toContain("ELEVENLABS_COMPANION_AGENT_ID");
+  });
+
+  it("resolves breathing and meditation only from its dedicated agent secret", () => {
+    process.env.ELEVENLABS_COMPANION_AGENT_ID = "agent_companion";
+    expect(resolveSocialAgentId("breathing-meditation").agentId).toBeUndefined();
+
+    process.env.ELEVENLABS_MEDITATION_AGENT_ID = "agent_meditation";
+    const resolved = resolveSocialAgentId("breathing-meditation");
+    expect(resolved.agentId).toBe("agent_meditation");
+    expect(resolved.expectedKeys).toContain("ELEVENLABS_MEDITATION_AGENT_ID");
     expect(resolved.expectedKeys).not.toContain("ELEVENLABS_COMPANION_AGENT_ID");
   });
 

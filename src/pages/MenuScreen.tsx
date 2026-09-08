@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "@/i18n";
 import { HomeMasterActionControl, HomeMasterProfileControl, HomeMasterTopbar } from "@/components/HomeMasterTopControls";
 import { VyvaIcon, type VyvaIconAccent } from "@/components/brand/VyvaIcon";
 import { useHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
@@ -43,7 +44,7 @@ const MENU_TILES: MenuTile[] = [
   },
   {
     id: "brain",
-    title: "My Brain",
+    title: "Brain Power",
     detail: "Memory, focus & calm",
     path: "/mind-memory",
     icon: Brain,
@@ -81,6 +82,7 @@ export default function MenuScreen({
   tilePathOverrides,
 }: MenuScreenProps = {}) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { isDark, toggleTheme } = useHomeMasterTheme();
   const { isLarge: isReadableTextLarge, toggleSize: toggleReadableTextSize } = useReadableTextSize();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -274,7 +276,7 @@ export default function MenuScreen({
                         <span className="block truncate font-display text-[19px] font-semibold leading-none">
                           {item.label}
                         </span>
-                        <span className={["mt-1 block truncate font-body text-[11.5px] font-extrabold", isDark ? "text-[#DCCFEF]" : "text-[#9A8A9E]"].join(" ")}>
+                        <span className="sr-only">
                           {item.detail}
                         </span>
                       </span>
@@ -361,9 +363,9 @@ export default function MenuScreen({
                   </span>
                   <span className="min-w-0 self-center md:self-start lg:w-full">
                     <span data-testid={`menu-tile-${tile.id}-title`} className="block font-display text-[20px] font-semibold leading-[1.03] tracking-[-0.025em] md:text-[24px] lg:truncate lg:text-[18px]">
-                      {tile.title}
+                      {tile.id === "brain" ? t("home.master.cards.mindMemoryShortTitle", "Brain Power") : tile.title}
                     </span>
-                    <span data-testid={`menu-tile-${tile.id}-detail`} className={["mt-1 block line-clamp-2 font-body text-[13.5px] font-bold leading-snug md:text-[14px] lg:mt-0.5 lg:w-full lg:truncate lg:whitespace-nowrap lg:text-[11px]", isDark ? "text-[#DDD3EA]" : "text-[#8A8095]"].join(" ")}>
+                    <span data-testid={`menu-tile-${tile.id}-detail`} className="sr-only">
                       {tile.detail}
                     </span>
                   </span>

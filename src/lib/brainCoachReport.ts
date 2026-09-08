@@ -53,7 +53,7 @@ const domainLabels: Record<string, string> = {
 };
 
 const activityLabels: Record<string, string> = {
-  association_memory: "Association memory",
+  association_memory: "Connections",
   breath_garden: "Breath garden",
   category_sort: "Category sort",
   curious_minds: "Curious minds",

@@ -350,14 +350,14 @@ describe("voice navigation actions", () => {
   });
 
   it("opens memory games for memory game requests", () => {
-    expect(routeForVoiceUtterance("Let's play a memory game")).toBe("/memory-games");
+    expect(routeForVoiceUtterance("Let's play a memory game")).toBe("/brain-coach/remember");
   });
 
   it("routes common brain and companion journeys to their direct screens", () => {
     expect(actionForVoiceUtterance("Help me relax")?.actionType).toBe("brain.relax_breathe");
-    expect(routeForVoiceUtterance("Help me focus")).toBe("/attention-boosters");
+    expect(routeForVoiceUtterance("Help me focus")).toBe("/brain-coach/focus");
     expect(routeForVoiceUtterance("I want to learn something")).toBe("/learn");
-    expect(routeForVoiceUtterance("Train my senses")).toBe("/senses");
+    expect(routeForVoiceUtterance("Train my senses")).toBe("/brain-coach/calm");
     expect(actionForVoiceUtterance("I want cognitive exercises")?.actionType).toBe("brain.activity");
     expect(routeForVoiceUtterance("I want cognitive exercises")).toBe("/mind-memory");
     expect(routeForVoiceUtterance("I want someone to talk to")).toBe("/companions");

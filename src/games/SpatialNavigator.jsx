@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { gameData } from "./shared/gameDataApi";
 import { useLanguage } from "../i18n";
-import { BrainCoachFullscreenActivity, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
+import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import BrainGameCompletionDialog from "./shared/BrainGameCompletionDialog";
 import { recordCognitiveSession } from "./shared/brainCoachSessions";
 import { normalizeGameLanguage } from "./shared/language";
@@ -833,8 +832,11 @@ export default function SpatialNavigator({ userId, onExit }) {
   }
 
   return (
-    <BrainCoachFullscreenActivity
+    <BrainCoachActivityShell
       title={text.title}
+      backLabel={text.exit}
+      onBack={handleExit}
+      showHeader={screen !== "result"}
       testId="spatial-navigator-flow-shell"
       presentationId={`${SPATIAL_NAVIGATOR_SCENE_ID}.${screen}.touch`}
       sceneId={SPATIAL_NAVIGATOR_SCENE_ID}
@@ -847,16 +849,6 @@ export default function SpatialNavigator({ userId, onExit }) {
 
       {screen === "intro" && (
         <section className="spatial-panel spatial-intro">
-          <div className="spatial-topbar">
-            <div className="spatial-logo">V</div>
-            <button className="spatial-back-button" type="button" onClick={handleExit}>
-              <ArrowLeft size={24} />
-              {text.back}
-            </button>
-          </div>
-
-          <div className="spatial-hero-icon" aria-hidden="true">🗺️</div>
-          <h1 className="spatial-title">{text.title}</h1>
           <p className="spatial-subtitle">{text.subtitle}</p>
           <div className="spatial-badge">{text.level} {map?.difficulty_tier ?? 1}</div>
 
@@ -869,15 +861,13 @@ export default function SpatialNavigator({ userId, onExit }) {
           <button className="spatial-primary-button" type="button" onClick={beginMemorise}>
             {text.start}
           </button>
-          <p className="spatial-hint">{text.introHint}</p>
         </section>
       )}
 
       {(screen === "memorise" || screen === "draw") && (
         <section className="spatial-panel spatial-play">
           <header className="spatial-play-header">
-            <h1>{screen === "memorise" ? text.memoriseTitle : text.drawTitle}</h1>
-            <button type="button" onClick={handleExit} className="spatial-exit-button">⏹ {text.exit}</button>
+            <h2>{screen === "memorise" ? text.memoriseTitle : text.drawTitle}</h2>
           </header>
 
           <div className="spatial-canvas-wrap">
@@ -947,21 +937,21 @@ export default function SpatialNavigator({ userId, onExit }) {
         />
       )}
       </div>
-    </BrainCoachFullscreenActivity>
+    </BrainCoachActivityShell>
   );
 }
 
 const spatialStyles = `
   .spatial-screen {
-    min-height: 100dvh;
+    min-height: 0;
     width: 100%;
-    background: ${BACKGROUND};
+    background: transparent;
     color: #2F2135;
     display: flex;
     justify-content: center;
     align-items: stretch;
     overflow-x: hidden;
-    padding: max(16px, env(safe-area-inset-top)) 24px max(16px, env(safe-area-inset-bottom));
+    padding: 0 0 24px;
     font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -979,9 +969,14 @@ const spatialStyles = `
 
   .spatial-panel {
     width: min(100%, 720px);
-    min-height: calc(100dvh - 48px);
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    border: 1px solid #EEE8F1;
+    border-radius: 28px;
+    background: #FFFFFF;
+    padding: 24px;
+    box-shadow: 0 14px 32px rgba(80, 52, 109, 0.10);
   }
 
   .spatial-result-screen .spatial-panel {
@@ -1034,10 +1029,7 @@ const spatialStyles = `
     box-shadow: 0 10px 22px rgba(43, 31, 24, 0.08);
   }
 
-  .spatial-hero-icon,
   .spatial-result-icon {
-    font-size: 60px;
-    line-height: 1;
     margin-top: 12px;
   }
 
@@ -1078,12 +1070,12 @@ const spatialStyles = `
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    background: ${GOLD};
-    color: #FFFFFF;
+    background: #FEF3C7;
+    color: #92400E;
     padding: 0 28px;
     font-size: 24px;
     font-weight: 850;
-    box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+    box-shadow: none;
   }
 
   .spatial-canvas-wrap {
@@ -1148,14 +1140,14 @@ const spatialStyles = `
   }
 
   .spatial-play-header {
-    min-height: 82px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 18px;
+    min-height: 56px;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
-  .spatial-play-header h1 {
+  .spatial-play-header h2 {
     margin: 0;
     font-size: clamp(30px, 5vw, 44px);
     line-height: 1.05;

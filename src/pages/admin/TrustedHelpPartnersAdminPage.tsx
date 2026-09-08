@@ -265,7 +265,7 @@ export default function TrustedHelpPartnersAdminPage() {
             >
               <span className="text-2xl font-black text-[#2f2135]">{service.count}</span>
               <span className="mt-2 block text-sm font-black">{service.label}</span>
-              <span className="mt-1 block text-xs font-semibold text-[#7d6b65]">{service.detail}</span>
+              <span className="sr-only">{service.detail}</span>
             </button>
           ))}
         </section>

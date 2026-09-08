@@ -21,6 +21,8 @@ import {
   marketingJourneyStepEvents,
   marketingJourneys,
   marketingMediaAssets,
+  marketingMediaFiles,
+  marketingSocialConnections,
   marketingSyncRuns,
   type MarketingAudienceMemberRow,
   type MarketingAudienceRow,
@@ -35,8 +37,18 @@ import {
   type MarketingJourneyStepRow,
   type MarketingJourneyStepEventRow,
   type MarketingMediaAssetRow,
+  type MarketingMediaFileRow,
   type MarketingSyncRunRow,
 } from "../../shared/schema.js";
+import {
+  connectMetaFromAuthorizationCode,
+  listMetaConnections,
+  metaOAuthConfigured,
+  metaOAuthRedirectUri,
+  metaOAuthUrl,
+  verifyMetaConnection,
+} from "../services/metaMarketingConnection.js";
+import { signMarketingMetaConnectState, verifyMarketingMetaConnectState } from "../lib/jwt.js";
 
 export const adminMarketingRouter = Router();
 
@@ -50,15 +62,16 @@ function marketingSchemaErrorMessage(error: unknown, fallback: string) {
   const missingRelation = /relation "([^"]+)" does not exist/i.exec(message)?.[1];
   const missingColumn = /column (?:"?([^"\s]+)"?\.)?"?([^"\s]+)"? does not exist/i.exec(message)?.[2];
   if (code === "42P01" || missingRelation) {
-    return `Marketing database schema is behind this build. Missing table "${missingRelation ?? "unknown"}". Apply the committed marketing migrations through 0076_marketing_source_templates_tags.sql, then retry.`;
+    return `Marketing database schema is behind this build. Missing table "${missingRelation ?? "unknown"}". Apply the committed marketing migrations through 0064_marketing_parity_completion.sql, 0076_marketing_source_templates_tags.sql, 0076_marketing_social_studio.sql, and 0077_marketing_social_connections.sql, then retry.`;
   }
   if (code === "42703" || missingColumn) {
-    return `Marketing database schema is behind this build. Missing column "${missingColumn ?? "unknown"}". Apply the committed marketing migrations through 0076_marketing_source_templates_tags.sql, then retry.`;
+    return `Marketing database schema is behind this build. Missing column "${missingColumn ?? "unknown"}". Apply the committed marketing migrations through 0064_marketing_parity_completion.sql, 0076_marketing_source_templates_tags.sql, 0076_marketing_social_studio.sql, and 0077_marketing_social_connections.sql, then retry.`;
   }
   return fallback;
 }
 
 const marketingChannels = ["email", "whatsapp", "sms", "phone", "print", "event", "facebook", "instagram", "linkedin", "tiktok"] as const;
+const socialStudioChannels = ["email", "whatsapp", "facebook", "instagram", "linkedin", "tiktok"] as const;
 const audienceTypes = ["b2c", "b2b", "both"] as const;
 const campaignStatuses = ["draft", "scheduled", "published", "paused", "archived"] as const;
 const contentStatuses = ["draft", "review", "approved", "published", "archived"] as const;
@@ -74,6 +87,7 @@ adminMarketingRouter.use((req, res, next) => {
 });
 
 const channelSchema = z.enum(marketingChannels);
+const socialStudioChannelSchema = z.enum(socialStudioChannels);
 const audienceTypeSchema = z.enum(audienceTypes);
 const campaignStatusSchema = z.enum(campaignStatuses);
 const contentStatusSchema = z.enum(contentStatuses);
@@ -227,6 +241,29 @@ const audiencePatchSchema = audienceBodySchema.partial();
 
 const marketingAiToneSchema = z.enum(["warm", "expert", "direct", "uplifting"]);
 
+const marketingSocialPackageSchema = z.object({
+  brief: z.string().trim().min(1).max(4000),
+  campaignName: z.string().trim().max(180).optional().default(""),
+  audienceType: audienceTypeSchema,
+  targetAudienceId: nullableUuidSchema,
+  language: z.string().trim().min(2).max(24).default("en"),
+  tone: marketingAiToneSchema.default("warm"),
+  channels: z.array(socialStudioChannelSchema).min(1).max(6),
+  ctaLabel: z.string().trim().max(80).optional().default("Open VYVA"),
+  ctaUrl: z.string().trim().max(500).optional().default("https://v2.vyva.life"),
+  scheduledAt: nullableDateSchema,
+  generateImages: z.boolean().default(true),
+  imageStyle: z.enum(["warm_editorial", "friendly_product", "community_moment"]).default("warm_editorial"),
+});
+
+const marketingSocialScheduleSchema = z.object({
+  scheduledAt: nullableDateSchema,
+});
+
+const marketingSocialRegenerateSchema = z.object({
+  direction: z.string().trim().max(1000).optional().default(""),
+});
+
 const marketingAiCampaignDraftSchema = z.object({
   playLabel: z.string().trim().max(140).optional().default("Campaign"),
   playCategory: z.string().trim().max(80).optional().default(""),
@@ -349,6 +386,255 @@ function clippedText(value: unknown, fallback: string, maxLength: number) {
 }
 
 type MarketingAiCampaignDraftInput = z.infer<typeof marketingAiCampaignDraftSchema>;
+
+type SocialStudioChannel = typeof socialStudioChannels[number];
+type MarketingSocialStudioInput = z.infer<typeof marketingSocialPackageSchema>;
+
+type MarketingSocialVariant = {
+  channel: SocialStudioChannel;
+  title: string;
+  subject: string | null;
+  body: string;
+  hook: string | null;
+  hashtags: string[];
+  ctaLabel: string;
+  ctaUrl: string;
+  altText: string;
+  platformNotes: string;
+  imagePrompt: string;
+  imageAspectRatio: string;
+  imageSize: string;
+  imageRequired: boolean;
+  videoPrompt: string | null;
+};
+
+type MarketingSocialPackage = {
+  campaignName: string;
+  objective: string;
+  variants: MarketingSocialVariant[];
+};
+
+const socialStudioChannelConfig: Record<SocialStudioChannel, {
+  label: string;
+  format: string;
+  aspectRatio: string;
+  imageSize: string;
+  direction: string;
+}> = {
+  email: {
+    label: "Email",
+    format: "Subject, preheader-style opening, body, and one CTA.",
+    aspectRatio: "3:2 landscape header",
+    imageSize: "1536x1024",
+    direction: "Keep one central idea, a crisp subject, and an easy-to-scan body.",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    format: "Short conversational message that is easy to reply to.",
+    aspectRatio: "1:1 square",
+    imageSize: "1024x1024",
+    direction: "Keep it concise, human, and focused on one reply or link action.",
+  },
+  facebook: {
+    label: "Facebook",
+    format: "Community-friendly post with a clear invitation.",
+    aspectRatio: "1.91:1 landscape",
+    imageSize: "1536x1024",
+    direction: "Make the hook useful and shareable for families and local communities.",
+  },
+  instagram: {
+    label: "Instagram",
+    format: "Visual-first caption with a strong opening and hashtags.",
+    aspectRatio: "4:5 portrait feed crop",
+    imageSize: "1024x1536",
+    direction: "Open with a strong visual line, use short caption paragraphs, and add relevant hashtags.",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    format: "Professional post focused on a practical outcome.",
+    aspectRatio: "1.91:1 landscape",
+    imageSize: "1536x1024",
+    direction: "Lead with the professional value and a concrete outcome for partners or providers.",
+  },
+  tiktok: {
+    label: "TikTok",
+    format: "Hook, caption, hashtags, static cover, and creator shot list.",
+    aspectRatio: "9:16 portrait cover",
+    imageSize: "1024x1536",
+    direction: "Start with a spoken hook and make the production guidance practical for a short creator video.",
+  },
+};
+
+function socialStudioVisualPrompt(input: MarketingSocialStudioInput, channel: SocialStudioChannel, extra = "") {
+  const spec = socialStudioChannelConfig[channel];
+  const style = input.imageStyle.replaceAll("_", " ");
+  return [
+    `Create a polished static VYVA marketing visual for ${spec.label}.`,
+    `Use a ${style} style with a warm, practical, trustworthy feeling.`,
+    `Compose for a ${spec.aspectRatio} format.`,
+    "Show real, dignified adults, families, caregivers, or community and care-team moments when relevant.",
+    "Do not include visible words, letters, labels, logos, UI, captions, charts, medical procedures, diagnoses, political content, frightening imagery, or childish cartoon styling.",
+    `Campaign brief: ${input.brief.trim()}`,
+    extra ? `Additional creative direction: ${extra}` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function fallbackMarketingSocialVariant(input: MarketingSocialStudioInput, channel: SocialStudioChannel): MarketingSocialVariant {
+  const spec = socialStudioChannelConfig[channel];
+  const brief = input.brief.trim();
+  const ctaLabel = input.ctaLabel || "Open VYVA";
+  const ctaUrl = input.ctaUrl || "https://v2.vyva.life";
+  const audience = input.audienceType === "both" ? "families, caregivers, and partners" : input.audienceType === "b2b" ? "partners and providers" : "families and caregivers";
+  const title = `${input.campaignName || "VYVA campaign"} - ${spec.label}`;
+  const subject = channel === "email" ? `${input.campaignName || "VYVA"}: a practical next step` : null;
+  const hook = channel === "tiktok" ? `A practical way to make support easier for ${audience}.` : channel === "instagram" ? `Small steps can make support feel more manageable.` : null;
+  const opening = hook || `VYVA helps ${audience} turn everyday conversations into practical support.`;
+  const body = channel === "whatsapp"
+    ? `Hi - ${brief}\n\n${ctaLabel}: ${ctaUrl}`
+    : channel === "email"
+      ? `${opening}\n\n${brief}\n\n${ctaLabel}: ${ctaUrl}`
+      : `${opening}\n\n${brief}\n\n${ctaLabel}: ${ctaUrl}`;
+  const hashtags = ["instagram", "tiktok", "linkedin"].includes(channel)
+    ? ["#VYVA", "#PracticalSupport", channel === "linkedin" ? "#CareTeams" : "#EverydaySupport"]
+    : [];
+
+  return {
+    channel,
+    title,
+    subject,
+    body,
+    hook,
+    hashtags,
+    ctaLabel,
+    ctaUrl,
+    altText: `VYVA visual supporting ${brief.slice(0, 180)}`,
+    platformNotes: `${spec.format} Recommended visual: ${spec.aspectRatio}.`,
+    imagePrompt: socialStudioVisualPrompt(input, channel),
+    imageAspectRatio: spec.aspectRatio,
+    imageSize: spec.imageSize,
+    imageRequired: channel !== "email" && input.generateImages,
+    videoPrompt: channel === "tiktok" ? `Film a short, calm, practical creator video that opens with: "${hook || "Make support easier to talk about."}" Then show one everyday example and close with ${ctaLabel}.` : null,
+  };
+}
+
+function normalizeMarketingSocialVariant(value: unknown, fallback: MarketingSocialVariant, input: MarketingSocialStudioInput, channel: SocialStudioChannel): MarketingSocialVariant {
+  const record = asRecord(value);
+  const hashtags = arrayFrom(record.hashtags)
+    .map((item) => typeof item === "string" ? item.trim() : "")
+    .filter(Boolean)
+    .slice(0, 12)
+    .map((item) => item.startsWith("#") ? item : `#${item}`);
+  return {
+    ...fallback,
+    channel,
+    title: clippedText(record.title, fallback.title, 180),
+    subject: emptyToNull(clippedText(record.subject, fallback.subject ?? "", 240)),
+    body: clippedText(record.body, fallback.body, 12000),
+    hook: emptyToNull(clippedText(record.hook, fallback.hook ?? "", 500)),
+    hashtags: hashtags.length ? hashtags : fallback.hashtags,
+    ctaLabel: clippedText(record.ctaLabel ?? record.cta_label, fallback.ctaLabel, 80),
+    ctaUrl: clippedText(record.ctaUrl ?? record.cta_url, fallback.ctaUrl, 500),
+    altText: clippedText(record.altText ?? record.alt_text, fallback.altText, 500),
+    platformNotes: clippedText(record.platformNotes ?? record.platform_notes, fallback.platformNotes, 1000),
+    imagePrompt: socialStudioVisualPrompt(input, channel, clippedText(record.imagePrompt ?? record.image_prompt, "", 1000)),
+    videoPrompt: emptyToNull(clippedText(record.videoPrompt ?? record.video_prompt, fallback.videoPrompt ?? "", 1600)),
+  };
+}
+
+function fallbackMarketingSocialPackage(input: MarketingSocialStudioInput): MarketingSocialPackage {
+  return {
+    campaignName: input.campaignName || `VYVA ${input.audienceType.toUpperCase()} campaign`,
+    objective: input.brief.trim(),
+    variants: input.channels.map((channel) => fallbackMarketingSocialVariant(input, channel)),
+  };
+}
+
+function normalizeMarketingSocialPackage(value: unknown, fallback: MarketingSocialPackage, input: MarketingSocialStudioInput): MarketingSocialPackage {
+  const record = asRecord(value);
+  const rawVariants = arrayFrom(record.variants);
+  const variantsByChannel = new Map(rawVariants.map((item) => {
+    const variant = asRecord(item);
+    return [String(variant.channel ?? ""), variant] as const;
+  }));
+  return {
+    campaignName: clippedText(record.campaignName ?? record.campaign_name, fallback.campaignName, 180),
+    objective: clippedText(record.objective, fallback.objective, 1400),
+    variants: input.channels.map((channel, index) => normalizeMarketingSocialVariant(
+      variantsByChannel.get(channel) ?? rawVariants[index],
+      fallback.variants[index] ?? fallbackMarketingSocialVariant(input, channel),
+      input,
+      channel,
+    )),
+  };
+}
+
+async function generateMarketingSocialPackage(input: MarketingSocialStudioInput) {
+  const fallback = fallbackMarketingSocialPackage(input);
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    return {
+      configured: false,
+      source: "fallback" as const,
+      package: fallback,
+      note: "OPENAI_API_KEY is not configured, so VYVA created a safe structured package for manual editing.",
+    };
+  }
+
+  try {
+    const client = new OpenAI({ apiKey });
+    const completion = await client.chat.completions.create({
+      model: process.env.OPENAI_MARKETING_MODEL || "gpt-4o-mini",
+      temperature: 0.65,
+      max_tokens: 3000,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are VYVA's social marketing copilot.",
+            "Return only valid JSON with keys campaignName, objective, and variants.",
+            "Each variant must include channel, title, subject, body, hook, hashtags, ctaLabel, ctaUrl, altText, platformNotes, imagePrompt, videoPrompt.",
+            "Create distinct, platform-native copy for every requested channel while preserving the campaign idea.",
+            "Keep VYVA warm, practical, trustworthy, and non-clinical.",
+            "Do not make medical claims, diagnose, imply emergency support, or imply that a message has been sent or published.",
+            "Do not put visible text, logos, medical procedures, diagnoses, or frightening imagery in image prompts.",
+            "For TikTok, provide a static-cover image prompt and a practical shot list or creator prompt; do not generate video.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            brief: input.brief,
+            campaignName: input.campaignName,
+            audienceType: input.audienceType,
+            language: input.language,
+            tone: input.tone,
+            channels: input.channels.map((channel) => ({ channel, ...socialStudioChannelConfig[channel] })),
+            ctaLabel: input.ctaLabel,
+            ctaUrl: input.ctaUrl,
+            imageStyle: input.imageStyle,
+          }),
+        },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content?.trim();
+    if (!raw) throw new Error("OpenAI returned an empty social package.");
+    return {
+      configured: true,
+      source: "openai" as const,
+      package: normalizeMarketingSocialPackage(JSON.parse(raw), fallback, input),
+      note: null,
+    };
+  } catch (error) {
+    console.error("[admin/marketing] AI social package failed", error);
+    return {
+      configured: true,
+      source: "fallback" as const,
+      package: fallback,
+      note: "OpenAI could not generate this package, so VYVA used the built-in safe fallback.",
+    };
+  }
+}
 
 type MarketingAiCampaignDraft = {
   campaignName: string;
@@ -2371,7 +2657,8 @@ function hasMarketingEnvValue(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
-function socialPublishingStatus() {
+async function socialPublishingStatus() {
+  const metaConnections = await listMetaConnections();
   return {
     manualPublishingEnabled: true,
     directPublishingEnabled: false,
@@ -2382,10 +2669,12 @@ function socialPublishingStatus() {
         channels: ["facebook", "instagram"],
         manualPublishingEnabled: true,
         directPublishingEnabled: false,
-        connectionReady:
+        connectionReady: metaConnections.length > 0 ||
           hasMarketingEnvValue("META_MARKETING_ACCESS_TOKEN") ||
           hasMarketingEnvValue("FACEBOOK_MARKETING_ACCESS_TOKEN") ||
           hasMarketingEnvValue("INSTAGRAM_MARKETING_ACCESS_TOKEN"),
+        connectionConfigured: metaOAuthConfigured(),
+        connections: metaConnections,
       },
       {
         id: "linkedin",
@@ -2417,6 +2706,212 @@ function sendMetadataForChannel(channel: string, metadata: Record<string, unknow
   return channel === "email"
     ? { ...metadata, send_locked: false, provider: "communicationDispatcher" }
     : { ...metadata, send_locked: true };
+}
+
+function socialStudioContentMetadata(content: MarketingContentAssetRow) {
+  return asRecord(asRecord(content.metadata).socialStudio);
+}
+
+type MarketingSocialReadiness = {
+  channel: string;
+  state: "ready" | "needs_action" | "approved";
+  issues: string[];
+};
+
+function socialStudioReadiness(
+  channels: MarketingCampaignChannelRow[],
+  contentRows: MarketingContentAssetRow[],
+  mediaRows: MarketingMediaAssetRow[],
+): MarketingSocialReadiness[] {
+  const contentById = new Map(contentRows.map((content) => [content.id, content]));
+  const mediaByContentId = new Map<string, MarketingMediaAssetRow[]>();
+  for (const media of mediaRows) {
+    if (!media.content_asset_id) continue;
+    const current = mediaByContentId.get(media.content_asset_id) ?? [];
+    current.push(media);
+    mediaByContentId.set(media.content_asset_id, current);
+  }
+
+  return channels.map((campaignChannel) => {
+    const content = campaignChannel.content_asset_id ? contentById.get(campaignChannel.content_asset_id) : null;
+    const issues: string[] = [];
+    if (!content) {
+      issues.push("Channel content is missing.");
+    } else {
+      if (content.status !== "approved") issues.push("Approve the channel copy.");
+      const studio = socialStudioContentMetadata(content);
+      const media = mediaByContentId.get(content.id) ?? [];
+      if (studio.imageRequired === true && media.length === 0) issues.push("Generate or attach a channel image.");
+      if (media.some((asset) => asRecord(asRecord(asset.metadata).socialStudio).approvalStatus !== "approved")) {
+        issues.push("Approve each generated image.");
+      }
+    }
+    return {
+      channel: campaignChannel.channel,
+      state: issues.length ? "needs_action" : content?.status === "approved" ? "approved" : "ready",
+      issues,
+    };
+  });
+}
+
+async function loadSocialPackageReadiness(campaignId: string) {
+  const [campaignRows, channelRows] = await Promise.all([
+    db.select().from(marketingCampaigns).where(eq(marketingCampaigns.id, campaignId)).limit(1),
+    db.select().from(marketingCampaignChannels).where(eq(marketingCampaignChannels.campaign_id, campaignId)).orderBy(asc(marketingCampaignChannels.created_at)),
+  ]);
+  const campaign = campaignRows[0] ?? null;
+  if (!campaign) return null;
+  const contentIds = channelRows.map((channel) => channel.content_asset_id).filter((id): id is string => Boolean(id));
+  const contentRows = contentIds.length
+    ? await db.select().from(marketingContentAssets).where(inArray(marketingContentAssets.id, contentIds)).limit(100)
+    : [];
+  const mediaRows = contentIds.length
+    ? await db.select().from(marketingMediaAssets).where(inArray(marketingMediaAssets.content_asset_id, contentIds)).limit(500)
+    : [];
+  return {
+    campaign,
+    channelRows,
+    contentRows,
+    mediaRows,
+    readiness: socialStudioReadiness(channelRows, contentRows, mediaRows),
+  };
+}
+
+function socialStudioInputForContent(content: MarketingContentAssetRow): MarketingSocialStudioInput {
+  const design = asRecord(content.design_json);
+  const studio = asRecord(design.socialStudio);
+  const audienceType = audienceTypeSchema.safeParse(studio.audienceType).success
+    ? studio.audienceType as MarketingSocialStudioInput["audienceType"]
+    : "both";
+  const tone = marketingAiToneSchema.safeParse(studio.tone).success
+    ? studio.tone as MarketingSocialStudioInput["tone"]
+    : "warm";
+  const imageStyle = z.enum(["warm_editorial", "friendly_product", "community_moment"]).safeParse(studio.imageStyle).success
+    ? studio.imageStyle as MarketingSocialStudioInput["imageStyle"]
+    : "warm_editorial";
+  const channel = socialStudioChannelSchema.safeParse(content.channel).success
+    ? content.channel as SocialStudioChannel
+    : "email";
+  return {
+    brief: clippedText(studio.brief, content.body || content.title, 4000),
+    campaignName: clippedText(studio.campaignName, content.title, 180),
+    audienceType,
+    targetAudienceId: typeof studio.targetAudienceId === "string" ? studio.targetAudienceId : null,
+    language: content.language || "en",
+    tone,
+    channels: [channel],
+    ctaLabel: content.cta_label || "Open VYVA",
+    ctaUrl: content.cta_url || "https://v2.vyva.life",
+    scheduledAt: null,
+    generateImages: true,
+    imageStyle,
+  };
+}
+
+function socialVariantFromContent(content: MarketingContentAssetRow): MarketingSocialVariant {
+  const input = socialStudioInputForContent(content);
+  const channel = input.channels[0];
+  const fallback = fallbackMarketingSocialVariant(input, channel);
+  const variant = asRecord(asRecord(content.design_json).socialStudio).variant;
+  return normalizeMarketingSocialVariant(variant, fallback, input, channel);
+}
+
+async function generateAndStoreMarketingSocialImage({
+  content,
+  variant,
+  actorName,
+}: {
+  content: MarketingContentAssetRow;
+  variant: MarketingSocialVariant;
+  actorName: string;
+}) {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured, so an image could not be generated.");
+
+  const client = new OpenAI({ apiKey });
+  const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
+  const outputFormat = "jpeg";
+  const mimeType = "image/jpeg";
+  const prompt = variant.imagePrompt;
+  const size = process.env.OPENAI_IMAGE_SIZE?.trim() || variant.imageSize;
+  const result = await client.images.generate({
+    model,
+    prompt,
+    size,
+    quality: process.env.OPENAI_IMAGE_QUALITY?.trim() || "medium",
+    output_format: outputFormat,
+    output_compression: 82,
+  });
+  const imageBase64 = result.data?.[0]?.b64_json;
+  if (!imageBase64) throw new Error("OpenAI did not return image data. Try again.");
+
+  const [mediaAsset] = await db.insert(marketingMediaAssets).values({
+    content_asset_id: content.id,
+    source: "vyva_social_studio",
+    asset_type: "generated_image",
+    original_url: `generated://vyva-social-studio/${content.id}/${Date.now()}`,
+    local_url: null,
+    status: "generated",
+    metadata: {
+      socialStudio: {
+        channel: content.channel,
+        approvalStatus: "pending",
+        altText: variant.altText,
+        aspectRatio: variant.imageAspectRatio,
+        imageSize: size,
+        imageStyle: socialStudioInputForContent(content).imageStyle,
+      },
+    },
+    updated_at: new Date(),
+  }).returning();
+  const [width, height] = size.split("x").map((value) => Number(value));
+  await db.insert(marketingMediaFiles).values({
+    media_asset_id: mediaAsset.id,
+    mime_type: mimeType,
+    image_bytes: Buffer.from(imageBase64, "base64"),
+    width: Number.isFinite(width) ? width : null,
+    height: Number.isFinite(height) ? height : null,
+    prompt,
+    model,
+    created_by: actorName,
+  }).returning();
+
+  const localUrl = `/api/admin/marketing/media/${mediaAsset.id}/file`;
+  const [updatedMediaAsset] = await db.update(marketingMediaAssets)
+    .set({ local_url: localUrl, updated_at: new Date() })
+    .where(eq(marketingMediaAssets.id, mediaAsset.id))
+    .returning();
+  const mediaReference = {
+    id: mediaAsset.id,
+    url: localUrl,
+    assetType: "generated_image",
+    altText: variant.altText,
+    aspectRatio: variant.imageAspectRatio,
+  };
+  const contentMetadata = asRecord(content.metadata);
+  const [updatedContent] = await db.update(marketingContentAssets)
+    .set({
+      status: "review",
+      media_assets: [mediaReference],
+      metadata: {
+        ...contentMetadata,
+        socialStudio: {
+          ...socialStudioContentMetadata(content),
+          imageAssetId: mediaAsset.id,
+          imageApprovalStatus: "pending",
+        },
+      },
+      updated_by: actorName,
+      updated_at: new Date(),
+    })
+    .where(eq(marketingContentAssets.id, content.id))
+    .returning();
+
+  return {
+    content: updatedContent ?? content,
+    mediaAsset: updatedMediaAsset ?? mediaAsset,
+    mediaReference,
+  };
 }
 
 function startOfWeek(date = new Date()) {
@@ -2529,7 +3024,7 @@ adminMarketingRouter.get("/summary", async (_req, res) => {
         contacts: contactRows.filter((row) => audienceMatchesTarget(row.audience_type, audienceType)).length,
       })),
       lockedSendCapabilities: channelSendCapabilities(),
-      socialPublishing: socialPublishingStatus(),
+      socialPublishing: await socialPublishingStatus(),
       emailScheduler: marketingEmailSchedulerStatus(),
       latestSyncRun: latestRuns[0] ? serializeSyncRun(latestRuns[0]) : null,
     });
@@ -2595,6 +3090,415 @@ adminMarketingRouter.post("/ai/campaign-draft", async (req, res) => {
 
   const result = await generateMarketingAiCampaignDraft(parsed.data);
   return res.json({ ok: true, ...result });
+});
+
+adminMarketingRouter.get("/social-publishing/meta/connect", async (req, res) => {
+  if (!metaOAuthConfigured()) {
+    return res.redirect("/admin/marketing/settings?meta_connection=missing_config");
+  }
+
+  try {
+    const state = await signMarketingMetaConnectState(req.user?.id ?? "");
+    return res.redirect(metaOAuthUrl(state));
+  } catch (error) {
+    console.error("[admin/marketing] Meta OAuth start failed", error);
+    return res.redirect("/admin/marketing/settings?meta_connection=failed");
+  }
+});
+
+adminMarketingRouter.get("/social-publishing/meta/callback", async (req, res) => {
+  const redirect = (status: string) => res.redirect(`/admin/marketing/settings?meta_connection=${encodeURIComponent(status)}`);
+  const code = typeof req.query.code === "string" ? req.query.code.trim() : "";
+  const stateToken = typeof req.query.state === "string" ? req.query.state.trim() : "";
+  if (!code || !stateToken) return redirect("failed");
+
+  const state = await verifyMarketingMetaConnectState(stateToken);
+  if (!state || state.userId !== req.user?.id) return redirect("failed");
+
+  try {
+    const connections = await connectMetaFromAuthorizationCode({
+      code,
+      connectedBy: actor(req),
+    });
+    console.info(`[admin/marketing] Meta connected ${connections.length} Page account(s).`);
+    return redirect("connected");
+  } catch (error) {
+    console.error("[admin/marketing] Meta OAuth callback failed", error);
+    return redirect("failed");
+  }
+});
+
+adminMarketingRouter.get("/social-publishing/meta/status", async (_req, res) => {
+  try {
+    const connections = await listMetaConnections();
+    return res.json({
+      ok: true,
+      provider: "meta",
+      configured: metaOAuthConfigured(),
+      redirectUri: metaOAuthRedirectUri(),
+      directPublishingEnabled: false,
+      connections,
+    });
+  } catch (error) {
+    console.error("[admin/marketing] Meta connection status failed", error);
+    return res.status(500).json({ error: "Meta connection status could not be loaded." });
+  }
+});
+
+adminMarketingRouter.post("/social-publishing/meta/verify", async (req, res) => {
+  try {
+    const result = await verifyMetaConnection(
+      typeof req.body?.connectionId === "string" ? req.body.connectionId : undefined,
+    );
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error("[admin/marketing] Meta connection verification failed", error);
+    return res.status(502).json({
+      error: error instanceof Error ? error.message : "Meta connection could not be verified.",
+    });
+  }
+});
+
+adminMarketingRouter.delete("/social-publishing/meta/connections/:connectionId", async (req, res) => {
+  try {
+    const deleted = await db.delete(marketingSocialConnections)
+      .where(and(
+        eq(marketingSocialConnections.id, req.params.connectionId),
+        eq(marketingSocialConnections.provider, "meta"),
+      ));
+    return res.json({ ok: true, connectionId: req.params.connectionId, deleted: Boolean(deleted) });
+  } catch (error) {
+    console.error("[admin/marketing] Meta connection removal failed", error);
+    return res.status(500).json({ error: "Meta connection could not be removed." });
+  }
+});
+
+adminMarketingRouter.post("/social-packages", async (req, res) => {
+  const parsed = marketingSocialPackageSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const generated = await generateMarketingSocialPackage(parsed.data);
+    const now = new Date();
+    const campaignMetadata = {
+      socialStudio: {
+        brief: parsed.data.brief,
+        audienceType: parsed.data.audienceType,
+        targetAudienceId: parsed.data.targetAudienceId ?? null,
+        language: parsed.data.language,
+        tone: parsed.data.tone,
+        channels: parsed.data.channels,
+        ctaLabel: parsed.data.ctaLabel,
+        ctaUrl: parsed.data.ctaUrl,
+        generateImages: parsed.data.generateImages,
+        imageStyle: parsed.data.imageStyle,
+        generationSource: generated.source,
+      },
+    };
+    const [campaign] = await db.insert(marketingCampaigns).values({
+      name: generated.package.campaignName,
+      status: "draft",
+      audience_type: parsed.data.audienceType,
+      objective: generated.package.objective,
+      schedule_starts_at: dateOrNull(parsed.data.scheduledAt),
+      schedule_ends_at: null,
+      timezone: "Europe/Madrid",
+      source: "social_studio",
+      lovable_external_id: null,
+      metadata: campaignMetadata,
+      created_by: actor(req),
+      updated_by: actor(req),
+      updated_at: now,
+    }).returning();
+
+    const contentRows = await db.insert(marketingContentAssets).values(generated.package.variants.map((variant) => ({
+      title: variant.title,
+      channel: variant.channel,
+      language: parsed.data.language,
+      status: "review",
+      subject: variant.subject,
+      body: variant.body,
+      html_body: null,
+      cta_label: variant.ctaLabel,
+      cta_url: variant.ctaUrl,
+      design_json: {
+        socialStudio: {
+          ...variant,
+           brief: parsed.data.brief,
+           campaignName: generated.package.campaignName,
+           audienceType: parsed.data.audienceType,
+           targetAudienceId: parsed.data.targetAudienceId ?? null,
+           tone: parsed.data.tone,
+          imageStyle: parsed.data.imageStyle,
+          variant,
+        },
+      },
+      media_assets: [],
+      source: "social_studio",
+      lovable_external_id: null,
+      metadata: {
+        socialStudio: {
+          brief: parsed.data.brief,
+          campaignName: generated.package.campaignName,
+          audienceType: parsed.data.audienceType,
+          targetAudienceId: parsed.data.targetAudienceId ?? null,
+          tone: parsed.data.tone,
+          imageRequired: variant.imageRequired,
+          imageApprovalStatus: parsed.data.generateImages ? "pending" : "not_requested",
+          approvalStatus: "pending",
+          generationSource: generated.source,
+        },
+      },
+      created_by: actor(req),
+      updated_by: actor(req),
+      updated_at: now,
+    }))).returning();
+
+    const contentByChannel = new Map(contentRows.map((content) => [content.channel, content]));
+    const channelRows = await db.insert(marketingCampaignChannels).values(generated.package.variants.map((variant) => ({
+      campaign_id: campaign.id,
+      channel: variant.channel,
+      content_asset_id: contentByChannel.get(variant.channel)?.id ?? null,
+      scheduled_at: dateOrNull(parsed.data.scheduledAt),
+      status: "draft",
+      send_capability: sendCapabilityForChannel(variant.channel),
+      metadata: sendMetadataForChannel(variant.channel, {
+        socialStudio: {
+          format: socialStudioChannelConfig[variant.channel].format,
+          aspectRatio: variant.imageAspectRatio,
+          imageRequired: variant.imageRequired,
+        },
+      }),
+      updated_at: now,
+    }))).returning();
+
+    const imageAssets: MarketingMediaAssetRow[] = [];
+    const imageNotes: string[] = [];
+    if (parsed.data.generateImages && process.env.OPENAI_API_KEY?.trim()) {
+      for (const variant of generated.package.variants) {
+        const content = contentByChannel.get(variant.channel);
+        if (!content) continue;
+        try {
+          const result = await generateAndStoreMarketingSocialImage({ content, variant, actorName: actor(req) });
+          imageAssets.push(result.mediaAsset);
+          contentByChannel.set(variant.channel, result.content);
+        } catch (error) {
+          console.error(`[admin/marketing] ${variant.channel} image generation failed`, error);
+          imageNotes.push(`${socialStudioChannelConfig[variant.channel].label} image generation failed; generate or attach it before approval.`);
+        }
+      }
+    } else if (parsed.data.generateImages) {
+      imageNotes.push("OPENAI_API_KEY is not configured, so image generation is waiting for setup.");
+    }
+
+    const readinessBundle = await loadSocialPackageReadiness(campaign.id);
+    if (!readinessBundle) return res.status(500).json({ error: "Generated campaign could not be reloaded." });
+    const notes = [generated.note, ...imageNotes].filter((note): note is string => Boolean(note));
+    return res.status(201).json({
+      ok: true,
+      source: generated.source,
+      campaign: serializeCampaign(campaign, readinessBundle.channelRows, []),
+      content: readinessBundle.contentRows.map(serializeContent),
+      mediaAssets: readinessBundle.mediaRows.map(serializeMediaAsset),
+      readiness: readinessBundle.readiness,
+      note: notes.length ? notes.join(" ") : null,
+      createdChannelCount: channelRows.length,
+      generatedImageCount: imageAssets.length,
+    });
+  } catch (error) {
+    console.error("[admin/marketing] social package create failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "VYVA social package could not be created.") });
+  }
+});
+
+adminMarketingRouter.get("/social-packages/:campaignId/readiness", async (req, res) => {
+  try {
+    const bundle = await loadSocialPackageReadiness(req.params.campaignId);
+    if (!bundle) return res.status(404).json({ error: "Social Studio campaign not found." });
+    return res.json({ ok: true, readiness: bundle.readiness });
+  } catch (error) {
+    console.error("[admin/marketing] social package readiness failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "Social Studio readiness could not be loaded.") });
+  }
+});
+
+adminMarketingRouter.post("/social-packages/content/:contentId/regenerate", async (req, res) => {
+  const parsed = marketingSocialRegenerateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const [content] = await db.select().from(marketingContentAssets).where(eq(marketingContentAssets.id, req.params.contentId)).limit(1);
+    if (!content) return res.status(404).json({ error: "Marketing content not found." });
+    if (!Object.keys(socialStudioContentMetadata(content)).length) return res.status(409).json({ error: "This content is not a Social Studio variant." });
+
+    const baseInput = socialStudioInputForContent(content);
+    const brief = parsed.data.direction
+      ? `${baseInput.brief}\n\nAdditional creative direction: ${parsed.data.direction}`
+      : baseInput.brief;
+    const generated = await generateMarketingSocialPackage({ ...baseInput, brief, channels: [baseInput.channels[0]] });
+    const variant = generated.package.variants[0];
+    const designJson = asRecord(content.design_json);
+    const studioDesign = socialStudioContentMetadata(content);
+    const metadata = asRecord(content.metadata);
+    const [updated] = await db.update(marketingContentAssets).set({
+      subject: variant.subject,
+      body: variant.body,
+      cta_label: variant.ctaLabel,
+      cta_url: variant.ctaUrl,
+      status: "review",
+      design_json: {
+        ...designJson,
+        socialStudio: {
+          ...studioDesign,
+          ...variant,
+          variant,
+          regenerationCount: Number(studioDesign.regenerationCount ?? 0) + 1,
+          lastRegeneratedAt: new Date().toISOString(),
+          generationSource: generated.source,
+        },
+      },
+      metadata: {
+        ...metadata,
+        socialStudio: {
+          ...socialStudioContentMetadata(content),
+          approvalStatus: "pending",
+          generationSource: generated.source,
+          lastRegeneratedAt: new Date().toISOString(),
+        },
+      },
+      updated_by: actor(req),
+      updated_at: new Date(),
+    }).where(eq(marketingContentAssets.id, content.id)).returning();
+
+    return res.json({ ok: true, source: generated.source, content: serializeContent(updated ?? content), note: generated.note });
+  } catch (error) {
+    console.error("[admin/marketing] social content regeneration failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "Social Studio content could not be regenerated.") });
+  }
+});
+
+adminMarketingRouter.post("/social-packages/content/:contentId/approve", async (req, res) => {
+  try {
+    const [content] = await db.select().from(marketingContentAssets).where(eq(marketingContentAssets.id, req.params.contentId)).limit(1);
+    if (!content) return res.status(404).json({ error: "Marketing content not found." });
+    if (!Object.keys(socialStudioContentMetadata(content)).length) return res.status(409).json({ error: "This content is not a Social Studio variant." });
+    const mediaRows = await db.select().from(marketingMediaAssets).where(eq(marketingMediaAssets.content_asset_id, content.id)).limit(50);
+    const pendingMedia = mediaRows.filter((asset) => asRecord(asRecord(asset.metadata).socialStudio).approvalStatus !== "approved");
+    if (pendingMedia.length) return res.status(409).json({ error: "Approve each generated image before approving this channel copy." });
+    const [updated] = await db.update(marketingContentAssets).set({
+      status: "approved",
+      metadata: {
+        ...asRecord(content.metadata),
+        socialStudio: {
+          ...socialStudioContentMetadata(content),
+          approvalStatus: "approved",
+          approvedBy: actor(req),
+          approvedAt: new Date().toISOString(),
+        },
+      },
+      updated_by: actor(req),
+      updated_at: new Date(),
+    }).where(eq(marketingContentAssets.id, content.id)).returning();
+    return res.json({ ok: true, content: serializeContent(updated ?? content) });
+  } catch (error) {
+    console.error("[admin/marketing] social content approval failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "Social Studio content could not be approved.") });
+  }
+});
+
+adminMarketingRouter.post("/social-packages/media/:mediaId/approve", async (req, res) => {
+  try {
+    const [asset] = await db.select().from(marketingMediaAssets).where(eq(marketingMediaAssets.id, req.params.mediaId)).limit(1);
+    if (!asset) return res.status(404).json({ error: "Marketing media asset not found." });
+    const studio = asRecord(asRecord(asset.metadata).socialStudio);
+    if (!studio.channel) return res.status(409).json({ error: "This media asset is not a Social Studio image." });
+    const [updated] = await db.update(marketingMediaAssets).set({
+      status: "approved",
+      metadata: {
+        ...asRecord(asset.metadata),
+        socialStudio: {
+          ...studio,
+          approvalStatus: "approved",
+          approvedBy: actor(req),
+          approvedAt: new Date().toISOString(),
+        },
+      },
+      updated_at: new Date(),
+    }).where(eq(marketingMediaAssets.id, asset.id)).returning();
+    return res.json({ ok: true, mediaAsset: serializeMediaAsset(updated ?? asset) });
+  } catch (error) {
+    console.error("[admin/marketing] social image approval failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "Social Studio image could not be approved.") });
+  }
+});
+
+adminMarketingRouter.post("/social-packages/:campaignId/schedule", async (req, res) => {
+  const parsed = marketingSocialScheduleSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const bundle = await loadSocialPackageReadiness(req.params.campaignId);
+    if (!bundle) return res.status(404).json({ error: "Social Studio campaign not found." });
+    if (!Object.keys(asRecord(bundle.campaign.metadata).socialStudio).length) return res.status(409).json({ error: "This campaign is not a Social Studio campaign." });
+    if (!bundle.channelRows.length || bundle.readiness.some((item) => item.state !== "approved")) {
+      return res.status(409).json({ error: "Approve every selected channel and generated image before scheduling.", readiness: bundle.readiness });
+    }
+
+    const scheduledAt = parsed.data.scheduledAt ? dateOrNull(parsed.data.scheduledAt) : bundle.campaign.schedule_starts_at ?? new Date();
+    const now = new Date();
+    const [campaign] = await db.update(marketingCampaigns).set({
+      status: "scheduled",
+      schedule_starts_at: scheduledAt,
+      updated_by: actor(req),
+      updated_at: now,
+    }).where(eq(marketingCampaigns.id, bundle.campaign.id)).returning();
+    await db.update(marketingCampaignChannels).set({
+      status: "scheduled",
+      scheduled_at: scheduledAt,
+      updated_at: now,
+    }).where(eq(marketingCampaignChannels.campaign_id, bundle.campaign.id));
+    const [freshChannels, freshRecipients] = await Promise.all([
+      db.select().from(marketingCampaignChannels).where(eq(marketingCampaignChannels.campaign_id, bundle.campaign.id)).orderBy(asc(marketingCampaignChannels.created_at)),
+      db.select().from(marketingCampaignRecipients).where(eq(marketingCampaignRecipients.campaign_id, bundle.campaign.id)).orderBy(desc(marketingCampaignRecipients.created_at)),
+    ]);
+    return res.json({ ok: true, campaign: serializeCampaign(campaign ?? bundle.campaign, freshChannels, freshRecipients), readiness: bundle.readiness });
+  } catch (error) {
+    console.error("[admin/marketing] social package scheduling failed", error);
+    return res.status(500).json({ error: marketingSchemaErrorMessage(error, "Social Studio campaign could not be scheduled.") });
+  }
+});
+
+adminMarketingRouter.post("/content/:contentId/generate-image", async (req, res) => {
+  try {
+    const [content] = await db.select().from(marketingContentAssets).where(eq(marketingContentAssets.id, req.params.contentId)).limit(1);
+    if (!content) return res.status(404).json({ error: "Marketing content not found." });
+    if (!Object.keys(socialStudioContentMetadata(content)).length) return res.status(409).json({ error: "This content is not a Social Studio variant." });
+    const variant = socialVariantFromContent(content);
+    const result = await generateAndStoreMarketingSocialImage({ content, variant, actorName: actor(req) });
+    const oldAssets = await db.select().from(marketingMediaAssets).where(eq(marketingMediaAssets.content_asset_id, content.id)).limit(50);
+    for (const oldAsset of oldAssets.filter((asset) => asset.id !== result.mediaAsset.id)) {
+      await db.delete(marketingMediaFiles).where(eq(marketingMediaFiles.media_asset_id, oldAsset.id));
+      await db.delete(marketingMediaAssets).where(eq(marketingMediaAssets.id, oldAsset.id));
+    }
+    return res.json({ ok: true, content: serializeContent(result.content), mediaAsset: serializeMediaAsset(result.mediaAsset) });
+  } catch (error) {
+    console.error("[admin/marketing] social image generation failed", error);
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Social Studio image could not be generated." });
+  }
+});
+
+adminMarketingRouter.get("/media/:mediaId/file", async (req, res) => {
+  try {
+    const [file] = await db.select().from(marketingMediaFiles).where(eq(marketingMediaFiles.media_asset_id, req.params.mediaId)).limit(1);
+    if (!file) return res.status(404).send("Media file not found");
+    res.setHeader("Content-Type", file.mime_type || "image/jpeg");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("Content-Length", String(file.image_bytes.length));
+    return res.send(Buffer.from(file.image_bytes));
+  } catch (error) {
+    console.error("[admin/marketing] generated media load failed", error);
+    return res.status(500).send("Media file could not be loaded");
+  }
 });
 
 adminMarketingRouter.post("/campaigns", async (req, res) => {
@@ -3313,6 +4217,8 @@ adminMarketingRouter.post("/content/bulk-translate", async (req, res) => {
 adminMarketingRouter.patch("/content/:contentId", async (req, res) => {
   const parsed = contentPatchSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const [existingContent] = await db.select().from(marketingContentAssets).where(eq(marketingContentAssets.id, req.params.contentId)).limit(1);
+  if (!existingContent) return res.status(404).json({ error: "Marketing content not found." });
   const patch: Partial<typeof marketingContentAssets.$inferInsert> = {
     updated_at: new Date(),
     updated_by: actor(req),
@@ -3331,9 +4237,24 @@ adminMarketingRouter.patch("/content/:contentId", async (req, res) => {
   if (parsed.data.source !== undefined) patch.source = parsed.data.source;
   if (parsed.data.lovableExternalId !== undefined) patch.lovable_external_id = emptyToNull(parsed.data.lovableExternalId);
   if (parsed.data.metadata !== undefined) patch.metadata = parsed.data.metadata;
+  const isSocialStudioEdit = existingContent.source === "social_studio"
+    && (parsed.data.title !== undefined || parsed.data.subject !== undefined || parsed.data.body !== undefined || parsed.data.ctaLabel !== undefined || parsed.data.ctaUrl !== undefined || parsed.data.designJson !== undefined);
+  if (isSocialStudioEdit && parsed.data.status !== "approved") {
+    patch.status = "review";
+    patch.metadata = {
+      ...asRecord(existingContent.metadata),
+      ...(parsed.data.metadata ?? {}),
+      socialStudio: {
+        ...socialStudioContentMetadata(existingContent),
+        ...asRecord(parsed.data.metadata).socialStudio,
+        approvalStatus: "pending",
+        approvedBy: null,
+        approvedAt: null,
+      },
+    };
+  }
   try {
     const [content] = await db.update(marketingContentAssets).set(patch).where(eq(marketingContentAssets.id, req.params.contentId)).returning();
-    if (!content) return res.status(404).json({ error: "Marketing content not found." });
     if (parsed.data.mediaAssets !== undefined) {
       await replaceContentMediaAssetReferences(content, parsed.data.mediaAssets, new Date(), content.source);
     }
@@ -3864,7 +4785,7 @@ adminMarketingRouter.get("/sync/source", async (req, res) => {
     mode: "one_way_into_vyva",
     realSendingLocked: false,
     lockedSendCapabilities: channelSendCapabilities(),
-    socialPublishing: socialPublishingStatus(),
+    socialPublishing: await socialPublishingStatus(),
     emailScheduler: marketingEmailSchedulerStatus(),
     diagnostics: lovableMarketingSyncDiagnostics(apiUrl, apiKey),
     runs: runs.map(serializeSyncRun),

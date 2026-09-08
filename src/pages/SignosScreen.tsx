@@ -68,6 +68,7 @@ import type {
   PreventionLoopLastView,
 } from "@/lib/preventionLoop";
 import { sanitizePhoneHref } from "@/lib/emergencyContacts";
+import { captureVitalLensPayload } from "@/lib/vitalLens";
 import { VITALS_DEVICE_CATALOG, type VitalsDeviceCatalogItem, type VitalsDeviceKind } from "@/lib/vitalsDeviceCatalog";
 import {
   isWebBluetoothSupported,
@@ -683,9 +684,6 @@ const DEVICE_ICON_BY_ID: Record<VitalsDeviceKind, LucideIcon> = {
   heart_monitor: Heart,
 };
 
-const FACE_SCAN_DURATION_MS = 20_000;
-const FACE_SCAN_FPS = 15;
-
 const VITALS_AUDIO_TYPES = [
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -710,71 +708,6 @@ function fileToDataUrl(file: File): Promise<string> {
     reader.onload = () => resolve(String(reader.result ?? ""));
     reader.onerror = () => reject(reader.error ?? new Error("Could not read image"));
     reader.readAsDataURL(file);
-  });
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.subarray(offset, offset + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return window.btoa(binary);
-}
-
-function faceScanDurationMs() {
-  const testWindow = window as Window & { __VYVA_FACE_SCAN_TEST_DURATION_MS?: number };
-  return typeof testWindow.__VYVA_FACE_SCAN_TEST_DURATION_MS === "number"
-    ? Math.max(1, testWindow.__VYVA_FACE_SCAN_TEST_DURATION_MS)
-    : FACE_SCAN_DURATION_MS;
-}
-
-async function captureVitalLensPayload(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<{ video: string; fps: number; duration_seconds: number }> {
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) throw new Error("Could not read camera frames.");
-
-  canvas.width = 40;
-  canvas.height = 40;
-  const durationMs = faceScanDurationMs();
-  const frameIntervalMs = 1000 / FACE_SCAN_FPS;
-  const chunks: Uint8Array[] = [];
-  const startedAt = performance.now();
-
-  return new Promise((resolve, reject) => {
-    const capture = () => {
-      try {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const image = context.getImageData(0, 0, canvas.width, canvas.height);
-        const rgb = new Uint8Array(canvas.width * canvas.height * 3);
-        for (let src = 0, dest = 0; src < image.data.length; src += 4) {
-          rgb[dest++] = image.data[src];
-          rgb[dest++] = image.data[src + 1];
-          rgb[dest++] = image.data[src + 2];
-        }
-        chunks.push(rgb);
-
-        if (performance.now() - startedAt >= durationMs) {
-          const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-          const payload = new Uint8Array(totalBytes);
-          let offset = 0;
-          for (const chunk of chunks) {
-            payload.set(chunk, offset);
-            offset += chunk.length;
-          }
-          resolve({
-            video: bytesToBase64(payload),
-            fps: FACE_SCAN_FPS,
-            duration_seconds: Math.round((durationMs / 1000) * 10) / 10,
-          });
-          return;
-        }
-        window.setTimeout(capture, frameIntervalMs);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    capture();
   });
 }
 

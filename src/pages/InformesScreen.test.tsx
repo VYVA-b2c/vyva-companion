@@ -299,15 +299,21 @@ describe("Informes report detail actions", () => {
       gpEmail: "gp@example.com",
     });
 
-    const call = await screen.findByTestId("button-report-detail-action-0-call_gp");
-    const email = await screen.findByTestId("button-report-detail-action-0-email_gp");
+    const call = await screen.findByTestId("button-report-call-gp");
+    const email = await screen.findByTestId("button-report-support-email_gp");
 
-    expect(call).toHaveAttribute("href", "tel:+34612345678");
+    expect(call).toHaveTextContent("Call GP");
     expect(email).toHaveAttribute("href", expect.stringContaining("mailto:gp@example.com"));
-    expect(screen.getByTestId("button-report-detail-action-0-doctor_help")).toBeInTheDocument();
+    expect(screen.getByTestId("button-report-support-doctor_help")).toBeInTheDocument();
+    expect(screen.getByTestId("prototype-symptom-assessment-screen")).toHaveAttribute("data-container-contract", "flow.rounded-card");
+    expect(screen.getByTestId("symptom-check-shell")).toHaveAttribute("data-stage-id", "save_share_summary");
+    expect(screen.getByTestId("card-report-answer")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Your summary" })).toHaveLength(1);
+    expect(screen.queryByTestId("symptom-presentation-save_share_summary-touch")).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-symptom-mode-voice")).toBeInTheDocument();
   });
 
-  it("renders direct GP actions from the saved next step when recommendations are empty", async () => {
+  it("keeps the canonical primary GP action when saved recommendations are empty", async () => {
     renderDetail(
       {
         country: "ES",
@@ -321,13 +327,9 @@ describe("Informes report detail actions", () => {
       },
     );
 
-    const call = await screen.findByTestId("button-report-detail-next-step-action-0-call_gp");
-    const email = await screen.findByTestId("button-report-detail-next-step-action-1-email_gp");
-
-    expect(call).toHaveAttribute("href", "tel:+34612345678");
-    expect(email).toHaveAttribute("href", expect.stringContaining("mailto:gp@example.com"));
-    expect(screen.getByTestId("button-report-detail-next-step-action-2-doctor_help")).toBeInTheDocument();
-    expect(screen.queryByTestId("report-detail-actions-0")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("button-report-call-gp")).toHaveTextContent("Call GP");
+    expect(screen.getByTestId("card-report-do-now")).toHaveTextContent("Talk to a doctor today");
+    expect(screen.queryByTestId("report-support-actions")).not.toBeInTheDocument();
   });
 
   it("renders an emergency call action from a saved emergency next step", async () => {
@@ -342,22 +344,20 @@ describe("Informes report detail actions", () => {
       },
     );
 
-    const emergencyCall = await screen.findByTestId("button-report-detail-next-step-action-0-call_emergency");
+    const emergencyCall = await screen.findByTestId("button-report-emergency");
 
-    expect(emergencyCall).toHaveAttribute("href", "tel:112");
     expect(emergencyCall).toHaveTextContent("Call 112");
+    expect(screen.getByTestId("card-report-emergency")).toHaveTextContent("Call 112 now");
   });
 
-  it("offers doctor setup when no GP contact exists", async () => {
+  it("opens doctor support directly when no GP contact exists", async () => {
     renderDetail({});
 
-    const addDoctor = await screen.findByTestId("button-report-detail-action-0-add_doctor_contact");
-    expect(screen.getByTestId("button-report-detail-action-0-doctor_help")).toBeInTheDocument();
-
-    fireEvent.click(addDoctor);
+    expect(await screen.findByTestId("button-report-doctor")).toHaveTextContent("Talk to doctor");
+    fireEvent.click(screen.getByTestId("button-report-doctor"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-path")).toHaveTextContent("/onboarding/profile/gp");
+      expect(screen.getByTestId("location-path")).toHaveTextContent("/health/doctor");
     });
   });
 });

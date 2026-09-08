@@ -63,6 +63,9 @@ const LOCAL_TUTORIAL_KEY = "rememberLater:tutorialSeen:v1";
 const LOCAL_TUTORIAL_COOKIE = "remember_later_tutorial_seen_v1";
 const LOCAL_STATE_KEY = "rememberLater:state:v1";
 const LOCAL_SESSIONS_KEY = "rememberLater:sessions:v1";
+const RECENT_ROUNDS_KEY = "rememberLater:recentRounds:v1";
+const RECENT_ROUND_LIMIT = 8;
+const VARIATION_KEY_PREFIX = "variation:";
 
 const COLOR_HEX = {
   red: "#DC2626",
@@ -132,7 +135,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly0",
       summary: "Now strengthen the matching side of the round.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly0",
-      detail: "You touched the reminder button. Stay here and strengthen the target taps too.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
     {
       titleKey: "games.rememberLater.resultTitles.reminderOnly1",
@@ -140,7 +143,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly1",
       summary: "The future action landed. Next, aim for more target taps.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly1",
-      detail: "The reminder was there; this level will count when the matching improves too.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
     {
       titleKey: "games.rememberLater.resultTitles.reminderOnly2",
@@ -148,7 +151,7 @@ const RESULT_MESSAGE_VARIANTS = {
       summaryKey: "games.rememberLater.resultSummaries.reminderOnly2",
       summary: "That memory moment was useful practice; the level waits for cleaner matching.",
       detailKey: "games.rememberLater.resultDetails.reminderOnly2",
-      detail: "You remembered the future action. Keep the purple target rule just as steady.",
+      detail: "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.",
     },
   ],
   missed: [
@@ -540,10 +543,38 @@ export function shouldShowRememberLaterIntro(state, round) {
   return !state?.has_seen_tutorial && effectiveTier <= 1;
 }
 
-export function pickRememberLaterRound(rounds, todaySessions = [], historySessions = [], random = Math.random) {
+export function getRememberLaterRoundVariationKey(round) {
+  const normalized = normalizeRememberLaterRound(round);
+  const intentions = normalized.intentions.map((intention) => [
+    intention.type,
+    intention.cue_icon ?? null,
+    intention.cue_position_index ?? null,
+    intention.target_delay_seconds ?? null,
+  ]);
+  const stream = normalized.filler_stream.map((item) => [
+    item.type,
+    item.value,
+    Boolean(item.matches_rule),
+    Boolean(item.cue),
+  ]);
+  return JSON.stringify([normalized.round_type, normalized.ongoing_task_rule, intentions, stream]);
+}
+
+export function pickRememberLaterRound(rounds, todaySessions = [], historySessions = [], random = Math.random, excludedRoundIds = []) {
   const normalizedRounds = rounds.map(normalizeRememberLaterRound).filter((round) => round.filler_stream.length > 0);
-  const usedToday = new Set(todaySessions.map((session) => session.round_id).filter(Boolean));
-  const unusedToday = normalizedRounds.filter((round) => !usedToday.has(round.id));
+  const excludedVariationKeys = new Set(
+    excludedRoundIds
+      .filter((value) => String(value).startsWith(VARIATION_KEY_PREFIX))
+      .map((value) => String(value).slice(VARIATION_KEY_PREFIX.length)),
+  );
+  const usedToday = new Set([
+    ...todaySessions.map((session) => session.round_id).filter(Boolean),
+    ...excludedRoundIds.filter((value) => value && !String(value).startsWith(VARIATION_KEY_PREFIX)),
+  ]);
+  const unusedToday = normalizedRounds.filter((round) => (
+    !usedToday.has(round.id)
+    && !excludedVariationKeys.has(getRememberLaterRoundVariationKey(round))
+  ));
 
   if (unusedToday.length > 0) {
     return unusedToday[Math.floor(random() * unusedToday.length)];
@@ -764,6 +795,31 @@ function writeLocalRememberLaterSession(result, playedAt = new Date()) {
   writeLocalJson(LOCAL_SESSIONS_KEY, nextSessions);
 }
 
+function readRecentlyPresentedRoundIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(RECENT_ROUNDS_KEY) ?? "[]");
+    return Array.isArray(stored) ? stored.filter(Boolean).slice(-(RECENT_ROUND_LIMIT * 2)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberPresentedRound(round) {
+  if (!round?.id || typeof window === "undefined") return;
+  const variationToken = `${VARIATION_KEY_PREFIX}${getRememberLaterRoundVariationKey(round)}`;
+  const recent = readRecentlyPresentedRoundIds().filter((value) => value !== round.id && value !== variationToken);
+  try {
+    window.sessionStorage.setItem(
+      RECENT_ROUNDS_KEY,
+      JSON.stringify([...recent, round.id, variationToken].slice(-(RECENT_ROUND_LIMIT * 2))),
+    );
+  } catch {
+    // A private browser context may disable session storage. Round history still
+    // prevents repeats after a completed session.
+  }
+}
+
 function getTodayLocalRememberLaterSessions(date = new Date()) {
   const { start, end } = localDayBounds(date);
   return readLocalRememberLaterSessions().filter((session) => {
@@ -841,13 +897,21 @@ export function getRememberLaterResultMessage({
     band: nextTierBand.label,
     count: progressWinsNeeded,
     level: nextTier,
+    nextLevel: Math.min(MAX_TIER, nextTier + 1),
     milestone: completedMilestone ?? t("games.rememberLater.verdictLevelUp", "Level up"),
   };
+  const detail = outcome === "reminderOnly" && nextTier >= MAX_TIER
+    ? t(
+      "games.rememberLater.resultDetails.reminderOnlyMax",
+      "Nice work. Improve your matching accuracy next round to complete a balanced round at the highest level.",
+      params,
+    )
+    : t(variant.detailKey, variant.detail, params);
 
   return {
     title: t(variant.titleKey, variant.title, params),
     summary: t(variant.summaryKey, variant.summary, params),
-    detail: t(variant.detailKey, variant.detail, params),
+    detail,
   };
 }
 
@@ -1008,11 +1072,11 @@ export default function RememberLater({
     return normalizeRememberLaterUserState(fallback);
   }, [userId]);
 
-  const loadRound = useCallback(async (tier) => {
+  const loadRound = useCallback(async (tier, excludedRoundIds = []) => {
     if (!userId) {
       const localRounds = buildLocalRememberLaterRounds(tier);
       const todaySessions = getTodayLocalRememberLaterSessions();
-      return pickRememberLaterRound(localRounds, todaySessions, readLocalRememberLaterSessions(), () => 0) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+      return pickRememberLaterRound(localRounds, todaySessions, readLocalRememberLaterSessions(), () => 0, excludedRoundIds) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
     }
 
     const { start, end } = localDayBounds();
@@ -1035,7 +1099,19 @@ export default function RememberLater({
       console.warn("Remember Later could not load today's rounds.", todaySessionsResult.error);
     }
 
-    const freshRound = pickRememberLaterRound(roundsResult.data ?? [], todaySessionsResult.data ?? []);
+    const availableRounds = Array.isArray(roundsResult.data) ? roundsResult.data : [];
+    if (availableRounds.length === 0) {
+      const localRounds = buildLocalRememberLaterRounds(tier);
+      return pickRememberLaterRound(
+        localRounds,
+        getTodayLocalRememberLaterSessions(),
+        readLocalRememberLaterSessions(),
+        () => 0,
+        excludedRoundIds,
+      ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+    }
+
+    const freshRound = pickRememberLaterRound(availableRounds, todaySessionsResult.data ?? [], [], Math.random, excludedRoundIds);
     if (freshRound && !(todaySessionsResult.data ?? []).some((session) => session.round_id === freshRound.id)) {
       return freshRound;
     }
@@ -1052,7 +1128,7 @@ export default function RememberLater({
       console.warn("Remember Later could not load round history.", historyResult.error);
     }
 
-    return pickRememberLaterRound(roundsResult.data ?? [], todaySessionsResult.data ?? [], historyResult.data ?? []) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+    return pickRememberLaterRound(availableRounds, todaySessionsResult.data ?? [], historyResult.data ?? [], Math.random, excludedRoundIds) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
   }, [userId]);
 
   const loadGame = useCallback(async () => {
@@ -1064,10 +1140,14 @@ export default function RememberLater({
     sessionSavedRef.current = false;
     try {
       const state = await loadUserState();
-      const nextRound = await loadRound(Number(state.current_tier ?? 1));
+      const nextRound = await loadRound(
+        Number(state.current_tier ?? 1),
+        readRecentlyPresentedRoundIds(),
+      );
       const shouldShowIntro = shouldShowRememberLaterIntro(state, nextRound);
       setUserState(state);
       setRound(nextRound);
+      rememberPresentedRound(nextRound);
       setCurrentIndex(0);
       setSessionResult(null);
       setAutoStartAfterLoad(!shouldShowIntro);
@@ -1080,10 +1160,19 @@ export default function RememberLater({
           has_seen_tutorial: readLocalTutorialSeen(),
         })
         : readLocalRememberLaterState();
+      const fallbackRounds = buildLocalRememberLaterRounds(Number(fallbackState.current_tier ?? 1));
+      const fallbackRound = pickRememberLaterRound(
+        fallbackRounds,
+        getTodayLocalRememberLaterSessions(),
+        readLocalRememberLaterSessions(),
+        () => 0,
+        readRecentlyPresentedRoundIds(),
+      ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
       setUserState(fallbackState);
-      setRound(normalizeRememberLaterRound(FALLBACK_ROUND));
+      setRound(fallbackRound);
+      rememberPresentedRound(fallbackRound);
       setLoadError(t("games.rememberLater.practiceFallback", "We will use a short practice round."));
-      setAutoStartAfterLoad(!shouldShowRememberLaterIntro(fallbackState, FALLBACK_ROUND));
+      setAutoStartAfterLoad(!shouldShowRememberLaterIntro(fallbackState, fallbackRound));
       setScreen("intro");
     }
   }, [loadRound, loadUserState, stopTimers, t, userId]);
@@ -1365,6 +1454,49 @@ export default function RememberLater({
     beginCountdown();
   }, [beginCountdown, hideIntroAfterStart, markTutorialSeen, userState?.has_seen_tutorial]);
 
+  const continueToNextRound = useCallback(async () => {
+    const nextState = userStateRef.current ?? await loadUserState();
+    const nextTier = Number(nextState.current_tier ?? 1);
+    const completedRoundId = sessionResult?.round_id ?? roundRef.current?.id ?? null;
+    const excludedRoundIds = Array.from(new Set([
+      ...readRecentlyPresentedRoundIds(),
+      completedRoundId,
+    ].filter(Boolean)));
+    setScreen("loading");
+    setLoadError("");
+    setAutoStartAfterLoad(false);
+    stopTimers();
+    finalizingRef.current = false;
+    sessionSavedRef.current = false;
+
+    try {
+      const nextRound = await loadRound(nextTier, excludedRoundIds);
+      setRound(nextRound);
+      rememberPresentedRound(nextRound);
+      setCurrentIndex(0);
+      setSessionResult(null);
+      setAutoStartAfterLoad(true);
+      setScreen("intro");
+    } catch (error) {
+      console.warn("Remember Later could not load the next round.", error);
+      const localRounds = buildLocalRememberLaterRounds(nextTier);
+      const nextRound = pickRememberLaterRound(
+        localRounds,
+        getTodayLocalRememberLaterSessions(),
+        readLocalRememberLaterSessions(),
+        () => 0,
+        excludedRoundIds,
+      ) ?? normalizeRememberLaterRound(FALLBACK_ROUND);
+      setRound(nextRound);
+      rememberPresentedRound(nextRound);
+      setCurrentIndex(0);
+      setSessionResult(null);
+      setLoadError(t("games.rememberLater.practiceFallback", "We will use a short practice round."));
+      setAutoStartAfterLoad(true);
+      setScreen("intro");
+    }
+  }, [loadRound, loadUserState, roundRef, sessionResult?.round_id, stopTimers, t, userStateRef]);
+
   const handleOngoingTap = useCallback(() => {
     if (screenRef.current !== "playing" || !roundRef.current) return;
     const currentRound = normalizeRememberLaterRound(roundRef.current);
@@ -1429,9 +1561,21 @@ export default function RememberLater({
 
   const resultToneHit = (sessionResult?.pm_hits ?? 0) > 0;
   const nextTier = userState?.current_tier ?? normalizedRound?.difficulty_tier ?? 1;
+  const isAtMaxTier = nextTier >= MAX_TIER;
   const nextTierBand = getBrainCoachLevelBand(nextTier);
   const currentTierBand = normalizedRound ? getBrainCoachLevelBand(normalizedRound.difficulty_tier) : nextTierBand;
+  const nextTierBandLabel = t(`brainCoach.progression.bands.${nextTierBand.id}`, nextTierBand.label);
+  const currentTierBandLabel = t(`brainCoach.progression.bands.${currentTierBand.id}`, currentTierBand.label);
   const progressWins = userState?.consecutive_wins ?? 0;
+  const levelRequirements = getRememberLaterLevelRequirements(normalizedRound?.difficulty_tier ?? nextTier);
+  const qualificationRule = t(
+    "games.rememberLater.qualificationRule",
+    "A round counts when you catch the reminder, reach {overall}% overall, and {matching}% on matching.",
+    {
+      overall: levelRequirements.combinedAccuracyPct,
+      matching: levelRequirements.matchingAccuracyPct,
+    },
+  );
   const ongoingRuleLabel = normalizedRound ? ruleLabel(normalizedRound.ongoing_task_rule, t) : "";
   const ongoingRuleIsColor = normalizedRound ? isColorRule(normalizedRound.ongoing_task_rule) : false;
   const matchButtonLabel = normalizedRound
@@ -1463,21 +1607,26 @@ export default function RememberLater({
   const progressWinsNeeded = Math.max(0, 3 - progressWins);
   const resultCountsForLevel = isRememberLaterCountedRound(sessionResult);
   const promotedThisRound = Boolean(sessionResult && resultCountsForLevel && nextTier > sessionResult.difficulty_tier);
-  const completedMilestone = sessionResult ? getBrainCoachMilestoneLabel(sessionResult.difficulty_tier) : null;
+  const completedMilestoneFallback = sessionResult ? getBrainCoachMilestoneLabel(sessionResult.difficulty_tier) : null;
+  const completedMilestone = completedMilestoneFallback && sessionResult
+    ? t(`brainCoach.progression.milestonesByLevel.${sessionResult.difficulty_tier}`, completedMilestoneFallback)
+    : null;
   const resultVerdict = sessionResult
     ? promotedThisRound
       ? completedMilestone ?? t("games.rememberLater.verdictLevelUp", "Level up")
       : resultCountsForLevel
         ? t("games.rememberLater.verdictCounted", "Good round")
         : resultToneHit
-          ? t("games.rememberLater.verdictMemoryCredit", "Reminder button remembered")
+          ? t("games.rememberLater.verdictMemoryCredit", "You remembered the reminder")
           : t("games.rememberLater.verdictNotCounted", "Stay with this level")
     : "";
   const resultWhy = sessionResult
     ? resultCountsForLevel
       ? t("games.rememberLater.resultWhyCounted", "You used both buttons at the right time.")
       : resultToneHit
-        ? t("games.rememberLater.resultWhyMemoryCredit", "You touched the reminder button. Stay here and strengthen the target taps too.")
+        ? isAtMaxTier
+          ? t("games.rememberLater.resultWhyMemoryCreditMax", "Nice work. Improve your matching accuracy next round to complete a balanced round at the highest level.")
+          : t("games.rememberLater.resultWhyMemoryCredit", "Nice work. Improve your matching accuracy next round so it counts toward Level {nextLevel}.", { nextLevel: nextTier + 1 })
         : t("games.rememberLater.resultWhyNeedsRecall", "Stay here and strengthen this level. Use purple for targets and the reminder button for reminders.")
     : "";
   const resultMessage = getRememberLaterResultMessage({
@@ -1489,7 +1638,7 @@ export default function RememberLater({
     progressWins,
     progressWinsNeeded,
     nextTier,
-    nextTierBand,
+    nextTierBand: { ...nextTierBand, label: nextTierBandLabel },
     completedMilestone,
   });
   const resultContinueLabel = promotedThisRound
@@ -1528,12 +1677,11 @@ export default function RememberLater({
             {loadError ? <p className="m-5 rounded-2xl bg-[#FFF7ED] px-4 py-3 text-[20px] font-bold text-[#92400E]">{loadError}</p> : null}
             <div className="text-left">
               <p className="inline-flex rounded-full px-4 py-2 text-[17px] font-black sm:text-[18px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
-                {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBand.label}
+                {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBandLabel}
               </p>
-              <h1 className="mt-4 font-display text-[38px] leading-tight sm:text-[44px]">{t("games.rememberLater.title", "Remember Later")}</h1>
-              <p className="mt-2 max-w-[560px] text-[22px] font-extrabold leading-snug sm:text-[24px]" style={{ color: BRAND.muted }}>
+              <h1 className="mt-4 max-w-[560px] font-display text-[30px] font-semibold leading-snug sm:text-[34px]" style={{ color: BRAND.ink }}>
                 {t("games.rememberLater.introLead", "Watch for two things.")}
-              </p>
+              </h1>
               <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-full border bg-white px-4 py-3 text-[17px] font-extrabold leading-snug shadow-[0_10px_24px_rgba(80,52,109,0.08)]" style={{ borderColor: BRAND.border, color: BRAND.muted }}>
                 <input
                   type="checkbox"
@@ -1583,9 +1731,10 @@ export default function RememberLater({
                   {t("games.rememberLater.firstRoundOnly", "First round only. After this, levels start right away.")}
                 </p>
               </div>
-              <p className="rounded-full px-4 py-3 text-center text-[17px] font-black" style={{ background: "#ECFDF5", color: BRAND.teal }}>
-                {t("games.rememberLater.countedRoundIntro", "3 good rounds = next level.")}
-              </p>
+              <div className="rounded-[20px] px-4 py-3 text-[15px] font-extrabold leading-snug" style={{ background: "#ECFDF5", color: BRAND.teal }}>
+                <p className="font-black">{t("games.rememberLater.countedRoundIntro", "3 qualifying rounds in a row = next level.")}</p>
+                <p className="mt-1">{qualificationRule}</p>
+              </div>
             </div>
 
             <button
@@ -1603,7 +1752,7 @@ export default function RememberLater({
         {screen === "countdown" && normalizedRound ? (
           <section className="mt-5 rounded-[28px] border bg-white p-6 text-center shadow-vyva-card sm:p-8" style={{ borderColor: BRAND.border }}>
             <p className="mx-auto inline-flex rounded-full px-4 py-2 text-[17px] font-black sm:text-[18px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
-              {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBand.label}
+              {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBandLabel}
             </p>
             <div className="mx-auto mt-8 flex min-h-[340px] max-w-[520px] flex-col items-center justify-center rounded-[28px] border" style={{ borderColor: BRAND.border, background: BRAND.softPurple }}>
               <p className="text-[26px] font-black leading-tight" style={{ color: BRAND.purple }}>
@@ -1629,7 +1778,7 @@ export default function RememberLater({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="inline-flex rounded-full px-4 py-2 text-[17px] font-black sm:text-[18px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
-                  {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBand.label}
+                  {t("common.level", "Level")} {normalizedRound.difficulty_tier} - {currentTierBandLabel}
                 </p>
               </div>
 
@@ -1719,27 +1868,36 @@ export default function RememberLater({
                 <p className="mt-1 text-[15px] font-extrabold leading-snug">{resultMessage.detail || resultWhy}</p>
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-[15px] font-black">
-                    <span>{t("games.rememberLater.promotionProgress", "Level progress")}</span>
-                    <span>{progressWins}/3</span>
+                    <span>
+                      {isAtMaxTier
+                        ? t("games.rememberLater.masteryProgress", "Balanced-round progress")
+                        : t("games.rememberLater.promotionProgress", "Progress to Level {level}", {
+                          level: nextTier + 1,
+                        })}
+                    </span>
+                    <span>{t("games.rememberLater.progressCount", "{count} of 3", { count: progressWins })}</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-white/70">
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, (progressWins / 3) * 100)}%`, background: BRAND.purple }} />
                   </div>
                   <p className="mt-2 text-[14px] font-bold">
-                    {t("games.rememberLater.currentLevel", "Current level")}: {nextTier} - {nextTierBand.label}
+                    {t("games.rememberLater.currentLevel", "Current level")}: {nextTier} - {nextTierBandLabel}
                   </p>
+                  {!isAtMaxTier ? (
+                    <p className="mt-2 text-[14px] font-extrabold leading-snug">{qualificationRule}</p>
+                  ) : null}
                 </div>
               </div>
             }
             continueLabel={resultContinueLabel}
-            anotherLabel={t("common.finish", "Finish")}
+            anotherLabel={t("games.rememberLater.finish", "Finish")}
             assessmentReturnLabel={assessmentPractice ? t("brainGames.resultActions.backToResults", "Back to my results") : undefined}
             assessmentReturnHint={
               assessmentPractice
                 ? t("brainGames.resultActions.assessmentPracticeComplete", "Good. You practiced the area VYVA noticed.")
                 : undefined
             }
-            onContinue={loadGame}
+            onContinue={continueToNextRound}
             onAnother={onExit}
             onAssessmentReturn={assessmentPractice ? onAssessmentPracticeReturn : undefined}
             disabled={saving}

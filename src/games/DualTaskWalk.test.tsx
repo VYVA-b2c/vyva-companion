@@ -43,11 +43,13 @@ describe("DualTaskWalk", () => {
     render(<DualTaskWalk userId="" onExit={vi.fn()} />);
 
     expect(await screen.findByRole("heading", { name: "How it works" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "I understand" }));
 
     expect(window.localStorage.getItem("dualTaskWalk:tutorialSeen:v1")).toBe("true");
-    expect(await screen.findByRole("heading", { name: "Dual Task" })).toBeInTheDocument();
+    expect(await screen.findByTestId("dual-task-intro")).toBeInTheDocument();
+    expect(screen.getByTestId("dual-task-walk-flow-shell").querySelector("h1")).toHaveTextContent("Dual Task");
     expect(screen.getByRole("button", { name: "Instructions" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start exercise" })).toBeInTheDocument();
   });
@@ -57,7 +59,8 @@ describe("DualTaskWalk", () => {
 
     render(<DualTaskWalk userId="" onExit={vi.fn()} />);
 
-    expect(await screen.findByRole("heading", { name: "Dual Task" })).toBeInTheDocument();
+    expect(await screen.findByTestId("dual-task-intro")).toBeInTheDocument();
+    expect(screen.getByTestId("dual-task-walk-flow-shell").querySelector("h1")).toHaveTextContent("Dual Task");
     expect(screen.queryByRole("heading", { name: "How it works" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Instructions" }));

@@ -5,6 +5,7 @@ const AUTHENTICATED_PWA_INSTALL_PATHS = [
   "/",
   "/activity",
   "/attention-boosters",
+  "/brain-coach",
   "/caregiver",
   "/caregiver-dashboard",
   "/chat",

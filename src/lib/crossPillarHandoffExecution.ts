@@ -153,25 +153,25 @@ const ACTIONS: Record<CrossPillarCompletionActionId, ActionDefinition> = {
   "mind-memory": {
     pillar: "mind",
     workflowReference: APP_WORKFLOW_REFERENCES.memoryGames,
-    route: "/memory-games",
+    route: "/brain-coach/remember",
     stateKey: "cognitiveActivityPreference",
   },
   "mind-reflexes": {
     pillar: "mind",
     workflowReference: APP_WORKFLOW_REFERENCES.attentionTraining,
-    route: "/attention-boosters",
+    route: "/brain-coach/focus",
     stateKey: "cognitiveActivityPreference",
   },
   "mind-focus": {
     pillar: "mind",
     workflowReference: APP_WORKFLOW_REFERENCES.executiveFunction,
-    route: "/executive-function",
+    route: "/brain-coach/think",
     stateKey: "cognitiveActivityPreference",
   },
   "mind-senses": {
     pillar: "mind",
     workflowReference: APP_WORKFLOW_REFERENCES.sharpenSenses,
-    route: "/senses",
+    route: "/brain-coach/calm",
     stateKey: "cognitiveActivityPreference",
   },
   "community-friends": {

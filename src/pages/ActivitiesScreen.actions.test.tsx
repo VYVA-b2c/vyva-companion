@@ -57,6 +57,14 @@ const labels: Record<string, string> = {
   "activities.primary.intelligenceSub": "Challenge logic, planning, and problem solving.",
   "activities.primary.senses": "Sharpen Senses",
   "activities.primary.sensesSub": "Reset with sound, breath, and calm attention.",
+  "mindMemory.cards.strengthenMemory": "Remember",
+  "mindMemory.cards.strengthenMemoryDetail": "Recall people, places, words, numbers, and future cues.",
+  "mindMemory.cards.trainReflexes": "Focus & React",
+  "mindMemory.cards.trainReflexesDetail": "Stay attentive, react, and keep pace.",
+  "mindMemory.cards.improveThinking": "Think & Plan",
+  "mindMemory.cards.improveThinkingDetail": "Plan, sort, switch rules, and solve sequences.",
+  "mindMemory.cards.sharpenSenses": "Calm & Notice",
+  "mindMemory.cards.sharpenSensesDetail": "Slow down, breathe, and reconnect with sensory memory.",
   "activities.quick.kicker": "Brain Coach",
   "activities.quick.relax": "Relax & Breathe",
   "activities.quick.relaxSub": "Take a calm guided pause.",
@@ -105,11 +113,11 @@ function renderActivities() {
       <Routes>
         <Route path="/activities" element={<ActivitiesScreen />} />
         <Route path="/activity" element={<LocationProbe />} />
-        <Route path="/memory-games" element={<LocationProbe />} />
+        <Route path="/brain-coach/remember" element={<LocationProbe />} />
         <Route path="/learn" element={<LocationProbe />} />
-        <Route path="/attention-boosters" element={<LocationProbe />} />
-        <Route path="/senses" element={<LocationProbe />} />
-        <Route path="/executive-function" element={<LocationProbe />} />
+        <Route path="/brain-coach/focus" element={<LocationProbe />} />
+        <Route path="/brain-coach/calm" element={<LocationProbe />} />
+        <Route path="/brain-coach/think" element={<LocationProbe />} />
         <Route path="/language" element={<LocationProbe />} />
         <Route path="/activities/relax-breathe" element={<LocationProbe />} />
         <Route path="/social-rooms" element={<LocationProbe />} />
@@ -138,10 +146,10 @@ describe("Activities service actions", () => {
       autoStartVoice: false,
       voiceAgentSlug: "brain-coach",
     }));
-    expect(screen.getByTestId("button-activities-primary-memory")).toHaveTextContent("Strengthen Memory");
-    expect(screen.getByTestId("button-activities-primary-reflexes")).toHaveTextContent("Train Reflexes");
-    expect(screen.getByTestId("button-activities-primary-intelligence")).toHaveTextContent("Improve Thinking");
-    expect(screen.getByTestId("button-activities-primary-senses")).toHaveTextContent("Sharpen Senses");
+    expect(screen.getByTestId("button-activities-primary-memory")).toHaveTextContent("Remember");
+    expect(screen.getByTestId("button-activities-primary-reflexes")).toHaveTextContent("Focus & React");
+    expect(screen.getByTestId("button-activities-primary-intelligence")).toHaveTextContent("Think & Plan");
+    expect(screen.getByTestId("button-activities-primary-senses")).toHaveTextContent("Calm & Notice");
 
     const quickActions = screen.getByTestId("activities-quick-actions");
     expect(quickActions).toHaveTextContent("Brain Coach");
@@ -153,20 +161,20 @@ describe("Activities service actions", () => {
     expect(screen.getByTestId("button-activities-quick-play")).toHaveTextContent("Take a cognitive assessment.");
   });
 
-  it("routes the Strengthen Memory primary card to memory games", async () => {
+  it("routes the Remember primary card to its module", async () => {
     renderActivities();
 
     fireEvent.click(screen.getByTestId("button-activities-primary-memory"));
 
-    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/memory-games"));
+    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/brain-coach/remember"));
   });
 
-  it("routes the Sharpen Senses primary card to the senses hub", async () => {
+  it("routes the Calm & Notice primary card to its module", async () => {
     renderActivities();
 
     fireEvent.click(screen.getByTestId("button-activities-primary-senses"));
 
-    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/senses"));
+    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/brain-coach/calm"));
   });
 
   it("routes the Relax & Breathe quick action to the dedicated page", async () => {
@@ -191,7 +199,7 @@ describe("Activities service actions", () => {
 
     fireEvent.click(screen.getByTestId("button-activities-quick-play"));
 
-    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/memory-games"));
+    await waitFor(() => expect(screen.getByTestId("current-route")).toHaveTextContent("/brain-coach/remember"));
   });
 
   it("does not render the old companionship tile on Activities", () => {

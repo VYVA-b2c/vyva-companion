@@ -1543,7 +1543,7 @@ export default function LongevityScreen({ backPath = "/health" }: LongevityScree
                       {item.title}
                     </h3>
                     {isFollowUp ? (
-                      <p className="mt-0.5 line-clamp-1 font-body text-[13px] font-bold leading-snug text-vyva-text-2">
+                      <p className="sr-only">
                         {visibleDetail}
                       </p>
                     ) : null}
@@ -1699,9 +1699,7 @@ export default function LongevityScreen({ backPath = "/health" }: LongevityScree
                   >
                     {item.label}
                   </span>
-                  <span className={primary
-                    ? "mt-0.5 block truncate font-body text-[12px] font-bold leading-tight text-white/82"
-                    : "mt-0.5 block truncate font-body text-[12px] font-bold leading-tight text-vyva-text-2"}
+                  <span className="sr-only"
                   >
                     {item.detail}
                   </span>
@@ -1786,7 +1784,7 @@ export default function LongevityScreen({ backPath = "/health" }: LongevityScree
                 <span className="block font-body text-[16px] font-black leading-tight">
                   {selectedSheet.primaryAction.label}
                 </span>
-                <span className="mt-0.5 block font-body text-[12px] font-bold leading-tight text-white/84">
+                <span className="sr-only">
                   {selectedSheet.primaryAction.detail}
                 </span>
               </span>
@@ -1881,7 +1879,7 @@ export default function LongevityScreen({ backPath = "/health" }: LongevityScree
                     <span className="block font-body text-[14px] font-black leading-tight text-vyva-text-1">
                       {item.label}
                     </span>
-                    <span className="mt-0.5 block truncate font-body text-[12px] font-bold leading-tight text-vyva-text-2">
+                    <span className="sr-only">
                       {item.detail}
                     </span>
                   </span>

@@ -43,6 +43,7 @@ import {
   normalizedMedicinePair,
 } from "../lib/medicationInteractions.js";
 import { buildMedicationUpdates } from "../lib/medicationUpdates.js";
+import { triggerPreventionPlanRefresh } from "./healthInsightsReport.js";
 
 const router = Router();
 
@@ -157,6 +158,8 @@ const myMedicineFieldsSchema = z.object({
   schedule_times: z.array(z.string().trim().max(20)).max(8).optional().nullable(),
   dose_unit: z.string().trim().min(1).max(40).optional().nullable(),
   units_per_dose: z.coerce.number().positive().max(1000).optional().nullable(),
+  inventory_unit: z.string().trim().min(1).max(40).optional().nullable(),
+  inventory_units_per_dose: z.coerce.number().positive().max(1000).optional().nullable(),
   daily_frequency: z.coerce.number().positive().max(24).optional().nullable(),
   inventory_tracking_enabled: z.boolean().default(false),
   refill_alert_days: z.coerce.number().int().min(1).max(90).default(7),
@@ -168,8 +171,8 @@ const myMedicineFieldsSchema = z.object({
 const myMedicineCreateSchema = myMedicineFieldsSchema.superRefine((value, context) => {
   if (!value.inventory_tracking_enabled) return;
   const required: Array<[keyof typeof value, unknown]> = [
-    ["dose_unit", value.dose_unit],
-    ["units_per_dose", value.units_per_dose],
+    ["inventory_unit", value.inventory_unit ?? value.dose_unit],
+    ["inventory_units_per_dose", value.inventory_units_per_dose ?? value.units_per_dose],
     ["daily_frequency", value.daily_frequency],
     ["initial_quantity", value.initial_quantity],
     ["purchased_on", value.purchased_on],
@@ -301,6 +304,8 @@ async function ensureMyMedicinesTables() {
       await pool.query(`alter table if exists my_medicines add column if not exists refill_due_date date`);
       await pool.query(`alter table if exists my_medicines add column if not exists dose_unit text`);
       await pool.query(`alter table if exists my_medicines add column if not exists units_per_dose numeric(10,2)`);
+      await pool.query(`alter table if exists my_medicines add column if not exists inventory_unit text`);
+      await pool.query(`alter table if exists my_medicines add column if not exists inventory_units_per_dose numeric(10,2)`);
       await pool.query(`alter table if exists my_medicines add column if not exists daily_frequency numeric(6,2)`);
       await pool.query(`alter table if exists my_medicines add column if not exists inventory_tracking_enabled boolean not null default false`);
       await pool.query(`alter table if exists my_medicines add column if not exists refill_alert_days integer not null default 7`);
@@ -511,6 +516,10 @@ function serializeMyMedicine(row: typeof myMedicines.$inferSelect) {
     refill_due_date: row.refill_due_date,
     dose_unit: row.dose_unit,
     units_per_dose: row.units_per_dose === null ? null : Number(row.units_per_dose),
+    inventory_unit: row.inventory_unit ?? row.dose_unit,
+    inventory_units_per_dose: row.inventory_units_per_dose === null
+      ? row.units_per_dose === null ? null : Number(row.units_per_dose)
+      : Number(row.inventory_units_per_dose),
     daily_frequency: row.daily_frequency === null ? null : Number(row.daily_frequency),
     inventory_tracking_enabled: row.inventory_tracking_enabled,
     refill_alert_days: row.refill_alert_days,
@@ -1254,11 +1263,13 @@ router.post("/my-medicines", requireUser, async (req: Request, res: Response) =>
   try {
     await ensureMyMedicinesTables();
     const trackingEnabled = parsed.data.inventory_tracking_enabled;
+    const inventoryUnit = parsed.data.inventory_unit ?? parsed.data.dose_unit;
+    const inventoryUnitsPerDose = parsed.data.inventory_units_per_dose ?? parsed.data.units_per_dose;
     const refillDueDate = trackingEnabled
       ? projectedRunOutDate(
         parsed.data.purchased_on!,
         parsed.data.initial_quantity!,
-        parsed.data.units_per_dose!,
+        inventoryUnitsPerDose!,
         parsed.data.daily_frequency!,
       )
       : dateStringOrNull(parsed.data.refill_due_date);
@@ -1279,8 +1290,10 @@ router.post("/my-medicines", requireUser, async (req: Request, res: Response) =>
         photo_url: null,
         prescriber_name: emptyToNull(parsed.data.prescriber_name),
         refill_due_date: refillDueDate,
-        dose_unit: trackingEnabled ? parsed.data.dose_unit : null,
-        units_per_dose: trackingEnabled ? String(parsed.data.units_per_dose) : null,
+        dose_unit: trackingEnabled ? parsed.data.dose_unit ?? inventoryUnit : null,
+        units_per_dose: trackingEnabled ? String(parsed.data.units_per_dose ?? inventoryUnitsPerDose) : null,
+        inventory_unit: trackingEnabled ? inventoryUnit : null,
+        inventory_units_per_dose: trackingEnabled ? String(inventoryUnitsPerDose) : null,
         daily_frequency: trackingEnabled ? String(parsed.data.daily_frequency) : null,
         inventory_tracking_enabled: trackingEnabled,
         refill_alert_days: parsed.data.refill_alert_days,
@@ -1293,7 +1306,7 @@ router.post("/my-medicines", requireUser, async (req: Request, res: Response) =>
           medicine_id: medicine.id,
           event_type: "purchase",
           quantity: String(parsed.data.initial_quantity),
-          unit: parsed.data.dose_unit!,
+          unit: inventoryUnit!,
           occurred_on: parsed.data.purchased_on!,
           source: parsed.data.added_via === "photo" ? "photo" : "manual",
           actor_user_id: userId,
@@ -1755,9 +1768,11 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
 
     const sevenDayStart = daysAgo(6);
     const thirtyDayStart = daysAgo(29);
+    const threeDayStart = daysAgo(2);
     const today = todayDateString();
     const sevenDayStartDate = dateKeyFor(sevenDayStart);
     const thirtyDayStartDate = dateKeyFor(thirtyDayStart);
+    const threeDayStartDate = dateKeyFor(threeDayStart);
     const { period } = periodQuery.data;
     let rangeEndDate = today;
     let rangeStartDate = sevenDayStartDate;
@@ -1795,6 +1810,7 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
     const hasLogs = medRows.length > 0 || adherenceRows.length > 0;
     const rowsLast30 = adherenceRows.filter((r) => dateKeyFor(r.created_at) >= thirtyDayStartDate);
     const rowsLast7 = adherenceRows.filter((r) => new Date(r.created_at) >= sevenDayStart);
+    const rowsLast3 = adherenceRows.filter((r) => new Date(r.created_at) >= threeDayStart);
     const rangeRows = adherenceRows.filter((r) => {
       const dateKey = dateKeyFor(r.created_at);
       return dateKey >= rangeStartDate && dateKey <= rangeEndDate;
@@ -1802,6 +1818,7 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
 
     const taken30 = rowsLast30.filter((r) => r.status === "taken").length;
     const taken7 = rowsLast7.filter((r) => r.status === "taken").length;
+    const taken3 = rowsLast3.filter((r) => r.status === "taken").length;
 
     const scheduled7FromMedRows = medRows.reduce(
       (sum, m) =>
@@ -1817,12 +1834,21 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
           activeDaysInWindow(m.created_at, thirtyDayStartDate, today),
       0
     );
+    const scheduled3FromMedRows = medRows.reduce(
+      (sum, m) =>
+        sum +
+        dosesPerDay(m.scheduled_times) *
+          activeDaysInWindow(m.created_at, threeDayStartDate, today),
+      0
+    );
 
     const scheduled7 = medRows.length > 0 ? scheduled7FromMedRows : rowsLast7.length;
     const scheduled30 = medRows.length > 0 ? scheduled30FromMedRows : rowsLast30.length;
+    const scheduled3 = medRows.length > 0 ? scheduled3FromMedRows : rowsLast3.length;
 
     const weekPct = adherencePct(taken7, scheduled7);
     const monthPct = adherencePct(taken30, scheduled30);
+    const threeDayPct = adherencePct(taken3, scheduled3);
     const rangeTaken = rangeRows.filter((r) => r.status === "taken").length;
     const scheduledRangeFromMedRows = medRows.reduce(
       (sum, m) =>
@@ -1935,6 +1961,20 @@ router.get("/", requireUser, async (req: Request, res: Response) => {
     const todayTaken = todayMedicationStatuses.reduce((sum, med) => sum + Math.min(med.taken, med.scheduled), 0);
     const todayRemaining = todayMedicationStatuses.reduce((sum, med) => sum + med.remaining, 0);
     const nextDueDose = pendingDoses.sort((a, b) => a.sortKey - b.sortKey)[0] ?? null;
+
+    if (scheduled3 > 0 && threeDayPct < 70) {
+      void triggerPreventionPlanRefresh({
+        userId,
+        triggerType: "adherence_drop",
+        triggerData: {
+          adherence_pct: threeDayPct,
+          window_days: 3,
+          scheduled_doses: scheduled3,
+          taken_doses: taken3,
+          remaining_today: todayRemaining,
+        },
+      }).catch((err) => console.error("[meds prevention refresh]", err));
+    }
 
     return res.json({
       hasLogs,

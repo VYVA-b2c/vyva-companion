@@ -115,7 +115,7 @@ const ACTIVITY_CATALOG: ActivityCandidate[] = [
   },
   {
     activityType: "association_memory",
-    title: "Association",
+    title: "Connections",
     domain: "associative_memory",
     route: "/memory-games/association_memory",
     estimatedDurationMinutes: 4,

@@ -20,6 +20,7 @@ describe("PWA install prompt route gating", () => {
     expect(isAuthenticatedPwaInstallRoute("/chat")).toBe(true);
     expect(isAuthenticatedPwaInstallRoute("/settings/account")).toBe(true);
     expect(isAuthenticatedPwaInstallRoute("/memory-games/sequence_memory")).toBe(true);
+    expect(isAuthenticatedPwaInstallRoute("/brain-coach/remember")).toBe(true);
     expect(isAuthenticatedPwaInstallRoute("/caregiver-dashboard")).toBe(true);
   });
 

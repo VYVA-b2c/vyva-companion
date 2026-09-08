@@ -45,17 +45,28 @@ function previewAnswer(
   return { id, label, value, icon, tone, kind };
 }
 
-function homeMasterPreviewPlan(stage: string, focus: string) {
+function homeMasterPreviewPlan(stage: string, focus: string, isFrench: boolean) {
+  const frenchFocus: Record<string, string> = {
+    "A clear home-monitoring plan.": "Un plan clair de surveillance à domicile.",
+    "Confirming the answers before guidance.": "Confirmation des réponses avant les conseils.",
+    "Checking one related detail.": "Vérification d’un détail associé.",
+    "Checking when the change began.": "Vérification du moment où le changement a commencé.",
+    "Checking symptom strength.": "Évaluation de l’intensité du symptôme.",
+    "Checking urgent breathing warning signs.": "Vérification des signes d’alerte respiratoires urgents.",
+  };
+
   return {
     protocolId: "breathing",
-    protocolLabel: "Breathing changes",
+    protocolLabel: isFrench ? "Changements respiratoires" : "Breathing changes",
     stage,
-    priorityLabel: "VYVA guided check",
-    nextQuestionFocus: focus,
+    priorityLabel: isFrench ? "Vérification guidée par VYVA" : "VYVA guided check",
+    nextQuestionFocus: isFrench ? (frenchFocus[focus] ?? focus) : focus,
     confidence: {
       score: 4,
-      label: "Good",
-      reasons: ["symptom described", "safety answers reviewed"],
+      label: isFrench ? "Confiance solide" : "Strong confidence",
+      reasons: isFrench
+        ? ["symptôme décrit", "questions de sécurité renseignées"]
+        : ["symptom described", "safety answers reviewed"],
       missing: [],
     },
     profileContextUsed: false,
@@ -85,7 +96,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
       wizardStage: "complete",
       wizardStageLabel: "Summary",
       wizardSymptomId: "breathing",
-      guidancePlan: homeMasterPreviewPlan("complete", "A clear home-monitoring plan."),
+      guidancePlan: homeMasterPreviewPlan("complete", "A clear home-monitoring plan.", isFrench),
       evidenceSources: [],
       summary: {
         chiefComplaint: isFrench ? "Ma respiration est différente" : "Breathing feels different",
@@ -136,7 +147,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
       wizardStage: "support",
       wizardStageLabel: "Review answers",
       wizardSymptomId: "breathing",
-      guidancePlan: homeMasterPreviewPlan("support", "Confirming the answers before guidance."),
+      guidancePlan: homeMasterPreviewPlan("support", "Confirming the answers before guidance.", isFrench),
       evidenceSources: [],
     };
   }
@@ -155,7 +166,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
       wizardStage: "trend",
       wizardStageLabel: "What changed",
       wizardSymptomId: "breathing",
-      guidancePlan: homeMasterPreviewPlan("trend", "Checking one related detail."),
+      guidancePlan: homeMasterPreviewPlan("trend", "Checking one related detail.", isFrench),
       evidenceSources: [],
     };
   }
@@ -174,7 +185,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
       wizardStage: "duration",
       wizardStageLabel: "When it started",
       wizardSymptomId: "breathing",
-      guidancePlan: homeMasterPreviewPlan("duration", "Checking when the change began."),
+      guidancePlan: homeMasterPreviewPlan("duration", "Checking when the change began.", isFrench),
       evidenceSources: [],
     };
   }
@@ -190,7 +201,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
       wizardStage: "severity",
       wizardStageLabel: "More details",
       wizardSymptomId: "breathing",
-      guidancePlan: homeMasterPreviewPlan("severity", "Checking symptom strength."),
+      guidancePlan: homeMasterPreviewPlan("severity", "Checking symptom strength.", isFrench),
       evidenceSources: [],
     };
   }
@@ -208,7 +219,7 @@ function homeMasterPreviewTriageResponse(payload: Record<string, unknown>) {
     wizardStage: "red_flag",
     wizardStageLabel: "Safety check",
     wizardSymptomId: "breathing",
-    guidancePlan: homeMasterPreviewPlan("red_flag", "Checking urgent breathing warning signs."),
+    guidancePlan: homeMasterPreviewPlan("red_flag", "Checking urgent breathing warning signs.", isFrench),
     evidenceSources: [],
   };
 }

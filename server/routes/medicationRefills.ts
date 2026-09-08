@@ -9,12 +9,18 @@ import { requireActiveProfileId } from "../lib/profileAccess.js";
 import { resolveDomainAccess, type CaregiverDomainAccessContext } from "../lib/caregiverDomainAccess.js";
 import { getRefillSummaries, reconcileRefillAlerts, serializeRefillAlert } from "../medication/refillAlerts.js";
 import { ensureRefillPersistence } from "../medication/refillPersistence.js";
+import {
+  medicationInventoryPhotoJsonSchema,
+  normalizeMedicationInventoryPhoto,
+} from "../medication/refillPhotoExtraction.js";
 
 const router = Router();
 
 const settingsSchema = z.object({
   doseUnit: z.string().trim().min(1).max(40),
   unitsPerDose: z.coerce.number().positive().max(10_000),
+  inventoryUnit: z.string().trim().min(1).max(40).optional(),
+  inventoryUnitsPerDose: z.coerce.number().positive().max(10_000).optional(),
   dailyFrequency: z.coerce.number().positive().max(24),
   refillAlertDays: z.coerce.number().int().min(1).max(90).default(7),
 });
@@ -28,6 +34,7 @@ const inventoryEventSchema = settingsSchema.extend({
 const photoSchema = z.object({
   image: z.string().min(32).max(14_000_000),
   language: z.string().trim().max(20).default("en"),
+  medicineId: z.string().uuid().optional(),
 });
 
 async function resolveProfileId(req: Request, res: Response) {
@@ -115,6 +122,8 @@ async function saveInventoryEvent(req: Request, res: Response, eventType: "purch
     await tx.update(myMedicines).set({
       dose_unit: parsed.data.doseUnit,
       units_per_dose: String(parsed.data.unitsPerDose),
+      inventory_unit: parsed.data.inventoryUnit ?? parsed.data.doseUnit,
+      inventory_units_per_dose: String(parsed.data.inventoryUnitsPerDose ?? parsed.data.unitsPerDose),
       daily_frequency: String(parsed.data.dailyFrequency),
       refill_alert_days: parsed.data.refillAlertDays,
       inventory_tracking_enabled: true,
@@ -125,7 +134,7 @@ async function saveInventoryEvent(req: Request, res: Response, eventType: "purch
       medicine_id: medicine.id,
       event_type: eventType,
       quantity: String(parsed.data.quantity),
-      unit: parsed.data.doseUnit,
+      unit: parsed.data.inventoryUnit ?? parsed.data.doseUnit,
       occurred_on: parsed.data.occurredOn,
       source,
       actor_user_id: req.user!.id,
@@ -181,6 +190,8 @@ router.patch("/:profileId/medicines/:medicineId/settings", async (req, res) => {
     const [updated] = await db.update(myMedicines).set({
       dose_unit: parsed.data.doseUnit,
       units_per_dose: String(parsed.data.unitsPerDose),
+      inventory_unit: parsed.data.inventoryUnit ?? parsed.data.doseUnit,
+      inventory_units_per_dose: String(parsed.data.inventoryUnitsPerDose ?? parsed.data.unitsPerDose),
       daily_frequency: String(parsed.data.dailyFrequency),
       refill_alert_days: parsed.data.refillAlertDays,
       inventory_tracking_enabled: true,
@@ -209,22 +220,59 @@ router.post("/:profileId/photo-extract", async (req, res) => {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
       return res.json({
-        draft: { medicineName: "", strength: "", packageCount: null, unitsPerPackage: null, totalQuantity: null, doseUnit: "tablet", purchasedOn: new Date().toISOString().slice(0, 10) },
+        draft: {
+          medicineName: "",
+          strength: "",
+          packageCount: null,
+          unitsPerPackage: null,
+          totalQuantity: null,
+          inventoryQuantity: null,
+          inventoryUnit: null,
+          doseUnit: "",
+          inventoryEvidenceText: null,
+          contentAmountPerUnit: null,
+          contentUnit: null,
+          contentEvidenceText: null,
+          purchasedOn: new Date().toISOString().slice(0, 10),
+        },
         confidence: "low",
         fieldConfidence: {},
+        needsReview: true,
         warnings: ["VYVA could not read this photo automatically. Please enter the visible details."],
         imageRetained: false,
       });
     }
+    const [selectedMedicine] = parsed.data.medicineId
+      ? await db.select({ doseUnit: myMedicines.dose_unit }).from(myMedicines).where(and(
+        eq(myMedicines.id, parsed.data.medicineId),
+        eq(myMedicines.user_id, context.profileId),
+      )).limit(1)
+      : [];
     const client = new OpenAI({ apiKey });
     const response = await client.chat.completions.create({
       model: process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o",
       temperature: 0.1,
       max_tokens: 700,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "medication_inventory_label",
+          strict: true,
+          schema: medicationInventoryPhotoJsonSchema,
+        },
+      },
       messages: [{
         role: "system",
-        content: `Read visible medicine package and purchase details for an inventory draft. Return JSON only: {"medicineName":"", "strength":"", "packageCount":number|null, "unitsPerPackage":number|null, "totalQuantity":number|null, "doseUnit":"tablet|capsule|ml|dose|patch|other", "purchasedOn":"YYYY-MM-DD|null", "confidence":"high|medium|low", "fieldConfidence":{}, "warnings":[]}. Do not recommend or change a dose. Use ${parsed.data.language}. Use null when unreadable.`,
+        content: [
+          "Read only literal, visible medicine-package details for an inventory draft.",
+          "Inventory quantity means countable usable stock: tablets, capsules, single-dose containers, bottles, sachets, patches, or labelled doses.",
+          "Keep package count separate from liquid content. Never multiply containers by ml, mg, g, or strength to create inventory quantity.",
+          "For a label such as '30 envases unidosis 0,2 ml', inventoryQuantity is 30, inventoryUnit is single_dose_container, and contentAmountPerUnit is 0.2 ml.",
+          "inventoryEvidenceText must quote the exact short label text supporting inventoryQuantity and inventoryUnit.",
+          "contentEvidenceText must quote the exact short label text supporting content amount. Do not fabricate evidence.",
+          "Do not infer a purchase date, dose, frequency, or medical instruction. Use null for unreadable or absent values.",
+          `Use ${parsed.data.language}. Do not recommend or change a dose.`,
+        ].join("\n"),
       }, {
         role: "user",
         content: [
@@ -234,24 +282,10 @@ router.post("/:profileId/photo-extract", async (req, res) => {
       }],
     });
     const model = JSON.parse(response.choices[0]?.message?.content || "{}") as Record<string, unknown>;
-    const packageCount = numberValue(model.packageCount);
-    const unitsPerPackage = numberValue(model.unitsPerPackage);
-    const totalQuantity = numberValue(model.totalQuantity) ?? (packageCount && unitsPerPackage ? packageCount * unitsPerPackage : null);
-    return res.json({
-      draft: {
-        medicineName: typeof model.medicineName === "string" ? model.medicineName.slice(0, 160) : "",
-        strength: typeof model.strength === "string" ? model.strength.slice(0, 80) : "",
-        packageCount,
-        unitsPerPackage,
-        totalQuantity,
-        doseUnit: typeof model.doseUnit === "string" ? model.doseUnit.slice(0, 40) : "tablet",
-        purchasedOn: typeof model.purchasedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(model.purchasedOn) ? model.purchasedOn : new Date().toISOString().slice(0, 10),
-      },
-      confidence: ["high", "medium", "low"].includes(String(model.confidence)) ? model.confidence : "low",
-      fieldConfidence: model.fieldConfidence && typeof model.fieldConfidence === "object" ? model.fieldConfidence : {},
-      warnings: Array.isArray(model.warnings) ? model.warnings.filter((item): item is string => typeof item === "string").slice(0, 5) : [],
-      imageRetained: false,
-    });
+    return res.json(normalizeMedicationInventoryPhoto(model, {
+      expectedDoseUnit: selectedMedicine?.doseUnit,
+      today: new Date().toISOString().slice(0, 10),
+    }));
   } catch (error) {
     console.error("[meds/refills photo extract]", error);
     return res.status(500).json({ error: "VYVA could not read this photo. You can enter the details manually." });

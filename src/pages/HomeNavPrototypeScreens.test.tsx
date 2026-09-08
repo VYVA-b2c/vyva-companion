@@ -28,6 +28,7 @@ import {
 } from "@/lib/homeNavPrototypeRoutes";
 import { HOME_MASTER_THEME_STORAGE_KEY } from "@/hooks/useHomeMasterTheme";
 import { READABLE_TEXT_SIZE_STORAGE_KEY } from "@/hooks/useReadableTextSize";
+import { BRAIN_COACH_ACTIVITY_CATALOG, getBrainCoachActivityPath } from "@/games/brainCoachCatalog";
 
 const navigateMock = vi.fn();
 
@@ -126,7 +127,7 @@ describe("Home/Nav prototype screens", () => {
     expect(screen.getByTestId("prototype-symptom-assessment-content")).toHaveClass("mt-5", "sm:mt-7");
   });
 
-  it.each(["/health/symptom-check", "/dev/home-master/ask-dr-ai", "/dev/home-master/ask-dr-ai-checking", "/dev/home-master/ask-dr-ai-next", "/dev/home-master/symptom-report", "/meds/refills"])(
+  it.each(["/health/symptom-check", "/health/vitals", "/informes/report-1", "/brain-coach/remember", "/brain-coach/focus", "/brain-coach/think", "/brain-coach/calm", "/dev/home-master/ask-dr-ai", "/dev/home-master/ask-dr-ai-checking", "/dev/home-master/ask-dr-ai-next", "/dev/home-master/symptom-report", "/dev/home-master/vitals", "/meds/refills"])(
     "keeps one flow-owned header and the shared Home/SOS/Reports dock on %s",
     (pathname) => {
       expect(isHomeNavPrototypeTopbarRoute(pathname)).toBe(true);
@@ -134,6 +135,29 @@ describe("Home/Nav prototype screens", () => {
       expect(hidesHomeNavPrototypeDock(pathname)).toBe(false);
     },
   );
+
+  it.each([
+    "/brain-coach/activity/remember_later",
+    "/memory-games/memory_match",
+    "/attention-boosters/rhythm-tap",
+    "/executive-function/category-sort",
+    "/senses/breath-garden",
+    "/spatial-navigator",
+    "/face-name-match",
+    "/dual-task-walk",
+  ])("lets the Brain Coach activity own its canonical topbar on %s", (pathname) => {
+    expect(isHomeNavPrototypeTopbarRoute(pathname)).toBe(true);
+    expect(isHomeNavPrototypeDockRoute(pathname)).toBe(false);
+  });
+
+  it("keeps every active Brain Coach catalog activity inside the activity-owned canonical shell", () => {
+    for (const activity of BRAIN_COACH_ACTIVITY_CATALOG.filter(({ status }) => status === "active")) {
+      for (const pathname of [activity.route, getBrainCoachActivityPath(activity.id)]) {
+        expect(isHomeNavPrototypeTopbarRoute(pathname), pathname).toBe(true);
+        expect(isHomeNavPrototypeDockRoute(pathname), pathname).toBe(false);
+      }
+    }
+  });
 
   it("shows the idle prompt only during the first ten seconds after app load", () => {
     vi.useFakeTimers();
@@ -171,7 +195,7 @@ describe("Home/Nav prototype screens", () => {
     );
     expect(menuCards).toHaveLength(4);
     expect(screen.getByText("My Health")).toBeInTheDocument();
-    expect(screen.getByText("My Brain")).toBeInTheDocument();
+    expect(screen.getByText("Brain Power")).toBeInTheDocument();
     expect(screen.getByText("Community")).toBeInTheDocument();
     expect(screen.getByText("Concierge")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Menu" })).toBeInTheDocument();
@@ -201,7 +225,7 @@ describe("Home/Nav prototype screens", () => {
 
   it("renders the non-Health destination surfaces with the shared peer-screen controls and row grammar", () => {
     const cases = [
-      [<PrototypeBrainScreen key="brain" />, "My Brain", "Rhythm Tap", "Rhythm Tap — this week"],
+      [<PrototypeBrainScreen key="brain" />, "Brain Power", "Rhythm Tap", "Rhythm Tap — this week"],
       [<PrototypeCommunityScreen key="community" />, "Community", "Book Club", "Elena: I loved"],
       [<PrototypeConciergeScreen key="concierge" />, "Concierge", "Ride to Dr. Reyes", "Confirmed for tomorrow"],
       [<PrototypeReportsScreen key="reports" />, "My Reports", "Steps", "Appointments kept"],

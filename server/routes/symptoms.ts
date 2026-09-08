@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "../db.js";
 import { insightOutcomes, triageReports } from "../../shared/schema.js";
+import { triggerPreventionPlanRefresh } from "./healthInsightsReport.js";
 
 const router = Router();
 
@@ -143,6 +144,18 @@ export async function logSymptomOutcomeForUser(params: {
         },
       });
     }
+  }
+
+  if (params.severity === "moderate" || params.severity === "severe") {
+    void triggerPreventionPlanRefresh({
+      userId: params.userId,
+      triggerType: "symptom_logged",
+      triggerData: {
+        severity: params.severity,
+        symptom_description: params.symptomDescription,
+        triage_report_id: reportId,
+      },
+    }).catch((err) => console.error("[symptoms prevention refresh]", err));
   }
 
   return {

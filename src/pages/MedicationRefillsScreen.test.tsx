@@ -5,9 +5,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import MedicationRefillsScreen from "./MedicationRefillsScreen";
 import { apiFetch } from "@/lib/queryClient";
 
+const { prepareEvidenceMock } = vi.hoisted(() => ({
+  prepareEvidenceMock: vi.fn(),
+}));
+
 vi.mock("@/lib/queryClient", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/queryClient")>();
   return { ...original, apiFetch: vi.fn() };
+});
+
+vi.mock("@/lib/showVyvaEvidence", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/showVyvaEvidence")>();
+  return { ...original, prepareShowVyvaEvidenceFile: prepareEvidenceMock };
 });
 
 vi.mock("react-i18next", async (importOriginal) => {
@@ -26,6 +35,8 @@ const medicine = {
   strength: "500mg once daily",
   doseUnit: "tablet",
   unitsPerDose: 1,
+  inventoryUnit: "tablet",
+  inventoryUnitsPerDose: 1,
   dailyFrequency: 1,
   refillAlertDays: 7,
   inventoryTrackingEnabled: true,
@@ -40,7 +51,7 @@ const medicine = {
   history: [{ id: "event-1", type: "stock_count" as const, quantity: 18, unit: "tablet", occurredOn: "2026-08-30", source: "manual", updatedBy: "Rosa", actorRole: "elder" }],
 };
 
-function renderScreen() {
+function renderScreen(currentMedicine = medicine) {
   const client = new QueryClient({
     defaultOptions: {
       queries: {
@@ -49,7 +60,7 @@ function renderScreen() {
           profileId: "profile-1",
           actorRole: "elder",
           permissions: { manage_inventory: true },
-          medicines: [medicine],
+          medicines: [currentMedicine],
         }),
       },
     },
@@ -64,7 +75,19 @@ function renderScreen() {
 }
 
 describe("MedicationRefillsScreen", () => {
-  beforeEach(() => apiFetchMock.mockReset());
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+    prepareEvidenceMock.mockReset();
+    prepareEvidenceMock.mockResolvedValue({
+      dataUrl: "data:image/jpeg;base64,medicine",
+      fileName: "medicine.jpg",
+      mimeType: "image/jpeg",
+      kind: "image",
+      reviewedPage: null,
+      qualityIssues: [],
+      metrics: null,
+    });
+  });
 
   it("shows the forecast, confidence, attribution, and reminder-only boundary", async () => {
     renderScreen();
@@ -93,6 +116,8 @@ describe("MedicationRefillsScreen", () => {
       quantity: 28,
       doseUnit: "tablet",
       unitsPerDose: 1,
+      inventoryUnit: "tablet",
+      inventoryUnitsPerDose: 1,
       dailyFrequency: 1,
       refillAlertDays: 7,
       source: "manual",
@@ -109,5 +134,54 @@ describe("MedicationRefillsScreen", () => {
     fireEvent.change(screen.getByTestId("input-refill-quantity"), { target: { value: "9" } });
     fireEvent.click(screen.getByTestId("button-refill-save"));
     await waitFor(() => expect(apiFetchMock.mock.calls[0]?.[0]).toContain("/stock-counts"));
+  });
+
+  it("keeps package count separate from dose and volume in the photo review", async () => {
+    const eyeDrops = {
+      ...medicine,
+      medicineName: "Monoprost",
+      strength: "1 drop once daily",
+      doseUnit: "drop",
+      inventoryUnit: null,
+      estimatedQuantity: null,
+      daysRemaining: null,
+      projectedRunOutDate: null,
+      status: "setup_needed" as const,
+    };
+    apiFetchMock.mockResolvedValue(new Response(JSON.stringify({
+      draft: {
+        medicineName: "Monoprost",
+        strength: "1 drop",
+        packageCount: 1,
+        unitsPerPackage: 30,
+        totalQuantity: 30,
+        inventoryQuantity: 30,
+        inventoryUnit: "single_dose_container",
+        doseUnit: "single_dose_container",
+        inventoryEvidenceText: "30 envases unidosis",
+        contentAmountPerUnit: 0.2,
+        contentUnit: "ml",
+        contentEvidenceText: "0,2 ml",
+        purchasedOn: "2026-08-31",
+      },
+      confidence: "medium",
+      needsReview: true,
+      warnings: ["A conflicting derived value was ignored."],
+      imageRetained: false,
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    renderScreen(eyeDrops);
+    fireEvent.click(await screen.findByTestId("button-update-medicine-supply"));
+    fireEvent.change(screen.getByTestId("input-refill-photo"), {
+      target: { files: [new File(["photo"], "medicine.jpg", { type: "image/jpeg" })] },
+    });
+    fireEvent.click(await screen.findByTestId("button-show-vyva-capture-use"));
+
+    expect(await screen.findByTestId("refill-inventory-evidence")).toHaveTextContent("30 envases unidosis");
+    expect(screen.getByTestId("refill-inventory-evidence")).toHaveTextContent("0.2 ml per unit");
+    expect(screen.getByTestId("input-refill-quantity")).toHaveValue(30);
+    expect(screen.getByTestId("input-refill-unit")).toHaveValue("single_dose_container");
+    expect(screen.getByTestId("input-refill-dose-unit")).toHaveValue("drop");
+    expect(screen.queryByDisplayValue("6")).not.toBeInTheDocument();
   });
 });

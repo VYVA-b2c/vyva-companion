@@ -33,6 +33,9 @@ import {
 } from "lucide-react";
 import VoiceActionFulfillmentPanel from "@/components/VoiceActionFulfillmentPanel";
 import { compactReportRecommendations } from "@/lib/reportRecommendations";
+import { resolveSymptomAssessmentPresentation } from "@/design/screenPresentation";
+import { PrototypeSymptomAssessmentShell } from "@/pages/HomeNavPrototypeScreens";
+import { ReportScreen } from "@/pages/SymptomCheckScreen";
 import type { BrainCoachProgress } from "@/lib/brainCoachReport";
 import {
   buildBrainCoachNarrative,
@@ -67,6 +70,12 @@ type TriageReport = {
   watch_signs: string[];
   profile_considerations: string[];
   vitals_notes: string[];
+  interpretation?: string | null;
+  possible_patterns?: Array<{ id: string; label: string; explanation: string; supportingAnswers: string[]; clarifyingSigns: string[] }>;
+  uncertainty?: string[];
+  reassessment_window?: string | null;
+  change_plan_triggers?: string[];
+  clinical_handoff?: { summary: string; keyPoints: string[]; questions: string[] } | null;
   scan_results?: TriageScanResult[];
   scan_notes?: string[];
   bpm: number | null;
@@ -291,6 +300,11 @@ function reportDoctorNote(report: TriageReport, t: ReturnType<typeof useTranslat
     report.symptoms.length ? `${t("health.symptomCheck.report.symptoms", "Symptoms noted")}: ${report.symptoms.join(", ")}` : "",
     report.next_step_label ? `${t("health.symptomCheck.report.nextStep", "Next step")}: ${report.next_step_label}` : "",
     report.triage_reasons?.length ? `${t("health.symptomCheck.report.whyThisStep", "Initial Assessment")}: ${report.triage_reasons.join(" ")}` : "",
+    report.interpretation ? `${t("health.symptomCheck.report.whatAnswersMean", "What your answers mean")}: ${report.interpretation}` : "",
+    report.possible_patterns?.length ? `${t("health.symptomCheck.report.possibleSituations", "Possible situations")}: ${report.possible_patterns.map((pattern) => `${pattern.label} — ${pattern.explanation}`).join(" ")}` : "",
+    report.uncertainty?.length ? `${t("health.symptomCheck.report.whatWeCannotTell", "What we cannot tell")}: ${report.uncertainty.join(" ")}` : "",
+    report.reassessment_window ? `${t("health.symptomCheck.report.whenToReassess", "When to reassess")}: ${report.reassessment_window}` : "",
+    report.change_plan_triggers?.length ? `${t("health.symptomCheck.report.changePlanIf", "Change the plan if")}: ${report.change_plan_triggers.join(" ")}` : "",
     report.vitals_notes?.length ? `${t("health.symptomCheck.report.vitalsUsed", "Vitals used")}: ${report.vitals_notes.join(" ")}` : "",
     report.scan_notes?.length ? `${t("health.symptomCheck.report.scanNotes", "Scan notes")}: ${report.scan_notes.join(" ")}` : "",
     report.recommendations.length ? `${t("informes.reportDetail.recommendations", "What to do next")}: ${report.recommendations.join(" ")}` : "",
@@ -298,6 +312,71 @@ function reportDoctorNote(report: TriageReport, t: ReturnType<typeof useTranslat
 }
 
 export function DetailView({ report, onBack }: { report: TriageReport; onBack: () => void }) {
+  const [interactionMode, setInteractionMode] = useState<"touch" | "voice">("touch");
+  const { data: profileContacts } = useQuery<ProfileContactsResponse>({
+    queryKey: ["/api/profile"],
+  });
+  const presentation = resolveSymptomAssessmentPresentation("save_share_summary");
+  const emergencyContact = emergencyContactForCountry(profileContacts?.country);
+
+  return (
+    <PrototypeSymptomAssessmentShell
+      interactionMode={interactionMode}
+      onInteractionModeChange={setInteractionMode}
+      onBack={onBack}
+      shellContract={presentation.shell}
+    >
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        data-testid="symptom-check-shell"
+        data-flow-id="health.symptom_assessment"
+        data-stage-id="save_share_summary"
+        data-registry-scene={presentation.registrySceneId}
+        data-voice-presentation-id={presentation.voiceSceneId}
+        data-touch-presentation-id={presentation.touchSceneId}
+      >
+        <ReportScreen
+          summary={{
+            chiefComplaint: report.chief_complaint,
+            symptoms: report.symptoms,
+            urgency: report.urgency,
+            recommendations: report.recommendations,
+            disclaimer: report.disclaimer,
+            aiSummary: report.ai_summary ?? undefined,
+            nextStepLabel: report.next_step_label ?? undefined,
+            nextStepLevel: report.next_step_level ?? undefined,
+            triageReasons: report.triage_reasons,
+            watchSigns: report.watch_signs,
+            profileConsiderations: report.profile_considerations,
+            vitalsNotes: report.vitals_notes,
+            interpretation: report.interpretation ?? undefined,
+            possiblePatterns: report.possible_patterns ?? [],
+            uncertainty: report.uncertainty ?? [],
+            reassessmentWindow: report.reassessment_window ?? undefined,
+            changePlanTriggers: report.change_plan_triggers ?? [],
+            clinicalHandoff: report.clinical_handoff ?? undefined,
+            scanResults: report.scan_results,
+            scanNotes: report.scan_notes,
+          }}
+          bpm={report.bpm}
+          respiratoryRate={report.respiratory_rate}
+          durationSeconds={report.duration_seconds}
+          reportId={report.id}
+          reportSaveState="saved"
+          savedReport={report}
+          profileContacts={profileContacts}
+          careTeamMembers={[]}
+          emergencyContact={emergencyContact}
+          refinementStatus={{ state: "idle" }}
+          onVoiceClick={() => setInteractionMode("voice")}
+          onDone={onBack}
+        />
+      </div>
+    </PrototypeSymptomAssessmentShell>
+  );
+}
+
+function LegacyDetailView({ report, onBack }: { report: TriageReport; onBack: () => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: profileContacts } = useQuery<ProfileContactsResponse>({

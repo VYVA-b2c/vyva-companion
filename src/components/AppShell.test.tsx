@@ -204,10 +204,12 @@ describe("app shell route layout", () => {
     ["/settings/account", "wide"],
     ["/health/symptom-check", "wide"],
     ["/health/vitals", "vitals"],
+    ["/dev/home-master/vitals", "vitals"],
     ["/social-rooms/music-room", "wide"],
     ["/companions", "wide"],
     ["/concierge/shopping", "wide"],
     ["/senses", "wide"],
+    ["/brain-coach/remember", "wide"],
     ["/chat", "fullscreen"],
     ["/activities/relax-breathe", "fullscreen"],
     ["/memory-games/word_recall", "fullscreen"],
@@ -222,6 +224,11 @@ describe("app shell route layout", () => {
   it.each([
     "/mind-memory",
     "/mind-memory/cognitive-assessment",
+    "/brain-coach/remember",
+    "/brain-coach/focus",
+    "/brain-coach/think",
+    "/brain-coach/calm",
+    "/brain-coach/activity/listen_closely",
     "/memory-games",
     "/memory-games/remember-later",
     "/attention-boosters",
@@ -236,6 +243,7 @@ describe("app shell route layout", () => {
   });
 
   it.each([
+    "/brain-coach/activity/listen_closely",
     "/memory-games",
     "/memory-games/remember-later",
     "/attention-boosters",
@@ -250,13 +258,17 @@ describe("app shell route layout", () => {
   });
 
   it.each([
-    "/mind-memory",
     "/mind-memory/cognitive-assessment",
-  ])("keeps the global bottom dock available on Brain Coach entry route %s", (pathname) => {
+    "/mind-memory",
+    "/brain-coach/remember",
+    "/brain-coach/focus",
+    "/brain-coach/think",
+    "/brain-coach/calm",
+  ])("keeps the global bottom dock available on canonical Brain Coach route %s", (pathname) => {
     expect(usesBrainCoachDocklessRoute(pathname)).toBe(false);
   });
 
-  it("renders the bottom dock on the Brain Coach main menu", () => {
+  it("shows the bottom dock on the canonical Brain Coach main menu", () => {
     render(
       <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={["/mind-memory"]}>
         <AppShell>
@@ -281,9 +293,41 @@ describe("app shell route layout", () => {
   });
 
   it.each([
+    ["/mind-memory", false],
+    ["/brain-coach/remember", false],
+    ["/brain-coach/activity/remember_later", true],
+    ["/memory-games", true],
+    ["/dev/home-master/brain", false],
+    ["/dev/brain/remember", false],
+    ["/dev/brain/focus", false],
+    ["/dev/brain/think", false],
+    ["/dev/brain/calm", false],
+    ["/dev/brain/activity/remember_later", false],
+    ["/dev/brain/memory-games/memory_match", false],
+    ["/dev/brain/attention-boosters/rhythm-tap", false],
+    ["/dev/remember-later", false],
+    ["/mind-memory/cognitive-assessment", false],
+  ] as const)("starts the owned Brain Coach surface flush with the viewport on %s", (path, dockless) => {
+    render(
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}>
+        <AppShell>
+          <div>Brain Coach page content</div>
+        </AppShell>
+      </MemoryRouter>,
+    );
+
+    const content = screen.getByTestId("app-shell-scroll");
+    expect(screen.queryByTestId("status-bar")).not.toBeInTheDocument();
+    expect(content).toHaveClass("pt-0");
+    expect(content).not.toHaveClass("pt-6");
+    expect(content).toHaveClass(dockless ? "pb-0" : "pb-[112px]");
+  });
+
+  it.each([
     "/menu",
     "/health",
     "/health/symptom-check",
+    "/health/vitals",
     "/health/prevention",
     "/dev/home-master/menu",
     "/dev/home-master/health",
@@ -300,6 +344,7 @@ describe("app shell route layout", () => {
     "/dev/home-master/ask-dr-ai-next",
     "/dev/home-master/vitals",
     "/dev/home-master/medicines",
+    "/informes/report-1",
   ])(
     "lets %s own the prototype topbar instead of rendering the global status surface",
     (path) => {
@@ -318,6 +363,8 @@ describe("app shell route layout", () => {
         path === "/menu" ||
         path === "/health" ||
         path === "/health/symptom-check" ||
+        path === "/health/vitals" ||
+        path === "/dev/home-master/vitals" ||
         path === "/dev/home-master/symptom-report" ||
         path === "/dev/home-master/symptom-warning" ||
         path.startsWith("/dev/home-master/ask-dr-ai")
@@ -325,7 +372,14 @@ describe("app shell route layout", () => {
         expect(content).toHaveClass("h-[100svh]", "min-h-0", "[scrollbar-gutter:stable_both-edges]");
         expect(content).not.toHaveClass("min-h-screen");
       }
-      if (path === "/health/prevention") {
+      if (path === "/health/vitals" || path === "/dev/home-master/vitals") {
+        expect(shell.className).toContain("max-w-[1180px]");
+        expect(shell.className).toContain(
+          path.startsWith("/dev/home-master")
+            ? "bg-[radial-gradient(circle_at_50%_-10%,#21162A_0%,#160D1C_46%,#110914_100%)]"
+            : "bg-[radial-gradient(circle_at_50%_18%,#30206B_0%,#171026_46%,#080715_100%)]",
+        );
+      } else if (path === "/health/prevention" || path.startsWith("/informes/")) {
         expect(shell.className).toContain("max-w-[920px]");
         expect(shell.className).toContain("bg-[radial-gradient(circle_at_50%_18%,#30206B_0%,#171026_46%,#080715_100%)]");
       } else if (path.startsWith("/dev/home-master")) {
@@ -344,7 +398,6 @@ describe("app shell route layout", () => {
     "/settings/account",
     "/health/check-in",
     "/dev/home-master/check-in",
-    "/dev/home-master/vitals",
     "/dev/home-master/medicines",
   ])(
     "hides the prototype dock on %s",
@@ -358,6 +411,27 @@ describe("app shell route layout", () => {
       );
 
       expect(screen.queryByTestId("bottom-nav")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["/health/vitals", "/dev/home-master/vitals"])(
+    "uses the canonical single-header shell and shared dock on %s",
+    (path) => {
+      render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}>
+          <AppShell>
+            <div>Vitals page content</div>
+          </AppShell>
+        </MemoryRouter>,
+      );
+
+      expect(screen.queryByTestId("status-bar")).not.toBeInTheDocument();
+      expect(screen.getByTestId("bottom-nav")).toBeInTheDocument();
+      expect(screen.getByText("Vitals page content").closest("main")).toHaveClass(
+        "h-[100svh]",
+        "min-h-0",
+        "[scrollbar-gutter:stable_both-edges]",
+      );
     },
   );
 
@@ -513,6 +587,8 @@ describe("app shell voice dock", () => {
 
     const dock = screen.getByTestId("voice-session-dock");
     expect(dock).toHaveAttribute("data-variant", "home-stop");
+    expect(dock).toHaveClass("min-h-[44px]");
+    expect(dock.parentElement).toHaveClass("right-3", "sm:inset-x-0");
     expect(dock).toHaveTextContent("Voice on");
     expect(dock).not.toHaveTextContent("Speaking");
     expect(dock).not.toHaveTextContent("VYVA speaking");
