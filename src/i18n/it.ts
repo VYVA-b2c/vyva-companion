@@ -930,7 +930,7 @@ const it = {
     memorizeLabel: "Memorizza parole",
     readyButton: "Sono pronto",
     recallInstruction: "Quali parole ricordi?",
-    selectRememberedWords: "Scegli una parola o scrivine una tua.",
+    selectRememberedWords: "Scegli tutte le parole che ricordi.",
     distractionTitle: "Breve pausa",
     distractionInstruction: "Fai una breve pausa prima di ricordare le parole.",
     distractionChooseBlue: "Tocca il colore blu per continuare.",

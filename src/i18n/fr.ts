@@ -1137,7 +1137,7 @@ const fr = {
     memorizeLabel: "Memorisez les mots",
     readyButton: "Je suis pret",
     recallInstruction: "Quels mots vous rappelez-vous ?",
-    selectRememberedWords: "Choisissez un mot ou saisissez le vôtre.",
+    selectRememberedWords: "Choisissez tous les mots dont vous vous souvenez.",
     distractionTitle: "Petite pause",
     distractionInstruction: "Faites une courte pause avant de rappeler les mots.",
     distractionChooseBlue: "Touchez la couleur bleue pour continuer.",

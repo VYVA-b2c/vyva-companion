@@ -892,7 +892,7 @@ const de = {
     memorizeLabel: "Worter merken",
     readyButton: "Ich bin bereit",
     recallInstruction: "An welche Wörter erinnern Sie sich?",
-    selectRememberedWords: "Wählen Sie ein Wort oder geben Sie ein eigenes ein.",
+    selectRememberedWords: "Wählen Sie alle Wörter, an die Sie sich erinnern.",
     distractionTitle: "Kurze Pause",
     distractionInstruction: "Machen Sie eine kurze Pause, bevor Sie die Worter erinnern.",
     distractionChooseBlue: "Tippen Sie auf die blaue Farbe, um weiterzumachen.",

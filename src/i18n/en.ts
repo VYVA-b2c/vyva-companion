@@ -1300,7 +1300,7 @@
     hideWords: "Hide words",
     recall: "Recall",
     recallInstruction: "Which words do you remember?",
-    selectRememberedWords: "Choose a word below or type your own.",
+    selectRememberedWords: "Choose every word you remember.",
     distractionTitle: "Short pause",
     distractionInstruction: "Take a short pause before recalling the words.",
     distractionChooseBlue: "Tap the blue colour to continue.",

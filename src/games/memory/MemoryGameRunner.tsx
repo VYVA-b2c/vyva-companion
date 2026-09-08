@@ -234,13 +234,6 @@ function wordsMatch(candidate: string, target: string) {
   );
 }
 
-function splitRecallText(value: string) {
-  return value
-    .split(/[,;\n]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
 function dedupeWords(words: string[]) {
   const unique: string[] = [];
   words.forEach((word) => {
@@ -562,8 +555,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const [sequencePreviewStep, setSequencePreviewStep] = useState(0);
   const [wordRecallPhase, setWordRecallPhase] = useState<"memorize" | "distraction" | "recall">("memorize");
   const [wordRecallSelectedWords, setWordRecallSelectedWords] = useState<string[]>([]);
-  const [wordRecallTypedWords, setWordRecallTypedWords] = useState<string[]>([]);
-  const [wordRecallInput, setWordRecallInput] = useState("");
   const [wordRecallChoicesSeed, setWordRecallChoicesSeed] = useState(0);
   const [wordRecallMessage, setWordRecallMessage] = useState<string | null>(null);
   // Built-in narration is retired; explicit VYVA voice sessions are separate.
@@ -678,8 +669,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       setSequenceStatus("idle");
       setWordRecallPhase("memorize");
       setWordRecallSelectedWords([]);
-      setWordRecallTypedWords([]);
-      setWordRecallInput("");
       setWordRecallChoicesSeed((current) => current + 1);
       setWordRecallMessage(null);
       setShowSequenceTutorial(nextPlan.gameType === "sequence_memory" && !readSequenceTutorialSeen(userId));
@@ -1842,18 +1831,9 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     );
   };
 
-  const addTypedRecallWords = () => {
-    const newWords = splitRecallText(wordRecallInput);
-    if (newWords.length === 0) return;
-    setWordRecallTypedWords((current) => dedupeWords([...current, ...newWords]));
-    setWordRecallInput("");
-    setWordRecallMessage(null);
-  };
-
   const finishWordRecall = () => {
     stopWordRecallAudio();
-    const pendingWords = splitRecallText(wordRecallInput);
-    const rememberedWords = dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords, ...pendingWords]);
+    const rememberedWords = dedupeWords(wordRecallSelectedWords);
     const correctWords = wordRecallWords.filter((targetWord) =>
       rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
     );
@@ -1907,7 +1887,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   };
 
   if (plan.gameType === "word_recall") {
-    const rememberedCount = dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords]).length;
+    const rememberedCount = wordRecallSelectedWords.length;
 
     return renderBrainRunnerScreen(`word_recall_${wordRecallPhase}`, "playing", `word_recall_${wordRecallPhase}`, (
       <div className="mx-auto w-full max-w-[760px] px-4 pb-4 pt-2">
@@ -2007,53 +1987,28 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
           {wordRecallPhase === "recall" && (
             <>
-              <div className="mt-5 flex flex-col gap-3 rounded-[18px] border border-vyva-border bg-white p-3 shadow-vyva-card sm:flex-row sm:rounded-[20px]">
-                    <input
-                      value={wordRecallInput}
-                      onChange={(event) => setWordRecallInput(event.target.value)}
-                      placeholder={t("wordRecall.typeWordsPlaceholder")}
-                      className="min-h-[56px] flex-1 rounded-[16px] border border-vyva-border px-4 text-[17px] text-vyva-text-1 outline-none"
-                    />
-                    <button
-                      onClick={addTypedRecallWords}
-                      className="min-h-[52px] rounded-[16px] border border-[#D8C7F3] bg-[#FAF7FF] px-5 text-[16px] font-semibold text-vyva-purple"
-                    >
-                      {t("wordRecall.addWord")}
-                    </button>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2.5">
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {wordRecallChoiceWords.map((word) => {
                   const selected = wordRecallSelectedWords.some((entry) => wordsMatch(entry, word));
                   return (
                     <button
                       key={word}
                       onClick={() => onWordRecallChipToggle(word)}
-                      className="rounded-full border px-4 py-2.5 text-[16px] font-medium shadow-sm transition-all"
+                      aria-pressed={selected}
+                      className="flex min-h-[58px] items-center justify-between rounded-[16px] border px-4 text-left text-[16px] font-semibold shadow-sm transition-all"
                       style={{
-                        background: selected ? "#6B21A8" : "#FFFFFF",
-                        color: selected ? "#FFFFFF" : "#2B2233",
-                        borderColor: selected ? "#6B21A8" : "#D8C7F3",
+                        background: selected ? "#F1E7FF" : "#FFFFFF",
+                        color: selected ? "#6B21A8" : "#2B2233",
+                        borderColor: selected ? "#7C3AED" : "#E6DEE9",
+                        boxShadow: selected ? "inset 0 0 0 1px #7C3AED" : undefined,
                       }}
                     >
-                      {word}
+                      <span>{word}</span>
+                      {selected ? <Check size={18} aria-hidden="true" /> : null}
                     </button>
                   );
                 })}
               </div>
-
-              {(wordRecallSelectedWords.length > 0 || wordRecallTypedWords.length > 0) && (
-                <div className="mt-5 rounded-[20px] border border-vyva-border bg-[#F8FAFC] p-4">
-                  <p className="text-[13px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.remembered")}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords]).map((word) => (
-                      <span key={`selected-${word}`} className="rounded-full bg-white px-3 py-2 text-[15px] font-medium text-vyva-text-1 shadow-sm">
-                        {word}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <button
                 onClick={finishWordRecall}
