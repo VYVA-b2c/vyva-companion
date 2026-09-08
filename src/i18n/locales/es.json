@@ -386,11 +386,11 @@
         "openLabel": "Abrir bienestar"
       },
       "cognitive": {
-        "title": "Mi cerebro",
+        "title": "Poder mental",
         "subtitle": "Memoria, atencion y calma",
         "bubble": "Puedo ayudarte a mantener la mente activa a tu ritmo.",
-        "micLabel": "Abrir Mi cerebro",
-        "openLabel": "Abrir Mi cerebro"
+        "micLabel": "Abrir Poder mental",
+        "openLabel": "Abrir Poder mental"
       },
       "social": {
         "title": "Mi comunidad",

@@ -1862,7 +1862,7 @@ const es = {
         medsShortTitle: "Pastillas",
         medsDetailShort: "Medicacion de hoy",
         mindMemory: "Mi mente",
-        mindMemoryShortTitle: "Mi mente",
+        mindMemoryShortTitle: "Poder mental",
         mindMemoryDetail: "Memoria, reflejos y calma",
         mindMemoryDetailShort: "Ejercicios cognitivos",
         doctorShortTitle: "Médico",

@@ -7783,7 +7783,7 @@ function MissingProviderChoicePanel({
             <span className="min-w-0">
               <span className="block text-[13px] font-black leading-tight text-vyva-text-1">{label}</span>
               {detail ? (
-                <span className="mt-1 block text-[11px] font-bold leading-snug text-vyva-text-2">{detail}</span>
+                <span className="sr-only">{detail}</span>
               ) : null}
             </span>
           </button>
@@ -17634,7 +17634,7 @@ const ConciergeScreen = ({ mode = "legacy" }: ConciergeScreenProps) => {
                       <span className="block font-body text-[16px] font-black leading-tight text-vyva-text-1">
                         {isSpanish ? option.es : option.en}
                       </span>
-                      <span className="mt-1 block font-body text-[13px] font-bold leading-snug text-vyva-text-2">
+                      <span className="sr-only">
                         {isSpanish ? option.detailEs : option.detailEn}
                       </span>
                       <ActionReadinessPanel
@@ -17800,7 +17800,7 @@ const ConciergeScreen = ({ mode = "legacy" }: ConciergeScreenProps) => {
                       <span className="block font-body text-[16px] font-black leading-tight text-vyva-text-1">
                         {isSpanish ? option.es : option.en}
                       </span>
-                      <span className="mt-1 block font-body text-[13px] font-bold leading-snug text-vyva-text-2">
+                      <span className="sr-only">
                         {isSpanish ? option.detailEs : option.detailEn}
                       </span>
                       <ActionReadinessPanel
@@ -18937,7 +18937,7 @@ const ConciergeScreen = ({ mode = "legacy" }: ConciergeScreenProps) => {
               <p className="font-body text-[15px] font-semibold text-vyva-text-1">
                 {isSpanish ? "Tarjeta oculta" : "Card hidden"}
               </p>
-              <p className="mt-1 font-body text-[13px] text-vyva-text-2">
+              <p className="sr-only">
                 {isSpanish ? "Toca para volver a verla." : "Tap to show it again."}
               </p>
             </div>

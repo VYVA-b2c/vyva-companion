@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { ArrowLeft, ChevronRight, Loader2, type LucideIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { VyvaIcon, type VyvaBrandGlyph, type VyvaIconAccent } from "@/components/brand/VyvaIcon";
 import { CanonicalVoiceButton } from "@/components/CanonicalDetailFlowShell";
 import { useHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
@@ -412,7 +412,7 @@ export function BrainCoachActivityCard({
             {title}
           </span>
           {description ? (
-            <span className={cn("mt-1 block text-[13px] font-semibold leading-tight sm:text-[14px]", isDark ? "text-[#D8CDE4]" : "text-vyva-text-2")}>
+            <span className="sr-only">
               {description}
             </span>
           ) : null}
@@ -497,7 +497,7 @@ export function BrainCoachActivityCard({
             {title}
           </span>
           {description ? (
-            <span className={cn("mt-1.5 block max-w-[35rem] text-[15px] font-semibold leading-snug sm:text-[16px]", isDark ? "text-[#D8CDE4]" : "text-vyva-text-2")}>
+            <span className="sr-only">
               {description}
             </span>
           ) : null}
@@ -574,7 +574,7 @@ export function BrainCoachActivityCard({
               {title}
             </span>
             {description ? (
-              <span className={cn("mt-2 block text-[15px] font-semibold leading-snug", featured ? "text-white/82" : isDark ? "text-[#D8CDE4]" : "text-vyva-text-2")}>
+              <span className="sr-only">
                 {description}
               </span>
             ) : null}

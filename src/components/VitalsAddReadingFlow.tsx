@@ -741,7 +741,7 @@ export default function VitalsAddReadingFlow({
                   <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] sm:h-12 sm:w-12 sm:rounded-[16px] ${isDark ? "bg-[#49355E]" : "bg-[#F3E8FF]"}`}><VyvaIcon icon={Icon} accent={METHOD_ACCENTS[method]} size={23} /></span>
                   <span className="min-w-0">
                     <span className={`block font-body text-[16px] font-black ${isDark ? "text-[#FFF8FF]" : "text-[#27152F]"}`}>{methodCopy.label}</span>
-                    <span className={`mt-1 block font-body text-[12px] font-bold leading-snug ${isDark ? "text-[#C9BDD6]" : "text-[#7A6A80]"}`}>{methodCopy.hint}</span>
+                    <span className="sr-only">{methodCopy.hint}</span>
                   </span>
                 </button>
               );

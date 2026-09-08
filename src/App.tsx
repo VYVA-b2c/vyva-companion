@@ -1,7 +1,8 @@
 import React, { lazy, Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -52,7 +53,6 @@ const PrototypeHomeScreen = lazy(() => import("./pages/HomeNavPrototypeScreens")
 const PrototypeMenuScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeMenuScreen })));
 const PrototypeCheckInScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeCheckInScreen })));
 const PrototypeHealthScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeHealthScreen })));
-const PrototypeBrainScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeBrainScreen })));
 const PrototypeCommunityScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeCommunityScreen })));
 const PrototypeConciergeScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeConciergeScreen })));
 const PrototypeReportsScreen = lazy(() => import("./pages/HomeNavPrototypeScreens").then((module) => ({ default: module.PrototypeReportsScreen })));
@@ -826,7 +826,7 @@ function HomeMasterBrainPreviewRoute() {
 
   return (
     <AppShell>
-      <PrototypeBrainScreen voicePath="/dev/home-master" profilePath="/dev/home-master/profile" />
+      <MindMemoryScreen />
     </AppShell>
   );
 }
@@ -1104,6 +1104,13 @@ const App = () => (
                     <Route path="/dev/home-master/menu" element={<HomeMasterMenuPreviewRoute />} />
                     <Route path="/dev/home-master/health" element={<HomeMasterHealthPreviewRoute />} />
                     <Route path="/dev/home-master/brain" element={<HomeMasterBrainPreviewRoute />} />
+                    <Route path="/dev/brain/remember" element={<AppShell><MemoryGamesPage /></AppShell>} />
+                    <Route path="/dev/brain/focus" element={<AppShell><AttentionBoostersPage /></AppShell>} />
+                    <Route path="/dev/brain/think" element={<AppShell><ExecutiveFunctionPage /></AppShell>} />
+                    <Route path="/dev/brain/calm" element={<AppShell><SensesPage /></AppShell>} />
+                    <Route path="/dev/brain/activity/:activityId" element={<BrainCoachActivityRoute />} />
+                    <Route path="/dev/brain/memory-games/:gameType" element={<AppShell><MemoryGameRunner /></AppShell>} />
+                    <Route path="/dev/brain/attention-boosters/rhythm-tap" element={<AppShell><MemoryGameRunner forcedGameType="sequence_memory" returnPath="/brain-coach/focus" /></AppShell>} />
                     <Route path="/dev/home-master/community" element={<HomeMasterCommunityPreviewRoute />} />
                     <Route path="/dev/home-master/concierge" element={<HomeMasterConciergePreviewRoute />} />
                     <Route path="/dev/home-master/reports" element={<HomeMasterReportsPreviewRoute />} />

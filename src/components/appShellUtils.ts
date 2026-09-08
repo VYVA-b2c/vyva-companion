@@ -70,6 +70,9 @@ export function getAppShellLayout(pathname: string): AppShellLayout {
 
 export function isBrainCoachAppRoute(pathname: string) {
   return (
+    pathname === "/dev/home-master/brain" ||
+    pathname.startsWith("/dev/brain/") ||
+    pathname === "/dev/remember-later" ||
     STANDALONE_BRAIN_COACH_ACTIVITY_ROUTES.includes(pathname as typeof STANDALONE_BRAIN_COACH_ACTIVITY_ROUTES[number]) ||
     pathname === "/brain-coach" ||
     pathname.startsWith("/brain-coach/") ||

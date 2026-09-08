@@ -2382,7 +2382,7 @@ export default function CuratedActivitiesAdminPage() {
                   <span className="flex items-start justify-between gap-3">
                     <span>
                       <span className="block text-lg font-black">{lane.label}</span>
-                      <span className={`mt-1 block text-sm font-semibold ${active ? "text-purple-100" : "text-[#7d6b65]"}`}>{lane.description}</span>
+                      <span className="sr-only">{lane.description}</span>
                     </span>
                     <span className="text-3xl font-black leading-none">{count}</span>
                   </span>
@@ -2431,7 +2431,7 @@ export default function CuratedActivitiesAdminPage() {
                     <span className="text-sm font-black">{queue.label}</span>
                     <span className="text-2xl font-black leading-none">{workQueueCounts[queue.id]}</span>
                   </span>
-                  <span className={`mt-1 block text-xs font-bold ${active ? "text-purple-100" : "text-[#8b7a73]"}`}>{queue.description}</span>
+                  <span className="sr-only">{queue.description}</span>
                 </button>
               );
             })}
@@ -2706,7 +2706,7 @@ export default function CuratedActivitiesAdminPage() {
                       onClick={() => setDiscoveryForm((prev) => ({ ...prev, format: choice.value }))}
                     >
                       <span className="block text-sm font-black">{choice.label}</span>
-                      <span className="mt-1 block text-xs font-semibold opacity-75">{choice.detail}</span>
+                      <span className="sr-only">{choice.detail}</span>
                     </button>
                   );
                 })}

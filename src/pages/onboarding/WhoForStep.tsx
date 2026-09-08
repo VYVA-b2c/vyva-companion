@@ -233,7 +233,7 @@ export default function WhoForStep() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-body text-[16px] font-extrabold text-vyva-text-1">{option.title}</span>
-                  <span className="mt-0.5 block font-body text-[13px] leading-[1.4] text-vyva-text-2">{option.subtitle}</span>
+                  <span className="sr-only">{option.subtitle}</span>
                 </span>
                 <span className={`h-5 w-5 rounded-full border-2 ${active ? "border-vyva-purple bg-vyva-purple" : "border-[#D8CFC2]"}`}>
                   {active && <span className="mx-auto mt-[5px] block h-1.5 w-1.5 rounded-full bg-white" />}

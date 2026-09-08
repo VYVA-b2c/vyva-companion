@@ -1971,7 +1971,7 @@ function ReportView({
                 </span>
                 <span>
                   <span className="block text-[17px] font-black text-[#2f2135]">Report history</span>
-                  <span className="block text-[13px] font-bold text-[#766b63]">Past checks and trends</span>
+                  <span className="sr-only">Past checks and trends</span>
                 </span>
               </span>
               <ChevronRight size={24} className="text-[#9A8F87]" />

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Camera, LogOut, Mic, ShieldCheck, UserRound, X } from "lucide-react";
+import { Camera, LogOut, Mic, ShieldCheck, X } from "lucide-react";
+import { VyvaIcon } from "@/components/brand/VyvaIcon";
 import { PhoneFrame } from "@/components/onboarding/PhoneFrame";
-import { ProfileSectionHero, seniorInputClassName } from "@/components/onboarding/ProfileSectionHero";
+import { seniorInputClassName } from "@/components/onboarding/ProfileSectionHero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -183,8 +184,8 @@ const COUNTRY_DEFAULTS: Record<string, { timezone: string }> = {
   AE: { timezone: "dubai" },
 };
 
-const accountInputClassName = seniorInputClassName;
-const accountSelectClassName = seniorInputClassName;
+const accountInputClassName = `${seniorInputClassName} rounded-lg shadow-none`;
+const accountSelectClassName = accountInputClassName;
 
 const NAME_GENDER_HINTS: Record<"female" | "male", string[]> = {
   female: [
@@ -559,7 +560,9 @@ export default function AccountSettings() {
 
   return (
     <PhoneFrame
-      subtitle={isHomeMasterPreview ? undefined : t("settings.account.title")}
+      layout="page"
+      className="!rounded-none"
+      subtitle={t("settings.account.title")}
       showBack
       onBack={() => navigate(isHomeMasterPreview ? "/dev/home-master/profile" : "/settings")}
       homeMasterBackPath="/dev/home-master/profile"
@@ -578,44 +581,30 @@ export default function AccountSettings() {
         ) : undefined
       }
     >
-      <div className="home-master-profile-account-content flex flex-col gap-6 px-1 pb-6 pt-5 sm:px-2 md:px-3">
+      <div className="home-master-profile-account-content flex flex-col gap-5 pb-6 pt-1">
         {!isHomeMasterPreview ? (
-          <ProfileSectionHero
-            icon={UserRound}
-            title={t("settings.account.title")}
-            kicker="Your details"
-            description={t("settings.account.subtitle")}
-          />
+          <p className="text-[16px] leading-relaxed text-vyva-text-2">{t("settings.account.subtitle")}</p>
         ) : null}
 
         {showRequiredDetailsReminder ? (
           <div
-            className={[
-              "home-master-profile-account-reminder flex items-start gap-4 rounded-[24px] border px-5 py-4",
-              isHomeMasterPreview
-                ? "bg-white/80 shadow-[0_10px_24px_rgba(53,28,87,0.05)]"
-                : "shadow-[0_12px_28px_rgba(53,28,87,0.06)]",
-            ].join(" ")}
-            style={{ background: isHomeMasterPreview ? undefined : "#FCF7FF", borderColor: "#E9D5FF" }}
+            className="home-master-profile-account-reminder flex items-start gap-3 border-l-2 border-vyva-purple pl-3"
           >
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-vyva-purple shadow-sm">
-              <ShieldCheck size={22} />
+            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+              <VyvaIcon icon={ShieldCheck} size={22} accent="check" />
             </div>
             <div>
-              <p className="font-body text-[16px] font-black" style={{ color: "#5B21B6" }}>
-                {isHomeMasterPreview ? "Required basics" : accountCopy.minimumInfoTitle}
-              </p>
-              <p className="mt-1 font-body text-[14px] leading-relaxed" style={{ color: "#7A7290" }}>
+              <p className="font-body text-[15px] leading-relaxed text-vyva-text-2">
                 {isHomeMasterPreview ? "First name, last name, and phone number." : accountCopy.minimumInfoHint}
               </p>
             </div>
           </div>
         ) : null}
 
-        <div className="home-master-profile-account-avatar-card flex flex-col items-center gap-3 rounded-[28px] border border-[#EFE4D5] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(53,28,87,0.06)]">
+        <div className="home-master-profile-account-avatar-card flex flex-wrap items-center gap-4 border-b border-vyva-purple/15 pb-5">
           <div className="relative">
             <div
-              className="flex h-[112px] w-[112px] items-center justify-center overflow-hidden rounded-full text-[40px] font-black text-white shadow-[0_18px_34px_rgba(107,33,168,0.18)]"
+              className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full text-[28px] font-bold text-white"
               style={{ background: "#6B21A8" }}
             >
               {avatarUrl ? (
@@ -659,7 +648,7 @@ export default function AccountSettings() {
             data-testid="input-avatar-file"
           />
 
-          <p className="text-center font-body text-[14px] font-semibold" style={{ color: "#7A7290" }}>
+          <p className="min-w-[140px] flex-1 font-body text-[14px] leading-relaxed text-vyva-text-2">
             {t("settings.account.photoHint", "This photo will appear on your community profile")}
           </p>
         </div>

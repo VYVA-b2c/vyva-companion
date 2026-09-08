@@ -296,7 +296,7 @@ export function CardHubTemplate({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-body text-[18px] font-black leading-tight">{card.title}</span>
-                <span className={cx("mt-1 block truncate font-body text-[12px] font-bold", colors.muted)}>{card.detail}</span>
+                <span className="sr-only">{card.detail}</span>
               </span>
               <ChevronRight size={18} strokeWidth={2.5} aria-hidden="true" />
             </button>
@@ -336,7 +336,7 @@ export function GuidedFlowTemplate({ theme = "light" }: { theme?: TemplateTheme 
           >
             <span>
               <span className="block font-body text-[18px] font-black">{label}</span>
-              <span className={cx("mt-1 block font-body text-[12px] font-bold", colors.muted)}>{detail}</span>
+              <span className="sr-only">{detail}</span>
             </span>
             <ChevronRight size={18} strokeWidth={2.5} aria-hidden="true" />
           </button>

@@ -229,11 +229,11 @@
         "openLabel": "Wohlbefinden öffnen"
       },
       "cognitive": {
-        "title": "Mein Gehirn",
+        "title": "Denkkraft",
         "subtitle": "Gedaechtnis, Fokus und Ruhe",
         "bubble": "Ich helfe, den Geist in Ihrem Tempo aktiv zu halten.",
-        "micLabel": "Mein Gehirn oeffnen",
-        "openLabel": "Mein Gehirn oeffnen"
+        "micLabel": "Denkkraft öffnen",
+        "openLabel": "Denkkraft öffnen"
       },
       "social": {
         "title": "Community",

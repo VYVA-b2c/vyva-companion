@@ -87,7 +87,7 @@ export function ProfileVoiceAction({
         <strong className="block text-[17px] leading-tight">
           {busy && busyLabel ? busyLabel : title}
         </strong>
-        <span className="mt-1 block text-[14px] leading-snug opacity-80">
+        <span className="sr-only">
           {description}
         </span>
       </span>
@@ -144,7 +144,7 @@ export function ProfileNoneOption({
       <span className="min-w-0">
         <strong className="block text-[16px] leading-tight">{title}</strong>
         {description ? (
-          <span className="mt-0.5 block text-[13px] leading-snug opacity-75">
+          <span className="sr-only">
             {description}
           </span>
         ) : null}

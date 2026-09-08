@@ -353,7 +353,7 @@ const HOME_FAST_ACTIONS: Array<Pick<HomeFastAction, "id" | "icon" | "tone">> = [
 
 const HOME_AGENT_MOBILE_COPY: Record<HomeAgentCard["id"], { title: string; subtitle: string }> = {
   health: { title: "My Health", subtitle: "Check-ins, vitals, medicines" },
-  cognitive: { title: "My Brain", subtitle: "Memory, focus, calm" },
+  cognitive: { title: "Brain Power", subtitle: "Memory, focus, calm" },
   social: { title: "Community", subtitle: "Rooms and support" },
   concierge: { title: "Concierge", subtitle: "Everyday help" },
 };
@@ -1361,7 +1361,7 @@ const HomeScreen = ({ menuPath = "/menu", onShellNavigate }: HomeScreenProps = {
       id: "mind-memory",
       icon: Brain,
       iconAccent: "bridge",
-      title: t("home.master.cards.mindMemoryShortTitle", "My Brain"),
+      title: t("home.master.cards.mindMemoryShortTitle", "Brain Power"),
       detail: t("home.master.cards.mindMemoryDetailShort", "Memory, focus, calm"),
       tone: { iconBg: "#F5F3FF", iconColor: "#6B21A8", border: "#DDD6FE", surface: "#FFFFFF" },
       onClick: () => {
@@ -3097,7 +3097,7 @@ const HomeScreen = ({ menuPath = "/menu", onShellNavigate }: HomeScreenProps = {
                   <span className="block truncate font-display text-[19px] font-semibold leading-none">
                     {item.label}
                   </span>
-                  <span className={["mt-1 block truncate font-body text-[11.5px] font-extrabold", isHomeMasterDark ? "text-[#DCCFEF]" : "text-[#9A8A9E]"].join(" ")}>
+                  <span className="sr-only">
                     {item.detail}
                   </span>
                 </span>

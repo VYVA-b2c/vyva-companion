@@ -117,7 +117,7 @@ export default function ShowVyvaFollowUpPanel({
                 <span className="block font-body text-[14px] font-black leading-tight">
                   {t(`showVyva.followUp.action.${action.id}.label`, action.label)}
                 </span>
-                <span className="mt-0.5 block font-body text-[12px] font-bold leading-snug opacity-80">
+                <span className="sr-only">
                   {t(`showVyva.followUp.action.${action.id}.detail`, action.detail)}
                 </span>
               </span>

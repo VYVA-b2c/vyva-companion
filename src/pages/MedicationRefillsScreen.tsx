@@ -385,7 +385,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={Camera} tone="purple" goldAccent="spark" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[18px] font-black text-vyva-text-1">Take or upload a photo</span>
-              <span className="mt-1 block font-body text-[13px] font-semibold text-vyva-text-2">Show the full label and package quantity.</span>
+              <span className="sr-only">Show the full label and package quantity.</span>
             </span>
             <ChevronRight size={21} className="text-vyva-purple" aria-hidden="true" />
           </button>
@@ -395,7 +395,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={Keyboard} tone="purple" goldAccent="pencil" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[18px] font-black text-vyva-text-1">Enter it myself</span>
-              <span className="mt-1 block font-body text-[13px] font-semibold text-vyva-text-2">Add a purchase and confirm the daily routine.</span>
+              <span className="sr-only">Add a purchase and confirm the daily routine.</span>
             </span>
             <ChevronRight size={21} className="text-vyva-purple" aria-hidden="true" />
           </button>
@@ -404,7 +404,7 @@ export default function MedicationRefillsScreen() {
             <CanonicalFlowIcon icon={PackageOpen} tone="gold" goldAccent="target" />
             <span className="min-w-0 flex-1">
               <span className="block font-body text-[16px] font-black text-vyva-text-1">Count what I have now</span>
-              <span className="mt-1 block font-body text-[12px] font-semibold text-vyva-text-2">Reset the estimate from today’s actual stock.</span>
+              <span className="sr-only">Reset the estimate from today’s actual stock.</span>
             </span>
           </button>
           {captureError ? <p role="alert" className="rounded-[16px] border border-[#F3D1CC] bg-[#FFF5F4] p-3 font-body text-[13px] font-bold text-[#9B2C21]">{captureError}</p> : null}

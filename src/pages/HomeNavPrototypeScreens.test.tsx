@@ -195,7 +195,7 @@ describe("Home/Nav prototype screens", () => {
     );
     expect(menuCards).toHaveLength(4);
     expect(screen.getByText("My Health")).toBeInTheDocument();
-    expect(screen.getByText("My Brain")).toBeInTheDocument();
+    expect(screen.getByText("Brain Power")).toBeInTheDocument();
     expect(screen.getByText("Community")).toBeInTheDocument();
     expect(screen.getByText("Concierge")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Menu" })).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe("Home/Nav prototype screens", () => {
 
   it("renders the non-Health destination surfaces with the shared peer-screen controls and row grammar", () => {
     const cases = [
-      [<PrototypeBrainScreen key="brain" />, "My Brain", "Rhythm Tap", "Rhythm Tap — this week"],
+      [<PrototypeBrainScreen key="brain" />, "Brain Power", "Rhythm Tap", "Rhythm Tap — this week"],
       [<PrototypeCommunityScreen key="community" />, "Community", "Book Club", "Elena: I loved"],
       [<PrototypeConciergeScreen key="concierge" />, "Concierge", "Ride to Dr. Reyes", "Confirmed for tomorrow"],
       [<PrototypeReportsScreen key="reports" />, "My Reports", "Steps", "Appointments kept"],

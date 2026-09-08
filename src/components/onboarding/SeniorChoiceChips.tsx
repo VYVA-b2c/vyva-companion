@@ -58,7 +58,7 @@ export function SeniorChoiceChips({
             <span className="min-w-0">
               <span className="block text-[16px] font-black leading-tight">{option.label}</span>
               {option.description ? (
-                <span className={cn("mt-0.5 block text-[13px] leading-snug", active ? "text-white/82" : "text-vyva-text-3")}>
+                <span className="sr-only">
                   {option.description}
                 </span>
               ) : null}

@@ -217,7 +217,7 @@ export function HealthWizardChoiceTile({
       <span className="min-w-0 flex-1">
         <span className="block font-body text-[20px] font-black leading-tight">{title}</span>
         {description ? (
-          <span className={cn("mt-1 block font-body text-[16px] font-bold leading-snug", selected ? "text-white/86" : "text-vyva-text-2")}>
+          <span className="sr-only">
             {description}
           </span>
         ) : null}

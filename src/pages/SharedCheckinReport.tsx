@@ -356,7 +356,7 @@ const SharedCheckinReport = () => {
                         <Icon size={19} />
                       </span>
                       <span className="font-body text-[16px] font-black leading-tight text-vyva-text-1">{action.label}</span>
-                      <span className="font-body text-[12px] font-bold leading-snug text-vyva-text-2">{action.description}</span>
+                      <span className="sr-only">{action.description}</span>
                     </button>
                   );
                 })}

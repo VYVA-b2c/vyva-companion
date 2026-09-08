@@ -536,7 +536,7 @@ function RowCard({ item }: { item: RowItem }) {
           {item.title}
         </span>
         <span
-          className={["mt-1 line-clamp-2 font-body font-bold leading-snug", isDark ? "text-[#DDD3EA]" : "text-[#8A8095]"].join(" ")}
+          className="sr-only"
           style={{ fontSize: subtitleSize }}
         >
           {item.subtitle}
@@ -626,7 +626,7 @@ function HealthHubActionCard({ item }: { item: RowItem }) {
           {item.title}
         </span>
         <span
-          className={["mt-1 line-clamp-2 font-body font-bold leading-snug", subtitleSize, isDark ? "text-[#DDD3EA]" : "text-[#8A8095]"].join(" ")}
+          className="sr-only"
         >
           {item.subtitle}
         </span>
@@ -843,9 +843,10 @@ export function PrototypeMenuScreen({
 }: {
   backPath?: string;
 } = {}) {
+  const { t } = useLanguage();
   const items: RowItem[] = [
     { icon: Heart, iconAccent: "pulse", title: "My Health", subtitle: "Check-ins & medicines", tone: "health", path: "/dev/home-master/health", testId: "card-home-agent-health", solidSurface: true },
-    { icon: Brain, iconAccent: "bridge", title: "My Brain", subtitle: "Memory, focus & calm", tone: "brain", path: "/dev/home-master/brain", testId: "card-home-agent-brain", solidSurface: true },
+    { icon: Brain, iconAccent: "bridge", title: t("home.master.cards.mindMemoryShortTitle", "Brain Power"), subtitle: "Memory, focus & calm", tone: "brain", path: "/dev/home-master/brain", testId: "card-home-agent-brain", solidSurface: true },
     { icon: Users, iconAccent: "link", title: "Community", subtitle: "Rooms & support", tone: "community", path: "/dev/home-master/community", testId: "card-home-agent-community", solidSurface: true },
     { icon: Bell, iconAccent: "clapper", title: "Concierge", subtitle: "Everyday help", tone: "concierge", path: "/dev/home-master/concierge", testId: "card-home-agent-concierge", solidSurface: true },
   ];
@@ -995,10 +996,11 @@ export function PrototypeBrainScreen({
   voicePath?: string;
   profilePath?: string;
 } = {}) {
+  const { t } = useLanguage();
   return (
     <DestinationScreen
       testId="prototype-brain-screen"
-      title="My Brain"
+      title={t("home.master.cards.mindMemoryShortTitle", "Brain Power")}
       rows={[
         { icon: Activity, iconAccent: "pulse", title: "Rhythm Tap", subtitle: "A short focus game", meta: "Play", tone: "brain" },
         { icon: UserRound, iconAccent: "id", title: "Face-Name Match", subtitle: "Practice names gently", meta: "Play", tone: "community" },

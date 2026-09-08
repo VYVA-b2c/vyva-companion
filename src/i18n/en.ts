@@ -1331,7 +1331,7 @@
   },
   storyRecall: {
     readLabel: "Short story",
-    readStoryHint: "Read or listen, then hide the story.",
+    readStoryHint: "Read, then hide the story.",
     quizHint: "Answer from memory.",
     retellHint: "Tell the story in your own words.",
     listen: "Listen",
@@ -2191,7 +2191,7 @@
         medsShortTitle: "Pills",
         medsDetailShort: "Medication today",
         mindMemory: "My Mind",
-        mindMemoryShortTitle: "My Brain",
+        mindMemoryShortTitle: "Brain Power",
         mindMemoryDetail: "Memory, reflexes, thinking",
         mindMemoryDetailShort: "Memory, focus, calm",
         doctorShortTitle: "Doctor",

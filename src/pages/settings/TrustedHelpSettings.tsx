@@ -601,7 +601,7 @@ function RuleButtonGroup({
               data-testid={`${testIdPrefix}-${option.id}`}
             >
               <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1">{option.label}</span>
-              <span className="mt-1 block font-body text-[12px] font-bold leading-tight text-vyva-text-2">{option.detail}</span>
+              <span className="sr-only">{option.detail}</span>
             </button>
           );
         })}
@@ -1137,7 +1137,7 @@ export default function TrustedHelpSettings() {
                         data-testid={`button-trusted-help-subservice-${selectedService}-${option.id}`}
                       >
                         <span className="block font-body text-[17px] font-black leading-tight text-vyva-text-1">{option.label}</span>
-                        <span className="mt-1 block font-body text-[12px] font-bold leading-snug text-vyva-text-2">{option.detail}</span>
+                        <span className="sr-only">{option.detail}</span>
                       </button>
                     );
                   })}

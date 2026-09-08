@@ -659,7 +659,7 @@ export default function ConditionsSection() {
                 <p className="font-body text-[18px] font-black leading-tight text-vyva-purple">
                   {t("onboarding.conditions.tellVyva", "Tell VYVA")}
                 </p>
-                <p className="mt-1 font-body text-[14px] font-semibold leading-snug text-vyva-text-2">
+                <p className="sr-only">
                   {t(
                     "onboarding.conditions.tellVyvaDescription",
                     "Say one or more health conditions.",
@@ -835,7 +835,7 @@ export default function ConditionsSection() {
                 </span>
                 <span className="min-w-0">
                   <span className="block font-body text-[17px] font-black">None of these</span>
-                  <span className="mt-0.5 block font-body text-[14px] font-semibold text-vyva-text-2">I don&apos;t have any known conditions.</span>
+                  <span className="sr-only">I don&apos;t have any known conditions.</span>
                 </span>
               </button>
             </OnboardingCompanionTarget>

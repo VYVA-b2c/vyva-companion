@@ -108,7 +108,7 @@ function MovementCoachRoutineShortcuts({
                 <span className="block font-body text-[14px] font-black leading-tight text-vyva-text-1">
                   {card.title}
                 </span>
-                <span className="mt-0.5 block font-body text-[12px] font-bold leading-tight text-vyva-text-2">
+                <span className="sr-only">
                   {card.benefit}
                 </span>
               </span>

@@ -706,7 +706,7 @@ function CaregiverQueueFilters({
                 <span className="text-2xl font-black leading-none">{counts[id]}</span>
               </div>
               <p className="mt-2 text-sm font-black">{label}</p>
-              <p className={`mt-1 text-xs font-bold ${active ? "text-purple-100" : "text-[#8b7a73]"}`}>{description}</p>
+              <p className="sr-only">{description}</p>
             </button>
           );
         })}

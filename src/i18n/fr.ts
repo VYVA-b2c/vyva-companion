@@ -1931,7 +1931,7 @@ const fr = {
         medsShortTitle: "Pilules",
         medsDetailShort: "Medicaments du jour",
         mindMemory: "Mon esprit",
-        mindMemoryShortTitle: "Ma mémoire",
+        mindMemoryShortTitle: "Puissance mentale",
         mindMemoryDetail: "Memoire, reflexes et calme",
         mindMemoryDetailShort: "Exercices cognitifs",
         doctorShortTitle: "Medecin",

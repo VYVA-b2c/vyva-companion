@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Headphones, Info, Play, Volume2, Waves } from "lucide-react";
+import { Check, Headphones, Info, Play, Waves } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
 import { gameData } from "./shared/gameDataApi";
@@ -133,9 +133,6 @@ function ListenTutorialVisual() {
       ))}
       <div className="absolute left-1/2 top-1/2 flex h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-vyva-hero sm:h-[84px] sm:w-[84px]" style={{ background: BRAND.purple }}>
         <Headphones size={40} strokeWidth={2.2} aria-hidden="true" />
-      </div>
-      <div className="absolute left-[10%] top-[22%] flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-vyva-card" style={{ color: BRAND.teal }}>
-        <Volume2 size={22} aria-hidden="true" />
       </div>
       <div className="absolute bottom-[18%] right-[10%] flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-vyva-card" style={{ color: BRAND.gold }}>
         <Check size={24} strokeWidth={3} aria-hidden="true" />
@@ -641,7 +638,6 @@ export default function ListenClosely({ userId, onExit }) {
                 className="flex min-h-[52px] items-center justify-center gap-2 rounded-full border bg-white px-6 text-[16px] font-extrabold disabled:opacity-60"
                 style={{ borderColor: BRAND.border, color: BRAND.purple }}
               >
-                <Volume2 size={20} />
                 {isCompareMode
                   ? t("games.listenClosely.sampleSounds", "Hear sounds")
                   : t("games.listenClosely.sampleTarget", "Hear target")}

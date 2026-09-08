@@ -84,12 +84,12 @@ export function CanonicalBrainCoachActivityCard({
         />
       </span>
 
-      <span className="min-w-0 self-center lg:self-start">
-        <span className="block font-display text-[20px] font-semibold leading-[1.05] tracking-[-0.025em] lg:text-[22px]">
+      <span className="min-w-0 self-center lg:col-span-3 lg:row-start-3 lg:self-start">
+        <span className="block font-display text-[20px] font-semibold leading-tight tracking-normal lg:text-[22px]">
           {title}
         </span>
         {description ? (
-          <span className="mt-1 line-clamp-2 block font-body text-[13.5px] font-bold leading-snug text-[#8A8095] lg:text-[14px]">
+          <span className="sr-only">
             {description}
           </span>
         ) : null}

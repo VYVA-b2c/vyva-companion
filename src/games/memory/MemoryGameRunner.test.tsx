@@ -114,6 +114,16 @@ async function completeLevelOneVisualMemoryBoard() {
 }
 
 describe("MemoryGameRunner word recall", () => {
+  it("never narrates Word Recall even when the saved audio preference is enabled", async () => {
+    window.localStorage.setItem("vyva_memory_audio_muted", "false");
+    renderWordRecall();
+    await screen.findByRole("button", { name: "Hide words" });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(mocks.speakSequence).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Hide words" }));
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(mocks.speakSequence).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     setLanguage("en");
     mocks.speakSequence.mockClear();

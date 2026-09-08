@@ -99,8 +99,7 @@ describe("BreathGarden component", { timeout: 60_000 }, () => {
 
     fireEvent.click(guided);
     expect(guided).toHaveAttribute("aria-pressed", "true");
-    expect(apiFetchMock).toHaveBeenCalledTimes(2);
-    expect(apiFetchMock.mock.calls.every(([, options]) => JSON.parse(options.body).voiceProfile === "meditation")).toBe(true);
+    expect(apiFetchMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await flushPromises();
@@ -117,8 +116,9 @@ describe("BreathGarden component", { timeout: 60_000 }, () => {
         }),
       }),
     );
-    expect(screen.getByRole("button", { name: "Mute voice guidance" })).toBeDisabled();
-    expect(screen.getByText("Preparing Marco's guidance...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mute voice guidance" })).toBeEnabled();
+    expect(screen.queryByText("Preparing Marco's guidance...")).not.toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some(([url]) => url === "/api/games/tts")).toBe(false);
   });
 
   it("moves automatically from inhale to exhale and pauses without advancing", async () => {

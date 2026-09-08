@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
-import { useHomeMasterTheme } from "@/hooks/useHomeMasterTheme";
-import { cn } from "@/lib/utils";
 import { BrainCoachFlowShell } from "@/components/brain/BrainCoachFlowShell";
 import { CanonicalBrainCoachActivityCard } from "@/components/brain/CanonicalBrainCoachActivityCard";
 import { CanonicalVoiceButton } from "@/components/CanonicalDetailFlowShell";
@@ -25,7 +23,6 @@ const MemoryGamesPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const { isDark } = useHomeMasterTheme();
   const userId = user?.id ?? FALLBACK_USER_ID;
   const module = getBrainCoachModule("memory");
 
@@ -124,14 +121,7 @@ const MemoryGamesPage = () => {
 
       {showExerciseChoices ? (
         <section className="mt-5" data-scene-layout="activity_grid">
-          <h2 className={cn(
-            "px-1 font-body text-[16px] font-black leading-tight sm:text-[17px]",
-            isDark ? "text-[#D8CDE4]" : "text-[#6B5173]",
-          )}>
-            {t("memory.chooseAnother")}
-          </h2>
-
-          <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
             {availableMemoryActivities.map((activity) => {
               const plan = activity.memoryGameType ? manualPlans[activity.memoryGameType] : null;
               const copy = getBrainCoachActivityDisplay(activity, t);

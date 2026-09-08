@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { VyvaIcon } from "@/components/brand/VyvaIcon";
 import { CanonicalVoiceButton } from "@/components/CanonicalDetailFlowShell";
 import { CanonicalBrainCoachActivityCard } from "@/components/brain/CanonicalBrainCoachActivityCard";
@@ -76,7 +76,7 @@ export default function MindMemoryScreen() {
           </button>
 
           <h1 className="truncate text-center font-display text-[24px] font-semibold leading-tight tracking-[-0.03em] text-inherit">
-            {t("mindMemory.heroTitle", "Brain Coach")}
+            {t("home.master.cards.mindMemoryShortTitle", "Brain Power")}
           </h1>
 
           <div className="relative flex justify-end">

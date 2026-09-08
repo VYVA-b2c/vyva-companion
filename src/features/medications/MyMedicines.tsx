@@ -671,7 +671,7 @@ export default function MyMedicines({
                     <CanonicalFlowIcon icon={Camera} goldAccent="camera" />
                     <span>
                       <span className="block font-body text-[16px] font-black text-[#241238]">{t("meds.myMedicines.usePackagePhoto", "Use a package photo")}</span>
-                      <span className="mt-0.5 block font-body text-[13px] font-bold text-[#746A72]">{t("meds.myMedicines.photoOptional", "Optional · you review everything before saving")}</span>
+                      <span className="sr-only">{t("meds.myMedicines.photoOptional", "Optional · you review everything before saving")}</span>
                     </span>
                   </button>
                   {captureError ? <p role="alert" className="rounded-[16px] bg-red-50 px-4 py-3 font-body text-[14px] font-bold text-red-800">{captureError}</p> : null}
@@ -767,7 +767,7 @@ export default function MyMedicines({
               <CanonicalFlowIcon icon={Camera} goldAccent="camera" />
               <span>
                 <span className="block font-body text-[16px] font-black text-[#241238]">{t("meds.myMedicines.photo", "Take or upload a photo")}</span>
-                <span className="block font-body text-[13px] font-bold text-[#746A72]">{t("meds.myMedicines.photoSub", "VYVA drafts the label and supply details")}</span>
+                <span className="sr-only">{t("meds.myMedicines.photoSub", "VYVA drafts the label and supply details")}</span>
               </span>
             </button>
           </div>
