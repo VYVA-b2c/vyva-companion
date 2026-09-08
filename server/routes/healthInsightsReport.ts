@@ -3430,6 +3430,7 @@ function fallbackVideoCandidatesForStep(
   feedbackHistory: LongevityActionEventRow[],
   rotationDate: string,
   language?: string | null,
+  changeSeed?: string | null,
 ): LongevityVideoCandidate[] {
   const suppressed = suppressedVideoIds(feedbackHistory);
   const normalizedLanguage = normalizeVideoLanguage(language);
@@ -3446,7 +3447,7 @@ function fallbackVideoCandidatesForStep(
     .filter((candidate) => videoCandidateIsSafe(candidate) && !suppressed.has(candidate.videoId))
     .sort((a, b) => deterministicScore(`${step.user_id}:${step.pillar}:${rotationDate}:${a.videoId}`) - deterministicScore(`${step.user_id}:${step.pillar}:${rotationDate}:${b.videoId}`));
   const preferredCandidate = templateCandidate ? videoCandidateWithInsights(templateCandidate) : null;
-  const preferred = preferredCandidate && videoCandidateIsSafe(preferredCandidate) && !suppressed.has(preferredCandidate.videoId)
+  const preferred = !changeSeed && preferredCandidate && videoCandidateIsSafe(preferredCandidate) && !suppressed.has(preferredCandidate.videoId)
     ? [preferredCandidate]
     : [];
   return [
@@ -3541,16 +3542,17 @@ async function curateVideoCandidate(input: {
   profile: ProfileSummary;
   feedbackHistory: LongevityActionEventRow[];
   rotationDate: string;
+  changeSeed?: string | null;
 }): Promise<LongevityVideoCandidate | null> {
   const language = normalizeVideoLanguage(input.profile.language_preference);
   if (language !== "en") {
-    return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.rotationDate, language)[0] ?? null;
+    return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.changeSeed ? `${input.rotationDate}:${input.changeSeed}` : input.rotationDate, language, input.changeSeed)[0] ?? null;
   }
 
   const liveCandidates = await searchYoutubeCandidates(input);
   const live = liveCandidates.find((candidate) => normalizeVideoLanguage(candidate.language) === language);
   if (live) return live;
-  return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.rotationDate, language)[0] ?? null;
+  return fallbackVideoCandidatesForStep(input.step, input.feedbackHistory, input.changeSeed ? `${input.rotationDate}:${input.changeSeed}` : input.rotationDate, language, input.changeSeed)[0] ?? null;
 }
 
 async function getOrCreateLongevityProgram(input: {
@@ -3668,7 +3670,9 @@ async function getCachedProgramVideo(input: {
   step: LongevityProgramDayRow;
   feedbackHistory: LongevityActionEventRow[];
   language: string | null | undefined;
+  changeSeed?: string | null;
 }): Promise<{ row: LongevityVideoResourceRow; status: LongevityVideoCurationStatus } | null> {
+  if (input.changeSeed) return null;
   const suppressed = suppressedVideoIds(input.feedbackHistory);
   const desiredLanguage = normalizeVideoLanguage(input.language);
   const rows = await optionalQuery<LongevityVideoResourceRow>("longevity_video_resources", `
@@ -3707,8 +3711,9 @@ async function getOrCreateProgramVideo(input: {
   profile: ProfileSummary;
   feedbackHistory: LongevityActionEventRow[];
   rotationDate: string;
+  changeSeed?: string | null;
 }): Promise<{ video: LongevityVideoResource | null; status: LongevityVideoCurationStatus }> {
-  const cached = await getCachedProgramVideo({ step: input.step, feedbackHistory: input.feedbackHistory, language: input.profile.language_preference });
+  const cached = await getCachedProgramVideo({ step: input.step, feedbackHistory: input.feedbackHistory, language: input.profile.language_preference, changeSeed: input.changeSeed });
   if (cached) return { video: mapVideoRow(cached.row), status: cached.status };
 
   const candidate = await curateVideoCandidate(input);
@@ -3858,6 +3863,7 @@ async function getLongevityProgramLayer(input: {
   plan: LongevityPreventionPlan;
   feedbackHistory: LongevityActionEventRow[];
   rotationDate: string;
+  changeSeed?: string | null;
 }): Promise<LongevityProgramLayer> {
   const priorityPillar = priorityPillarForPlan(input.plan);
   const program = await getOrCreateLongevityProgram(input);
@@ -3868,6 +3874,7 @@ async function getLongevityProgramLayer(input: {
     profile: input.profile,
     feedbackHistory: input.feedbackHistory,
     rotationDate: input.rotationDate,
+    changeSeed: input.changeSeed,
   });
   return {
     activeProgram: mapProgramRow({ ...program, current_day: programDayIndex(isoDateOnly(program.start_date), input.rotationDate) }),
@@ -4875,12 +4882,14 @@ export function composeLongevityCompanionPayload(input: {
   rotationDate?: string;
   activeMoment?: LongevityMoment;
   programLayer?: LongevityProgramLayer | null;
+  changeSeed?: string | null;
 }): LongevityCompanionPayload {
   const priorityPillar = priorityPillarForPlan(input.plan);
   const signals = buildCompanionSignals(input);
   const programStep = input.programLayer?.todayProgramStep ?? null;
   const focusPillar = programStep?.pillar ?? priorityPillar;
   const rotationDate = input.rotationDate ?? todaySeed(input.profile.timezone);
+  const selectionDateSeed = input.changeSeed ? `${rotationDate}:change:${input.changeSeed}` : rotationDate;
   const activeMoment = input.activeMoment ?? activeLongevityMoment(input.profile.timezone);
   const whyToday = buildWhyToday(focusPillar, signals, input.plan);
   const pillarActions = buildPillarActions({
@@ -4888,7 +4897,7 @@ export function composeLongevityCompanionPayload(input: {
     signals,
     dailyContent: input.dailyContent,
     feedbackHistory: input.feedbackHistory,
-    rotationDate,
+    rotationDate: selectionDateSeed,
     activeMoment,
     language: input.profile.language_preference,
   });
@@ -4902,7 +4911,7 @@ export function composeLongevityCompanionPayload(input: {
     signals,
     dailyContent: input.dailyContent,
     feedbackHistory: input.feedbackHistory,
-    rotationDate,
+    rotationDate: selectionDateSeed,
     programStep,
     programAction,
     programVideo: input.programLayer?.todayVideo ?? null,
@@ -5565,6 +5574,9 @@ router.get("/prevention/companion/:userId", async (req: Request, res: Response) 
   if (!profileId) return;
   const userId = storageUserId(profileId, req.user?.id);
   const periodStart = daysAgo(14);
+  const changeSeed = typeof req.query.changeSeed === "string"
+    ? oneLine(req.query.changeSeed).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || null
+    : null;
 
   try {
     const plan = await getFreshPreventionPlan(userId);
@@ -5586,7 +5598,7 @@ router.get("/prevention/companion/:userId", async (req: Request, res: Response) 
       activeMoment,
       language: profile.language_preference,
     });
-    if (cachedPayload) return res.json(cachedPayload);
+    if (!changeSeed && cachedPayload) return res.json(cachedPayload);
 
     const dailyContent = await getDailyContentBundle(userId, conditions, profile, activeMoment);
     const programLayer = await getLongevityProgramLayer({
@@ -5595,6 +5607,7 @@ router.get("/prevention/companion/:userId", async (req: Request, res: Response) 
       plan,
       feedbackHistory,
       rotationDate,
+      changeSeed,
     });
     const payload = composeLongevityCompanionPayload({
       plan,
@@ -5610,6 +5623,7 @@ router.get("/prevention/companion/:userId", async (req: Request, res: Response) 
       rotationDate,
       activeMoment,
       programLayer,
+      changeSeed,
     });
     logDailyContentShown(userId, dailyContentRowsForActions(dailyContent, Object.values(payload.pillarActions)));
     void logLongevityProgramVideoShown({ userId, planId: plan.id, payload }).catch((logErr) => {
