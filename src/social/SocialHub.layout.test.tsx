@@ -153,7 +153,7 @@ describe("SocialHub home-style layout", () => {
     expect(primaryCards).not.toHaveTextContent("Participate");
     expect(primaryCards).not.toHaveTextContent("Join In");
     expect(screen.getByTestId("card-social-primary-experts")).toHaveAccessibleName("Ask an Expert. Talk with a VYVA specialist");
-    expect(primaryCards).not.toHaveTextContent("Movement and clubs");
+    expect(primaryCards).toHaveTextContent("Movement and clubs");
     expect(screen.getByTestId("card-social-primary-activities")).toHaveAccessibleName("What's On. Movement and clubs");
     expect(primaryCards).not.toHaveTextContent("Challenge");
     expect(primaryCards).not.toHaveTextContent("Learn");
