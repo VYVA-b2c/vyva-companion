@@ -309,13 +309,14 @@ test.describe("home master visual contract", () => {
       elements.map((element) => element.getBoundingClientRect().top),
     );
     expect(Math.max(...titleTops) - Math.min(...titleTops)).toBeLessThan(2);
-    const detailsFitOneLine = await page.locator('[data-testid$="-detail"]').evaluateAll((elements) =>
+    const detailsAreScreenReaderOnly = await page.locator('[data-testid$="-detail"]').evaluateAll((elements) =>
       elements.every((element) => {
         const style = getComputedStyle(element);
-        return style.whiteSpace === "nowrap" && element.scrollWidth <= element.clientWidth;
+        return element.classList.contains("sr-only") && style.position === "absolute" &&
+          style.overflow === "hidden" && element.getBoundingClientRect().width <= 1;
       }),
     );
-    expect(detailsFitOneLine).toBe(true);
+    expect(detailsAreScreenReaderOnly).toBe(true);
 
     const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(hasHorizontalOverflow).toBe(false);

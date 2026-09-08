@@ -82,7 +82,7 @@ export default function AdminMenu() {
               key={item.path}
               to={item.path}
               aria-current={active ? "page" : undefined}
-              className={`group flex min-w-[166px] shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 ${
+              className={`group relative flex min-w-[166px] shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 ${
                 active
                   ? "bg-[#2f2135] text-white shadow-sm"
                   : "text-[#4f4352] hover:bg-[#fbf8f5] hover:text-purple-700"
