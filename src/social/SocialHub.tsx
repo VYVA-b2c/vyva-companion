@@ -834,6 +834,9 @@ const SocialHub = ({ roomsOnly = false }: SocialHubProps) => {
         cardGridTestId="social-primary-cards"
         fastHelpTestId="social-fast-help"
         fastHelpTitle={t("community.master.fastHelpTitle", "Fast help")}
+        heroLayoutVariant="canonicalMenu"
+        cardLayoutVariant="canonicalActionGrid"
+        fastHelpLayoutVariant="canonicalActionGrid"
         hero={{
           icon: MessageCircleHeart,
           eyebrow: t("community.master.heroEyebrow", "Community"),
