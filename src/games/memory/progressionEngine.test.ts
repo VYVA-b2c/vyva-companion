@@ -4,6 +4,7 @@ import {
   getRepeatLevelForResult,
   getVisualMemoryLevelProgress,
   MEMORY_LEVEL_UP_ACCURACY,
+  pickVariantForGame,
   pickNextVariantForSameGame,
   VISUAL_MEMORY_ROUNDS_TO_ADVANCE,
 } from "./progressionEngine";
@@ -53,10 +54,27 @@ describe("memory game progression", () => {
   });
 
   it("can exclude the just-played variant before storage history catches up", () => {
-    const nextVariant = pickNextVariantForSameGame([], "memory_match", 1, "memory_match-l1-v1");
+    const nextVariant = pickNextVariantForSameGame([], "memory_match", 1, "memory_match-l1-v1", () => 0);
 
     expect(nextVariant.id).not.toBe("memory_match-l1-v1");
     expect(nextVariant.level).toBe(1);
+  });
+
+  it("randomly rotates the first variant for a fresh session", () => {
+    const firstChoice = pickVariantForGame([], "word_recall", 1, () => 0);
+    const laterChoice = pickVariantForGame([], "word_recall", 1, () => 0.75);
+
+    expect(firstChoice.id).toBe("word_recall-l1-v1");
+    expect(laterChoice.id).not.toBe(firstChoice.id);
+  });
+
+  it("randomly rotates retries while excluding the round just completed", () => {
+    const earlyChoice = pickNextVariantForSameGame([], "word_recall", 1, "word_recall-l1-v1", () => 0);
+    const laterChoice = pickNextVariantForSameGame([], "word_recall", 1, "word_recall-l1-v1", () => 0.75);
+
+    expect(earlyChoice.id).not.toBe("word_recall-l1-v1");
+    expect(laterChoice.id).not.toBe("word_recall-l1-v1");
+    expect(laterChoice.id).not.toBe(earlyChoice.id);
   });
 
   it("advances Visual Memory after one completed board without trapping lower scores", () => {
