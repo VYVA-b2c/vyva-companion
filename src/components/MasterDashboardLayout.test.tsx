@@ -285,8 +285,7 @@ describe("MasterDashboardLayout Home card presentation", () => {
     );
 
     const detail = screen.getByText("Plumber, electrician, cleaning");
-    expect(detail).toHaveClass("hidden");
-    expect(detail).toHaveClass("sm:block");
+    expect(detail).toHaveClass("sr-only");
   });
 
   it("uses compact more copy on mobile and full copy on larger screens", () => {

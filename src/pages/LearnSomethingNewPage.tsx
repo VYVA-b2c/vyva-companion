@@ -685,7 +685,7 @@ function Wizard({
                         ) : null}
                       </span>
                       <span className="mt-4 block text-[19px] font-black leading-tight text-[#2f2135]">{label}</span>
-                      <span className="mt-1 block text-[13px] font-bold leading-snug text-[#7d6b65]">{description}</span>
+                      <span className="sr-only">{description}</span>
                     </button>
                   );
                 })}
@@ -717,7 +717,7 @@ function Wizard({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[17px] font-black leading-tight text-[#2f2135] min-[390px]:text-[18px]">{category.label}</span>
-                        <span className="mt-1 block text-[13px] font-bold leading-snug text-[#7d6b65]">{category.description}</span>
+                        <span className="sr-only">{category.description}</span>
                       </span>
                       {active ? <CheckCircle2 className="h-6 w-6 shrink-0 text-[#6D28D9]" aria-hidden="true" /> : null}
                     </button>
@@ -748,7 +748,7 @@ function Wizard({
                   >
                     <span>
                       <span className="block text-[18px] font-black leading-tight">{option.label}</span>
-                      <span className="mt-1 block text-[14px] font-bold leading-snug text-[#7d6b65]">{option.description}</span>
+                      <span className="sr-only">{option.description}</span>
                     </span>
                     {form.pace === option.id ? <CheckCircle2 className="text-purple-700" size={22} /> : null}
                   </button>
@@ -799,7 +799,7 @@ function Wizard({
                           <span className="rounded-full bg-[#FFF1B8] px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-[#7A4C00]">Recommended</span>
                         ) : null}
                       </span>
-                      <span className="mt-1 block text-[12px] font-bold leading-snug text-[#7d6b65]">{option.description}</span>
+                      <span className="sr-only">{option.description}</span>
                     </button>
                   ))}
                 </div>
@@ -827,7 +827,7 @@ function Wizard({
                           <span className="rounded-full bg-[#FFF1B8] px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-[#7A4C00]">Recommended</span>
                         ) : null}
                       </span>
-                      <span className="mt-1 block text-[12px] font-bold leading-snug text-[#7d6b65]">{option.description}</span>
+                      <span className="sr-only">{option.description}</span>
                     </button>
                   ))}
                 </div>

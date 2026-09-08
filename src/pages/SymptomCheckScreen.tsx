@@ -1950,7 +1950,7 @@ export function IntroScreen({
               </span>
             ) : null}
           </span>
-          <span className={`mt-1 block font-body text-[13px] font-bold leading-snug ${isDark ? "text-[#D8CDE4]" : "text-vyva-text-2"}`}>
+          <span className="sr-only">
             {suggestion.description}
           </span>
         </span>

@@ -392,7 +392,7 @@ const ActivitiesScreen = () => {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-body text-[17px] font-extrabold leading-tight text-vyva-text-1 [overflow-wrap:anywhere]">{activity.title}</span>
-                  <span className="mt-1 block font-body text-[13px] font-semibold leading-snug text-vyva-text-2 [overflow-wrap:anywhere]">{activity.rationale}</span>
+                  <span className="sr-only">{activity.rationale}</span>
                 </span>
                 <span className="shrink-0 rounded-full bg-[#FFF7ED] px-2.5 py-1 text-[12px] font-extrabold text-[#B45309]">
                   {activity.estimatedDurationMinutes} min

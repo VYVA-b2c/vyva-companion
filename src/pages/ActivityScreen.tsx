@@ -812,7 +812,7 @@ const ActivityScreen = () => {
           <span className="block font-body text-[13px] font-bold leading-tight text-vyva-text-1">
             {t("safeHome.actions.orderAids", "Order safety aids")}
           </span>
-          <span className="block font-body text-[11px] font-semibold leading-snug text-vyva-text-2">
+          <span className="sr-only">
             {t("safeHome.actions.orderAidsSub", "Compare simple items before checkout.")}
           </span>
         </span>
@@ -832,7 +832,7 @@ const ActivityScreen = () => {
           <span className="block font-body text-[13px] font-bold leading-tight text-vyva-text-1">
             {t("safeHome.actions.requestQuote", "Request quote")}
           </span>
-          <span className="block font-body text-[11px] font-semibold leading-snug text-vyva-text-2">
+          <span className="sr-only">
             {t("safeHome.actions.requestQuoteSub", "Prepare home help for your approval.")}
           </span>
         </span>
@@ -1247,7 +1247,7 @@ const ActivityScreen = () => {
                     <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1">
                       {t("activity.bookRide", "Find transport")}
                     </span>
-                    <span className="block font-body text-[12px] font-semibold leading-snug text-vyva-text-2">
+                    <span className="sr-only">
                       {t("activity.bookRideSub", "Compare safe ways to get there.")}
                     </span>
                   </span>
@@ -1265,7 +1265,7 @@ const ActivityScreen = () => {
                     <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1">
                       {t("activity.arrangeCompanion", "Arrange companion")}
                     </span>
-                    <span className="block font-body text-[12px] font-semibold leading-snug text-vyva-text-2">
+                    <span className="sr-only">
                       {t("activity.arrangeCompanionSub", "Ask for someone to come with you.")}
                     </span>
                   </span>

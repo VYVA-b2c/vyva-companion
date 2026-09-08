@@ -99,7 +99,7 @@ export default function AdminMenu() {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-black">{item.label}</span>
-                <span className={`mt-0.5 block truncate text-xs font-semibold ${active ? "text-white/70" : "text-[#8b7a73]"}`}>
+                <span className="sr-only">
                   {item.description}
                 </span>
               </span>

@@ -67,8 +67,9 @@ describe("MemoryGamesPage", () => {
       reason: "recommended",
     });
 
-    const heading = await screen.findByText("More exercises");
-    const choices = heading.closest("section");
+    const activity = await screen.findByRole("button", { name: "Remember Later" });
+    const choices = activity.closest("section");
+    expect(screen.queryByText("More exercises")).not.toBeInTheDocument();
     expect(choices).not.toBeNull();
     expect(screen.getByTestId("button-memory-category-voice")).toBeInTheDocument();
     expect(screen.getByTestId("memory-recommended-card").querySelector('[data-vyva-accent="bridge"]')).toBeInTheDocument();
@@ -96,7 +97,8 @@ describe("MemoryGamesPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("More exercises")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Remember Later" })).toBeInTheDocument();
+    expect(screen.queryByText("More exercises")).not.toBeInTheDocument();
     expect(screen.queryByText("Recommended today")).not.toBeInTheDocument();
     expect(screen.queryByText("Start recommended")).not.toBeInTheDocument();
   });

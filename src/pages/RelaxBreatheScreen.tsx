@@ -830,7 +830,7 @@ export default function RelaxBreatheScreen() {
                     data-testid={`button-relax-breathe-intent-${preset.id}`}
                   >
                     <span className="block text-2xl font-extrabold text-[#1F2528]">{preset.label}</span>
-                    <span className="mt-2 block text-sm font-bold text-[#6F625B]">{preset.body}</span>
+                    <span className="sr-only">{preset.body}</span>
                   </button>
                 ))}
               </div>
@@ -1002,7 +1002,7 @@ export default function RelaxBreatheScreen() {
                     data-testid={`button-relax-breathe-option-${option.exerciseSlug}`}
                   >
                     {option.name}
-                    <span className="block text-xs text-[#6F625B]">{option.why}</span>
+                    <span className="sr-only">{option.why}</span>
                   </button>
                 ))}
               </div>

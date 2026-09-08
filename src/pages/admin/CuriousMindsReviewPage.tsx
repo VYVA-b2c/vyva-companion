@@ -324,7 +324,7 @@ export default function CuriousMindsReviewPage() {
                       <span className="text-sm font-black">{queue.label}</span>
                       <span className="text-2xl font-black leading-none">{reviewQueueCounts[queue.id]}</span>
                     </span>
-                    <span className={`mt-1 block text-xs font-bold ${active ? "text-purple-100" : "text-[#8b7a73]"}`}>{queue.description}</span>
+                    <span className="sr-only">{queue.description}</span>
                   </button>
                 );
               })}

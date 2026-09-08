@@ -417,7 +417,7 @@ function FastHelpRoomRow({ room, language, onSelect }: FastHelpRoomRowProps) {
         </span>
         <span className="mt-1 block max-w-[26rem] overflow-hidden break-words font-body text-[14px] font-semibold leading-snug text-vyva-text-2">
           <span className="sm:hidden">{roomCopy.mobileSubtitle}</span>
-          <span className="hidden sm:inline">{roomCopy.subtitle}</span>
+          <span className="sr-only">{roomCopy.subtitle}</span>
         </span>
       </span>
       <span className="hidden shrink-0 items-center gap-1 rounded-full bg-[#FBF7F0] px-3 py-1.5 font-body text-[12px] font-bold text-vyva-text-2 sm:inline-flex">

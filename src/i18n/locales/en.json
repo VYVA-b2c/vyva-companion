@@ -398,11 +398,11 @@
         "openLabel": "Open wellbeing"
       },
       "cognitive": {
-        "title": "My Brain",
+        "title": "Brain Power",
         "subtitle": "Memory, focus and calm",
         "bubble": "I can help you keep your mind active at your pace.",
-        "micLabel": "Open My Brain",
-        "openLabel": "Open My Brain"
+        "micLabel": "Open Brain Power",
+        "openLabel": "Open Brain Power"
       },
       "social": {
         "title": "My Community",

@@ -49,7 +49,7 @@ describe("MindMemoryScreen", () => {
   it("uses the canonical health-hub structure for Brain Coach", () => {
     renderMindMemory();
 
-    expect(screen.getByTestId("mind-memory-canonical-topbar")).toHaveTextContent("Brain Coach");
+    expect(screen.getByTestId("mind-memory-canonical-topbar")).toHaveTextContent("Brain Power");
     expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-flow-id", "brain_coach.activity_session");
     expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-registry-scene", "brain_coach.activity_session.main");
     expect(screen.getByTestId("mind-memory-master-layout")).toHaveAttribute("data-home-master-theme", "light");

@@ -94,7 +94,8 @@ describe("StoryRecallGame", () => {
     renderStoryRecall();
 
     expect(screen.getByText("Level 6 - Build")).toBeInTheDocument();
-    expect(screen.getByText("Read or listen, then hide the story.")).toBeInTheDocument();
+    expect(screen.getByText("Read, then hide the story.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /listen|pause audio|stop audio/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Answer questions" }));
     expect(await screen.findByText("Answer from memory.")).toBeInTheDocument();

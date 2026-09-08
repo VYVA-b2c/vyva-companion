@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Headphones, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Check, Headphones, Loader2, Pause, Play, Eye } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { VyvaIcon } from "@/components/brand/VyvaIcon";
 import { BrainCoachActivityShell, BrainCoachLoadingState } from "@/components/brain/BrainCoachFlowShell";
@@ -37,11 +37,6 @@ const DEFAULT_STATE = {
   last_played_at: null,
   preferred_theme: "garden",
   preferred_duration_seconds: 120,
-};
-
-const GUIDANCE_CUES = {
-  inhale: "Breathe in, gently.",
-  exhale: "Breathe out, slowly.",
 };
 
 function clamp(value, min, max) {
@@ -333,43 +328,6 @@ export default function BreathGarden({
     guidanceAudioRef.current = null;
   }, []);
 
-  const playGuidanceCue = useCallback((nextPhase) => {
-    const url = guidanceUrlsRef.current[nextPhase];
-    if (!url || voiceMuted) return;
-    stopGuidanceAudio();
-    const audio = new Audio(url);
-    audio.volume = 0.82;
-    guidanceAudioRef.current = audio;
-    void audio.play().catch(() => {
-      setAudioWarning(t("games.breathGarden.audioUnavailable", "Voice guidance is unavailable. Continuing audio-free."));
-      setVoiceMuted(true);
-    });
-  }, [stopGuidanceAudio, t, voiceMuted]);
-
-  const prepareGuidanceAudio = useCallback(async () => {
-    if (guidanceUrlsRef.current.inhale && guidanceUrlsRef.current.exhale) return true;
-    setAudioStatus("loading");
-    setAudioWarning("");
-    try {
-      const entries = await Promise.all(Object.entries(GUIDANCE_CUES).map(async ([cue, text]) => {
-        const response = await apiFetch("/api/games/tts", {
-          method: "POST",
-          body: JSON.stringify({ text, language: gameLanguage, voiceProfile: "meditation" }),
-        });
-        if (!response.ok) throw new Error("Voice guidance unavailable");
-        return [cue, URL.createObjectURL(await response.blob())];
-      }));
-      guidanceUrlsRef.current = Object.fromEntries(entries);
-      setAudioStatus("ready");
-      return true;
-    } catch (error) {
-      console.warn("Breath Garden voice guidance could not load.", error);
-      setAudioStatus("error");
-      setAudioWarning(t("games.breathGarden.audioUnavailable", "Voice guidance is unavailable. Continuing audio-free."));
-      return false;
-    }
-  }, [gameLanguage, t]);
-
   useEffect(() => () => {
     stopGuidanceAudio();
     if (agentGuidanceRef.current) stopAgentVoice?.();
@@ -419,8 +377,7 @@ export default function BreathGarden({
     agentGuidanceRef.current = false;
     setAgentStatus("fallback");
     setAudioWarning(t("games.breathGarden.agentUnavailable", "The breathing guide is unavailable. Continuing with simple audio cues."));
-    void prepareGuidanceAudio();
-  }, [prepareGuidanceAudio, t, voice?.lastError]);
+  }, [t, voice?.lastError]);
 
   const loadState = useCallback(async () => {
     if (!userId) {
@@ -560,11 +517,9 @@ export default function BreathGarden({
           remaining_seconds: Math.max(0, Math.ceil(durationRef.current - elapsedMs / 1000)),
         })}`);
         voice.sendText(buildBreathGardenPhasePrompt(phase.phase, language), { invisibleInTranscript: true });
-      } else if (audioStatus === "ready") {
-        playGuidanceCue(phase.phase);
       }
     }
-  }, [agentStatus, audioStatus, elapsedMs, guidanceMode, language, paused, phase.phase, playGuidanceCue, screen, voice, voiceMuted]);
+  }, [agentStatus, audioStatus, elapsedMs, guidanceMode, language, paused, phase.phase, screen, voice, voiceMuted]);
 
   const startSession = async () => {
     accumulatedMsRef.current = 0;
@@ -584,7 +539,6 @@ export default function BreathGarden({
       if (connected) previousPhaseRef.current = "inhale";
       else {
         previousPhaseRef.current = null;
-        void prepareGuidanceAudio();
       }
     }
   };
@@ -691,7 +645,7 @@ export default function BreathGarden({
           className="vyva-tap grid h-10 w-10 place-items-center rounded-full bg-white text-[#6B21A8] shadow-[0_10px_24px_rgba(80,52,109,0.10)] ring-1 ring-black/[0.05]"
           aria-label={voiceMuted ? t("games.breathGarden.unmuteGuidance", "Unmute voice guidance") : t("games.breathGarden.muteGuidance", "Mute voice guidance")}
         >
-          <VyvaIcon icon={audioStatus === "loading" ? Loader2 : voiceMuted ? VolumeX : Volume2} size={20} strokeWidth={2.45} tone="brand" className={audioStatus === "loading" ? "animate-spin" : ""} />
+          <VyvaIcon icon={audioStatus === "loading" ? Loader2 : voiceMuted ? Play : Pause} size={20} strokeWidth={2.45} tone="brand" className={audioStatus === "loading" ? "animate-spin" : ""} />
         </button>
       ) : undefined}
       showHeader={screen !== "completion"}
@@ -735,7 +689,6 @@ export default function BreathGarden({
                   onSelect={() => {
                     setGuidanceMode("guided");
                     setVoiceMuted(false);
-                    void prepareGuidanceAudio();
                   }}
                   title={t("games.breathGarden.guidedWithMarco", "Guided · Marco")}
                   accessibleLabel={t("games.breathGarden.guidedAudio", "Guided audio")}
@@ -752,7 +705,7 @@ export default function BreathGarden({
                   title={t("games.breathGarden.audioFree", "Audio-free")}
                   accessibleLabel={t("games.breathGarden.audioFree", "Audio-free")}
                   accessibleDescription={t("games.breathGarden.audioFreeDescription", "Follow the visual")}
-                  icon={<VolumeX size={19} strokeWidth={2.4} aria-hidden="true" />}
+                  icon={<Eye size={19} strokeWidth={2.4} aria-hidden="true" />}
                 />
               </div>
             </fieldset>

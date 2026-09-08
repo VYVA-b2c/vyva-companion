@@ -668,7 +668,7 @@ export default function VoiceReadinessAdminPage() {
                       <span className="text-xs font-black">{queue.label}</span>
                       <span className="text-xl font-black leading-none">{qaQueueCounts[queue.id]}</span>
                     </span>
-                    <span className={`mt-1 block text-xs font-bold ${active ? "text-purple-100" : "text-[#8b7a73]"}`}>{queue.description}</span>
+                    <span className="sr-only">{queue.description}</span>
                   </button>
                 );
               })}

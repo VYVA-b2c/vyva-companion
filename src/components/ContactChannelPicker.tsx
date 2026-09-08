@@ -35,7 +35,7 @@ export function ContactChannelPicker({ value, onChange, t, testIdPrefix, ariaLab
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-body text-[15px] font-extrabold text-vyva-text-1">{t(channel.labelKey)}</p>
-              <p className="font-body text-[12px] leading-[1.4] text-vyva-text-2">{t(channel.subKey)}</p>
+              <p className="sr-only">{t(channel.subKey)}</p>
             </div>
             <div
               className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${

@@ -366,7 +366,7 @@ const AppShell = ({ children }: { children: ReactNode }) => {
     isDevSymptomAssessmentRoute;
   const isConciergeExperienceRoute = location.pathname === "/concierge";
   const usesHomeMasterShell = isHomeRoute || isHomeMasterMenuRoute || location.pathname === "/health";
-  const ownsPrototypeTopbar = isHomeNavPrototypeTopbarRoute(location.pathname);
+  const ownsPrototypeTopbar = isBrainCoachRoute || isHomeNavPrototypeTopbarRoute(location.pathname);
   const ownsBrainCoachTopbar = ownsPrototypeTopbar && isBrainCoachRoute;
   const usesPrototypeDock = isHomeNavPrototypeDockRoute(location.pathname);
   const hidePrototypeDock = hidesHomeNavPrototypeDock(location.pathname);

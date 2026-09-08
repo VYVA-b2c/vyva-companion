@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { CanonicalBrainCoachActivityCard } from "@/components/brain/CanonicalBrainCoachActivityCard";
 import { useLanguage } from "@/i18n";
 import {

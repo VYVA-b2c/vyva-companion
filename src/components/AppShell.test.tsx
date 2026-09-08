@@ -297,6 +297,16 @@ describe("app shell route layout", () => {
     ["/brain-coach/remember", false],
     ["/brain-coach/activity/remember_later", true],
     ["/memory-games", true],
+    ["/dev/home-master/brain", false],
+    ["/dev/brain/remember", false],
+    ["/dev/brain/focus", false],
+    ["/dev/brain/think", false],
+    ["/dev/brain/calm", false],
+    ["/dev/brain/activity/remember_later", false],
+    ["/dev/brain/memory-games/memory_match", false],
+    ["/dev/brain/attention-boosters/rhythm-tap", false],
+    ["/dev/remember-later", false],
+    ["/mind-memory/cognitive-assessment", false],
   ] as const)("starts the owned Brain Coach surface flush with the viewport on %s", (path, dockless) => {
     render(
       <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}>
@@ -307,6 +317,7 @@ describe("app shell route layout", () => {
     );
 
     const content = screen.getByTestId("app-shell-scroll");
+    expect(screen.queryByTestId("status-bar")).not.toBeInTheDocument();
     expect(content).toHaveClass("pt-0");
     expect(content).not.toHaveClass("pt-6");
     expect(content).toHaveClass(dockless ? "pb-0" : "pb-[112px]");

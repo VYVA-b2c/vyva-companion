@@ -1635,7 +1635,7 @@ const it = {
         medsShortTitle: "Pillole",
         medsDetailShort: "Farmaci di oggi",
         mindMemory: "La mia mente",
-        mindMemoryShortTitle: "La mia mente",
+        mindMemoryShortTitle: "Potere mentale",
         mindMemoryDetail: "Memoria, riflessi e calma",
         mindMemoryDetailShort: "Esercizi cognitivi",
         community: "La mia comunita",

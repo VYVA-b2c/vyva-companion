@@ -6,10 +6,9 @@ import {
   RotateCcw,
   Route,
   Type,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n";
 import { useOptionalVyvaVoice, useTtsReadout } from "@/hooks/useVyvaVoice";
@@ -425,32 +424,6 @@ function pickCompanionLine(lines: string[], key: string) {
   return lines[hash % lines.length] ?? lines[0];
 }
 
-function MemoryAudioToggle({
-  isMuted,
-  onToggle,
-  copy,
-}: {
-  isMuted: boolean;
-  onToggle: () => void;
-  copy: MemoryCompanionCopy;
-}) {
-  const Icon = isMuted ? VolumeX : Volume2;
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={!isMuted}
-      aria-label={isMuted ? copy.unmute : copy.mute}
-      title={isMuted ? copy.unmute : copy.mute}
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D8C7F3] bg-white text-vyva-text-1 shadow-vyva-card"
-    >
-      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FAF7FF] text-vyva-purple">
-        <Icon size={19} />
-      </span>
-    </button>
-  );
-}
-
 function TutorialMemoryCard({
   faceUp = false,
   emoji,
@@ -596,10 +569,8 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const [wordRecallChoicesSeed, setWordRecallChoicesSeed] = useState(0);
   const [wordRecallMessage, setWordRecallMessage] = useState<string | null>(null);
   const [wordRecallVoiceMessage, setWordRecallVoiceMessage] = useState<string | null>(null);
-  const [isMemoryAudioMuted, setIsMemoryAudioMuted] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(MEMORY_AUDIO_STORAGE_KEY) === "true";
-  });
+  // Built-in narration is retired; explicit VYVA voice sessions are separate.
+  const isMemoryAudioMuted = true;
   const [sequenceTutorialSeen, setSequenceTutorialSeen] = useState(() => readSequenceTutorialSeen(userId));
   const [showSequenceTutorial, setShowSequenceTutorial] = useState(false);
   const [showVisualMemoryTutorial, setShowVisualMemoryTutorial] = useState(false);
@@ -883,7 +854,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       const saidReady = wordRecallCommandTerms.ready.some((term) => normalizedTranscript.includes(normalizeRecallWord(term)));
       const saidRepeat = wordRecallCommandTerms.repeat.some((term) => normalizedTranscript.includes(normalizeRecallWord(term)));
 
-      if (saidRepeat) {
+      if (saidRepeat && !isMemoryAudioMuted) {
         wordRecallCommandCooldownRef.current = now;
         wordRecallNarrationKeyRef.current = "";
         setWordRecallMessage(t("wordRecall.commandRepeatHeard"));
@@ -1968,16 +1939,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     }
   };
 
-  const toggleMemoryAudio = () => {
-    setIsMemoryAudioMuted((current) => {
-      const next = !current;
-      if (!next) {
-        wordRecallNarrationKeyRef.current = "";
-      }
-      return next;
-    });
-  };
-
   const onWordRecallBlueChoice = (choice: "blue" | "other") => {
     if (choice === "blue") {
       completeWordRecallDistraction();
@@ -1991,53 +1952,47 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
     return renderBrainRunnerScreen(`word_recall_${wordRecallPhase}`, "playing", `word_recall_${wordRecallPhase}`, (
       <div className="mx-auto w-full max-w-[760px] px-4 pb-4 pt-2">
-        <section className="overflow-hidden rounded-[28px] border border-[#EEE8F1] bg-white p-4 shadow-vyva-card sm:p-5">
-          <h2 className="max-w-[28ch] font-display text-[24px] font-semibold leading-tight text-vyva-text-1 sm:text-[27px]">
-            {wordRecallPhase === "memorize"
-              ? t("wordRecall.studyHint", "Study the words. Hide them when you are ready.")
-              : wordRecallPhase === "distraction"
-                ? t("wordRecall.distractionInstruction", "Take a short pause before recalling the words.")
-                : t("wordRecall.recallInstruction", "Recall as many words as you can.")}
-          </h2>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-white px-3 py-1.5 text-[12px] font-black text-vyva-text-1 shadow-sm">{currentLevelLabel}</span>
-            <span className="rounded-full bg-white px-3 py-1.5 text-[12px] font-black text-vyva-text-1 shadow-sm">
+        <section className="py-4 sm:py-5" data-testid="word-recall-stage">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-[#FFF3C4] px-4 py-2 text-[14px] font-bold text-[#92400E]">{currentLevelLabel}</span>
+            <span className="text-[14px] font-medium text-vyva-text-2">
               {wordRecallPhase === "recall"
                 ? `${t("wordRecall.remembered")} ${rememberedCount}/${wordRecallWords.length}`
                 : `${wordRecallWords.length} ${t("memory.words", "words")}`}
             </span>
           </div>
 
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <MemoryAudioToggle isMuted={isMemoryAudioMuted} onToggle={toggleMemoryAudio} copy={companionCopy} />
-          </div>
+          <h2 className="mt-5 font-display text-[30px] font-normal leading-tight tracking-normal text-vyva-text-1">
+            {wordRecallPhase === "memorize"
+              ? t("wordRecall.memorizeLabel")
+              : wordRecallPhase === "distraction"
+                ? t("wordRecall.distractionTitle")
+                : t("wordRecall.recall")}
+          </h2>
+          <p className="mt-2 text-[16px] font-normal leading-relaxed text-vyva-text-2">
+            {wordRecallPhase === "memorize"
+              ? t("wordRecall.studyHint")
+              : wordRecallPhase === "distraction"
+                ? t("wordRecall.distractionInstruction")
+                : t("wordRecall.recallInstruction")}
+          </p>
 
           {voiceGameContextPanel}
 
           {wordRecallPhase === "memorize" && (
             <>
-              <div className="relative z-10 mt-3 rounded-[18px] border border-[#EADFF8] bg-white p-4">
-                <p className="text-[16px] font-semibold leading-snug text-vyva-text-1">
-                  {t("wordRecall.studyListHint", "Read each word once or twice. No rush.")}
-                </p>
                 {wordRecallMessage && (
-                  <div className="mt-3 rounded-[16px] border border-[#D8C7F3] bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1">
+                  <div role="status" className="mt-3 text-[15px] font-medium text-vyva-text-1">
                     {wordRecallMessage}
                   </div>
                 )}
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {wordRecallWords.map((word, index) => (
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {wordRecallWords.map((word) => (
                   <div
                     key={word}
-                    className="rounded-[18px] border border-white/70 px-4 py-4 text-center shadow-vyva-card sm:rounded-[22px] sm:py-6"
-                    style={{
-                      background: index % 2 === 0 ? "#FFFFFF" : "#FAF7FF",
-                    }}
+                    className="flex min-h-[88px] items-center justify-center rounded-lg border border-vyva-border bg-white px-4 py-5 text-center sm:last:odd:col-span-2"
                   >
-                    <span className="text-[24px] font-semibold leading-tight text-vyva-text-1 sm:text-[28px]">{word}</span>
+                    <span className="break-words text-[24px] font-semibold leading-tight text-vyva-text-1">{word}</span>
                   </div>
                 ))}
               </div>
@@ -2051,8 +2006,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
           )}
 
           {wordRecallPhase === "distraction" && (
-            <div className="mt-4 rounded-[20px] border border-vyva-border bg-[#FFF7ED] p-4 sm:p-5">
-              <p className="text-[17px] font-semibold text-vyva-text-1">{t("wordRecall.distractionTitle")}</p>
+            <div className="mt-5">
               <p className="mt-2 text-[15px] leading-[1.5] text-vyva-text-2">
                 {wordRecallDistractionType === "choose_blue"
                   ? t("wordRecall.distractionChooseBlue")
@@ -2094,8 +2048,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
           {wordRecallPhase === "recall" && (
             <>
-              <div className="mt-4 rounded-[18px] border border-vyva-border bg-vyva-purple-light p-4 sm:p-5">
-                <p className="text-[17px] font-semibold text-vyva-text-1">{t("wordRecall.recallInstruction")}</p>
+              <div className="mt-4">
                 <p className="mt-2 text-[15px] leading-[1.5] text-vyva-text-2">{t("wordRecall.selectRememberedWords")}</p>
               </div>
 
@@ -2251,7 +2204,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
           </div>
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <MemoryAudioToggle isMuted={isMemoryAudioMuted} onToggle={toggleMemoryAudio} copy={companionCopy} />
           </div>
 
           {voiceGameContextPanel}

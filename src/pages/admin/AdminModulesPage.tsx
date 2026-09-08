@@ -162,7 +162,7 @@ export default function AdminModulesPage() {
                       />
                     </div>
                     <h2 className="mt-5 font-serif text-xl font-bold text-[#2f2135]">{module.title}</h2>
-                    <p className="mt-1 min-h-10 text-sm font-semibold leading-relaxed text-[#7d6b65]">{module.description}</p>
+                    <p className="sr-only">{module.description}</p>
                   </Link>
 
                   <div className="mt-5 border-t border-[#f0e7df] pt-4">

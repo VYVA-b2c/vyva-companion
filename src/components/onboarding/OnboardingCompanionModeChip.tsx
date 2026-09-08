@@ -7,6 +7,7 @@ import {
 } from "./useOnboardingCompanionGuidance";
 
 interface OnboardingCompanionModeChipProps {
+  compact?: boolean;
   compactLabel: string;
   voiceLabel: string;
   voiceDescription: string;
@@ -49,6 +50,7 @@ function compactVoiceDiagnosticLabel(
 }
 
 export function OnboardingCompanionModeChip({
+  compact = false,
   compactLabel,
   voiceLabel,
   voiceDescription,
@@ -117,13 +119,13 @@ export function OnboardingCompanionModeChip({
     <div
       data-testid="onboarding-companion-mode-chip"
       data-voice-status={voiceStatus}
-      className={`mt-4 flex flex-col gap-2 rounded-[22px] border bg-white/82 p-2.5 shadow-[0_12px_26px_rgba(91,33,182,0.08)] backdrop-blur transition-colors motion-reduce:transition-none sm:flex-row sm:items-center sm:justify-between ${
+      className={`${compact ? "mt-4 flex flex-col items-end gap-2 border-b pb-4" : "mt-4 flex flex-col gap-2 rounded-[22px] border bg-white/82 p-2.5 shadow-[0_12px_26px_rgba(91,33,182,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between"} transition-colors motion-reduce:transition-none ${
         voiceActive
           ? "border-vyva-purple/35 ring-2 ring-vyva-purple/10"
           : "border-[#E7DCF8]"
       }`}
     >
-      <div className="flex min-w-0 items-center gap-2.5 px-1">
+      <div className={compact ? (voiceActive ? "flex min-w-0 items-center gap-2.5 px-1" : "sr-only") : "flex min-w-0 items-center gap-2.5 px-1"}>
         <span
           className={`relative inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-vyva-purple text-white shadow-[0_8px_18px_rgba(107,33,168,0.22)] ${
             voiceActive ? "motion-safe:animate-pulse" : ""

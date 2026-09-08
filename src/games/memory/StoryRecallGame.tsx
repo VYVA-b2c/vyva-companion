@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Loader2,
-  Pause,
-  Play,
   RotateCcw,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import type { LanguageCode } from "@/i18n/languages";
 import { useAIScoring } from "@/games/shared/useAIScoring";
-import { useTTS } from "@/games/shared/useTTS";
 import {
   BRAIN_COACH_MAX_LEVEL,
   getBrainCoachProgressLabel,
@@ -161,12 +156,9 @@ export default function StoryRecallGame({
   const [retellText, setRetellText] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [audioPaused, setAudioPaused] = useState(false);
   const [result, setResult] = useState<StoryRecallResult | null>(null);
-  const { speak, stop, pause, resume, isSpeaking, isLoading: isAudioLoading, error: ttsError } = useTTS();
   const { scoreRetell } = useAIScoring();
 
-  useEffect(() => () => stop(), [stop]);
 
   const selectedAnswer = answers[questionIndex];
   const currentQuestion = questions[questionIndex] ?? null;
@@ -176,7 +168,7 @@ export default function StoryRecallGame({
   const wordCount = countWords(retellText);
   const currentLevelLabel = getBrainCoachProgressLabel(plan.level);
   const phaseHint = phase === "read"
-    ? t("storyRecall.readStoryHint", "Read or listen, then hide the story.")
+    ? t("storyRecall.readStoryHint", "Read, then hide the story.")
     : phase === "quiz"
       ? t("storyRecall.quizHint", "Answer from memory.")
       : t("storyRecall.retellHint", "Tell the story in your own words.");
@@ -189,29 +181,7 @@ export default function StoryRecallGame({
     </div>
   );
 
-  const handleListen = () => {
-    setMessage(null);
-    if (audioPaused) {
-      resume();
-      setAudioPaused(false);
-      return;
-    }
-    void speak(payload.story, language);
-  };
-
-  const handlePause = () => {
-    pause();
-    setAudioPaused(true);
-  };
-
-  const handleStop = () => {
-    stop();
-    setAudioPaused(false);
-  };
-
   const startQuestions = () => {
-    stop();
-    setAudioPaused(false);
     setPhase(questions.length > 0 ? "quiz" : "retell");
   };
 
@@ -247,8 +217,6 @@ export default function StoryRecallGame({
 
     setMessage(null);
     setSaving(true);
-    stop();
-    setAudioPaused(false);
 
     const retellScore = await scoreRetell(trimmed, payload.keyFacts, language);
     const metrics = calculateStoryRecallMetrics({
@@ -396,39 +364,6 @@ export default function StoryRecallGame({
           <p className="mt-4 rounded-[20px] bg-[#FFF9F1] px-4 py-4 text-[19px] font-semibold leading-[1.65] text-vyva-text-1">
             {payload.story}
           </p>
-
-          <div className="mt-5 grid grid-cols-[1fr_auto_auto] gap-2">
-            <button
-              onClick={handleListen}
-              disabled={isAudioLoading}
-              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] bg-vyva-purple px-4 text-[16px] font-black text-white disabled:opacity-60"
-            >
-              {isAudioLoading ? <Loader2 size={18} className="animate-spin" /> : audioPaused ? <Play size={18} /> : <Volume2 size={18} />}
-              {audioPaused ? t("storyRecall.resumeAudio") : t("storyRecall.listen")}
-            </button>
-            <button
-              onClick={handlePause}
-              disabled={!isSpeaking}
-              className="inline-flex h-[56px] w-[56px] items-center justify-center rounded-[18px] border border-vyva-border bg-white text-vyva-text-1 disabled:opacity-50"
-              aria-label={t("storyRecall.pauseAudio")}
-            >
-              <Pause size={18} />
-            </button>
-            <button
-              onClick={handleStop}
-              disabled={!isSpeaking && !audioPaused && !isAudioLoading}
-              className="inline-flex h-[56px] w-[56px] items-center justify-center rounded-[18px] border border-vyva-border bg-white text-vyva-text-1 disabled:opacity-50"
-              aria-label={t("storyRecall.stopAudio")}
-            >
-              <VolumeX size={18} />
-            </button>
-          </div>
-
-          {ttsError && (
-            <p className="mt-3 rounded-[16px] bg-[#FFF7ED] px-4 py-3 text-[14px] leading-[1.45] text-vyva-text-2">
-              {t("storyRecall.audioUnavailable")}
-            </p>
-          )}
 
           <button
             onClick={startQuestions}

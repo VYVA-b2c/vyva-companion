@@ -1059,7 +1059,7 @@ function HealthPlanChecklist({ items }: { items: HealthPlanChecklistItem[] }) {
                 <span className="block truncate font-body text-[12px] font-black leading-tight text-vyva-text-1">
                   {item.label}
                 </span>
-                <span className="mt-0.5 block truncate font-body text-[11px] font-bold leading-tight text-vyva-text-2">
+                <span className="sr-only">
                   {item.detail}
                 </span>
               </span>
@@ -1091,7 +1091,7 @@ function HealthToolButton({ tool }: { tool: HealthToolAction }) {
         <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1 sm:text-[16px]">
           {tool.label}
         </span>
-        <span className="mt-1 block line-clamp-2 font-body text-[12px] font-bold leading-snug text-vyva-text-2 sm:truncate">
+        <span className="sr-only">
           {tool.detail}
         </span>
       </span>
@@ -1124,7 +1124,7 @@ function HealthSignalCard({ card }: { card: HealthSignalCardItem }) {
         <span className="mt-1.5 line-clamp-1 font-body text-[20px] font-black leading-tight text-vyva-text-1 sm:text-[22px]">
           {card.value}
         </span>
-        <span className="mt-1.5 line-clamp-1 font-body text-[13px] font-semibold leading-snug text-vyva-text-2 sm:text-[14px]">
+        <span className="sr-only">
           {card.detail}
         </span>
         <span className="mt-auto flex items-center justify-between gap-3 pt-2">
@@ -3557,10 +3557,10 @@ const HealthScreen = () => {
                     <span className="block font-body text-[17px] font-black leading-tight text-vyva-text-1 sm:text-[18px]">
                       {action.label}
                     </span>
-                    <span className="mt-1 block max-w-[28rem] font-body text-[13px] font-semibold leading-snug text-vyva-text-2 sm:hidden">
+                    <span className="sr-only">
                       {action.subMobile}
                     </span>
-                    <span className="mt-1 hidden max-w-[28rem] font-body text-[14px] font-semibold leading-snug text-vyva-text-2 sm:block">
+                    <span className="sr-only">
                       {action.sub}
                     </span>
                   </span>
@@ -3748,7 +3748,7 @@ const HealthScreen = () => {
                         <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1">
                           {expert.label}
                         </span>
-                        <span className="mt-1 block font-body text-[12px] font-semibold leading-snug text-vyva-text-2">
+                        <span className="sr-only">
                           {expert.detail}
                         </span>
                       </span>
@@ -4271,7 +4271,7 @@ const HealthScreen = () => {
                               <span className="block font-body text-[15px] font-black leading-tight text-vyva-text-1">
                                 {expert.label}
                               </span>
-                              <span className="mt-1 block font-body text-[12px] font-semibold leading-snug text-vyva-text-2">
+                              <span className="sr-only">
                                 {expert.detail}
                               </span>
                             </span>

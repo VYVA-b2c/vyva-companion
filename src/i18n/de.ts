@@ -1725,7 +1725,7 @@ const de = {
         medsShortTitle: "Tabletten",
         medsDetailShort: "Medikamente heute",
         mindMemory: "Mein Geist",
-        mindMemoryShortTitle: "Mein Geist",
+        mindMemoryShortTitle: "Denkkraft",
         mindMemoryDetail: "Gedachtnis, Reflexe und Ruhe",
         mindMemoryDetailShort: "Kognitive Übungen",
         doctorShortTitle: "Arzt",

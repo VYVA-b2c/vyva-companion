@@ -2461,7 +2461,7 @@ export default function LifecycleAdminPage() {
                       {queue.value}
                     </span>
                   </span>
-                  <span className="mt-2 block text-xs font-semibold text-[#7d6b65]">{queue.detail}</span>
+                  <span className="sr-only">{queue.detail}</span>
                 </button>
               ))}
             </div>
