@@ -2,10 +2,8 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   Check,
   CircleHelp,
-  Mic,
   RotateCcw,
   Route,
-  Type,
 } from "lucide-react";
 import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
@@ -568,7 +566,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const [wordRecallInput, setWordRecallInput] = useState("");
   const [wordRecallChoicesSeed, setWordRecallChoicesSeed] = useState(0);
   const [wordRecallMessage, setWordRecallMessage] = useState<string | null>(null);
-  const [wordRecallVoiceMessage, setWordRecallVoiceMessage] = useState<string | null>(null);
   // Built-in narration is retired; explicit VYVA voice sessions are separate.
   const isMemoryAudioMuted = true;
   const [sequenceTutorialSeen, setSequenceTutorialSeen] = useState(() => readSequenceTutorialSeen(userId));
@@ -578,7 +575,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const sequenceStatusTimeoutRef = useRef<number | null>(null);
   const sequenceProgressRef = useRef(0);
   const lastSequenceTapRef = useRef<{ tileId: string; at: number } | null>(null);
-  const latestWordRecallWordsRef = useRef<string[]>([]);
   const wordRecallNarrationKeyRef = useRef<string>("");
   const wordRecallCommandCooldownRef = useRef(0);
   const isMemoryAudioMutedRef = useRef(isMemoryAudioMuted);
@@ -686,7 +682,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       setWordRecallInput("");
       setWordRecallChoicesSeed((current) => current + 1);
       setWordRecallMessage(null);
-      setWordRecallVoiceMessage(null);
       setShowSequenceTutorial(nextPlan.gameType === "sequence_memory" && !readSequenceTutorialSeen(userId));
       const hasSeenVisualMemoryTutorial = readVisualMemoryTutorialSeen(userId);
       setShowVisualMemoryTutorial(
@@ -820,25 +815,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     [companionCopy, finished, language, loading, plan, saving, speakSequence],
   );
 
-  const { isSupported: wordRecallVoiceSupported, isListening: wordRecallListening, startListening: startWordRecallListening } =
-    useSpeechRecognition({
-      language,
-      onTranscript: (transcript) => {
-        const transcriptParts = splitRecallText(transcript.replace(/\s+y\s+|\s+and\s+|\s+et\s+|\s+und\s+|\s+e\s+|\s+ou\s+/gi, ","));
-        const matchedWords = latestWordRecallWordsRef.current.filter((word) =>
-          transcriptParts.some((part) => wordsMatch(part, word)) || wordsMatch(transcript, word),
-        );
-
-        if (matchedWords.length === 0) {
-          setWordRecallVoiceMessage(t("wordRecall.tryAgain"));
-          return;
-        }
-
-        setWordRecallVoiceMessage(dedupeWords(matchedWords).join(", "));
-        setWordRecallSelectedWords((current) => dedupeWords([...current, ...matchedWords]));
-      },
-    });
-
   const {
     isSupported: wordRecallCommandSupported,
     isListening: wordRecallCommandListening,
@@ -889,10 +865,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       }
     },
   });
-
-  useEffect(() => {
-    latestWordRecallWordsRef.current = wordRecallWords;
-  }, [wordRecallWords]);
 
   useEffect(() => {
     if (plan?.gameType !== "word_recall") return;
@@ -1863,7 +1835,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
   const onWordRecallChipToggle = (word: string) => {
     setWordRecallMessage(null);
-    setWordRecallVoiceMessage(null);
     setWordRecallSelectedWords((current) =>
       current.some((entry) => wordsMatch(entry, word))
         ? current.filter((entry) => !wordsMatch(entry, word))
@@ -1927,18 +1898,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     speakCompanion("recall", `${plan.variantId}-distraction`);
   };
 
-  const startWordRecallVoice = () => {
-    setWordRecallVoiceMessage(null);
-    if (!wordRecallVoiceSupported) {
-      setWordRecallVoiceMessage(t("wordRecall.voiceNotSupported"));
-      return;
-    }
-    const started = startWordRecallListening();
-    if (!started) {
-      setWordRecallVoiceMessage(t("wordRecall.voiceNotSupported"));
-    }
-  };
-
   const onWordRecallBlueChoice = (choice: "blue" | "other") => {
     if (choice === "blue") {
       completeWordRecallDistraction();
@@ -1957,7 +1916,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
             <span className="rounded-full bg-[#FFF3C4] px-4 py-2 text-[14px] font-bold text-[#92400E]">{currentLevelLabel}</span>
             <span className="text-[14px] font-medium text-vyva-text-2">
               {wordRecallPhase === "recall"
-                ? `${t("wordRecall.remembered")} ${rememberedCount}/${wordRecallWords.length}`
+                ? `${rememberedCount}/${wordRecallWords.length}`
                 : `${wordRecallWords.length} ${t("memory.words", "words")}`}
             </span>
           </div>
@@ -1967,14 +1926,14 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
               ? t("wordRecall.memorizeLabel")
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionTitle")
-                : t("wordRecall.recall")}
+                : t("wordRecall.recallInstruction")}
           </h2>
           <p className="mt-2 text-[16px] font-normal leading-relaxed text-vyva-text-2">
             {wordRecallPhase === "memorize"
               ? t("wordRecall.studyHint")
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionInstruction")
-                : t("wordRecall.recallInstruction")}
+                : t("wordRecall.selectRememberedWords")}
           </p>
 
           {voiceGameContextPanel}
@@ -2048,45 +2007,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
           {wordRecallPhase === "recall" && (
             <>
-              <div className="mt-4">
-                <p className="mt-2 text-[15px] leading-[1.5] text-vyva-text-2">{t("wordRecall.selectRememberedWords")}</p>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3">
-                {!wordRecallVoiceSupported && (
-                  <div className="rounded-[16px] border border-vyva-border bg-white px-4 py-3 text-[15px] text-vyva-text-2">
-                    {t("wordRecall.voiceNotSupported")}
-                  </div>
-                )}
-
-                {wordRecallVoiceMessage && (
-                  <div className="rounded-[16px] border border-[#D8C7F3] bg-[#FAF7FF] px-4 py-3 text-[15px] font-medium text-vyva-text-1">
-                    {wordRecallVoiceMessage}
-                  </div>
-                )}
-
-                <div className="rounded-[18px] border border-vyva-border bg-white p-4 shadow-vyva-card sm:rounded-[20px] sm:p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-vyva-text-1">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#F1E7FF] text-vyva-purple">
-                        <Type size={19} aria-hidden="true" />
-                      </span>
-                      <span className="text-[16px] font-semibold">{t("wordRecall.remembered")}</span>
-                    </div>
-                    {wordRecallVoiceSupported && (
-                      <button
-                        type="button"
-                        onClick={startWordRecallVoice}
-                        disabled={wordRecallListening}
-                        aria-label={wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWords")}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#D8C7F3] bg-[#FAF7FF] px-4 text-[15px] font-semibold text-vyva-purple transition-colors hover:bg-[#F1E7FF] disabled:cursor-wait disabled:opacity-70"
-                      >
-                        <Mic size={18} aria-hidden="true" />
-                        {wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWords")}
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-5 flex flex-col gap-3 rounded-[18px] border border-vyva-border bg-white p-3 shadow-vyva-card sm:flex-row sm:rounded-[20px]">
                     <input
                       value={wordRecallInput}
                       onChange={(event) => setWordRecallInput(event.target.value)}
@@ -2099,8 +2020,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
                     >
                       {t("wordRecall.addWord")}
                     </button>
-                  </div>
-                </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2.5">
