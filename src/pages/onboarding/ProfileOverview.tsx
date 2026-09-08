@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import {
   User, Phone, Heart, Pill, AlertTriangle, Stethoscope,
   Building2, Users, ShieldAlert, Lock, CreditCard, Star,
-  CheckCircle2, UserCheck, Sparkles, Smartphone, Utensils, Brain,
+  CheckCircle2, UserCheck, Mic, ArrowLeft, Smartphone, Utensils, Brain,
 } from "lucide-react";
-import { OnboardingCompanionModeToggle } from "@/components/onboarding/OnboardingCompanionModeToggle";
+import { useOnboardingCompanionGuidance } from "@/components/onboarding/useOnboardingCompanionGuidance";
 import { SectionCard } from "@/components/onboarding/SectionCard";
+import { VyvaIcon } from "@/components/brand/VyvaIcon";
 import { deriveCompletedSections } from "@/lib/profileCompletion";
 
 export const PROFILE_OVERVIEW_SECTIONS = [
@@ -105,15 +106,18 @@ function MilestoneStrip({ done, total }: { done: number; total: number }) {
   );
 }
 
-const ProfileOverview = () => {
+const ProfileOverview = ({ preview = false }: { preview?: boolean }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { mode, setMode } = useOnboardingCompanionGuidance({ mode: "voice" });
 
   const { data, isLoading } = useQuery<{
     profile: Record<string, unknown> | null;
     onboardingState: Record<string, unknown> | null;
   }>({
-    queryKey: ["/api/onboarding/state"],
+    queryKey: preview ? ["profile-overview-preview"] : ["/api/onboarding/state"],
+    enabled: !preview,
+    initialData: preview ? { profile: {}, onboardingState: {} } : undefined,
   });
 
   const completedSections = deriveCompletedSections(
@@ -131,34 +135,33 @@ const ProfileOverview = () => {
 
   return (
     <div className="min-h-screen bg-vyva-cream">
-      <div className="mx-auto w-full max-w-[1120px] px-5 pb-6 pt-8">
+      <div className="mx-auto w-full max-w-[920px] px-5 pb-6 pt-8 sm:px-7">
         {/* Header */}
         <div className="pb-5">
-          <div className="rounded-[32px] border border-[#EFE4D5] bg-[linear-gradient(135deg,#FFF8EF_0%,#FFFFFF_55%,#F5ECFF_100%)] p-6 shadow-[0_18px_45px_rgba(53,28,87,0.07)]">
-            <div className="flex flex-col gap-5 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between">
-              <div className="max-w-2xl">
-                <p className="inline-flex rounded-full bg-[#FFF1B8] px-3 py-1 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A4C00]">Profile</p>
-                <h1 className="mt-3 font-display text-[38px] font-semibold leading-[1.02] text-vyva-text-1">{t("profile.overview.title")}</h1>
-                <p className="mt-2 text-[17px] leading-relaxed text-vyva-text-2">
-                  {t("profile.overview.subtitle")}
-                </p>
-              </div>
-              <div className="rounded-[24px] border border-white bg-white/85 px-5 py-4 shadow-sm min-[760px]:min-w-[260px]">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-vyva-purple text-white shadow-[0_12px_24px_rgba(107,33,168,0.2)]">
-                    <Sparkles size={22} />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-vyva-text-3">Setup progress</p>
+          <div>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => navigate("/")} aria-label={t("common.back", "Back")}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-vyva-border bg-white text-vyva-purple shadow-sm">
+                <ArrowLeft size={20} aria-hidden="true" />
+              </button>
+              <h1 className="min-w-0 flex-1 text-center font-display text-[24px] font-bold leading-tight text-vyva-text-1">{t("profile.overview.title")}</h1>
+              <button type="button" onClick={() => setMode(mode === "voice" ? "tactile" : "voice")}
+                aria-label={t("profile.overview.companionMode.voiceLabel", "Voice")}
+                title={t("profile.overview.companionMode.voiceLabel", "Voice")}
+                aria-pressed={mode === "voice"}
+                data-testid="button-profile-voice"
+                className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border border-vyva-purple shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vyva-purple ${mode === "voice" ? "bg-vyva-purple text-white" : "bg-white text-vyva-purple"}`}>
+                <VyvaIcon icon={Mic} size={17} strokeWidth={2.45} tone={mode === "voice" ? "inverse" : "utility"} />
+              </button>
+            </div>
+              <div className="py-6">
                     <p
-                      className="text-[18px] font-black text-vyva-text-1"
+                      className="text-[14px] font-semibold text-vyva-text-2"
                       data-testid="text-profile-completion-count"
                     >
                       {isLoading ? t("profile.overview.loading") : t("profile.overview.completionCount", { done, total })}
                     </p>
-                  </div>
-                </div>
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#F1E7DC]">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-vyva-border" role="progressbar" aria-label={t("profile.overview.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={completionPercent}>
                   <div
                     data-testid="progress-profile-completion"
                     className="h-full rounded-full bg-vyva-purple transition-all"
@@ -166,32 +169,8 @@ const ProfileOverview = () => {
                   />
                 </div>
               </div>
-            </div>
           </div>
         </div>
-
-        <OnboardingCompanionModeToggle
-          title={t("profile.overview.companionMode.title", "Choose your mode")}
-          helperText={t(
-            "profile.overview.companionMode.helper",
-            "Switch between voice and tactile help anytime."
-          )}
-          compactLabel={t("profile.overview.companionMode.compactLabel", "VYVA mode")}
-          voiceLabel={t("profile.overview.companionMode.voiceLabel", "Voice")}
-          voiceDescription={t(
-            "profile.overview.companionMode.voiceDescription",
-            "VYVA can talk you through this page."
-          )}
-          tactileLabel={t("profile.overview.companionMode.tactileLabel", "Tactile")}
-          tactileDescription={t(
-            "profile.overview.companionMode.tactileDescription",
-            "Use touch or keyboard controls quietly."
-          )}
-          accessibleLabel={t(
-            "profile.overview.companionMode.accessibleLabel",
-            "Choose voice or tactile help for profile setup"
-          )}
-        />
 
         {/* Proxy banner */}
         {!isLoading && proxyName && (
@@ -238,7 +217,7 @@ const ProfileOverview = () => {
 
         {/* Section cards */}
         <div
-          className="grid gap-4 overflow-hidden rounded-[24px] border border-vyva-border bg-white shadow-vyva-card md:grid-cols-2 md:overflow-visible md:border-0 md:bg-transparent md:shadow-none xl:grid-cols-3"
+          className="grid gap-4 md:grid-cols-2"
           data-testid="list-profile-sections"
         >
         {PROFILE_OVERVIEW_SECTIONS.map((s) => (

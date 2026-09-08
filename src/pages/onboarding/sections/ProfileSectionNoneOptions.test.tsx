@@ -352,23 +352,18 @@ describe("profile section reviewed-empty choices", () => {
     seedOnboardingState();
     renderSection(<MedicationsSection />);
 
-    const chip = await screen.findByTestId("onboarding-companion-mode-chip");
-    expect(chip).toHaveTextContent("Say the name, strength, or routine.");
-    expect(screen.getByTestId("button-section-companion-primary-voice-action")).toHaveTextContent("Tell VYVA");
-    expect(screen.queryByTestId("button-meds-voice")).not.toBeInTheDocument();
+    const voice = await screen.findByTestId("button-meds-voice");
+    expect(screen.queryByTestId("onboarding-companion-mode-chip")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Medications" })).toHaveLength(1);
+    expect(screen.queryByTestId("button-section-companion-primary-voice-action")).not.toBeInTheDocument();
     expect(screen.queryByText("Add by voice")).not.toBeInTheDocument();
     expect(apiFetchMock).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByTestId("button-section-companion-primary-voice-action"));
-
-    expect(chip).toHaveTextContent("Listening");
-    expect(chip).toHaveTextContent("Tell VYVA the medication name");
+    fireEvent.click(voice);
     expect(apiFetchMock).not.toHaveBeenCalled();
 
     fireEvent.focus(screen.getByTestId("input-med-name-0"));
 
-    expect(chip).toHaveTextContent("Listening");
-    expect(chip).toHaveTextContent("The name is enough to save.");
     expect(screen.getByTestId("card-med-med-1")).toHaveAttribute(
       "data-vyva-companion-target-active",
       "true",
@@ -377,8 +372,6 @@ describe("profile section reviewed-empty choices", () => {
 
     fireEvent.change(screen.getByTestId("input-med-name-0"), { target: { value: "Metformin" } });
 
-    expect(chip).toHaveTextContent("Thinking");
-    expect(chip).toHaveTextContent("Review the medication details");
     expect(screen.getByTestId("button-meds-save").closest("[data-vyva-companion-target]")).toHaveAttribute(
       "data-vyva-companion-target-active",
       "true",
@@ -401,33 +394,21 @@ describe("profile section reviewed-empty choices", () => {
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
-  it("keeps medication voice and tactile modes on the same UI while tactile clears voice target guidance", async () => {
+  it("keeps voice and manual medication entry together without a separate mode panel", async () => {
     seedOnboardingState();
     renderSection(<MedicationsSection />);
 
-    expect(await screen.findByTestId("button-section-companion-primary-voice-action")).toBeInTheDocument();
-    expect(screen.queryByTestId("button-meds-voice")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("button-meds-voice")).toBeInTheDocument();
     expect(screen.getByTestId("button-meds-no-current")).toBeInTheDocument();
     expect(screen.getByTestId("input-med-name-0")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("button-section-companion-mode-tactile"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("onboarding-companion-mode-chip")).toHaveTextContent(
-        "Use touch or keyboard controls quietly.",
-      );
-    });
-    expect(screen.getByTestId("button-meds-voice")).toBeInTheDocument();
+    expect(screen.queryByTestId("onboarding-companion-mode-chip")).not.toBeInTheDocument();
     expect(screen.queryByText("Voice-only medication screen")).not.toBeInTheDocument();
-    expect(document.querySelector("[data-vyva-companion-target-active='true']")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("button-meds-voice"));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("button-section-companion-mode-voice")).toHaveAttribute("aria-checked", "true");
-      expect(screen.getByTestId("onboarding-companion-mode-chip")).toHaveTextContent("Listening");
-    });
-    expect(screen.queryByTestId("button-meds-voice")).not.toBeInTheDocument();
+    expect(screen.getByTestId("button-meds-voice")).toBeInTheDocument();
+    expect(screen.getByTestId("input-med-name-0")).toBeInTheDocument();
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
@@ -435,7 +416,7 @@ describe("profile section reviewed-empty choices", () => {
     seedOnboardingState();
     renderSection(<MedicationsSection />);
 
-    fireEvent.click(await screen.findByTestId("button-section-companion-primary-voice-action"));
+    fireEvent.click(await screen.findByTestId("button-meds-voice"));
     fireEvent.click(screen.getByTestId("button-mock-voice-meds-add"));
 
     await waitFor(() => {
