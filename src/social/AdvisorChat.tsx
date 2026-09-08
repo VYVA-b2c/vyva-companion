@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Info, Loader2, Mic, Send, Square } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/i18n";
 import { apiFetch } from "@/lib/queryClient";
 import { useVyvaVoice, type TranscriptEntry } from "@/hooks/useVyvaVoice";
@@ -133,11 +133,13 @@ export default function AdvisorChat() {
   const apiSlug = isAdvisorSlug(agentSlug) ? agentSlug : null;
   const isMovementCoach = isMovementCoachSlug(agentSlug);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const starterPrompt = (searchParams.get("starter") ?? "").trim().slice(0, 2000);
   const { language } = useLanguage();
   const voice = useVyvaVoice() as AdvisorVoiceControls;
   const [session, setSession] = useState<AdvisorSessionSummary | null>(null);
   const [messages, setMessages] = useState<AdvisorMessage[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(starterPrompt);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
@@ -156,7 +158,10 @@ export default function AdvisorChat() {
     setSession(advisorData.session);
     setMessages(advisorData.messages);
     setIntroDismissed(!advisorData.introRequired || advisorData.messages.length > 0);
-  }, [advisorData]);
+    if (starterPrompt && advisorData.messages.length === 0) {
+      setDraft((current) => current || starterPrompt);
+    }
+  }, [advisorData, starterPrompt]);
 
   const advisor = advisorData?.advisor;
   const advisorDisplayName = advisor ? `${advisor.name} ${advisor.role}` : "";
@@ -374,7 +379,7 @@ export default function AdvisorChat() {
                   <>
                     <div className="mt-5 rounded-[22px] border border-[#E8E2F0] bg-[#FBF7F0] px-4 py-4 text-left">
                       <p className="font-body text-[17px] font-black leading-snug text-vyva-text-1">
-                        {advisor.starter}
+                        {starterPrompt || advisor.starter}
                       </p>
                     </div>
                     <button
@@ -417,7 +422,7 @@ export default function AdvisorChat() {
                   message={{
                     id: "starter",
                     role: "assistant",
-                    text: advisor.starter,
+                    text: starterPrompt || advisor.starter,
                     source: "text",
                     createdAt: new Date().toISOString(),
                   }}

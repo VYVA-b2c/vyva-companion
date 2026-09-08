@@ -283,6 +283,7 @@ const CommunityActivitiesScreen = lazy(() => import("./social/CommunityActivitie
 const ShareStoriesScreen = lazy(() => import("./social/ShareStoriesScreen"));
 const AdvisorHub = lazy(() => import("./social/AdvisorHub"));
 const AdvisorChat = lazy(() => import("./social/AdvisorChat"));
+const BenefitsNavigatorScreen = lazy(() => import("./benefits/BenefitsNavigatorScreen"));
 const MovementExerciseGuideScreen = lazy(() => import("./social/MovementExerciseGuideScreen"));
 const RoomScreen = lazy(() => import("./social/RoomScreen"));
 const ScreenContactSheet = lazy(() => import("./pages/dev/ScreenContactSheet"));
@@ -1223,6 +1224,7 @@ const App = () => (
                   <Route path="/social-rooms/participate" element={<Navigate to="/social-rooms/experts" replace />} />
                   <Route path="/social-rooms/experts" element={<AppShell><AdvisorHub /></AppShell>} />
                   <Route path="/social-rooms/experts/:agentSlug" element={<AppShell><AdvisorChat /></AppShell>} />
+                  <Route path="/benefits" element={<AppShell><BenefitsNavigatorScreen /></AppShell>} />
                   <Route path="/social-rooms/activities" element={<AppShell><CommunityActivitiesScreen /></AppShell>} />
                   <Route path="/social-rooms/share" element={<AppShell><ShareStoriesScreen /></AppShell>} />
                   <Route path="/social-rooms/:slug" element={<AppShell><RoomScreen /></AppShell>} />

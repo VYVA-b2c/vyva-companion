@@ -11,6 +11,7 @@ import {
   MessageCircleHeart,
   Music2,
   Share2,
+  ShieldCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -710,6 +711,15 @@ const SocialHub = ({ roomsOnly = false }: SocialHubProps) => {
       tone: { iconBg: "#F5F3FF", iconColor: "#6B21A8", border: "#DDD6FE", surface: "#FFFFFF" },
       onClick: () => navigate("/social-rooms/experts"),
       testId: "card-social-primary-experts",
+    },
+    {
+      id: "benefits",
+      icon: ShieldCheck,
+      title: t("community.master.cards.benefits", "My Benefits"),
+      detail: t("community.master.cards.benefitsDetail", "You may be owed support"),
+      tone: { iconBg: "#EAF3EE", iconColor: "#0A6B4A", border: "#BFE3D0", surface: "#FFFFFF" },
+      onClick: () => navigate("/benefits"),
+      testId: "card-social-primary-benefits",
     },
     {
       id: "share",
