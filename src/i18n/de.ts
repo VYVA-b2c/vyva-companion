@@ -2162,6 +2162,14 @@ const de = {
       reflectionIntro: "Reflexion",
     },
   },
+  mindMemory: {
+    cards: {
+      strengthenMemory: "Gedächtnis stärken",
+      trainReflexes: "Fokus schärfen",
+      improveThinking: "Denken und planen",
+      sharpenSenses: "Ruhe finden",
+    },
+  },
   recommendationReasons: {
     attention: "Heute arbeiten wir an Fokus und Aufmerksamkeit mit einer einfachen Ubung.",
     executive_function: "Heute arbeiten wir am Gehirntraining mit einer einfachen Ubung.",

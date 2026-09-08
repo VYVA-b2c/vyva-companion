@@ -9,10 +9,10 @@ import {
 describe("brainCoachCatalog", () => {
   it("exposes the four user-facing cognitive modules", () => {
     expect(BRAIN_COACH_MODULES.map(({ id, route, title }) => ({ id, route, title }))).toEqual([
-      { id: "memory", route: "/brain-coach/remember", title: "Remember" },
-      { id: "reflexes", route: "/brain-coach/focus", title: "Focus & React" },
+      { id: "memory", route: "/brain-coach/remember", title: "Boost Memory" },
+      { id: "reflexes", route: "/brain-coach/focus", title: "Sharpen Focus" },
       { id: "thinking", route: "/brain-coach/think", title: "Think & Plan" },
-      { id: "senses", route: "/brain-coach/calm", title: "Calm & Notice" },
+      { id: "senses", route: "/brain-coach/calm", title: "Find Calm" },
     ]);
   });
 

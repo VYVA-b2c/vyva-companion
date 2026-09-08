@@ -58,10 +58,10 @@ describe("MindMemoryScreen", () => {
     expect(screen.queryByText("Cognitive Assessment")).not.toBeInTheDocument();
 
     const expectedCards = [
-      ["card-mind-memory-strengthen-memory", "Remember", "8 activities", "bridge"],
-      ["card-mind-memory-train-reflexes", "Focus & React", "3 activities", "pulse"],
+      ["card-mind-memory-strengthen-memory", "Boost Memory", "8 activities", "bridge"],
+      ["card-mind-memory-train-reflexes", "Sharpen Focus", "3 activities", "pulse"],
       ["card-mind-memory-boost-focus", "Think & Plan", "3 activities", "knobs"],
-      ["card-mind-memory-sharpen-senses", "Calm & Notice", "2 activities", "signal"],
+      ["card-mind-memory-sharpen-senses", "Find Calm", "2 activities", "signal"],
     ] as const;
 
     for (const [testId, title, count, iconAccent] of expectedCards) {

@@ -2332,6 +2332,14 @@ const fr = {
       reflectionIntro: "Reflexion",
     },
   },
+  mindMemory: {
+    cards: {
+      strengthenMemory: "Renforcez votre mémoire",
+      trainReflexes: "Affinez votre attention",
+      improveThinking: "Réfléchissez et planifiez",
+      sharpenSenses: "Retrouvez le calme",
+    },
+  },
   recommendationReasons: {
     attention: "Aujourd'hui, nous travaillons la concentration et l'attention avec un exercice doux.",
     executive_function: "Aujourd'hui, nous travaillons l'entrainement cerebral avec un exercice doux.",

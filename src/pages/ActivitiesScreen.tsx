@@ -95,7 +95,7 @@ const ActivitiesScreen = () => {
     {
       id: "memory",
       icon: BrainCircuit,
-      label: t("mindMemory.cards.strengthenMemory", "Remember"),
+      label: t("mindMemory.cards.strengthenMemory", "Boost Memory"),
       sub: t("mindMemory.cards.strengthenMemoryDetail", "Recall people, places, words, numbers, and future cues."),
       mobileLabel: t("activities.primary.memoryMobile", "Memory"),
       mobileSub: t("activities.primary.memorySubMobile", "Recall practice"),
@@ -107,7 +107,7 @@ const ActivitiesScreen = () => {
     {
       id: "reflexes",
       icon: Route,
-      label: t("mindMemory.cards.trainReflexes", "Focus & React"),
+      label: t("mindMemory.cards.trainReflexes", "Sharpen Focus"),
       sub: t("mindMemory.cards.trainReflexesDetail", "Stay attentive, react, and keep pace."),
       mobileLabel: t("activities.primary.reflexesMobile", "Reflexes"),
       mobileSub: t("activities.primary.reflexesSubMobile", "Quick response"),
@@ -131,7 +131,7 @@ const ActivitiesScreen = () => {
     {
       id: "senses",
       icon: Headphones,
-      label: t("mindMemory.cards.sharpenSenses", "Calm & Notice"),
+      label: t("mindMemory.cards.sharpenSenses", "Find Calm"),
       sub: t("mindMemory.cards.sharpenSensesDetail", "Slow down, breathe, and reconnect with sensory memory."),
       mobileLabel: t("activities.primary.sensesMobile", "Senses"),
       mobileSub: t("activities.primary.sensesSubMobile", "Sound focus"),

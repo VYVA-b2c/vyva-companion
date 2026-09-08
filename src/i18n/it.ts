@@ -2036,6 +2036,14 @@ const it = {
       reflectionIntro: "Riflessione",
     },
   },
+  mindMemory: {
+    cards: {
+      strengthenMemory: "Potenzia la memoria",
+      trainReflexes: "Affina l'attenzione",
+      improveThinking: "Pensa e pianifica",
+      sharpenSenses: "Trova la calma",
+    },
+  },
   recommendationReasons: {
     attention: "Oggi lavoriamo su concentrazione e attenzione con un esercizio delicato.",
     executive_function: "Oggi lavoriamo sull'allenamento mentale con un esercizio delicato.",
