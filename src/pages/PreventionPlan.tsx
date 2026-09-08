@@ -560,6 +560,7 @@ type LongevityCopy = {
   choosePillarLabel: string;
   showPillarLabel: (pillarLabel: string) => string;
   selectedPillarWhy: (pillarLabel: string, momentLabel: string, experienceLabel: string, detail: string) => string;
+  changeThis: string;
   notForMe: string;
   afterWatching: string;
   tryThisNow: string;
@@ -670,6 +671,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `Show ${pillarLabel}`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} is selected for this ${momentLabel.toLowerCase()} because it gives VYVA one practical ${experienceLabel.toLowerCase()} step: ${detail}`,
+    changeThis: "Change this",
     notForMe: "Not for me",
     afterWatching: "After watching",
     tryThisNow: "Try this now",
@@ -816,6 +818,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `Mostrar ${pillarLabel}`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} está seleccionado para esta parte del día (${momentLabel.toLowerCase()}) porque ofrece un paso práctico de ${experienceLabel.toLowerCase()}: ${detail}`,
+    changeThis: "Cambiar",
     notForMe: "No es para mí",
     afterWatching: "Después de verlo",
     tryThisNow: "Probar ahora",
@@ -931,6 +934,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `Afficher ${pillarLabel}`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} est sélectionné pour ce moment (${momentLabel.toLowerCase()}) car cela donne à VYVA une étape pratique de ${experienceLabel.toLowerCase()} : ${detail}`,
+    changeThis: "Changer",
     notForMe: "Pas pour moi",
     afterWatching: "Après la vidéo",
     tryThisNow: "Essayer maintenant",
@@ -1046,6 +1050,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `${pillarLabel} anzeigen`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} ist für diesen Moment (${momentLabel.toLowerCase()}) ausgewählt, weil es einen praktischen ${experienceLabel.toLowerCase()}-Schritt bietet: ${detail}`,
+    changeThis: "Ändern",
     notForMe: "Nicht passend",
     afterWatching: "Nach dem Ansehen",
     tryThisNow: "Jetzt probieren",
@@ -1161,6 +1166,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `Mostra ${pillarLabel}`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} è selezionato per questo momento (${momentLabel.toLowerCase()}) perché offre un passo pratico di ${experienceLabel.toLowerCase()}: ${detail}`,
+    changeThis: "Cambia",
     notForMe: "Non fa per me",
     afterWatching: "Dopo il video",
     tryThisNow: "Prova ora",
@@ -1276,6 +1282,7 @@ const LONGEVITY_COPY: Record<string, LongevityCopy> = {
     showPillarLabel: (pillarLabel) => `Mostrar ${pillarLabel}`,
     selectedPillarWhy: (pillarLabel, momentLabel, experienceLabel, detail) =>
       `${pillarLabel} está selecionado para este momento (${momentLabel.toLowerCase()}) porque oferece um passo prático de ${experienceLabel.toLowerCase()}: ${detail}`,
+    changeThis: "Trocar",
     notForMe: "Não é para mim",
     afterWatching: "Depois de assistir",
     tryThisNow: "Tentar agora",
@@ -2612,16 +2619,18 @@ function buildPreviewCompanion(plan: PreventionPlanData, firstName: string, lang
   };
 }
 
-function usePreventionCompanion(userId: string, language?: string | null) {
+function usePreventionCompanion(userId: string, language?: string | null, changeSeed?: string | null) {
   const queryLanguage = normalizeVideoLanguage(language);
   return useQuery<CompanionPayload>({
-    queryKey: ["prevention-companion", userId, queryLanguage],
+    queryKey: ["prevention-companion", userId, queryLanguage, changeSeed ?? ""],
     enabled: Boolean(userId),
     staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
     retry: false,
     queryFn: async () => {
-      const response = await apiFetch("/api/prevention/companion/" + encodeURIComponent(userId));
+      const params = new URLSearchParams();
+      if (changeSeed) params.set("changeSeed", changeSeed);
+      const response = await apiFetch(`/api/prevention/companion/${encodeURIComponent(userId)}${params.size ? `?${params.toString()}` : ""}`);
       if (!response.ok) throw new Error("Could not load the longevity companion plan");
       return response.json();
     },
@@ -2986,13 +2995,14 @@ export default function PreventionPlan({
   const isPreview = Boolean(previewPlan);
   const userId = isPreview ? "" : user?.id ?? "";
   const firstName = firstNameOverride ?? profileFirstName;
-  const query = usePreventionCompanion(userId, profileLanguage);
+  const [selectedPillar, setSelectedPillar] = useState<PreventionPillar | null>(null);
+  const [changeSeed, setChangeSeed] = useState<string | null>(null);
+  const query = usePreventionCompanion(userId, profileLanguage, changeSeed);
   const pillarStatusQuery = usePillarStatus(userId);
   useLongevityMomentBoundaryRefresh(!isPreview && Boolean(userId), profileTimezone, query.data?.activeMoment ?? null, query.refetch);
   const companion = previewPlan ? buildPreviewCompanion(previewPlan, firstName, profileLanguage, momentOverride) : query.data;
   const plan = companion?.plan;
   const [previewVoiceContext, setPreviewVoiceContext] = useState<{ title: string; prompt: string } | null>(null);
-  const [selectedPillar, setSelectedPillar] = useState<PreventionPillar | null>(null);
   const [openedExperienceKey, setOpenedExperienceKey] = useState<string | null>(null);
   const [feedbackChoiceKey, setFeedbackChoiceKey] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -3315,6 +3325,20 @@ export default function PreventionPlan({
     }
   };
 
+  const handleChangeThis = () => {
+    setFeedbackChoiceKey(null);
+    setFeedbackMessage(null);
+    setOpenedExperienceKey(null);
+    if (heroPillarId && heroPillarId !== priorityPillarId) {
+      setSelectedPillar(heroPillarId);
+    }
+    const nextSeed = `${heroPillarId ?? "today"}-${Date.now().toString(36)}`;
+    setChangeSeed(nextSeed);
+    if (isPreview && heroPillarId) {
+      setSelectedPillar(nextPillarId(heroPillarId));
+    }
+  };
+
   const surfaceClass = isDark
     ? "bg-[radial-gradient(circle_at_50%_-10%,#21162A_0%,#160D1C_46%,#110914_100%)] text-[#F8F2FF]"
     : "bg-[radial-gradient(circle_at_50%_0%,#F4EAFB_0%,#FFF9F3_72%)] text-[#241C30]";
@@ -3406,17 +3430,26 @@ export default function PreventionPlan({
                   {heroVideo ? <ExternalLink size={18} strokeWidth={2.4} /> : <ChevronRight size={18} strokeWidth={2.5} />}
                   {heroCtaLabel}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFeedbackMessage(null);
-                    setFeedbackChoiceKey((current) => current === heroExperienceKey ? null : heroExperienceKey);
-                  }}
-                  className="mt-2 inline-flex min-h-8 items-center rounded-full px-1 font-body text-[12px] font-black text-[#6B21A8]"
-                  aria-expanded={isFeedbackChoosing}
-                >
-                  {copy.notForMe}
-                </button>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleChangeThis}
+                    className="inline-flex min-h-8 items-center rounded-full px-1 font-body text-[12px] font-black text-[#6B21A8]"
+                  >
+                    {copy.changeThis}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeedbackMessage(null);
+                      setFeedbackChoiceKey((current) => current === heroExperienceKey ? null : heroExperienceKey);
+                    }}
+                    className="inline-flex min-h-8 items-center rounded-full px-1 font-body text-[12px] font-black text-[#6B21A8]"
+                    aria-expanded={isFeedbackChoosing}
+                  >
+                    {copy.notForMe}
+                  </button>
+                </div>
                 {isFeedbackChoosing ? (
                   <div className={["mt-2 rounded-[16px] border px-3 py-3", isDark ? "border-white/[0.12] bg-white/[0.06]" : "border-[#EEE8F1] bg-[#FFFBF7]"].join(" ")}>
                     <p className="font-body text-[12px] font-black text-[#854F0B]">{copy.feedbackQuestion}</p>

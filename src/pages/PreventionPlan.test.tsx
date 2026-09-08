@@ -498,7 +498,17 @@ describe("PreventionPlan", () => {
     expect(screen.getAllByRole("button", { name: /^Show / })).toHaveLength(5);
     expect(screen.getByRole("button", { name: "Show Brain & memory" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Show Heart & circulation" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Change this" })).toBeVisible();
     expect(apiFetchMock).toHaveBeenCalledWith("/api/prevention/companion/11111111-1111-4111-8111-111111111111");
+  });
+
+  it("requests a fresh ranked companion selection when changing the current pillar content", async () => {
+    renderPlan();
+    fireEvent.click(await screen.findByRole("button", { name: "Change this" }));
+
+    await waitFor(() =>
+      expect(apiFetchMock).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/prevention\/companion\/11111111-1111-4111-8111-111111111111\?changeSeed=brain-/)),
+    );
   });
 
   it("opens the exact curated YouTube video and records the open event", async () => {

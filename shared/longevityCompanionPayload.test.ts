@@ -489,6 +489,48 @@ describe("longevity companion payload", () => {
     expect(payloadA.pillarActions.calm.title).toBe("Calm option A");
   });
 
+  it("uses a change seed to rotate within the same pillar pool while staying deterministic", () => {
+    const dailyContent: DailyContent = {
+      ...emptyDailyContent,
+      byPillar: {
+        heart: [dailyRow("heart", "Heart option A", "First heart option.", "heart-a")],
+        brain: [
+          dailyRow("brain", "Brain option A", "First brain option.", "brain-a"),
+          dailyRow("brain", "Brain option B", "Second brain option.", "brain-b"),
+          dailyRow("brain", "Brain option C", "Third brain option.", "brain-c"),
+        ],
+        strength: [dailyRow("strength", "Strength option A", "Strength option.", "strength-a")],
+        nourishment: [dailyRow("nourishment", "Nourishment option A", "Nourishment option.", "nourishment-a")],
+        calm: [dailyRow("calm", "Calm option A", "Calm option.", "calm-a")],
+      },
+    };
+    const baseInput = {
+      plan: basePlan,
+      profile: { first_name: "Karim", language_preference: "en", timezone: "Europe/Madrid" },
+      conditions: [],
+      vitals: null,
+      meds: null,
+      cognitive: { sessions_this_week: 1, accuracy_trend: "stable" },
+      mood: null,
+      symptoms: null,
+      dailyContent,
+      feedbackHistory: [],
+      rotationDate: "2026-08-31",
+      activeMoment: "afternoon" as const,
+    };
+
+    const sameSeedA = composeLongevityCompanionPayload({ ...baseInput, changeSeed: "again-1" });
+    const sameSeedB = composeLongevityCompanionPayload({ ...baseInput, changeSeed: "again-1" });
+    const rotatedTitles = new Set(
+      Array.from({ length: 12 }, (_, index) =>
+        composeLongevityCompanionPayload({ ...baseInput, changeSeed: `again-${index}` }).pillarActions.brain.title),
+    );
+
+    expect(sameSeedA.pillarActions.brain.title).toBe(sameSeedB.pillarActions.brain.title);
+    expect(rotatedTitles.size).toBeGreaterThan(1);
+    expect([...rotatedTitles].every((title) => title.startsWith("Brain option"))).toBe(true);
+  });
+
   it("removes near-duplicate optional choices from the guided session", () => {
     const payload = composeLongevityCompanionPayload({
       plan: {
