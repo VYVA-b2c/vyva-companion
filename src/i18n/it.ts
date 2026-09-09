@@ -929,7 +929,7 @@ const it = {
     memorizeInstruction: "Legga queste parole con calma e provi a ricordarle.",
     memorizeLabel: "Memorizza {{count}} parole",
     readyButton: "Sono pronto",
-    recallInstruction: "Quali parole ricordi?",
+    recallInstruction: "Quali {{count}} parole ricordi?",
     selectRememberedWords: "Scegli tutte le parole che ricordi.",
     distractionTitle: "Breve pausa",
     distractionInstruction: "Fai una breve pausa prima di ricordare le parole.",

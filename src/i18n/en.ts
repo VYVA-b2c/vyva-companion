@@ -1299,7 +1299,7 @@
     readyButton: "I'm ready",
     hideWords: "Hide words",
     recall: "Recall",
-    recallInstruction: "Which words do you remember?",
+    recallInstruction: "Which {{count}} words do you remember?",
     selectRememberedWords: "Choose every word you remember.",
     distractionTitle: "Short pause",
     distractionInstruction: "Take a short pause before recalling the words.",

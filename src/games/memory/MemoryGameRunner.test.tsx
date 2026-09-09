@@ -156,6 +156,8 @@ describe("MemoryGameRunner word recall", () => {
     renderWordRecall();
 
     fireEvent.click(await screen.findByRole("button", { name: /hide words/i }));
+    expect(screen.getByRole("heading", { name: "Which 3 words do you remember?" })).toBeInTheDocument();
+    expect(screen.queryByText("0/3")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "bread" }));
     fireEvent.click(await screen.findByRole("button", { name: "milk" }));
     fireEvent.click(await screen.findByRole("button", { name: "cheese" }));

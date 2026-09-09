@@ -1908,16 +1908,11 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   };
 
   if (plan.gameType === "word_recall") {
-    const rememberedCount = wordRecallSelectedWords.length;
-
     return renderBrainRunnerScreen(`word_recall_${wordRecallPhase}`, "playing", `word_recall_${wordRecallPhase}`, (
       <div className="mx-auto w-full max-w-[760px] px-4 pb-4 pt-2">
         <section className="py-4 sm:py-5" data-testid="word-recall-stage">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-[#FFF3C4] px-4 py-2 text-[14px] font-bold text-[#92400E]">{currentLevelLabel}</span>
-            {wordRecallPhase === "recall" && (
-              <span className="text-[14px] font-medium text-vyva-text-2">{rememberedCount}/{wordRecallWords.length}</span>
-            )}
           </div>
 
           <h2 className="mt-5 font-display text-[30px] font-normal leading-tight tracking-normal text-vyva-text-1">
@@ -1925,7 +1920,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
               ? t("wordRecall.memorizeLabel").replace("{{count}}", String(wordRecallWords.length))
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionTitle")
-                : t("wordRecall.recallInstruction")}
+                : t("wordRecall.recallInstruction").replace("{{count}}", String(wordRecallWords.length))}
           </h2>
           <p className="mt-2 text-[16px] font-normal leading-relaxed text-vyva-text-2">
             {wordRecallPhase === "memorize"

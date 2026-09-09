@@ -1028,7 +1028,7 @@ const es = {
     memorizeInstruction: "Lee estas palabras con calma y memorizalas.",
     memorizeLabel: "Memoriza {{count}} palabras",
     readyButton: "Estoy listo",
-    recallInstruction: "¿Qué palabras recuerdas?",
+    recallInstruction: "¿Qué {{count}} palabras recuerdas?",
     selectRememberedWords: "Elige todas las palabras que recuerdes.",
     distractionTitle: "Pausa breve",
     distractionInstruction: "Haz una pausa corta antes de recordar las palabras.",

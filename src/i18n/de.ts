@@ -891,7 +891,7 @@ const de = {
     memorizeInstruction: "Lesen Sie diese Worter in Ruhe und merken Sie sie sich.",
     memorizeLabel: "{{count}} Wörter merken",
     readyButton: "Ich bin bereit",
-    recallInstruction: "An welche Wörter erinnern Sie sich?",
+    recallInstruction: "An welche {{count}} Wörter erinnern Sie sich?",
     selectRememberedWords: "Wählen Sie alle Wörter, an die Sie sich erinnern.",
     distractionTitle: "Kurze Pause",
     distractionInstruction: "Machen Sie eine kurze Pause, bevor Sie die Worter erinnern.",
