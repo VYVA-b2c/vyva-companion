@@ -2871,6 +2871,33 @@ export const insertCommunicationLogSchema = createInsertSchema(communicationsLog
 export type InsertCommunicationLog = z.infer<typeof insertCommunicationLogSchema>;
 export type CommunicationLog = typeof communicationsLog.$inferSelect;
 
+export const whatsappPrivateCheckins = pgTable("whatsapp_private_checkins", {
+  id:                         uuid("id").primaryKey().defaultRandom(),
+  token_hash:                 text("token_hash").notNull().unique(),
+  request_key_hash:           text("request_key_hash").notNull().unique(),
+  communication_id:           uuid("communication_id").references(() => communicationsLog.id, { onDelete: "set null" }),
+  recipient:                  text("recipient").notNull(),
+  language:                   text("language").notNull(),
+  workflow_id:                text("workflow_id").notNull(),
+  workflow_name:              text("workflow_name").notNull(),
+  step_id:                    text("step_id").notNull(),
+  step_name:                  text("step_name").notNull(),
+  questions:                  jsonb("questions").notNull().default([]),
+  response_payload:           jsonb("response_payload"),
+  status:                     text("status").notNull().default("queued"),
+  whatsapp_opt_in_confirmed_at: timestamp("whatsapp_opt_in_confirmed_at", { withTimezone: true }).notNull(),
+  whatsapp_opt_in_source:     text("whatsapp_opt_in_source").notNull(),
+  expires_at:                 timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumed_at:                timestamp("consumed_at", { withTimezone: true }),
+  created_by:                 text("created_by"),
+  created_at:                 timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:                 timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertWhatsappPrivateCheckinSchema = createInsertSchema(whatsappPrivateCheckins).omit({ id: true, created_at: true, updated_at: true });
+export type InsertWhatsappPrivateCheckin = z.infer<typeof insertWhatsappPrivateCheckinSchema>;
+export type WhatsappPrivateCheckin = typeof whatsappPrivateCheckins.$inferSelect;
+
 export const scheduledEvents = pgTable("scheduled_events", {
   id:                uuid("id").primaryKey().defaultRandom(),
   user_id:           text("user_id").notNull(),
