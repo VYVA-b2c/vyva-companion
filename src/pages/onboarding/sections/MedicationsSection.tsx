@@ -12,8 +12,8 @@ import {
 import { useOnboardingAgent } from "@/components/onboarding/useOnboardingAgent";
 import { useOnboardingElevenLabsSectionRuntime } from "@/components/onboarding/useOnboardingElevenLabsSectionRuntime";
 import { createProfileOnboardingAgentSectionConfig } from "@/components/onboarding/profileOnboardingAgentSections";
-import { ProfileSectionHero } from "@/components/onboarding/ProfileSectionHero";
-import { ProfileCompletionBar, ProfileNoneOption, ProfileVoiceAction } from "@/components/onboarding/ProfileSectionControls";
+import { AutoSaveStatusBadge } from "@/components/onboarding/AutoSaveStatusBadge";
+import { ProfileCompletionBar, ProfileNoneOption } from "@/components/onboarding/ProfileSectionControls";
 import { ProfileVoiceDraftReview } from "@/components/onboarding/ProfileVoiceDraftReview";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -615,56 +615,29 @@ export default function MedicationsSection() {
   const inputClassName = "h-14 rounded-[18px] border-[#DDC7FF] bg-white px-4 text-[17px] text-vyva-text-1 shadow-[0_8px_20px_rgba(53,28,87,0.05)] placeholder:text-[#8D7D73] focus-visible:ring-4 focus-visible:ring-vyva-purple/15";
 
   return (
-    <PhoneFrame subtitle="💊 Medications" showBack onBack={() => confirmNavigation("/onboarding/profile")} homeMasterBackPath="/dev/home-master/profile" showAllSections onAllSections={() => confirmNavigation("/onboarding/profile")}>
-      <div className="flex flex-col gap-7 px-1 pb-28 pt-5 sm:px-2 sm:pb-5 md:px-3">
-        <ProfileSectionHero
-          icon={Pill}
-          title={t("onboarding.medications.title", "Medications")}
-          description={t(
-            "onboarding.medications.description",
-            "Add the medicines you take so VYVA can support reminders and safer conversations.",
-          )}
-          compact
-          badges={[
-            { label: "Review before save", color: "green" },
-            { label: "Voice option", color: "amber" },
-            { label: "Name is enough", color: "purple" },
-          ]}
-          autoSave={{
-            autoSaveStatus,
-            savedFading,
-            retryCountdown,
-            onRetryNow: retryNow,
-            testId: "status-meds-autosave",
-          }}
-        />
-
-        {companionMode !== "voice" ? (
-          <OnboardingCompanionTarget targetId={MEDICATION_COMPANION_TARGETS.addByVoice}>
-            <ProfileVoiceAction
-              icon={Mic}
-              title={t("onboarding.medications.tellVyva", "Tell VYVA your medicines")}
-              description={t(
-                "onboarding.medications.tellVyvaDescription",
-                "Say the name, strength, or routine.",
-              )}
-              onClick={startVoiceMedicationCapture}
-              onFocus={() =>
-                setMedicationVoiceGuidance({
-                  voiceStatus: "listening",
-                  currentPrompt: t(
-                    "onboarding.medications.voiceGuidance.addByVoicePrompt",
-                    "Use this to tell VYVA about a medication.",
-                  ),
-                  activeTargetId: MEDICATION_COMPANION_TARGETS.addByVoice,
-                })
-              }
-              testId="button-meds-voice"
-              tone="purple"
-              className="bg-white shadow-[0_8px_18px_rgba(53,28,87,0.06)]"
-            />
-          </OnboardingCompanionTarget>
-        ) : null}
+    <PhoneFrame
+      layout="page"
+      className="!rounded-none"
+      subtitle={t("onboarding.medications.title", "Medications")}
+      showBack
+      onBack={() => confirmNavigation("/onboarding/profile")}
+      homeMasterBackPath="/dev/home-master/profile"
+      showCompanionMode={false}
+      rightAction={(
+        <OnboardingCompanionTarget targetId={MEDICATION_COMPANION_TARGETS.addByVoice}>
+        <button type="button" onClick={startVoiceMedicationCapture}
+          aria-label={t("onboarding.medications.tellVyva", "Tell VYVA your medicines")}
+          title={t("onboarding.medications.tellVyva", "Tell VYVA your medicines")}
+          data-testid="button-meds-voice"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-vyva-purple text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vyva-purple">
+          <Mic size={20} aria-hidden="true" />
+        </button>
+        </OnboardingCompanionTarget>
+      )}
+    >
+      <div className="flex flex-col gap-5 pb-28 pt-5 sm:pb-5">
+        <AutoSaveStatusBadge autoSaveStatus={autoSaveStatus} savedFading={savedFading}
+          retryCountdown={retryCountdown} onRetryNow={retryNow} testId="status-meds-autosave" />
 
         {voiceDraft ? (
           <OnboardingCompanionTarget targetId={MEDICATION_COMPANION_TARGETS.firstMedication}>
@@ -736,7 +709,7 @@ export default function MedicationsSection() {
                   targetId={idx === 0 ? MEDICATION_COMPANION_TARGETS.firstMedication : `medications-medication-${idx + 1}`}
                   key={med.id}
                   data-testid={`card-med-${med.id}`}
-                  className={`relative flex flex-col gap-6 overflow-hidden rounded-[30px] border bg-white p-5 shadow-[0_20px_48px_rgba(53,28,87,0.08)] sm:p-6 ${
+                  className={`relative flex flex-col gap-5 overflow-hidden rounded-lg border bg-white p-4 shadow-sm sm:p-5 ${
                     dirty
                       ? "border-amber-300 ring-1 ring-amber-200"
                       : saved
@@ -744,11 +717,6 @@ export default function MedicationsSection() {
                       : "border-purple-100"
                   }`}
                 >
-                  <div
-                    className={`pointer-events-none absolute inset-x-0 top-0 h-1.5 ${
-                      dirty ? "bg-[#F59E0B]" : saved ? "bg-[#14B87A]" : "bg-[#7D2BE8]"
-                    }`}
-                  />
                   {summaryOnly ? (
                     <div className="flex flex-col gap-4 min-[560px]:flex-row min-[560px]:items-center min-[560px]:justify-between">
                       <div className="flex min-w-0 items-start gap-4">

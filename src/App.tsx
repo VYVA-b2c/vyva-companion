@@ -1116,6 +1116,7 @@ const App = () => (
                     <Route path="/dev/home-master/concierge" element={<HomeMasterConciergePreviewRoute />} />
                     <Route path="/dev/home-master/reports" element={<HomeMasterReportsPreviewRoute />} />
                     <Route path="/dev/home-master/profile" element={<HomeMasterProfilePreviewRoute />} />
+                    <Route path="/dev/profile-overview" element={<ProfileOverview preview />} />
                     <Route path="/dev/home-master/profile/account" element={<HomeMasterProfileActionPreviewRoute kind="account" />} />
                     <Route path="/dev/home-master/profile/health" element={<HomeMasterProfileActionPreviewRoute kind="health" />} />
                     <Route path="/dev/home-master/profile/medicines" element={<HomeMasterProfileActionPreviewRoute kind="medicines" />} />

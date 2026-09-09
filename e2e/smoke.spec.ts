@@ -1438,7 +1438,7 @@ test("symptom check prepares a direct doctor share link when a doctor contact is
   await expectNoHorizontalOverflow(page);
 });
 
-test("profile overview constrains desktop width and switches section rows into cards", async ({ page }) => {
+test("profile overview follows the canonical desktop width and switches section rows into cards", async ({ page }) => {
   await mockApi(page, true);
 
   await page.setViewportSize({ width: 1920, height: 900 });
@@ -1447,11 +1447,11 @@ test("profile overview constrains desktop width and switches section rows into c
 
   const sectionListBox = await page.getByTestId("list-profile-sections").boundingBox();
   expect(sectionListBox).not.toBeNull();
-  expect(sectionListBox!.width).toBeGreaterThan(1000);
-  expect(sectionListBox!.width).toBeLessThanOrEqual(1120);
+  expect(sectionListBox!.width).toBeGreaterThan(800);
+  expect(sectionListBox!.width).toBeLessThanOrEqual(920);
   await expect(page.getByTestId("list-profile-sections")).toHaveCSS(
     "grid-template-columns",
-    /[0-9.]+px [0-9.]+px [0-9.]+px/,
+    /[0-9.]+px [0-9.]+px/,
   );
   await expectNoHorizontalOverflow(page);
 
