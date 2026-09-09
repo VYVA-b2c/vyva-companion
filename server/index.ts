@@ -63,6 +63,10 @@ import { adminLifecycleRouter } from "./routes/adminLifecycle.js";
 import { adminMarketingRouter } from "./routes/adminMarketing.js";
 import intakeRouter from "./routes/intake.js";
 import twilioWebhooksRouter from "./routes/twilioWebhooks.js";
+import {
+  careOperationsWhatsappRouter,
+  publicWhatsappCheckinRouter,
+} from "./routes/whatsappPrivateCheckins.js";
 import sendgridWebhooksRouter from "./routes/sendgridWebhooks.js";
 import resendWebhooksRouter from "./routes/resendWebhooks.js";
 import { authRouter } from "./routes/auth.js";
@@ -254,6 +258,8 @@ app.post("/api/allergies-voice-parse", allergiesVoiceParseHandler);
 app.post("/api/address-voice-parse", addressVoiceParseHandler);
 app.use("/api/intake", express.urlencoded({ extended: false }), intakeRouter);
 app.use("/api/webhooks/twilio", express.urlencoded({ extended: false }), twilioWebhooksRouter);
+app.use("/api/public/whatsapp-private-checkins", publicWhatsappCheckinRouter);
+app.use("/api/integrations/care-operations/whatsapp-private-checkins", careOperationsWhatsappRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/vyva-demo", vyvaDemoRouter);
 app.use("/api/onboarding", authMiddleware, onboardingRouter);
