@@ -106,7 +106,12 @@ export function pickVariantForGame(history: GameResult[], gameType: MemoryGameTy
     history
       .filter((entry) => entry.gameType === gameType)
       .filter((entry) => new Date(entry.completedAt).getTime() >= recentCutoff)
-      .map((entry) => entry.variantId),
+      .flatMap((entry) => {
+        const roundVariants = Array.isArray(entry.metadata?.wordRecallVariantIds)
+          ? entry.metadata.wordRecallVariantIds.filter((value): value is string => typeof value === "string")
+          : [];
+        return [entry.variantId, ...roundVariants];
+      }),
   );
 
   const unusedVariants = levelConfig.variants.filter((variant) => !recentVariantIds.has(variant.id));
@@ -126,7 +131,12 @@ export function pickNextVariantForSameGame(
   const recentVariantIds = new Set(
     sameGameHistory
       .filter((entry) => new Date(entry.completedAt).getTime() >= recentCutoff)
-      .map((entry) => entry.variantId),
+      .flatMap((entry) => {
+        const roundVariants = Array.isArray(entry.metadata?.wordRecallVariantIds)
+          ? entry.metadata.wordRecallVariantIds.filter((value): value is string => typeof value === "string")
+          : [];
+        return [entry.variantId, ...roundVariants];
+      }),
   );
 
   const availableVariants = levelConfig.variants.filter((variant) => variant.id !== excludeVariantId);

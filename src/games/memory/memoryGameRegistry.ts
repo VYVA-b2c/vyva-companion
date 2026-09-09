@@ -214,7 +214,7 @@ function buildWordRecallLevels(sets: WordRecallSet[]): MemoryGameLevel[] {
   const distractionRotation = ["count_backwards", "choose_blue", "breathe_continue"] as const;
   const levelSpecs = MEMORY_GAME_LEVELS.map((level) => ({
     level,
-    count: Math.min(6, 3 + Math.floor((level - 1) / 4)),
+    count: Math.min(6, level + 2),
     distractionType: level <= 4 ? null : distractionRotation[(level - 5) % distractionRotation.length],
   }));
   const languages: LanguageCode[] = ["es", "en", "fr", "de", "it", "pt"];
@@ -228,27 +228,18 @@ function buildWordRecallLevels(sets: WordRecallSet[]): MemoryGameLevel[] {
         ...set.words.slice((spec.level + index - 1) % set.words.length),
         ...set.words.slice(0, (spec.level + index - 1) % set.words.length),
       ];
-      const mixedWords: WordRecallItem[] = [];
-
-      if (spec.level >= 9) {
-        for (let step = 0; mixedWords.length < spec.count && step < sets.length * 6; step += 1) {
-          const sourceSet = sets[(themeIndex + step * 3) % sets.length];
-          const candidate = sourceSet.words[(spec.level + index + step * 2) % sourceSet.words.length];
-          if (!mixedWords.some((item) => item.labels.es === candidate.labels.es)) mixedWords.push(candidate);
-        }
-      }
-
-      const selectedWords = (spec.level >= 9 ? mixedWords : rotatedThemeWords).slice(0, spec.count);
+      const selectedWords = rotatedThemeWords.slice(0, spec.count);
       const selectedSpanishWords = new Set(selectedWords.map((item) => item.labels.es));
       const distractorCandidates = [
+        ...rotatedThemeWords.slice(spec.count),
+        ...wordRecallSimilarDistractors[themeIndex],
         ...set.distractors.slice((spec.level + index) % set.distractors.length),
         ...set.distractors.slice(0, (spec.level + index) % set.distractors.length),
-        ...sets.flatMap((entry) => [...entry.distractors, ...entry.words]),
       ];
       const selectedDistractors = distractorCandidates.filter((item, candidateIndex, candidates) => (
         !selectedSpanishWords.has(item.labels.es)
         && candidates.findIndex((candidate) => candidate.labels.es === item.labels.es) === candidateIndex
-      )).slice(0, spec.count + 1);
+      )).slice(0, 3);
 
       const content = languages.reduce((accumulator, language) => {
         const distractionType = spec.distractionType;
@@ -1158,6 +1149,59 @@ const wordRecallSets: WordRecallSet[] = [
       { labels: { es: "agenda", en: "diary", fr: "agenda", de: "Kalender", it: "agenda", pt: "agenda" } },
     ],
   },
+];
+
+const wordRecallSimilarDistractors: WordRecallItem[][] = [
+  [
+    { labels: { es: "yogur", en: "yogurt", fr: "yaourt", de: "Joghurt", it: "yogurt", pt: "iogurte" } },
+    { labels: { es: "manzana", en: "apple", fr: "pomme", de: "Apfel", it: "mela", pt: "maçã" } },
+    { labels: { es: "arroz", en: "rice", fr: "riz", de: "Reis", it: "riso", pt: "arroz" } },
+  ],
+  [
+    { labels: { es: "espejo", en: "mirror", fr: "miroir", de: "Spiegel", it: "specchio", pt: "espelho" } },
+    { labels: { es: "armario", en: "cupboard", fr: "placard", de: "Schrank", it: "armadio", pt: "armário" } },
+    { labels: { es: "jarrón", en: "vase", fr: "vase", de: "Vase", it: "vaso", pt: "jarra" } },
+  ],
+  [
+    { labels: { es: "oveja", en: "sheep", fr: "mouton", de: "Schaf", it: "pecora", pt: "ovelha" } },
+    { labels: { es: "tortuga", en: "turtle", fr: "tortue", de: "Schildkröte", it: "tartaruga", pt: "tartaruga" } },
+    { labels: { es: "pato", en: "duck", fr: "canard", de: "Ente", it: "anatra", pt: "pato" } },
+  ],
+  [
+    { labels: { es: "pantalón", en: "trousers", fr: "pantalon", de: "Hose", it: "pantaloni", pt: "calças" } },
+    { labels: { es: "chaqueta", en: "jacket", fr: "veste", de: "Jacke", it: "giacca", pt: "casaco" } },
+    { labels: { es: "gorra", en: "cap", fr: "casquette", de: "Kappe", it: "berretto", pt: "boné" } },
+  ],
+  [
+    { labels: { es: "ducharse", en: "shower", fr: "se doucher", de: "duschen", it: "fare la doccia", pt: "tomar banho" } },
+    { labels: { es: "peinarse", en: "comb hair", fr: "se coiffer", de: "kämmen", it: "pettinarsi", pt: "pentear-se" } },
+    { labels: { es: "estirarse", en: "stretch", fr: "s'étirer", de: "dehnen", it: "stirarsi", pt: "alongar-se" } },
+  ],
+  [
+    { labels: { es: "panadería", en: "bakery", fr: "boulangerie", de: "Bäckerei", it: "panetteria", pt: "padaria" } },
+    { labels: { es: "banco", en: "bank", fr: "banque", de: "Bank", it: "banca", pt: "banco" } },
+    { labels: { es: "biblioteca", en: "library", fr: "bibliothèque", de: "Bibliothek", it: "biblioteca", pt: "biblioteca" } },
+  ],
+  [
+    { labels: { es: "recibo", en: "receipt", fr: "reçu", de: "Quittung", it: "ricevuta", pt: "recibo" } },
+    { labels: { es: "cartera", en: "wallet", fr: "portefeuille", de: "Geldbörse", it: "portafoglio", pt: "carteira" } },
+    { labels: { es: "turno", en: "queue number", fr: "numéro", de: "Wartenummer", it: "numero", pt: "senha" } },
+  ],
+  [
+    { labels: { es: "estantería", en: "bookshelf", fr: "bibliothèque", de: "Bücherregal", it: "libreria", pt: "estante" } },
+    { labels: { es: "cortina", en: "curtain", fr: "rideau", de: "Vorhang", it: "tenda", pt: "cortina" } },
+    { labels: { es: "alfombra", en: "rug", fr: "tapis", de: "Teppich", it: "tappeto", pt: "tapete" } },
+  ],
+  [
+    { labels: { es: "pasaporte", en: "passport", fr: "passeport", de: "Reisepass", it: "passaporto", pt: "passaporte" } },
+    { labels: { es: "horario", en: "timetable", fr: "horaire", de: "Fahrplan", it: "orario", pt: "horário" } },
+    { labels: { es: "estación", en: "station", fr: "gare", de: "Bahnhof", it: "stazione", pt: "estação" } },
+  ],
+  [
+    { labels: { es: "tierra", en: "soil", fr: "terre", de: "Erde", it: "terra", pt: "terra" } },
+    { labels: { es: "semilla", en: "seed", fr: "graine", de: "Samen", it: "seme", pt: "semente" } },
+    { labels: { es: "valla", en: "fence", fr: "clôture", de: "Zaun", it: "recinzione", pt: "vedação" } },
+  ],
 ];
 
 const routineTemplates: RoutineTemplate[] = [

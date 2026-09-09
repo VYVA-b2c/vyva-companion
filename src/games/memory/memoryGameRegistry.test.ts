@@ -107,6 +107,22 @@ describe("memory game registry", () => {
     });
   });
 
+  it("increases the Word Recall load across Foundation levels", () => {
+    const wordCounts = memoryGameRegistry.word_recall.levels
+      .slice(0, 5)
+      .map((level) => (level.variants[0].content.en?.payload.words as string[]).length);
+
+    expect(wordCounts).toEqual([3, 4, 5, 6, 6]);
+  });
+
+  it("uses category-matched Word Recall distractors", () => {
+    const clothingRound = memoryGameRegistry.word_recall.levels[13].variants[0].content.en?.payload;
+
+    expect(clothingRound?.words).toEqual(expect.arrayContaining(["sock", "glove", "scarf"]));
+    expect(clothingRound?.distractors).toEqual(expect.arrayContaining(["trousers", "jacket", "cap"]));
+    expect(clothingRound?.distractors).not.toContain("train");
+  });
+
   it("localizes every Connections variant in all supported languages", () => {
     const languages = ["en", "es", "fr", "de", "it", "pt"] as const;
     memoryGameRegistry.association_memory.levels.forEach((level) => {

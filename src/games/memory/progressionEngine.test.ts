@@ -77,6 +77,19 @@ describe("memory game progression", () => {
     expect(laterChoice.id).not.toBe(earlyChoice.id);
   });
 
+  it("avoids every Word Recall variant used by a recent multi-round session", () => {
+    const historyEntry: GameResult = {
+      ...numberResult(1, 100),
+      gameType: "word_recall",
+      cognitiveDomain: "episodic_memory",
+      variantId: "word_recall-l1-v1",
+      metadata: { wordRecallVariantIds: ["word_recall-l1-v1", "word_recall-l1-v2", "word_recall-l1-v3"] },
+    };
+
+    const nextVariant = pickVariantForGame([historyEntry], "word_recall", 1, () => 0);
+    expect(nextVariant.id).toBe("word_recall-l1-v4");
+  });
+
   it("advances Visual Memory after one completed board without trapping lower scores", () => {
     expect(getVisualMemoryLevelProgress([], 4)).toMatchObject({
       completedRounds: 1,
