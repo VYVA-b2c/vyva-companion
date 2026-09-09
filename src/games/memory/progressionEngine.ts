@@ -93,31 +93,55 @@ export function getRecommendedLevelForGame(history: GameResult[], gameType: Memo
   return clampGameLevel(latestLevel, gameType);
 }
 
-export function pickVariantForGame(history: GameResult[], gameType: MemoryGameType, level: number) {
+function pickRandomVariant<T>(variants: T[], random: () => number): T | undefined {
+  if (variants.length === 0) return undefined;
+  const index = Math.min(variants.length - 1, Math.floor(Math.max(0, random()) * variants.length));
+  return variants[index];
+}
+
+export function pickVariantForGame(history: GameResult[], gameType: MemoryGameType, level: number, random: () => number = Math.random) {
   const levelConfig = getGameLevel(gameType, level);
   const recentCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const recentVariantIds = new Set(
     history
       .filter((entry) => entry.gameType === gameType)
       .filter((entry) => new Date(entry.completedAt).getTime() >= recentCutoff)
-      .map((entry) => entry.variantId),
+      .flatMap((entry) => {
+        const roundVariants = Array.isArray(entry.metadata?.wordRecallVariantIds)
+          ? entry.metadata.wordRecallVariantIds.filter((value): value is string => typeof value === "string")
+          : [];
+        return [entry.variantId, ...roundVariants];
+      }),
   );
 
-  return levelConfig.variants.find((variant) => !recentVariantIds.has(variant.id)) ?? levelConfig.variants[0];
+  const unusedVariants = levelConfig.variants.filter((variant) => !recentVariantIds.has(variant.id));
+  return pickRandomVariant(unusedVariants.length > 0 ? unusedVariants : levelConfig.variants, random) ?? levelConfig.variants[0];
 }
 
-export function pickNextVariantForSameGame(history: GameResult[], gameType: MemoryGameType, level: number, excludeVariantId?: string) {
+export function pickNextVariantForSameGame(
+  history: GameResult[],
+  gameType: MemoryGameType,
+  level: number,
+  excludeVariantId?: string,
+  random: () => number = Math.random,
+) {
   const levelConfig = getGameLevel(gameType, level);
   const recentCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const sameGameHistory = sortNewestFirst(history).filter((entry) => entry.gameType === gameType);
   const recentVariantIds = new Set(
     sameGameHistory
       .filter((entry) => new Date(entry.completedAt).getTime() >= recentCutoff)
-      .map((entry) => entry.variantId),
+      .flatMap((entry) => {
+        const roundVariants = Array.isArray(entry.metadata?.wordRecallVariantIds)
+          ? entry.metadata.wordRecallVariantIds.filter((value): value is string => typeof value === "string")
+          : [];
+        return [entry.variantId, ...roundVariants];
+      }),
   );
 
   const availableVariants = levelConfig.variants.filter((variant) => variant.id !== excludeVariantId);
-  const unusedRecentVariant = availableVariants.find((variant) => !recentVariantIds.has(variant.id));
+  const unusedRecentVariants = availableVariants.filter((variant) => !recentVariantIds.has(variant.id));
+  const unusedRecentVariant = pickRandomVariant(unusedRecentVariants, random);
   if (unusedRecentVariant) return unusedRecentVariant;
 
   const lastPlayedAt = new Map<string, number>();
@@ -127,13 +151,10 @@ export function pickNextVariantForSameGame(history: GameResult[], gameType: Memo
     }
   });
 
-  return (
-    [...availableVariants].sort((a, b) => {
-      const timeA = lastPlayedAt.get(a.id) ?? 0;
-      const timeB = lastPlayedAt.get(b.id) ?? 0;
-      return timeA - timeB;
-    })[0] ?? levelConfig.variants[0]
-  );
+  const oldestPlayedAt = Math.min(...availableVariants.map((variant) => lastPlayedAt.get(variant.id) ?? 0));
+  const leastRecentlyPlayed = availableVariants.filter((variant) => (lastPlayedAt.get(variant.id) ?? 0) === oldestPlayedAt);
+
+  return pickRandomVariant(leastRecentlyPlayed, random) ?? levelConfig.variants[0];
 }
 
 function getNextDomain(lastDomain?: CognitiveDomain): CognitiveDomain {

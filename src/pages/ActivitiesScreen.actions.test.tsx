@@ -57,13 +57,13 @@ const labels: Record<string, string> = {
   "activities.primary.intelligenceSub": "Challenge logic, planning, and problem solving.",
   "activities.primary.senses": "Sharpen Senses",
   "activities.primary.sensesSub": "Reset with sound, breath, and calm attention.",
-  "mindMemory.cards.strengthenMemory": "Remember",
+  "mindMemory.cards.strengthenMemory": "Boost Memory",
   "mindMemory.cards.strengthenMemoryDetail": "Recall people, places, words, numbers, and future cues.",
-  "mindMemory.cards.trainReflexes": "Focus & React",
+  "mindMemory.cards.trainReflexes": "Sharpen Focus",
   "mindMemory.cards.trainReflexesDetail": "Stay attentive, react, and keep pace.",
   "mindMemory.cards.improveThinking": "Think & Plan",
   "mindMemory.cards.improveThinkingDetail": "Plan, sort, switch rules, and solve sequences.",
-  "mindMemory.cards.sharpenSenses": "Calm & Notice",
+  "mindMemory.cards.sharpenSenses": "Find Calm",
   "mindMemory.cards.sharpenSensesDetail": "Slow down, breathe, and reconnect with sensory memory.",
   "activities.quick.kicker": "Brain Coach",
   "activities.quick.relax": "Relax & Breathe",
@@ -146,10 +146,10 @@ describe("Activities service actions", () => {
       autoStartVoice: false,
       voiceAgentSlug: "brain-coach",
     }));
-    expect(screen.getByTestId("button-activities-primary-memory")).toHaveTextContent("Remember");
-    expect(screen.getByTestId("button-activities-primary-reflexes")).toHaveTextContent("Focus & React");
+    expect(screen.getByTestId("button-activities-primary-memory")).toHaveTextContent("Boost Memory");
+    expect(screen.getByTestId("button-activities-primary-reflexes")).toHaveTextContent("Sharpen Focus");
     expect(screen.getByTestId("button-activities-primary-intelligence")).toHaveTextContent("Think & Plan");
-    expect(screen.getByTestId("button-activities-primary-senses")).toHaveTextContent("Calm & Notice");
+    expect(screen.getByTestId("button-activities-primary-senses")).toHaveTextContent("Find Calm");
 
     const quickActions = screen.getByTestId("activities-quick-actions");
     expect(quickActions).toHaveTextContent("Brain Coach");

@@ -2,10 +2,8 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   Check,
   CircleHelp,
-  Mic,
   RotateCcw,
   Route,
-  Type,
 } from "lucide-react";
 import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useBrainCoachNavigate as useNavigate } from "@/hooks/useBrainCoachNavigate";
@@ -136,15 +134,18 @@ type CompletionMetrics = {
 };
 
 type CompletionDetails = {
-  rememberedWords?: string[];
   correctWords?: string[];
+  incorrectWords?: string[];
   missedWords?: string[];
   expectedAnswer?: string;
   givenAnswer?: string;
   cueLabel?: string;
+  rememberedCount?: number;
+  totalWordCount?: number;
 };
 
 type WordRecallDistractionType = "count_backwards" | "choose_blue" | "breathe_continue";
+type WordRecallRoundResult = ReturnType<typeof scoreWordRecallChoices>;
 type MemoryCompanionMessageKind =
   | "start"
   | "keepGoing"
@@ -236,13 +237,6 @@ function wordsMatch(candidate: string, target: string) {
   );
 }
 
-function splitRecallText(value: string) {
-  return value
-    .split(/[,;\n]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
 function dedupeWords(words: string[]) {
   const unique: string[] = [];
   words.forEach((word) => {
@@ -251,6 +245,31 @@ function dedupeWords(words: string[]) {
     }
   });
   return unique;
+}
+
+export function scoreWordRecallChoices(targetWords: string[], selectedWords: string[]) {
+  const rememberedWords = dedupeWords(selectedWords);
+  const correctWords = targetWords.filter((targetWord) =>
+    rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
+  );
+  const wrongWords = rememberedWords.filter(
+    (candidate) => !targetWords.some((targetWord) => wordsMatch(candidate, targetWord)),
+  );
+  const missedWords = targetWords.filter(
+    (targetWord) => !rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
+  );
+  const decisionCount = correctWords.length + wrongWords.length + missedWords.length;
+  const accuracy = Math.round((correctWords.length / Math.max(1, decisionCount)) * 100);
+
+  return {
+    rememberedWords,
+    correctWords,
+    wrongWords,
+    missedWords,
+    accuracy,
+    score: accuracy,
+    mistakes: wrongWords.length + missedWords.length,
+  };
 }
 
 function getPayloadString(payload: Record<string, unknown>, key: string, fallback = "") {
@@ -563,12 +582,11 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const [sequenceStatus, setSequenceStatus] = useState<"idle" | "wrong" | "wait">("idle");
   const [sequencePreviewStep, setSequencePreviewStep] = useState(0);
   const [wordRecallPhase, setWordRecallPhase] = useState<"memorize" | "distraction" | "recall">("memorize");
+  const [wordRecallRoundIndex, setWordRecallRoundIndex] = useState(0);
+  const [wordRecallRoundResults, setWordRecallRoundResults] = useState<WordRecallRoundResult[]>([]);
   const [wordRecallSelectedWords, setWordRecallSelectedWords] = useState<string[]>([]);
-  const [wordRecallTypedWords, setWordRecallTypedWords] = useState<string[]>([]);
-  const [wordRecallInput, setWordRecallInput] = useState("");
   const [wordRecallChoicesSeed, setWordRecallChoicesSeed] = useState(0);
   const [wordRecallMessage, setWordRecallMessage] = useState<string | null>(null);
-  const [wordRecallVoiceMessage, setWordRecallVoiceMessage] = useState<string | null>(null);
   // Built-in narration is retired; explicit VYVA voice sessions are separate.
   const isMemoryAudioMuted = true;
   const [sequenceTutorialSeen, setSequenceTutorialSeen] = useState(() => readSequenceTutorialSeen(userId));
@@ -578,7 +596,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   const sequenceStatusTimeoutRef = useRef<number | null>(null);
   const sequenceProgressRef = useRef(0);
   const lastSequenceTapRef = useRef<{ tileId: string; at: number } | null>(null);
-  const latestWordRecallWordsRef = useRef<string[]>([]);
   const wordRecallNarrationKeyRef = useRef<string>("");
   const wordRecallCommandCooldownRef = useRef(0);
   const isMemoryAudioMutedRef = useRef(isMemoryAudioMuted);
@@ -681,12 +698,11 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       setSequenceCountdown(3);
       setSequenceStatus("idle");
       setWordRecallPhase("memorize");
+      setWordRecallRoundIndex(0);
+      setWordRecallRoundResults([]);
       setWordRecallSelectedWords([]);
-      setWordRecallTypedWords([]);
-      setWordRecallInput("");
       setWordRecallChoicesSeed((current) => current + 1);
       setWordRecallMessage(null);
-      setWordRecallVoiceMessage(null);
       setShowSequenceTutorial(nextPlan.gameType === "sequence_memory" && !readSequenceTutorialSeen(userId));
       const hasSeenVisualMemoryTutorial = readVisualMemoryTutorialSeen(userId);
       setShowVisualMemoryTutorial(
@@ -737,20 +753,35 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     return getVariantContent(variant, language);
   }, [language, variant]);
 
+  const wordRecallRoundContent = useMemo(() => {
+    if (!plan || plan.gameType !== "word_recall") return localizedVariant;
+    const variants = getGameLevel(plan.gameType, plan.level).variants;
+    const startIndex = Math.max(0, variants.findIndex((entry) => entry.id === plan.variantId));
+    const roundVariant = variants[(startIndex + wordRecallRoundIndex) % variants.length] ?? variant;
+    return roundVariant ? getVariantContent(roundVariant, language) : localizedVariant;
+  }, [language, localizedVariant, plan, variant, wordRecallRoundIndex]);
+
+  const wordRecallRoundVariantIds = useMemo(() => {
+    if (!plan || plan.gameType !== "word_recall") return [];
+    const variants = getGameLevel(plan.gameType, plan.level).variants;
+    const startIndex = Math.max(0, variants.findIndex((entry) => entry.id === plan.variantId));
+    return Array.from({ length: Math.min(3, variants.length) }, (_, index) => variants[(startIndex + index) % variants.length].id);
+  }, [plan]);
+
   const wordRecallWords = useMemo(() => {
-    if (!plan || plan.gameType !== "word_recall" || !localizedVariant) return [];
-    return ((localizedVariant.payload.words as string[]) ?? []).filter(Boolean);
-  }, [localizedVariant, plan]);
+    if (!plan || plan.gameType !== "word_recall" || !wordRecallRoundContent) return [];
+    return ((wordRecallRoundContent.payload.words as string[]) ?? []).filter(Boolean);
+  }, [plan, wordRecallRoundContent]);
 
   const wordRecallDistractors = useMemo(() => {
-    if (!plan || plan.gameType !== "word_recall" || !localizedVariant) return [];
-    return ((localizedVariant.payload.distractors as string[]) ?? []).filter(Boolean);
-  }, [localizedVariant, plan]);
+    if (!plan || plan.gameType !== "word_recall" || !wordRecallRoundContent) return [];
+    return ((wordRecallRoundContent.payload.distractors as string[]) ?? []).filter(Boolean);
+  }, [plan, wordRecallRoundContent]);
 
   const wordRecallDistractionType = useMemo(() => {
-    if (!plan || plan.gameType !== "word_recall" || !localizedVariant) return null;
-    return (localizedVariant.payload.distractionType as WordRecallDistractionType | null) ?? null;
-  }, [localizedVariant, plan]);
+    if (!plan || plan.gameType !== "word_recall" || !wordRecallRoundContent) return null;
+    return (wordRecallRoundContent.payload.distractionType as WordRecallDistractionType | null) ?? null;
+  }, [plan, wordRecallRoundContent]);
 
   const wordRecallChoiceWords = useMemo(() => {
     void wordRecallChoicesSeed;
@@ -820,25 +851,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     [companionCopy, finished, language, loading, plan, saving, speakSequence],
   );
 
-  const { isSupported: wordRecallVoiceSupported, isListening: wordRecallListening, startListening: startWordRecallListening } =
-    useSpeechRecognition({
-      language,
-      onTranscript: (transcript) => {
-        const transcriptParts = splitRecallText(transcript.replace(/\s+y\s+|\s+and\s+|\s+et\s+|\s+und\s+|\s+e\s+|\s+ou\s+/gi, ","));
-        const matchedWords = latestWordRecallWordsRef.current.filter((word) =>
-          transcriptParts.some((part) => wordsMatch(part, word)) || wordsMatch(transcript, word),
-        );
-
-        if (matchedWords.length === 0) {
-          setWordRecallVoiceMessage(t("wordRecall.tryAgain"));
-          return;
-        }
-
-        setWordRecallVoiceMessage(dedupeWords(matchedWords).join(", "));
-        setWordRecallSelectedWords((current) => dedupeWords([...current, ...matchedWords]));
-      },
-    });
-
   const {
     isSupported: wordRecallCommandSupported,
     isListening: wordRecallCommandListening,
@@ -889,10 +901,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
       }
     },
   });
-
-  useEffect(() => {
-    latestWordRecallWordsRef.current = wordRecallWords;
-  }, [wordRecallWords]);
 
   useEffect(() => {
     if (plan?.gameType !== "word_recall") return;
@@ -1291,6 +1299,11 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
             durationSeconds: completionMetrics.durationSeconds,
             completedAt: new Date().toISOString(),
             language,
+            metadata: {
+              roundVersion: "word_recall_v2",
+              roundCount: 3,
+              wordRecallVariantIds: wordRecallRoundVariantIds,
+            },
           });
         } finally {
           if (isMountedRef.current) {
@@ -1317,6 +1330,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     sequenceTotalMistakes,
     startedAt,
     userId,
+    wordRecallRoundVariantIds,
   ]);
 
   useEffect(() => {
@@ -1678,18 +1692,24 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     const nextPlayableLevel = getNextPlayableLevel();
     const canOpenNextLevel = nextPlayableLevel > plan.level && finishedAccuracy >= 80;
     const nextLevelLabel = t("brainGames.resultActions.continueToLevel").replace("{level}", String(nextPlayableLevel));
+    const isWordRecallResult = plan.gameType === "word_recall";
+    const wordRecallResultTitle = t("wordRecall.resultTitle")
+      .replace("{{remembered}}", String(completionDetails?.rememberedCount ?? 0))
+      .replace("{{total}}", String(completionDetails?.totalWordCount ?? 0));
 
     return renderBrainRunnerScreen("result", "completion", "modal_actions", (
       <div className="min-h-[100dvh] bg-[#FFF9F1]">
         <BrainGameCompletionDialog
-          title={t("memory.wellDone")}
+          title={isWordRecallResult ? wordRecallResultTitle : t("memory.wellDone")}
           summary={getBrainCoachSupportiveProgressCopy({ advanced: canOpenNextLevel, level: plan.level })}
-          metrics={[
-            { label: t("memory.score"), value: `${score}` },
-            { label: t("memory.accuracy"), value: `${finishedAccuracy}%` },
-            { label: t("memory.mistakes"), value: `${finishedMistakes}` },
-            { label: t("memory.duration"), value: `${durationSeconds}s` },
-          ]}
+          metrics={isWordRecallResult
+            ? [{ label: t("memory.accuracy"), value: `${finishedAccuracy}%` }]
+            : [
+                { label: t("memory.score"), value: `${score}` },
+                { label: t("memory.accuracy"), value: `${finishedAccuracy}%` },
+                { label: t("memory.mistakes"), value: `${finishedMistakes}` },
+                { label: t("memory.duration"), value: `${durationSeconds}s` },
+              ]}
           continueLabel={t("brainGames.resultActions.continue")}
           nextLevelLabel={canOpenNextLevel ? nextLevelLabel : undefined}
           nextLevelDisplayLabel={canOpenNextLevel ? `${t("common.level")} ${nextPlayableLevel}` : undefined}
@@ -1709,24 +1729,24 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
           disabled={actionLoading !== null}
           details={completionDetails && (
             <div className="grid gap-2">
-                {completionDetails.rememberedWords && completionDetails.rememberedWords.length > 0 && (
-                  <div className="rounded-[16px] border border-vyva-border bg-[#F8FAFC] p-2.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.remembered")}</p>
+                {!isWordRecallResult && completionDetails.correctWords && completionDetails.correctWords.length > 0 && (
+                  <div className="rounded-[16px] border border-[#CFE9D9] bg-[#F0FDF4] p-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.correctWords")}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {completionDetails.rememberedWords.map((word) => (
-                        <span key={`remembered-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
+                      {completionDetails.correctWords.map((word) => (
+                        <span key={`correct-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
                           {word}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                {completionDetails.correctWords && completionDetails.correctWords.length > 0 && (
-                  <div className="rounded-[16px] border border-[#CFE9D9] bg-[#F0FDF4] p-2.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.correctWords")}</p>
+                {completionDetails.incorrectWords && completionDetails.incorrectWords.length > 0 && (
+                  <div className="rounded-[16px] border border-[#F3D0D0] bg-[#FFF5F5] p-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.incorrectWords", "Choices to review")}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {completionDetails.correctWords.map((word) => (
-                        <span key={`correct-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
+                      {completionDetails.incorrectWords.map((word) => (
+                        <span key={`incorrect-${word}`} className="rounded-full bg-white px-2.5 py-1.5 text-[13px] font-medium text-vyva-text-1 shadow-sm">
                           {word}
                         </span>
                       ))}
@@ -1863,48 +1883,56 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
   const onWordRecallChipToggle = (word: string) => {
     setWordRecallMessage(null);
-    setWordRecallVoiceMessage(null);
-    setWordRecallSelectedWords((current) =>
-      current.some((entry) => wordsMatch(entry, word))
-        ? current.filter((entry) => !wordsMatch(entry, word))
-        : dedupeWords([...current, word]),
-    );
-  };
-
-  const addTypedRecallWords = () => {
-    const newWords = splitRecallText(wordRecallInput);
-    if (newWords.length === 0) return;
-    setWordRecallTypedWords((current) => dedupeWords([...current, ...newWords]));
-    setWordRecallInput("");
-    setWordRecallMessage(null);
+    setWordRecallSelectedWords((current) => {
+      if (current.some((entry) => wordsMatch(entry, word))) {
+        return current.filter((entry) => !wordsMatch(entry, word));
+      }
+      if (current.length >= wordRecallWords.length) {
+        setWordRecallMessage(t("wordRecall.selectionLimit").replace("{{count}}", String(wordRecallWords.length)));
+        return current;
+      }
+      return dedupeWords([...current, word]);
+    });
   };
 
   const finishWordRecall = () => {
     stopWordRecallAudio();
-    const pendingWords = splitRecallText(wordRecallInput);
-    const rememberedWords = dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords, ...pendingWords]);
-    const correctWords = wordRecallWords.filter((targetWord) =>
-      rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
+    const roundResult = scoreWordRecallChoices(wordRecallWords, wordRecallSelectedWords);
+    const results = [...wordRecallRoundResults, roundResult];
+
+    if (wordRecallRoundIndex < 2) {
+      setWordRecallRoundResults(results);
+      setWordRecallRoundIndex((current) => current + 1);
+      setWordRecallSelectedWords([]);
+      setWordRecallChoicesSeed((current) => current + 1);
+      setWordRecallMessage(null);
+      setWordRecallPhase("memorize");
+      return;
+    }
+
+    const correctWords = dedupeWords(results.flatMap((result) => result.correctWords));
+    const wrongWords = dedupeWords(results.flatMap((result) => result.wrongWords));
+    const missedWords = dedupeWords(results.flatMap((result) => result.missedWords));
+    const correctCount = results.reduce((total, result) => total + result.correctWords.length, 0);
+    const decisionCount = results.reduce(
+      (total, result) => total + result.correctWords.length + result.wrongWords.length + result.missedWords.length,
+      0,
     );
-    const wrongWords = rememberedWords.filter(
-      (candidate) => !wordRecallWords.some((targetWord) => wordsMatch(candidate, targetWord)),
-    );
-    const missedWords = wordRecallWords.filter(
-      (targetWord) => !rememberedWords.some((candidate) => wordsMatch(candidate, targetWord)),
-    );
-    const accuracy = Math.round((correctWords.length / Math.max(1, wordRecallWords.length)) * 100);
-    const score = Math.round((correctWords.length / Math.max(1, wordRecallWords.length)) * 100);
+    const mistakes = results.reduce((total, result) => total + result.mistakes, 0);
+    const accuracy = Math.round((correctCount / Math.max(1, decisionCount)) * 100);
     const nextDurationSeconds = getDurationSeconds(startedAt);
 
     setCompletionDetails({
-      rememberedWords,
       correctWords,
+      incorrectWords: wrongWords,
       missedWords,
+      rememberedCount: correctCount,
+      totalWordCount: results.reduce((total, result) => total + result.correctWords.length + result.missedWords.length, 0),
     });
     setCompletionMetrics({
-      score,
+      score: accuracy,
       accuracy,
-      mistakes: wrongWords.length,
+      mistakes,
       durationSeconds: nextDurationSeconds,
     });
   };
@@ -1927,18 +1955,6 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
     speakCompanion("recall", `${plan.variantId}-distraction`);
   };
 
-  const startWordRecallVoice = () => {
-    setWordRecallVoiceMessage(null);
-    if (!wordRecallVoiceSupported) {
-      setWordRecallVoiceMessage(t("wordRecall.voiceNotSupported"));
-      return;
-    }
-    const started = startWordRecallListening();
-    if (!started) {
-      setWordRecallVoiceMessage(t("wordRecall.voiceNotSupported"));
-    }
-  };
-
   const onWordRecallBlueChoice = (choice: "blue" | "other") => {
     if (choice === "blue") {
       completeWordRecallDistraction();
@@ -1948,33 +1964,33 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
   };
 
   if (plan.gameType === "word_recall") {
-    const rememberedCount = dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords]).length;
-
     return renderBrainRunnerScreen(`word_recall_${wordRecallPhase}`, "playing", `word_recall_${wordRecallPhase}`, (
       <div className="mx-auto w-full max-w-[760px] px-4 pb-4 pt-2">
         <section className="py-4 sm:py-5" data-testid="word-recall-stage">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-[#FFF3C4] px-4 py-2 text-[14px] font-bold text-[#92400E]">{currentLevelLabel}</span>
-            <span className="text-[14px] font-medium text-vyva-text-2">
-              {wordRecallPhase === "recall"
-                ? `${t("wordRecall.remembered")} ${rememberedCount}/${wordRecallWords.length}`
-                : `${wordRecallWords.length} ${t("memory.words", "words")}`}
+            <span className="text-[14px] font-semibold text-vyva-text-2">
+              {t("wordRecall.roundProgress")
+                .replace("{{round}}", String(wordRecallRoundIndex + 1))
+                .replace("{{total}}", "3")}
             </span>
           </div>
 
           <h2 className="mt-5 font-display text-[30px] font-normal leading-tight tracking-normal text-vyva-text-1">
             {wordRecallPhase === "memorize"
-              ? t("wordRecall.memorizeLabel")
+              ? t("wordRecall.memorizeLabel").replace("{{count}}", String(wordRecallWords.length))
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionTitle")
-                : t("wordRecall.recall")}
+                : t("wordRecall.recallInstruction").replace("{{count}}", String(wordRecallWords.length))}
           </h2>
           <p className="mt-2 text-[16px] font-normal leading-relaxed text-vyva-text-2">
             {wordRecallPhase === "memorize"
               ? t("wordRecall.studyHint")
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionInstruction")
-                : t("wordRecall.recallInstruction")}
+                : wordRecallSelectedWords.length < wordRecallWords.length
+                  ? t("wordRecall.chooseRemaining").replace("{{count}}", String(wordRecallWords.length - wordRecallSelectedWords.length))
+                  : t("wordRecall.selectionReady")}
           </p>
 
           {voiceGameContextPanel}
@@ -2048,98 +2064,40 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
           {wordRecallPhase === "recall" && (
             <>
-              <div className="mt-4">
-                <p className="mt-2 text-[15px] leading-[1.5] text-vyva-text-2">{t("wordRecall.selectRememberedWords")}</p>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3">
-                <button
-                  onClick={startWordRecallVoice}
-                  disabled={wordRecallListening}
-                  className="flex w-full items-center justify-between rounded-[20px] bg-vyva-purple px-4 py-4 text-left text-white shadow-vyva-card sm:px-5 sm:py-5"
-                >
-                  <div>
-                    <p className="text-[18px] font-semibold sm:text-[20px]">{t("wordRecall.speakWords")}</p>
-                    <p className="mt-1 text-[15px] text-white/85">
-                      {wordRecallListening ? t("wordRecall.listening") : t("wordRecall.speakWordsHint", "Tap to speak remembered words.")}
-                    </p>
-                  </div>
-                  <Mic size={24} />
-                </button>
-
-                {!wordRecallVoiceSupported && (
-                  <div className="rounded-[16px] border border-vyva-border bg-white px-4 py-3 text-[15px] text-vyva-text-2">
-                    {t("wordRecall.voiceNotSupported")}
-                  </div>
-                )}
-
-                {wordRecallVoiceMessage && (
-                  <div className="rounded-[16px] border border-[#D8C7F3] bg-[#FAF7FF] px-4 py-3 text-[15px] font-medium text-vyva-text-1">
-                    {wordRecallVoiceMessage}
-                  </div>
-                )}
-
-                <div className="rounded-[18px] border border-vyva-border bg-white p-4 shadow-vyva-card sm:rounded-[20px]">
-                  <div className="flex items-center gap-2 text-vyva-text-1">
-                    <Type size={18} />
-                    <span className="text-[16px] font-semibold">{t("wordRecall.remembered")}</span>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                    <input
-                      value={wordRecallInput}
-                      onChange={(event) => setWordRecallInput(event.target.value)}
-                      placeholder={t("wordRecall.typeWordsPlaceholder")}
-                      className="min-h-[56px] flex-1 rounded-[16px] border border-vyva-border px-4 text-[17px] text-vyva-text-1 outline-none"
-                    />
-                    <button
-                      onClick={addTypedRecallWords}
-                      className="min-h-[52px] rounded-[16px] border border-[#D8C7F3] bg-[#FAF7FF] px-5 text-[16px] font-semibold text-vyva-purple"
-                    >
-                      {t("wordRecall.addWord")}
-                    </button>
-                  </div>
+              {wordRecallMessage && (
+                <div role="status" className="mt-3 rounded-[16px] border border-[#E6DEE9] bg-white px-4 py-3 text-[15px] font-medium text-vyva-text-1">
+                  {wordRecallMessage}
                 </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2.5">
+              )}
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {wordRecallChoiceWords.map((word) => {
                   const selected = wordRecallSelectedWords.some((entry) => wordsMatch(entry, word));
                   return (
                     <button
                       key={word}
                       onClick={() => onWordRecallChipToggle(word)}
-                      className="rounded-full border px-4 py-2.5 text-[16px] font-medium shadow-sm transition-all"
+                      aria-pressed={selected}
+                      className="flex min-h-[58px] items-center justify-between rounded-[16px] border px-4 text-left text-[16px] font-semibold shadow-sm transition-all"
                       style={{
-                        background: selected ? "#6B21A8" : "#FFFFFF",
-                        color: selected ? "#FFFFFF" : "#2B2233",
-                        borderColor: selected ? "#6B21A8" : "#D8C7F3",
+                        background: selected ? "#F1E7FF" : "#FFFFFF",
+                        color: selected ? "#6B21A8" : "#2B2233",
+                        borderColor: selected ? "#7C3AED" : "#E6DEE9",
+                        boxShadow: selected ? "inset 0 0 0 1px #7C3AED" : undefined,
                       }}
                     >
-                      {word}
+                      <span>{word}</span>
+                      {selected ? <Check size={18} aria-hidden="true" /> : null}
                     </button>
                   );
                 })}
               </div>
-
-              {(wordRecallSelectedWords.length > 0 || wordRecallTypedWords.length > 0) && (
-                <div className="mt-5 rounded-[20px] border border-vyva-border bg-[#F8FAFC] p-4">
-                  <p className="text-[13px] font-semibold uppercase tracking-[0.05em] text-vyva-text-2">{t("wordRecall.remembered")}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {dedupeWords([...wordRecallSelectedWords, ...wordRecallTypedWords]).map((word) => (
-                      <span key={`selected-${word}`} className="rounded-full bg-white px-3 py-2 text-[15px] font-medium text-vyva-text-1 shadow-sm">
-                        {word}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <button
                 onClick={finishWordRecall}
                 disabled={saving}
                 className="mt-4 min-h-[56px] w-full rounded-[18px] bg-vyva-purple px-5 text-[18px] font-semibold text-white shadow-vyva-card disabled:opacity-60 sm:rounded-[22px] sm:text-[20px]"
               >
-                {t("wordRecall.continueButton")}
+                {wordRecallRoundIndex < 2 ? t("wordRecall.nextRound") : t("wordRecall.seeResults")}
               </button>
             </>
           )}

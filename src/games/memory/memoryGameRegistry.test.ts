@@ -93,6 +93,36 @@ describe("memory game registry", () => {
     expect(memoryGameRegistry.number_memory.levels.every((level) => level.variants.length === 12)).toBe(true);
   });
 
+  it("changes Word Recall content across levels and variants", () => {
+    const levels = memoryGameRegistry.word_recall.levels;
+    const firstVariantSignatures = levels.map((level) => getWordRecallSignature(level.variants[0]));
+
+    firstVariantSignatures.slice(1).forEach((signature, index) => {
+      expect(signature).not.toBe(firstVariantSignatures[index]);
+    });
+
+    levels.forEach((level) => {
+      const signatures = level.variants.map(getWordRecallSignature);
+      expect(new Set(signatures).size).toBe(signatures.length);
+    });
+  });
+
+  it("increases the Word Recall load across Foundation levels", () => {
+    const wordCounts = memoryGameRegistry.word_recall.levels
+      .slice(0, 5)
+      .map((level) => (level.variants[0].content.en?.payload.words as string[]).length);
+
+    expect(wordCounts).toEqual([3, 4, 5, 6, 6]);
+  });
+
+  it("uses category-matched Word Recall distractors", () => {
+    const clothingRound = memoryGameRegistry.word_recall.levels[13].variants[0].content.en?.payload;
+
+    expect(clothingRound?.words).toEqual(expect.arrayContaining(["sock", "glove", "scarf"]));
+    expect(clothingRound?.distractors).toEqual(expect.arrayContaining(["trousers", "jacket", "cap"]));
+    expect(clothingRound?.distractors).not.toContain("train");
+  });
+
   it("localizes every Connections variant in all supported languages", () => {
     const languages = ["en", "es", "fr", "de", "it", "pt"] as const;
     memoryGameRegistry.association_memory.levels.forEach((level) => {
@@ -129,4 +159,9 @@ function getPairSignature(variant: MemoryGameVariant) {
   const pairs = (content.payload.pairItems as Array<{ emoji: string; label: string }>) ?? [];
 
   return pairs.map((item) => `${item.emoji}:${item.label}`).join("|");
+}
+
+function getWordRecallSignature(variant: MemoryGameVariant) {
+  const content = variant.content.en ?? variant.content.es;
+  return ((content.payload.words as string[]) ?? []).join("|");
 }

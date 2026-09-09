@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
 import { getGameHistory, saveGameResult } from "./gameStorage";
 import type { GameResult } from "./types";
-import MemoryGameRunner from "./MemoryGameRunner";
+import MemoryGameRunner, { scoreWordRecallChoices } from "./MemoryGameRunner";
 
 const mocks = vi.hoisted(() => ({
   speakSequence: vi.fn(),
@@ -114,15 +114,40 @@ async function completeLevelOneVisualMemoryBoard() {
 }
 
 describe("MemoryGameRunner word recall", () => {
+  it("penalizes selecting distractors instead of awarding full accuracy", () => {
+    expect(scoreWordRecallChoices(
+      ["bread", "milk", "cheese"],
+      ["bread", "milk", "cheese", "table", "coat", "door", "dog"],
+    )).toMatchObject({
+      accuracy: 43,
+      score: 43,
+      mistakes: 4,
+    });
+  });
+
   it("never narrates Word Recall even when the saved audio preference is enabled", async () => {
     window.localStorage.setItem("vyva_memory_audio_muted", "false");
     renderWordRecall();
     await screen.findByRole("button", { name: "Hide words" });
+    expect(screen.getByRole("heading", { name: "Remember 3 words" })).toBeInTheDocument();
+    expect(screen.queryByText("{{count}}", { exact: false })).not.toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(mocks.speakSequence).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Hide words" }));
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(mocks.speakSequence).not.toHaveBeenCalled();
+  });
+
+  it("caps recall choices at the number of studied words", async () => {
+    renderWordRecall();
+    fireEvent.click(await screen.findByRole("button", { name: /hide words/i }));
+    for (const word of ["bread", "milk", "cheese"]) {
+      fireEvent.click(await screen.findByRole("button", { name: word }));
+    }
+    fireEvent.click(await screen.findByRole("button", { name: "soup" }));
+
+    expect(screen.getByText("Choose no more than 3 words.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "soup" })).toHaveAttribute("aria-pressed", "false");
   });
   beforeEach(() => {
     setLanguage("en");
@@ -143,16 +168,27 @@ describe("MemoryGameRunner word recall", () => {
     renderWordRecall();
 
     fireEvent.click(await screen.findByRole("button", { name: /hide words/i }));
+    expect(screen.getByRole("heading", { name: "Which 3 words do you remember?" })).toBeInTheDocument();
+    expect(screen.queryByText("0/3")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "bread" }));
     fireEvent.click(await screen.findByRole("button", { name: "milk" }));
     fireEvent.click(await screen.findByRole("button", { name: "cheese" }));
 
-    const continueButton = screen.getByRole("button", { name: "Continue" });
-    expect(continueButton).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next round" }));
 
-    fireEvent.click(continueButton);
+    fireEvent.click(await screen.findByRole("button", { name: /hide words/i }));
+    for (const word of ["table", "chair", "lamp"]) {
+      fireEvent.click(await screen.findByRole("button", { name: word }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Next round" }));
 
-    expect(await screen.findByText("Well done")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /hide words/i }));
+    for (const word of ["bird", "fish", "horse"]) {
+      fireEvent.click(await screen.findByRole("button", { name: word }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "See results" }));
+
+    expect(await screen.findByText("You remembered 9 of 9")).toBeInTheDocument();
     expect(screen.getByText(/building the base/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue to Level 2" })).not.toBeDisabled();
     expect(saveGameResult).toHaveBeenCalledWith(expect.objectContaining({
@@ -161,6 +197,7 @@ describe("MemoryGameRunner word recall", () => {
       cognitiveDomain: "episodic_memory",
       variantId: "word_recall-l1-v1",
       language: "en",
+      metadata: expect.objectContaining({ roundVersion: "word_recall_v2", roundCount: 3 }),
     }));
   });
 
