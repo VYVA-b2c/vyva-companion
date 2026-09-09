@@ -129,6 +129,8 @@ describe("MemoryGameRunner word recall", () => {
     window.localStorage.setItem("vyva_memory_audio_muted", "false");
     renderWordRecall();
     await screen.findByRole("button", { name: "Hide words" });
+    expect(screen.getByRole("heading", { name: "Remember 3 words" })).toBeInTheDocument();
+    expect(screen.queryByText("{{count}}", { exact: false })).not.toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(mocks.speakSequence).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Hide words" }));

@@ -1922,7 +1922,7 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
 
           <h2 className="mt-5 font-display text-[30px] font-normal leading-tight tracking-normal text-vyva-text-1">
             {wordRecallPhase === "memorize"
-              ? t("wordRecall.memorizeLabel", { count: wordRecallWords.length })
+              ? t("wordRecall.memorizeLabel").replace("{{count}}", String(wordRecallWords.length))
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionTitle")
                 : t("wordRecall.recallInstruction")}
