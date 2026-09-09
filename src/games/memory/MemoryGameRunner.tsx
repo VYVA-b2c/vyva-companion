@@ -1915,16 +1915,14 @@ const MemoryGameRunner = ({ forcedGameType, returnPath }: MemoryGameRunnerProps)
         <section className="py-4 sm:py-5" data-testid="word-recall-stage">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-[#FFF3C4] px-4 py-2 text-[14px] font-bold text-[#92400E]">{currentLevelLabel}</span>
-            <span className="text-[14px] font-medium text-vyva-text-2">
-              {wordRecallPhase === "recall"
-                ? `${rememberedCount}/${wordRecallWords.length}`
-                : `${wordRecallWords.length} ${t("memory.words", "words")}`}
-            </span>
+            {wordRecallPhase === "recall" && (
+              <span className="text-[14px] font-medium text-vyva-text-2">{rememberedCount}/{wordRecallWords.length}</span>
+            )}
           </div>
 
           <h2 className="mt-5 font-display text-[30px] font-normal leading-tight tracking-normal text-vyva-text-1">
             {wordRecallPhase === "memorize"
-              ? t("wordRecall.memorizeLabel")
+              ? t("wordRecall.memorizeLabel", { count: wordRecallWords.length })
               : wordRecallPhase === "distraction"
                 ? t("wordRecall.distractionTitle")
                 : t("wordRecall.recallInstruction")}

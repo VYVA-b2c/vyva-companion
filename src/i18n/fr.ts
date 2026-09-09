@@ -1134,7 +1134,7 @@ const fr = {
   },
   wordRecall: {
     memorizeInstruction: "Lisez ces mots calmement et memorisez-les.",
-    memorizeLabel: "Memorisez les mots",
+    memorizeLabel: "Mémorisez {{count}} mots",
     readyButton: "Je suis pret",
     recallInstruction: "Quels mots vous rappelez-vous ?",
     selectRememberedWords: "Choisissez tous les mots dont vous vous souvenez.",

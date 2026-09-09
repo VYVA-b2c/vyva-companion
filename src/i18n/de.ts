@@ -889,7 +889,7 @@ const de = {
   },
   wordRecall: {
     memorizeInstruction: "Lesen Sie diese Worter in Ruhe und merken Sie sie sich.",
-    memorizeLabel: "Worter merken",
+    memorizeLabel: "{{count}} Wörter merken",
     readyButton: "Ich bin bereit",
     recallInstruction: "An welche Wörter erinnern Sie sich?",
     selectRememberedWords: "Wählen Sie alle Wörter, an die Sie sich erinnern.",

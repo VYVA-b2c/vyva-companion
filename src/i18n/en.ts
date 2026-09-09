@@ -1293,7 +1293,7 @@
   },
   wordRecall: {
     memorizeInstruction: "Read these words calmly and try to remember them.",
-    memorizeLabel: "Remember words",
+    memorizeLabel: "Remember {{count}} words",
     studyHint: "Study the words. Hide them when you are ready.",
     studyListHint: "Read each word once or twice. No rush.",
     readyButton: "I'm ready",
